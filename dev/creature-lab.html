@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Creature lab · SynapseCore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/app.css">
+  <style>
+    /* The app locks the page to the viewport; the lab scrolls */
+    html, body { height: auto; }
+    body { display: block; overflow: auto; padding: 0 0 48px; }
+    .lab-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 20px; background: rgba(10, 22, 25, 0.94); border-bottom: 1px solid var(--line); }
+    .lab-head h1 { font-family: var(--display); font-weight: 650; font-size: 20px; margin: 0 12px 0 0; }
+    .lab-head h1 span { color: var(--accent); }
+    .lab-head label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+    #benchOut { font: 12.5px/1.3 var(--mono); color: var(--accent); }
+    main { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+    section { margin-top: 22px; }
+    section h2 { font-size: 17px; margin-bottom: 4px; }
+    section p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+    canvas.scene { display: block; width: 100%; border-radius: var(--r-md); border: 1px solid var(--line); touch-action: none; }
+    #stages { height: 330px; }
+    #closeup { height: 300px; }
+    #states { height: 430px; }
+    #motion { height: 560px; }
+    #portraits { height: 290px; }
+    #night { height: 260px; }
+    #variety { height: 300px; }
+    #extremes { height: 330px; }
+  </style>
+</head>
+<body>
+  <header class="lab-head">
+    <h1>Creature <span>lab</span></h1>
+    <button class="btn" id="rerollBtn">Reroll looks</button>
+    <button class="btn" id="pauseBtn" aria-pressed="false">Pause</button>
+    <label><input type="checkbox" id="boundsChk"> Show picking bounds</label>
+    <button class="btn" id="benchBtn">Benchmark 20 × 600</button>
+    <span id="benchOut"></span>
+  </header>
+  <main>
+    <section>
+      <h2>Life stages</h2>
+      <p>Baby → senile, female (top) and male (bottom), random genomes. Hover to highlight, click to focus.</p>
+      <canvas class="scene" id="stages"></canvas>
+    </section>
+    <section>
+      <h2>Close-up</h2>
+      <p>Zoom 4.5: an adult of each sex, a baby, and a walk cycle in place.</p>
+      <canvas class="scene" id="closeup"></canvas>
+    </section>
+    <section>
+      <h2>States</h2>
+      <p>Every state flag of the pose, one adult each (flinch replays every second or so).</p>
+      <canvas class="scene" id="states"></canvas>
+    </section>
+    <section>
+      <h2>Motion</h2>
+      <p>Walking, running and jumping, both directions, at camera zoom 0.6, 1 and 2.5.</p>
+      <canvas class="scene" id="motion"></canvas>
+    </section>
+    <section>
+      <h2>Portraits</h2>
+      <p><code>drawPortrait</code> at 160, 72 and 48 px. Cards under 100 px frame the face (<code>'auto'</code>); the last two compare <code>'body'</code> and <code>'face'</code> at 72 px.</p>
+      <canvas class="scene" id="portraits"></canvas>
+    </section>
+    <section>
+      <h2>Night</h2>
+      <p>Readability on a dark background.</p>
+      <canvas class="scene" id="night"></canvas>
+    </section>
+    <section>
+      <h2>Variety</h2>
+      <p>Sixteen random adult genomes.</p>
+      <canvas class="scene" id="variety"></canvas>
+    </section>
+    <section>
+      <h2>Gene extremes</h2>
+      <p>Each shape gene at 0 (top) and 1 (bottom), all other genes at 0.5.</p>
+      <canvas class="scene" id="extremes"></canvas>
+    </section>
+  </main>
+
+  <script src="../src/core/evo.js"></script>
+  <script src="../src/render/theme.js"></script>
+  <script src="../src/render/canvas.js"></script>
+  <script src="../src/render/creature-art.js"></script>
+  <script src="creature-lab.js"></script>
+</body>
+</html>

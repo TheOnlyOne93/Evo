@@ -13,62 +13,53 @@
   <header class="topbar">
     <div class="wordmark">Synapse<span>Core</span></div>
     <div class="status" aria-live="polite">
-      <span class="chip"><b id="statPop">0</b> creatures</span>
+      <span class="chip"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:00</span></span>
+      <span class="chip"><b id="statSeason">Spring</b></span>
+      <span class="chip"><b id="statPop">0</b> living</span>
       <span class="chip">gen <b id="statGen">1</b></span>
-      <span class="chip" id="statSeason">Temperate</span>
     </div>
     <button id="soundBtn" class="icon-btn" aria-label="Turn sound on" title="Sound">🔇</button>
   </header>
 
   <div id="stage">
     <main id="arena">
-      <canvas id="terrariumCanvas" aria-label="Terrarium. Tap a creature to follow it, or tap empty ground to drop the selected item."></canvas>
+      <canvas id="worldCanvas" aria-label="The world. Tap a creature to follow it; drag to carry things; pick a tool below to tickle, slap or drop things."></canvas>
 
       <div id="creatureCard" class="float">
-        <button class="card-head" id="cardToggle" aria-expanded="true">
-          <span class="sex-dot" id="cardSex"></span>
-          <span class="card-title" id="cardName">Creature</span>
-          <span class="card-sub" id="cardGen">gen 1</span>
-          <span class="chev" aria-hidden="true">▾</span>
-        </button>
-        <div class="doing" id="cardDoing">Drifting</div>
-        <div class="mini-bars">
-          <div class="mini"><span>Energy</span><div class="track"><div class="fill" id="miniEnergy" style="background:var(--energy)"></div></div><span class="num" id="miniEnergyN">0</span></div>
-          <div class="mini"><span>Protein</span><div class="track"><div class="fill" id="miniProtein" style="background:var(--protein)"></div></div><span class="num" id="miniProteinN">0</span></div>
-          <div class="mini"><span>Water</span><div class="track"><div class="fill" id="miniWater" style="background:var(--water)"></div></div><span class="num" id="miniWaterN">0</span></div>
+        <div class="card-top">
+          <canvas id="portrait" aria-hidden="true"></canvas>
+          <div class="card-id">
+            <div class="card-name-row"><span class="sex-glyph" id="cardSex"></span><span class="card-title" id="cardName">Nobody</span></div>
+            <div class="card-sub" id="cardSub"></div>
+            <div class="doing" id="cardDoing"></div>
+          </div>
+          <button class="icon-btn small" id="cardToggle" aria-expanded="true" aria-label="Show or hide details"><span class="chev">▾</span></button>
         </div>
         <div class="card-more">
-          <div>Age <b id="cardAge">0:00</b> of <b id="cardLife">0:00</b></div>
-          <div>Feeling <b id="cardMood">calm</b></div>
-          <div>Sees food on <b id="cardSees">0</b> of <span id="cardRays">7</span> rays</div>
-          <div>Meals eaten <b id="cardMeals">0</b></div>
+          <div class="bars compact-bars" id="cardDrives"></div>
+          <div class="row-btns">
+            <button class="btn small" id="followBtn" aria-pressed="true">Following</button>
+            <button class="btn small primary" id="insideBtn">Inside view</button>
+          </div>
         </div>
       </div>
 
+      <div id="strip" class="float" aria-label="Everyone in the world"></div>
+
       <div id="playback" class="float" role="group" aria-label="Playback">
-        <button class="seg" id="pauseBtn" aria-label="Pause" aria-pressed="false">⏸</button>
+        <button class="seg" id="pauseBtn" aria-label="Pause" aria-pressed="false">❚❚</button>
         <button class="seg" data-speed="1" aria-pressed="true">1×</button>
         <button class="seg" data-speed="2" aria-pressed="false">2×</button>
         <button class="seg" data-speed="4" aria-pressed="false">4×</button>
+        <button class="seg" data-speed="8" aria-pressed="false">8×</button>
         <span class="divider"></span>
-        <button class="seg" id="scentBtn" aria-pressed="true" title="Show scent in the water">Scent</button>
+        <button class="seg" id="scentBtn" aria-pressed="false" title="Show the scents in the air">Scent</button>
       </div>
 
-      <div id="toolbar" class="float" role="toolbar" aria-label="Tap the map to drop">
-        <span class="tool-label">Drop</span>
-        <button class="tool" data-tool="carb" aria-pressed="true"><span class="swatch" style="background:var(--fruit)"></span>Fruit</button>
-        <button class="tool" data-tool="starch" aria-pressed="false"><span class="swatch" style="background:var(--grain)"></span>Grain</button>
-        <button class="tool" data-tool="water" aria-pressed="false"><span class="swatch" style="background:var(--water)"></span>Dew</button>
-        <button class="tool" data-tool="grub" aria-pressed="false" title="Beetle larvae: protein that can't run away"><span class="swatch" style="background:var(--grub)"></span>Grub</button>
-        <button class="tool" data-tool="bug" aria-pressed="false" title="Protein that runs away"><span class="swatch" style="background:var(--protein)"></span>Bug</button>
-        <button class="tool" data-tool="deceptive" aria-pressed="false" title="Looks and smells like fruit, but it's poisonous"><span class="swatch" style="background:var(--fruit);box-shadow:inset 0 0 0 3px var(--mimic-spot)"></span>Mimic</button>
-        <button class="tool" data-tool="thorn" aria-pressed="false" title="Hurts on contact"><span class="swatch" style="background:var(--toxin)"></span>Thorns</button>
-        <button class="tool" data-tool="pheromone" aria-pressed="false" title="Female scent lure. Attracts males, can't be eaten"><span class="swatch" style="background:var(--female)"></span>Lure</button>
-        <span class="divider"></span>
-        <button class="tool" id="addFemaleBtn"><span style="color:var(--female)">♀</span>Add female</button>
-        <button class="tool" id="addMaleBtn"><span style="color:var(--male)">♂</span>Add male</button>
-        <button class="tool" id="seasonBtn">Next season</button>
-        <button class="tool" id="clearFoodBtn">Clear food</button>
+      <div id="log" aria-live="polite"></div>
+
+      <div id="toolbar" class="float" role="toolbar" aria-label="Hand and things to drop">
+        <div id="toolTray"></div>
       </div>
 
       <div id="toast" class="float hidden" role="status" aria-live="polite"></div>
@@ -80,110 +71,129 @@
       <div id="sheetHandle" role="button" tabindex="0" aria-label="Drag or tap to resize the inside view"><span></span></div>
       <div id="labInner">
         <nav class="tabs" role="tablist">
-          <button class="tab" role="tab" data-deck="brain" aria-selected="true">🧠<span class="tab-text">Brain</span></button>
-          <button class="tab" role="tab" data-deck="body" aria-selected="false">🫀<span class="tab-text">Body</span></button>
+          <button class="tab" role="tab" data-deck="body" aria-selected="true">🫀<span class="tab-text">Body</span></button>
+          <button class="tab" role="tab" data-deck="brain" aria-selected="false">🧠<span class="tab-text">Brain</span></button>
           <button class="tab" role="tab" data-deck="genes" aria-selected="false">🧬<span class="tab-text">Genes</span></button>
-          <button class="tab" role="tab" data-deck="population" aria-selected="false">🌿<span class="tab-text">Population</span></button>
+          <button class="tab" role="tab" data-deck="family" aria-selected="false">🌳<span class="tab-text">Family</span></button>
+          <button class="tab" role="tab" data-deck="world" aria-selected="false">🌿<span class="tab-text">World</span></button>
           <button class="icon-btn" id="labCloseBtn" aria-label="Close inside view">✕</button>
         </nav>
 
-        <!-- Brain -->
-        <div class="deck" id="deck-brain" role="tabpanel">
-          <div class="deck-intro">
-            <h2>Brain</h2>
-            <p>Seen from above, head to the right. Tap any neuron to see what it connects to.</p>
+        <p class="empty no-creature deck-empty">Nobody is being followed. Tap a creature in the world.</p>
+
+        <!-- Body -->
+        <div class="deck" id="deck-body" role="tabpanel">
+          <div class="deck-intro needs-creature">
+            <h2>Body</h2>
+            <p class="life-line" id="lifeLine"></p>
           </div>
-          <div class="brain-frame"><canvas id="brainCanvas" aria-label="Brain map"></canvas></div>
-          <div class="legend">
-            <span><i style="background:var(--pulse)"></i>pulses travelling</span>
+          <section class="block needs-creature"><h3>Drives</h3>
+            <p class="note">Chemicals made by its body. A drive rises when a need goes unmet; relief turns it into reward.</p>
+            <div class="bars two-col" id="barsDrives"></div>
+          </section>
+          <section class="block needs-creature"><h3>The last two minutes</h3>
+            <div class="chart-frame"><canvas id="historyCanvas" aria-label="Drive history"></canvas></div>
+            <div class="legend" id="historyLegend"></div>
+          </section>
+          <section class="block needs-creature"><h3>Feelings</h3>
+            <p class="note">Reward and punishment are what the brain learns from.</p>
+            <div class="bars" id="barsFeelings"></div>
+          </section>
+          <section class="block needs-creature"><h3>Vitals</h3><div class="bars" id="barsVitals"></div></section>
+          <section class="block needs-creature"><h3>Food and water</h3><div class="bars two-col" id="barsNutrients"></div></section>
+          <section class="block needs-creature"><h3>Hormones</h3><div class="bars two-col" id="barsHormones"></div></section>
+          <section class="block needs-creature"><h3>Other chemicals</h3><div class="bars" id="barsOther"></div></section>
+        </div>
+
+        <!-- Brain -->
+        <div class="deck hidden" id="deck-brain" role="tabpanel">
+          <div class="deck-intro needs-creature">
+            <h2>Brain</h2>
+            <p>Senses at the top, muscles at the bottom, the world's left on the left. Tap a neuron to see what it connects to.</p>
+          </div>
+          <div class="brain-frame needs-creature"><canvas id="brainCanvas" aria-label="Brain map"></canvas></div>
+          <div class="legend needs-creature">
+            <span><i style="background:var(--pulse)"></i>signals travelling</span>
             <span><i style="background:var(--joy)"></i>reward chemical</span>
             <span><i style="background:var(--stress)"></i>stress chemical</span>
             <span id="brainCounts"></span>
           </div>
-
-          <div class="neuron-card" id="neuronCard">
+          <div class="neuron-card needs-creature">
             <div class="empty" id="neuronEmpty">No neuron selected. Tap one in the brain above.</div>
             <div id="neuronDetail" class="hidden">
               <div class="neuron-head"><span class="neuron-name" id="neuronName"></span><span class="neuron-lobe" id="neuronLobe"></span></div>
-              <div class="facts" style="margin:6px 0 10px">
-                <span>Active <b id="neuronRate">0%</b> of the time</span>
+              <div class="facts">
+                <span>Firing <b id="neuronRate">0%</b> of the time</span>
                 <span>Charge <b id="neuronV">0</b></span>
                 <span><b id="neuronLinkCount">0</b> connections</span>
               </div>
-              <div class="row-btns" style="margin-bottom:10px">
-                <button class="btn primary" id="pulseBtn">Send a pulse</button>
+              <div class="row-btns">
+                <button class="btn primary" id="stimulateBtn">Stimulate</button>
                 <button class="btn" id="clearNeuronBtn">Deselect</button>
               </div>
               <div class="links" id="neuronLinks"></div>
             </div>
           </div>
-
-          <section class="block">
+          <section class="block needs-creature">
+            <h3 id="scopeTitle">Charge</h3>
+            <div class="scope-frame"><canvas id="scopeCanvas" aria-label="Membrane potential"></canvas></div>
+          </section>
+          <section class="block needs-creature">
+            <h3>Muscles</h3>
+            <p class="note">How often each muscle's neuron fires. The busiest one is what it is doing.</p>
+            <div class="bars two-col" id="barsMuscles"></div>
+          </section>
+          <section class="block needs-creature">
             <h3>What it has learned</h3>
-            <p class="note">What each smell has come to mean to this creature, learned during its life. Everything starts near neutral.</p>
+            <p class="note">What sights and smells have come to mean to it, learned in life. Everything starts out meaning nothing.</p>
             <div class="learned" id="learnedList"></div>
           </section>
-
-          <section class="block">
-            <h3 id="scopeTitle">Pulse monitor</h3>
-            <div class="scope-frame"><canvas id="scopeCanvas" aria-label="Pulse monitor"></canvas></div>
-          </section>
-        </div>
-
-        <!-- Body -->
-        <div class="deck hidden" id="deck-body" role="tabpanel">
-          <div class="deck-intro">
-            <h2>Body</h2>
-            <p class="life-line" id="lifeLine"></p>
-          </div>
-          <section class="block"><h3>Energy</h3><div class="bars" id="barsEnergy"></div></section>
-          <section class="block"><h3>Building blocks</h3><div class="bars" id="barsBuild"></div></section>
-          <section class="block"><h3>Health</h3><div class="bars" id="barsHealth"></div></section>
-          <section class="block"><h3>Feelings</h3><p class="note">Joy when a need drops, stress when one rises. These are what the brain learns from.</p><div class="bars" id="barsMood"></div></section>
-          <section class="block"><h3>Urges</h3><div class="urges" id="barsUrges"></div></section>
         </div>
 
         <!-- Genes -->
         <div class="deck hidden" id="deck-genes" role="tabpanel">
-          <div class="deck-intro">
+          <div class="deck-intro needs-creature">
             <h2>Genes</h2>
             <p id="genesSummary"></p>
           </div>
-          <section class="block"><h3>What its genes built</h3><div class="traits" id="traitList"></div></section>
-          <section class="block"><h3>Active genes</h3><div class="gene-list" id="geneList"></div></section>
-          <section class="block">
-            <h3>Experiment</h3>
-            <div class="row-btns">
-              <button class="btn" id="mutateBtn">Mutate (rebuilds its brain)</button>
-              <button class="btn" id="breedBtn">Breed with nearest partner</button>
-            </div>
-          </section>
-          <details class="dna">
-            <summary>Show raw DNA</summary>
-            <p class="note" style="margin-top:6px">A gene is read only where a promoter byte (A5, underlined) sits in front of it. Dim bytes are silent junk DNA that mutation can turn into new genes.</p>
+          <section class="block needs-creature"><h3>What its genes built</h3><div class="traits" id="traitList"></div></section>
+          <details class="gene-group needs-creature" open><summary>Body <span class="count" id="genes-body-count"></span></summary><div class="genes" id="genes-body"></div></details>
+          <details class="gene-group needs-creature"><summary>Chemistry <span class="count" id="genes-chemistry-count"></span></summary><div class="genes" id="genes-chemistry"></div></details>
+          <details class="gene-group needs-creature"><summary>Brain <span class="count" id="genes-brain-count"></span></summary><div class="genes" id="genes-brain"></div></details>
+          <details class="gene-group needs-creature"><summary>Instincts <span class="count" id="genes-instinct-count"></span></summary><div class="genes" id="genes-instinct"></div></details>
+          <details class="dna needs-creature">
+            <summary>Raw DNA</summary>
+            <p class="note">A gene is read only where a promoter byte (A5, underlined) sits in front of it. Dim bytes are silent DNA that mutation can turn into new genes.</p>
             <div class="dna-grid" id="dnaGrid"></div>
           </details>
         </div>
 
-        <!-- Population -->
-        <div class="deck hidden" id="deck-population" role="tabpanel">
+        <!-- Family -->
+        <div class="deck hidden" id="deck-family" role="tabpanel">
+          <div class="deck-intro needs-creature">
+            <h2>Family</h2>
+            <p id="familyLine"></p>
+          </div>
+          <section class="block needs-creature"><h3>Parents</h3><div class="roster" id="familyParents"></div></section>
+          <section class="block needs-creature"><h3>Brothers and sisters</h3><div class="roster" id="familySiblings"></div></section>
+          <section class="block needs-creature"><h3>Children</h3><div class="roster" id="familyChildren"></div></section>
+        </div>
+
+        <!-- World -->
+        <div class="deck hidden" id="deck-world" role="tabpanel">
           <div class="deck-intro">
-            <h2>Population</h2>
-            <p>Births are paid for from the parents' reserves. Migrants arrive when a sex is nearly gone.</p>
+            <h2>World</h2>
+            <p id="worldLine"></p>
           </div>
-          <div class="tiles">
-            <div class="tile"><b id="tileBirths">0</b><span>births</span></div>
-            <div class="tile"><b id="tileMeals">0</b><span>meals</span></div>
-            <div class="tile"><b id="tileMigrants">0</b><span>migrants</span></div>
-            <div class="tile"><b id="tileDeaths">0</b><span>deaths</span></div>
-          </div>
+          <div class="tiles" id="worldTiles"></div>
           <p class="note" id="deathBreakdown"></p>
+          <section class="block"><h3>Population</h3><div class="chart-frame small"><canvas id="popCanvas" aria-label="Population over time"></canvas></div></section>
           <section class="block"><h3>Living now</h3><div class="roster" id="roster"></div></section>
+          <div class="row-btns"><button class="btn" id="skipSeasonBtn">Skip to the next season</button></div>
         </div>
       </div>
     </aside>
   </div>
-
 
   <!-- Plain scripts, in dependency order (no build step: the page opens straight from disk).
        Scripts marked data-headless don't touch the page; tests/run.js loads them, in this order, into Node. -->
@@ -191,16 +201,23 @@
   <script src="src/core/diffusion.js" data-headless></script>
   <script src="src/sim/constants.js" data-headless></script>
   <script src="src/sim/genome.js" data-headless></script>
-  <script src="src/sim/body.js" data-headless></script>
+  <script src="src/sim/biochem.js" data-headless></script>
   <script src="src/sim/brain.js" data-headless></script>
-  <script src="src/sim/organism.js" data-headless></script>
+  <script src="src/sim/founder.js" data-headless></script>
+  <script src="src/sim/creature.js" data-headless></script>
   <script src="src/sim/world.js" data-headless></script>
   <script src="src/audio/synth.js"></script>
   <script src="src/render/theme.js"></script>
   <script src="src/render/canvas.js"></script>
-  <script src="src/render/terrarium-view.js"></script>
+  <script src="src/render/pose.js" data-headless></script>
+  <script src="src/render/creature-art.js"></script>
+  <script src="src/render/sky.js"></script>
+  <script src="src/render/item-art.js"></script>
+  <script src="src/render/world-view.js"></script>
   <script src="src/render/brain-view.js"></script>
   <script src="src/ui/text.js" data-headless></script>
+  <script src="src/ui/hand.js"></script>
+  <script src="src/ui/inspector.js"></script>
   <script src="src/ui/app.js"></script>
   <script>Evo.bootApp();</script>
 </body>

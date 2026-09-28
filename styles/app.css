@@ -38,30 +38,56 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 
 /* ===== Stage: the map always fills it; the lab docks, slides or sheets ===== */
 #stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
-#arena { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden;
-  background: radial-gradient(120% 90% at 50% 40%, var(--pond) 0%, var(--pond-deep) 100%); }
-#terrariumCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#arena { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; background: #0b1a24; }
+#worldCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
+@media (hover: none) { #worldCanvas { cursor: default; } }
 
 .float { position: absolute; z-index: 10; background: rgba(15, 30, 34, 0.9); border: 1px solid var(--line);
   border-radius: var(--r-md); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
-/* Creature card */
-#creatureCard { top: 10px; left: 10px; width: min(250px, calc(100% - 20px)); padding: 10px 12px; }
-.card-head { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
-.sex-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.card-title { font-weight: 700; font-size: 14.5px; }
-.card-sub { font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
-.doing { font-size: 13px; color: var(--accent); margin: 4px 0 8px; }
-.mini-bars { display: grid; gap: 5px; }
-.mini { display: grid; grid-template-columns: 58px 1fr 34px; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
-.mini .num { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+/* Bars: the same everywhere (card, body, brain) */
 .track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .fill { height: 100%; width: 0; border-radius: 3px; transition: width 0.25s linear; }
-.card-more { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); display: grid; gap: 3px; }
-.card-more b { color: var(--text); font-weight: 700; }
+
+/* Creature card */
+#creatureCard { top: 10px; left: 10px; width: min(272px, calc(100% - 20px)); padding: 8px 10px 10px; }
+.card-top { display: flex; align-items: center; gap: 10px; }
+#portrait { width: 76px; height: 76px; flex: 0 0 auto; border-radius: 12px;
+  background: radial-gradient(90% 90% at 50% 35%, #29434a 0%, #16292e 100%); }
+.card-id { min-width: 0; flex: 1 1 auto; }
+.card-name-row { display: flex; align-items: baseline; gap: 6px; }
+.sex-glyph { font-weight: 700; font-size: 15px; line-height: 1; }
+.card-title { font-family: var(--display); font-weight: 650; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-sub { font-size: 12.5px; color: var(--muted); }
+.doing { font-size: 13px; color: var(--accent); margin-top: 2px; }
+.icon-btn.small { width: 30px; height: 30px; align-self: flex-start; }
+.card-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: grid; gap: 9px; }
 #creatureCard.collapsed .card-more { display: none; }
-.chev { transition: transform 0.2s; color: var(--faint); }
+#creatureCard.empty-card .card-more { display: none; }
+.chev { display: inline-block; transition: transform 0.2s; color: var(--faint); }
 #creatureCard.collapsed .chev { transform: rotate(-90deg); }
+.compact-bars .bar { grid-template-columns: 84px 1fr 30px; font-size: 12.5px; }
+.compact-bars .bar .track { height: 6px; }
+.btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* Everyone, one tap away */
+#strip { top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; max-width: calc(100% - 640px);
+  overflow-x: auto; scrollbar-width: none; }
+#strip:empty { display: none; }
+#strip::-webkit-scrollbar { display: none; }
+.avatar { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; padding: 2px; background: #16292e;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ring) 45%, transparent); }
+.avatar canvas { width: 34px; height: 34px; display: block; border-radius: 50%; margin: 1px; }
+.avatar[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 2px rgba(155, 227, 200, 0.35); }
+
+/* Event log */
+#log { position: absolute; left: 10px; bottom: 76px; z-index: 9; display: flex; flex-direction: column-reverse; gap: 4px;
+  max-width: min(360px, calc(100% - 20px)); pointer-events: none; }
+.log-line { pointer-events: auto; text-align: left; font-size: 13px; padding: 5px 10px; border-radius: 10px; background: rgba(15, 30, 34, 0.82);
+  border: 1px solid var(--line); color: var(--text); transition: opacity 1s; width: fit-content; }
+.log-line.fading { opacity: 0; }
+button.log-line:hover { border-color: var(--muted); }
 
 /* Playback */
 #playback { top: 10px; right: 10px; display: flex; align-items: center; gap: 2px; padding: 4px; }
@@ -71,15 +97,17 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 .divider { width: 1px; height: 20px; background: var(--line); margin: 0 3px; }
 
 /* Toolbar */
-#toolbar { left: 50%; bottom: 10px; transform: translateX(-50%); width: min(760px, calc(100% - 20px));
-  display: flex; align-items: center; gap: 6px; padding: 6px; overflow-x: auto; scrollbar-width: none; }
-#toolbar::-webkit-scrollbar { display: none; }
-.tool { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 11px; border-radius: 10px;
-  font-size: 13px; color: var(--muted); border: 1px solid transparent; white-space: nowrap; }
+#toolbar { left: 50%; bottom: 10px; transform: translateX(-50%); max-width: calc(100% - 20px); padding: 5px; }
+#toolTray { display: flex; align-items: center; gap: 3px; overflow-x: auto; scrollbar-width: none; }
+#toolTray::-webkit-scrollbar { display: none; }
+.tool { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 54px; height: 52px;
+  border-radius: 11px; font-size: 11.5px; color: var(--muted); border: 1px solid transparent; }
 .tool:hover { color: var(--text); background: var(--panel); }
-.tool[aria-pressed="true"] { color: var(--text); background: var(--panel-raised); border-color: var(--line); }
-.swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.tool-label { font-size: 12px; color: var(--faint); padding: 0 4px 0 6px; white-space: nowrap; }
+.tool[aria-pressed="true"] { color: var(--text); background: var(--panel-raised); border-color: var(--accent); }
+.tool-icon { font-size: 19px; line-height: 24px; height: 24px; }
+.tool-art { width: 22px; height: 22px; }
+.tool-text { white-space: nowrap; }
+.divider { width: 1px; height: 28px; background: var(--line); margin: 0 3px; flex: 0 0 auto; }
 
 #labOpenBtn { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 12;
   padding: 14px 8px; border-radius: 12px 0 0 12px; background: var(--panel); border: 1px solid var(--line); border-right: 0;
@@ -104,6 +132,7 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 [data-layout="sheet"] #sheetHandle { display: flex; justify-content: center; align-items: center; height: 22px; flex: 0 0 auto; cursor: grab; touch-action: none; }
 #sheetHandle span { width: 42px; height: 5px; border-radius: 3px; background: var(--line); }
 [data-layout="sheet"] #toolbar { bottom: calc(var(--peek) + 8px); }
+[data-layout="sheet"] #log { bottom: calc(var(--peek) + 74px); }
 [data-layout="desktop"]:not(.lab-open) #labOpenBtn, [data-layout="drawer"]:not(.lab-open) #labOpenBtn { display: block; }
 [data-layout="sheet"]:not(.lab-open) #labCloseBtn { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { #labPanel, .fill, .chev { transition: none; } }
@@ -122,7 +151,7 @@ section.block > h3 { font-size: 16px; }
 .empty { font-size: 13px; color: var(--muted); padding: 10px 0; }
 
 /* Brain */
-.brain-frame { position: relative; height: 250px; border-radius: var(--r-md); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
+.brain-frame { position: relative; height: 330px; border-radius: var(--r-md); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
 #brainCanvas, #scopeCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
@@ -153,7 +182,14 @@ section.block > h3 { font-size: 16px; }
 .scope-frame { height: 72px; border-radius: var(--r-sm); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
 
 /* Body */
+.deck-empty { margin: 14px; }
 .life-line { font-size: 14px; }
+.bars.two-col { grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+.bars.two-col .bar { grid-template-columns: 92px 1fr 30px; }
+.chart-frame { height: 120px; border-radius: var(--r-sm); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
+.chart-frame.small { height: 80px; }
+.chart-frame canvas { width: 100%; height: 100%; display: block; }
+i.grown { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 5px; vertical-align: 1px; }
 .life-line b { color: var(--accent); }
 .bars { display: grid; gap: 9px; }
 .bar { display: grid; grid-template-columns: 112px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
@@ -165,6 +201,17 @@ section.block > h3 { font-size: 16px; }
 .urges .bar .track { grid-column: 1 / -1; order: 3; }
 
 /* Genes */
+details.gene-group { background: var(--panel-raised); border-radius: var(--r-md); padding: 10px 12px; }
+details.gene-group summary { cursor: pointer; font-family: var(--display); font-weight: 650; font-size: 16px; }
+details.gene-group .count { font-family: var(--ui); font-weight: 400; font-size: 12.5px; color: var(--muted); margin-left: 6px; }
+.genes { display: grid; gap: 1px; margin-top: 8px; max-height: 420px; overflow-y: auto; }
+.gene { display: grid; grid-template-columns: 118px 1fr auto; gap: 10px; align-items: baseline; font-size: 12.5px; padding: 4px 2px;
+  border-bottom: 1px solid rgba(41,68,74,0.5); }
+.gene-name { color: var(--faint); }
+.gene-text { color: var(--text); }
+.gene.dormant .gene-text { color: var(--faint); }
+.stage-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(155, 227, 200, 0.12); color: var(--accent); white-space: nowrap; }
+.stage-tag.later { background: rgba(255,255,255,0.06); color: var(--muted); }
 .traits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
 .trait { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(41,68,74,0.5); padding-bottom: 4px; }
 .trait b { color: var(--text); font-variant-numeric: tabular-nums; }
@@ -184,17 +231,22 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .tile b { display: block; font-family: var(--display); font-size: 22px; font-weight: 650; line-height: 1.1; }
 .tile span { font-size: 12px; color: var(--muted); }
 .roster { display: grid; gap: 2px; }
-.member { display: grid; grid-template-columns: 12px 1fr 70px 44px; align-items: center; gap: 10px; padding: 8px 6px;
+.member { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 10px; padding: 8px 6px;
   border-radius: var(--r-sm); font-size: 13px; text-align: left; width: 100%; }
-.member:hover { background: var(--panel-raised); }
+.member:hover:not([disabled]) { background: var(--panel-raised); }
+.member[disabled] { cursor: default; opacity: 0.75; }
 .member[aria-current="true"] { background: var(--panel-raised); outline: 1px solid var(--line); }
 .member .meta { font-size: 12px; color: var(--muted); }
 .member .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Narrow screens */
 .compact .wordmark { font-size: 18px; }
-.compact .status .chip:nth-child(3) { display: none; }
+.compact .status .chip:nth-child(n+3) { display: none; }
 .compact #creatureCard { top: 58px; }
+.compact #strip { display: none; }
+.compact .tool { width: 48px; }
+.compact .bars.two-col { grid-template-columns: 1fr; }
+@media (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
 .compact .tab-text { display: none; }
 .compact .tab { font-size: 17px; }
 @media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, 1fr); } .learn-row { grid-template-columns: 1fr 90px 76px; } }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>World lab · SynapseCore</title>
+  <link rel="stylesheet" href="../styles/app.css">
+  <style>
+    html, body { height: 100%; }
+    body { display: block; background: #0a1619; }
+    #world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
+    #panel { position: fixed; top: 10px; left: 10px; z-index: 5; display: grid; gap: 7px; padding: 10px 12px; max-width: calc(100% - 20px);
+      background: rgba(15, 30, 34, 0.88); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      font-size: 13px; color: var(--muted); user-select: none; }
+    #panel.collapsed .rows { display: none; }
+    .head { display: flex; align-items: center; gap: 10px; }
+    .head b { color: var(--text); font-family: var(--display); font-size: 16px; }
+    #fps { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--accent); }
+    .rows { display: grid; gap: 6px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .row > span { width: 58px; flex: 0 0 auto; }
+    #panel button { height: 28px; padding: 0 9px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+    #panel button:hover { color: var(--text); }
+    #panel button[aria-pressed="true"] { background: var(--panel-raised); color: var(--text); border-color: var(--accent); }
+    #collapse { margin-left: 4px; width: 28px; padding: 0 !important; }
+    #hint { position: fixed; left: 10px; bottom: 10px; z-index: 5; font-size: 12px; color: rgba(230, 237, 227, 0.75); background: rgba(10, 22, 25, 0.55);
+      padding: 5px 10px; border-radius: 10px; pointer-events: none; }
+    .noui #panel, .noui #hint { display: none; }
+    @media (max-width: 520px) { .row > span { width: 100%; } #hint { display: none; } }
+  </style>
+</head>
+<body>
+  <canvas id="world" aria-label="World lab: drag to pan, wheel to zoom, click a creature to follow it"></canvas>
+  <div id="panel">
+    <div class="head"><b>World lab</b><span id="fps">– fps</span><button id="collapse" aria-label="Collapse panel">▾</button></div>
+    <div class="rows">
+      <div class="row"><span>Time</span>
+        <button data-phase="0.255">Dawn</button><button data-phase="0.5">Noon</button><button data-phase="0.745">Dusk</button><button data-phase="0.0">Night</button>
+      </div>
+      <div class="row"><span>Speed</span>
+        <button data-speed="0">❚❚</button><button data-speed="1">1×</button><button data-speed="4">4×</button><button data-speed="20">20×</button><button data-speed="120">120×</button>
+      </div>
+      <div class="row"><span>Season</span>
+        <button data-season="0">Spring</button><button data-season="1">Summer</button><button data-season="2">Autumn</button><button data-season="3">Winter</button>
+      </div>
+      <div class="row"><span>Show</span>
+        <button id="scentBtn" aria-pressed="false">Scent</button><button id="sensesBtn" aria-pressed="false">Senses</button><button id="followBtn" aria-pressed="false">Follow</button><button id="fitBtn">Fit</button>
+      </div>
+      <div class="row"><span>Hand</span>
+        <button data-hand="grab">Grab</button><button data-hand="hold">Hold</button><button data-hand="pat">Pat</button><button data-hand="slap">Slap</button>
+      </div>
+    </div>
+  </div>
+  <div id="hint">Drag to pan · wheel or +/− to zoom · arrows pan · click a creature to follow · F follow · space pause</div>
+
+  <script src="../src/core/evo.js"></script>
+  <script src="../src/render/theme.js"></script>
+  <script src="../src/render/canvas.js"></script>
+  <script src="../src/render/sky.js"></script>
+  <script src="../src/render/item-art.js"></script>
+  <script src="../src/render/world-view.js"></script>
+  <script src="mock-world.js"></script>
+  <script src="mock-creature-art.js"></script>
+  <script src="world-lab.js"></script>
+</body>
+</html>
