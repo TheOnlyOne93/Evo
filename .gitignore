@@ -1,0 +1,5 @@
+# Claude Code: per-machine settings and agent worktrees (the shared settings.json is committed)
+.claude/settings.local.json
+.claude/worktrees/
+node_modules/
+*.cpuprofile
