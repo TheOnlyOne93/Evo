@@ -6,12 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-
-const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const scripts = [...html.matchAll(/<script src="([^"]+)" data-headless><\/script>/g)].map(m => m[1]);
-for (const src of scripts) require(path.join(root, src));
-const Evo = globalThis.Evo;
+const Evo = require('./load')();
 
 const tests = [];
 globalThis.test = (name, fn) => tests.push({ name, fn });

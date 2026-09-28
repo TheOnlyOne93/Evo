@@ -1,98 +1,191 @@
-// Tables that several parts of the simulation (and the UI) share. Every channel, sense, item and
-// brain region is defined once here; everything else derives from these tables.
+// Tables that several parts of the simulation (and the UI) share. Every chemical, sense, item,
+// season and brain region is defined once here; everything else derives from these tables.
 (function (Evo) {
   'use strict';
 
-  // ---- Scent: the odour channels diffusing through the world ----
-  // `token` names the CSS colour used to draw the channel. Pheromones are built to linger and travel,
-  // so they decay far more slowly; their trail forms barely spread and break down ~5x more slowly still.
+  // ---- Time ----
+  const TICKS_PER_SECOND = 60;
+  const DAY_TICKS = 3 * 60 * TICKS_PER_SECOND;   // A day lasts three minutes at 1x
+  const SEASON_DAYS = 2;
+
+  // ---- Life stages. `until` is the fraction of the lifespan at which the stage ends. ----
+  const STAGES = [
+    { key: 'embryo', word: 'Egg', until: 0 },
+    { key: 'baby', word: 'Baby', until: 0.05 },
+    { key: 'child', word: 'Child', until: 0.15 },
+    { key: 'adolescent', word: 'Adolescent', until: 0.25 },
+    { key: 'youth', word: 'Youth', until: 0.35 },
+    { key: 'adult', word: 'Adult', until: 0.75 },
+    { key: 'old', word: 'Old', until: 0.90 },
+    { key: 'senile', word: 'Senile', until: Infinity }
+  ];
+  const STAGE = Object.fromEntries(STAGES.map((s, i) => [s.key.toUpperCase(), i]));
+
+  // ---- Odours diffusing through the air. `token` is the CSS colour used to draw each one. ----
   const SCENTS = [
-    { key: 'carb',   token: '--fruit',  diffusion: 0.18, decay: 0.015 },
-    { key: 'starch', token: '--grain',  diffusion: 0.16, decay: 0.012 },
-    { key: 'water',  token: '--water',  diffusion: 0.20, decay: 0.018 },
-    { key: 'toxic',  token: '--toxin',  diffusion: 0.15, decay: 0.010 },
-    { key: 'pheroF', token: '--female', diffusion: 0.24, decay: 0.006 },  // Female pheromone (volatile)
-    { key: 'pheroM', token: '--male',   diffusion: 0.22, decay: 0.007 },  // Male pheromone (volatile)
-    { key: 'alarm',  token: '--alarm',  diffusion: 0.22, decay: 0.030 },  // Released by distressed organisms
-    { key: 'trailF', token: '--female', diffusion: 0.06, decay: 0.0012 }, // Female pheromone (persistent trail)
-    { key: 'trailM', token: '--male',   diffusion: 0.06, decay: 0.0012 }  // Male pheromone (persistent trail)
+    { key: 'sweet',  word: 'sweet',       token: '--fruit',   diffusion: 0.20, decay: 0.006 },
+    { key: 'starch', word: 'grainy',      token: '--grain',   diffusion: 0.18, decay: 0.006 },
+    { key: 'moist',  word: 'water',       token: '--water',   diffusion: 0.20, decay: 0.016 },
+    { key: 'bitter', word: 'bitter',      token: '--toxin',   diffusion: 0.16, decay: 0.010 },
+    { key: 'earthy', word: 'earthy',      token: '--grub',    diffusion: 0.14, decay: 0.006 },
+    { key: 'prey',   word: 'bug',         token: '--protein', diffusion: 0.20, decay: 0.010 },
+    { key: 'muskF',  word: 'female musk', token: '--female',  diffusion: 0.22, decay: 0.006 },
+    { key: 'muskM',  word: 'male musk',   token: '--male',    diffusion: 0.22, decay: 0.006 },
+    { key: 'alarm',  word: 'alarm',       token: '--alarm',   diffusion: 0.24, decay: 0.030 },
+    { key: 'decay',  word: 'rot',         token: '--carrion', diffusion: 0.18, decay: 0.014 }
   ];
-  const SCENT = Object.fromEntries(SCENTS.map((s, i) => [s.key, i])); // e.g. SCENT.carb === 0
+  const SCENT = Object.fromEntries(SCENTS.map((s, i) => [s.key, i]));
 
-  // ---- Senses: what the eyes and antennae report. `word` is the plain-language meaning. ----
-  const SENSE_CHANNELS = {
-    carb: { word: 'fruit' }, starch: { word: 'grain' }, water: { word: 'water' },
-    toxic: { word: 'danger' }, pheromone: { word: 'a mate' }, alarm: { word: 'alarm' }
-  };
-  const VISION_CHANNELS = ['carb', 'starch', 'water', 'toxic', 'pheromone'];
-  const SMELL_CHANNELS = ['carb', 'starch', 'water', 'toxic', 'pheromone', 'alarm'];
-  // Seven rays fan across the front of the head (radians from the heading, negative = left)
-  const RAYS = [
-    { key: 'farL', angle: -0.78, word: 'far left' }, { key: 'midL', angle: -0.52, word: 'left' },
-    { key: 'nearL', angle: -0.26, word: 'slightly left' }, { key: 'ctr', angle: 0.0, word: 'straight ahead' },
-    { key: 'nearR', angle: 0.26, word: 'slightly right' }, { key: 'midR', angle: 0.52, word: 'right' },
-    { key: 'farR', angle: 0.78, word: 'far right' }
+  // ---- Vision: what an eye reports about a thing. Colours by hue, plus movement. ----
+  const VISION_FEATURES = [
+    { key: 'red', word: 'something red', hue: 0 },
+    { key: 'yellow', word: 'something yellow', hue: 50 },
+    { key: 'green', word: 'something green', hue: 120 },
+    { key: 'blue', word: 'something blue', hue: 200 },
+    { key: 'violet', word: 'something violet', hue: 275 },
+    { key: 'pink', word: 'something pink', hue: 325 },
+    { key: 'creature', word: 'another creature' },   // A big furry shape, whatever its colour
+    { key: 'motion', word: 'movement' }
   ];
-  const NOSES = [
-    { key: 'antL', word: 'left antenna' }, { key: 'antR', word: 'right antenna' },
-    { key: 'snout', word: 'snout' }, { key: 'core', word: 'body' }
-  ];
+  const HUES = VISION_FEATURES.filter(f => f.hue !== undefined);
+  // How strongly a surface of hue h (degrees) excites each colour channel (hue receptors overlap)
+  function hueFeatures(h, strength = 1) {
+    const out = {};
+    for (const f of HUES) {
+      const d = Math.abs(((h - f.hue + 540) % 360) - 180);
+      const w = Math.max(0, 1 - d / 45);
+      if (w > 0) out[f.key] = w * strength;
+    }
+    return out;
+  }
 
-  // ---- Items: how each looks, smells, appears to the eye, and what it contains ----
-  // Senses report raw physics; the world never knows what an organism wants.
-  //   fruit: fast sugar      grain: slow energy (needs water to digest) plus some protein
-  //   dew: water             bug: protein and fat that runs away
-  //   grub: beetle larvae from the rotting log; protein like a bug, but they can't run away
-  //   mimic: looks and mostly smells like fruit, but it's poisonous
-  //   lure: female scent that attracts males; carrion: what a dead body still holds
-  // growable: counts toward the ground's carrying capacity. ttl: ticks before it rots away.
+  // ---- Items: how each looks, smells, what it contains, how it moves ----
+  // look: visual features. odour: [[scent channel, rate]]. food: what enters the gut when eaten
+  // (units are chemical concentrations; taste is derived from it). ttl: ticks before it rots.
   const ITEM_TYPES = {
-    carb:      { radius: 8.5,  color: '--fruit',   sight: { carb: 1.0 }, scent: [[SCENT.carb, 0.14]], nutrients: { carbs: 30, water: 6, protein: 1, bulk: 22 }, growable: true },
-    starch:    { radius: 9.0,  color: '--grain',   sight: { starch: 1.0 }, scent: [[SCENT.starch, 0.13]], nutrients: { starches: 34, protein: 8, bulk: 28 }, growable: true },
-    water:     { radius: 10.0, color: '--water',   sight: { water: 1.0 }, scent: [[SCENT.water, 0.15]], nutrients: { water: 34, bulk: 12 }, growable: true },
-    grub:      { radius: 7.0,  color: '--grub',    sight: { carb: 0.5, starch: 0.5 }, scent: [[SCENT.carb, 0.07], [SCENT.starch, 0.07]], nutrients: { protein: 14, fats: 5, water: 3, bulk: 16 }, growable: true },
-    bug:       { radius: 7.5,  color: '--protein', sight: { carb: 0.5, starch: 0.5 }, scent: [[SCENT.carb, 0.07], [SCENT.starch, 0.07]], nutrients: { protein: 18, fats: 10, water: 4, bulk: 20 }, growable: true, mobile: true },
-    deceptive: { radius: 9.0,  color: '--fruit',   sight: { carb: 0.95 }, scent: [[SCENT.carb, 0.12], [SCENT.toxic, 0.03]], nutrients: { carbs: 14, water: 4, toxin: 36, bulk: 18 }, growable: true, spot: '--mimic-spot' },
-    pheromone: { radius: 9.0,  color: '--female',  sight: { pheromone: 1.0 }, scent: [[SCENT.pheroF, 0.35]], nutrients: null, ttl: 2400 },
-    carrion:   { radius: 8.0,  color: '--carrion', sight: { carb: 0.3, starch: 0.3 }, scent: [[SCENT.carb, 0.05], [SCENT.starch, 0.05]], nutrients: null, ttl: 3600 }
+    fruit:   { word: 'fruit', radius: 6, look: { red: 1 }, odour: [[SCENT.sweet, 0.05]], food: { gutSugar: 0.3, water: 0.06 }, ttl: 7200, bounce: 0.3 },
+    grain:   { word: 'grain', radius: 5, look: { yellow: 1 }, odour: [[SCENT.starch, 0.04]], food: { gutStarch: 0.3, gutProtein: 0.06 }, ttl: 14400, bounce: 0.2 },
+    grub:    { word: 'grub', radius: 5, look: { yellow: 0.5, red: 0.2 }, odour: [[SCENT.earthy, 0.05]], food: { gutProtein: 0.18, gutFat: 0.08, water: 0.02 }, ttl: 9000, crawls: 0.15 },
+    bug:     { word: 'bug', radius: 4.5, look: { green: 1 }, odour: [[SCENT.prey, 0.05]], food: { gutProtein: 0.2, gutFat: 0.1, water: 0.02 }, ttl: 12000, crawls: 0.6, flees: true, hops: true },
+    mimic:   { word: 'mimic berry', radius: 6, look: { red: 0.9, violet: 0.25 }, odour: [[SCENT.sweet, 0.035], [SCENT.bitter, 0.02]], food: { gutSugar: 0.08, toxin: 0.35 }, ttl: 7200, bounce: 0.3 },
+    dew:     { word: 'dew drop', radius: 4, look: { blue: 0.8 }, odour: [[SCENT.moist, 0.03]], food: { water: 0.14 }, ttl: 3600 },
+    lure:    { word: 'lure', radius: 6, look: { pink: 1 }, odour: [[SCENT.muskF, 0.12]], food: null, ttl: 2400 },
+    carrion: { word: 'carrion', radius: 9, look: { red: 0.2, violet: 0.2 }, odour: [[SCENT.decay, 0.06]], food: 'contents', ttl: 5400 },
+    egg:     { word: 'egg', radius: 7, look: {}, odour: [], food: null, bounce: 0.2 },
+    ball:    { word: 'ball', radius: 8, look: {}, odour: [], food: null, bounce: 0.7, rolls: true }
   };
 
-  // Seasons change what grows and how fast water evaporates
-  const SEASONS = {
-    TEMPERATE: { regenTicks: 220, waterLoss: 1.0, weights: { carb: 0.30, starch: 0.27, water: 0.20, grub: 0.09, bug: 0.08, deceptive: 0.06 } },
-    BLOOM:     { regenTicks: 150, waterLoss: 0.8, weights: { carb: 0.34, starch: 0.27, water: 0.20, grub: 0.08, bug: 0.07, deceptive: 0.04 } },
-    DROUGHT:   { regenTicks: 320, waterLoss: 1.6, weights: { carb: 0.31, starch: 0.35, water: 0.10, grub: 0.11, bug: 0.07, deceptive: 0.06 } }
-  };
-  const SEASON_LENGTH = 1800;       // Ticks per season
+  // ---- Seasons: temperature, day length and what grows ----
+  // temp: mean ambient temperature (0 freezing .. 1 hot); swing: day-night difference;
+  // grow: growth multipliers for each food source
+  const SEASONS = [
+    { key: 'SPRING', word: 'Spring', temp: 0.48, swing: 0.14, dew: 1.0, grow: { fruit: 0.4, grain: 0.5, grub: 1.0, bug: 1.2, mimic: 0.4 } },
+    { key: 'SUMMER', word: 'Summer', temp: 0.6, swing: 0.13, dew: 0.5, grow: { fruit: 1.2, grain: 1.0, grub: 1.0, bug: 1.3, mimic: 1.0 } },
+    { key: 'AUTUMN', word: 'Autumn', temp: 0.44, swing: 0.12, dew: 1.0, grow: { fruit: 1.3, grain: 1.2, grub: 0.8, bug: 0.6, mimic: 1.2 } },
+    { key: 'WINTER', word: 'Winter', temp: 0.22, swing: 0.10, dew: 0.0, grow: { fruit: 0.1, grain: 0.3, grub: 0.5, bug: 0.1, mimic: 0.1 } }
+  ];
+
+  // ---- Chemicals: 64 slots. Named ones below; the rest are free for mutation to use. ----
+  // kind: 'nutrient' | 'hormone' | 'drive' | 'relief' | 'reinforcer' | 'other'
+  const N_CHEM = 64;
+  const CHEMICAL_LIST = [
+    [1, 'gutSugar', 'Gut sugar', 'nutrient', '--fruit'], [2, 'gutStarch', 'Gut starch', 'nutrient', '--grain'],
+    [3, 'gutProtein', 'Gut protein', 'nutrient', '--protein'], [4, 'gutFat', 'Gut fat', 'nutrient', '--fat'],
+    [5, 'glucose', 'Blood sugar', 'nutrient', '--energy'], [6, 'glycogen', 'Glycogen', 'nutrient', '--grain'],
+    [7, 'fat', 'Fat store', 'nutrient', '--fat'], [8, 'protein', 'Body protein', 'nutrient', '--protein'],
+    [9, 'water', 'Water', 'nutrient', '--water'], [10, 'toxin', 'Toxin', 'other', '--toxin'],
+    [11, 'insulin', 'Insulin', 'hormone', '--muted'], [12, 'glucagon', 'Glucagon', 'hormone', '--muted'],
+    [13, 'adrenaline', 'Adrenaline', 'hormone', '--alarm'], [14, 'adenosine', 'Adenosine', 'hormone', '--muted'],
+    [15, 'melatonin', 'Melatonin', 'hormone', '--bored'], [16, 'growthHormone', 'Growth hormone', 'hormone', '--protein'],
+    [17, 'sexHormone', 'Sex hormone', 'hormone', '--female'], [18, 'endorphin', 'Endorphin', 'hormone', '--joy'],
+    [19, 'ageing', 'Ageing', 'other', '--faint'], [20, 'liverEnzyme', 'Liver enzyme', 'hormone', '--toxin'],
+    [22, 'pain', 'Pain', 'drive', '--injury'], [23, 'hunger', 'Hunger', 'drive', '--energy'],
+    [24, 'proteinHunger', 'Protein hunger', 'drive', '--protein'], [25, 'fatHunger', 'Fat hunger', 'drive', '--fat'],
+    [26, 'thirst', 'Thirst', 'drive', '--water'], [27, 'tiredness', 'Tiredness', 'drive', '--muted'],
+    [28, 'sleepiness', 'Sleepiness', 'drive', '--bored'], [29, 'coldness', 'Coldness', 'drive', '--water'],
+    [30, 'hotness', 'Hotness', 'drive', '--fruit'], [31, 'loneliness', 'Loneliness', 'drive', '--bored'],
+    [32, 'crowdedness', 'Crowdedness', 'drive', '--stress'], [33, 'fear', 'Fear', 'drive', '--toxin'],
+    [34, 'anger', 'Anger', 'drive', '--stress'], [35, 'boredom', 'Boredom', 'drive', '--bored'],
+    [36, 'sexDrive', 'Sex drive', 'drive', '--female'], [37, 'nausea', 'Nausea', 'drive', '--toxin'],
+    [38, 'reward', 'Reward', 'reinforcer', '--joy'], [39, 'punishment', 'Punishment', 'reinforcer', '--stress'],
+    [40, 'warmth', 'Warmth', 'relief', '--fruit'], [41, 'coolness', 'Coolness', 'relief', '--water'],
+    [42, 'company', 'Company', 'relief', '--female'], [43, 'restRelief', 'Rest', 'relief', '--muted'],
+    [44, 'sleepSignal', 'Sleep', 'relief', '--bored'], [45, 'novelty', 'Novelty', 'relief', '--accent'],
+    [46, 'drink', 'Drinking', 'relief', '--water'], [47, 'mating', 'Mating', 'relief', '--female']
+  ];
+  const CHEMICALS = CHEMICAL_LIST.map(([id, key, word, kind, token]) => ({ id, key, word, kind, token }));
+  const CHEM = Object.fromEntries(CHEMICALS.map(c => [c.key, c.id]));
+  const CHEM_BY_ID = Object.fromEntries(CHEMICALS.map(c => [c.id, c]));
+  const DRIVES = CHEMICALS.filter(c => c.kind === 'drive').map(c => c.key);
+
+  // ---- Body loci: what emitter genes can read (all 0..1). Codes 128+ read a chemical instead. ----
+  const BODY_LOCI = [
+    'none', 'always', 'bodyTemp', 'heatGain', 'heatLoss', 'darkness', 'exertion', 'awake', 'asleep',
+    'resting', 'injury', 'health', 'impact', 'gentleTouch', 'touchingFriend', 'company', 'crowding',
+    'novelty', 'falling', 'inWater', 'held', 'tasteSweet', 'tasteStarch', 'tasteSavory', 'tasteFat',
+    'tasteBitter', 'tasteWater', 'gutFullness', 'mated', 'pregnant', 'heardCall', 'growth', 'starving',
+    'limbic0', 'limbic1', 'limbic2', 'limbic3', 'limbic4', 'limbic5', 'limbic6', 'limbic7'
+  ];
+  const LOCUS = Object.fromEntries(BODY_LOCI.map((k, i) => [k, i]));
+
+  // ---- Receptor targets: what receptor genes can push on ----
+  // Physiological targets are read by the body; need:k and limbic:k inject current into a neuron.
+  const PHYSIO_TARGETS = ['none', 'muscle', 'arousal', 'sleep', 'damage', 'healing', 'fertility', 'growth',
+    'scentSex', 'scentAlarm', 'metabolism', 'thermogenesis', 'cooling'];
+  const N_NEEDS = 18, N_LIMBIC = 8;
+  const TARGETS = [...PHYSIO_TARGETS,
+    ...Array.from({ length: N_NEEDS }, (_, k) => `need:${k}`),
+    ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic:${k}`)];
+  const TARGET = Object.fromEntries(TARGETS.map((k, i) => [k, i]));
 
   // ---- Brain regions, in genome order (genes address a region by its index here) ----
   // word: plain-language region name; cell: what one of its general-purpose cells is called
   const LOBES = [
-    { key: 'vision',      word: 'Sight',        color: '#38bdf8', sensory: true },
-    { key: 'olfactory',   word: 'Smell',        color: '#f59e0b', sensory: true },
-    { key: 'somato',      word: 'Touch',        color: '#ec4899', sensory: true },
-    { key: 'metabolic',   word: 'Needs',        color: '#eab308', sensory: true },
-    { key: 'affective',   word: 'Feelings',     color: '#10b981' },
-    { key: 'associative', word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },
-    { key: 'memory',      word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell' },
-    { key: 'planning',    word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell' },
-    { key: 'motor',       word: 'Movement',     color: '#34d399' },
-    { key: 'efference',   word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell' }
+    { key: 'sight',    word: 'Sight',        color: '#38bdf8', sensory: true },
+    { key: 'smell',    word: 'Smell',        color: '#f59e0b', sensory: true },
+    { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true },
+    { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true },
+    { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true },
+    { key: 'needs',    word: 'Needs',        color: '#eab308', sensory: true },
+    { key: 'feelings', word: 'Feelings',     color: '#10b981' },
+    { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },
+    { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell' },
+    { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell' },
+    { key: 'motor',    word: 'Movement',     color: '#34d399' },
+    { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell' }
   ];
   const LOBE_ORDER = LOBES.map(l => l.key);
   const LOBE_INFO = Object.fromEntries(LOBES.map(l => [l.key, l]));
   const SENSORY_LOBES = LOBES.filter(l => l.sensory).map(l => l.key);
 
+  // Muscles (Movement lobe). tag[0..1] is each muscle's chemical address: topographic guidance
+  // genes wire a sense or need cell to the muscle whose address matches its own.
+  const MOTORS = [
+    { key: 'walkL', word: 'Walk left',  tag: [0.10, 0.50], pos: [0.18, 0.86] },
+    { key: 'walkR', word: 'Walk right', tag: [0.90, 0.50], pos: [0.82, 0.86] },
+    { key: 'jump',  word: 'Jump',       tag: [0.30, 0.30], pos: [0.38, 0.82] },
+    { key: 'eat',   word: 'Eat',        tag: [0.50, 0.30], pos: [0.50, 0.80] },
+    { key: 'grab',  word: 'Grab / drop', tag: [0.70, 0.30], pos: [0.62, 0.82] },
+    { key: 'rest',  word: 'Rest',       tag: [0.40, 0.70], pos: [0.42, 0.90] },
+    { key: 'call',  word: 'Call',       tag: [0.60, 0.70], pos: [0.58, 0.90] },
+    { key: 'run',   word: 'Run',        tag: [0.20, 0.70], pos: [0.50, 0.94] },
+    { key: 'drink', word: 'Drink',      tag: [0.50, 0.12], pos: [0.50, 0.87] }
+  ];
+
+  const LIMITS = {
+    MAX_POPULATION: 16,   // Performance ceiling; food and weather normally limit population first
+    MAX_FOOD: 70,         // How much growing food the world holds at once
+    SEED_BANK: 24,        // Proven breeders kept for wanderers and re-founding
+    SYNAPSE_CAP: 3200,    // Most synapses one brain can hold
+    INNATE_BUDGET: 2400   // Synapses the genome may grow before birth (the rest is room to learn)
+  };
+
   Object.assign(Evo, {
-    SCENTS, SCENT, SENSE_CHANNELS, VISION_CHANNELS, SMELL_CHANNELS, RAYS, NOSES,
-    ITEM_TYPES, SEASONS, SEASON_LENGTH,
-    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES,
-    LIMITS: {
-      MAX_ITEMS: 22,       // How much growable food the ground holds at once
-      MAX_POPULATION: 24,  // Performance ceiling; food normally limits population first
-      SEED_BANK: 24,       // Proven breeders kept for migrants and re-founding
-      SYNAPSE_CAP: 2400,   // Most synapses one brain can hold
-      INNATE_BUDGET: 1800  // Synapses the genome may grow before birth (the rest is room to learn)
-    }
+    TICKS_PER_SECOND, DAY_TICKS, SEASON_DAYS, STAGES, STAGE,
+    SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
+    N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
+    BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
+    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS,
+    LIMITS
   });
 })(globalThis.Evo);

@@ -1,533 +1,682 @@
-// The terrarium: a pure simulation. It never touches the page or plays sounds; it announces
-// what happened on world.events ('birth', 'death', 'eat', 'bite', 'migrant', 'season', 'hurt').
+// The side-view world: terrain, a pond, trees and plants that grow food, day and night, seasons,
+// temperature, scent in the air, sound, and the creatures. A pure simulation: it never touches the
+// page; it announces what happens on world.events.
 (function (Evo) {
   'use strict';
-  const { clamp, wrapAngle, minBy } = Evo.util;
-  const { SCENTS, SCENT, ITEM_TYPES, SEASONS, SEASON_LENGTH, RAYS, LIMITS } = Evo;
+  const { clamp, clamp01, minBy } = Evo.util;
+  const { SCENTS, ITEM_TYPES, SEASONS, DAY_TICKS, SEASON_DAYS, LIMITS, STAGE, CREATURE } = Evo;
 
-  // Continuous 2D scent diffusion: one planar grid per channel (see Evo.SCENTS for the channels)
-  class ScentGrid {
-    constructor(cols = 36, rows = 36) {
-      this.cols = cols;
-      this.rows = rows;
-      this.channels = SCENTS.map(() => new Float32Array(cols * rows));
-      this.scratch = new Float32Array(cols * rows);
+  const WORLD_W = 3600, WORLD_H = 900;
+  const SCENT_CELL = 30;
+  const SCENT_EVERY = 3;            // Scent spreads slowly, so it diffuses every third tick (at triple rate)
+  const GRAVITY = CREATURE.GRAVITY;
+  const WANDER_INTERVAL = 1800;
+
+  // ---------- Terrain: a height field with a pond ----------
+  class Terrain {
+    constructor(width, height, layout) {
+      this.step = 8;
+      const n = Math.ceil(width / this.step) + 1;
+      this.heights = new Float32Array(n);
+      const ph = [Evo.random() * 6.28, Evo.random() * 6.28, Evo.random() * 6.28];
+      for (let i = 0; i < n; i++) {
+        const x = i * this.step;
+        let h = 640 + 30 * Math.sin(x / 1400 * 6.28 + ph[0]) + 18 * Math.sin(x / 520 * 6.28 + ph[1]) + 7 * Math.sin(x / 170 * 6.28 + ph[2]);
+        // The hill with the warm rock
+        const hill = (x - layout.hill) / 260;
+        h -= 70 * Math.exp(-hill * hill);
+        // Cliffs at both ends keep everyone in
+        const edge = Math.min(x, width - x);
+        if (edge < 140) h -= 260 * (1 - edge / 140) ** 2;
+        this.heights[i] = h;
+      }
+      // Ponds: smooth dips that fill with water up to just below their lower rim
+      this.ponds = layout.ponds.map(([x0, x1, depth]) => {
+        for (let i = 0; i < n; i++) {
+          const x = i * this.step;
+          if (x > x0 && x < x1) this.heights[i] += depth * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
+        }
+        const level = Math.min(this.groundY(x0), this.groundY(x1)) + 6;
+        let a = x0, b = x1;
+        while (a < x1 && this.groundY(a) < level) a += 2;
+        while (b > x0 && this.groundY(b) < level) b -= 2;
+        return { x0: a, x1: b, level };
+      });
     }
-    // Cell k covers [k, k+1) * cellSize
-    cellOf(x, y, W, H) {
-      const c = clamp(Math.floor((x / W) * this.cols), 0, this.cols - 1);
-      const r = clamp(Math.floor((y / H) * this.rows), 0, this.rows - 1);
-      return r * this.cols + c;
+
+    groundY(x) {
+      const f = clamp(x / this.step, 0, this.heights.length - 1.001);
+      const i = Math.floor(f), t = f - i;
+      return this.heights[i] * (1 - t) + this.heights[i + 1] * t;
     }
-    deposit(x, y, W, H, ch, amount) {
-      const g = this.channels[ch], i = this.cellOf(x, y, W, H);
-      g[i] = Math.min(2.5, g[i] + amount);
+
+    slopeAt(x) {
+      return (this.groundY(x + 4) - this.groundY(x - 4)) / 8;
     }
-    // Bilinear sample; a cell's centre is at (k + 0.5) * cellSize (the same mapping as deposit)
-    sample(x, y, W, H, ch) {
-      const g = this.channels[ch], cols = this.cols;
-      const gx = clamp((x / W) * cols - 0.5, 0, cols - 1);
-      const gy = clamp((y / H) * this.rows - 0.5, 0, this.rows - 1);
-      const c0 = Math.floor(gx), r0 = Math.floor(gy);
-      const c1 = Math.min(cols - 1, c0 + 1), r1 = Math.min(this.rows - 1, r0 + 1);
-      const fx = gx - c0, fy = gy - r0;
-      const top = g[r0 * cols + c0] * (1 - fx) + g[r0 * cols + c1] * fx;
-      const bot = g[r1 * cols + c0] * (1 - fx) + g[r1 * cols + c1] * fx;
-      return top * (1 - fy) + bot * fy;
-    }
-    step() {
-      SCENTS.forEach((s, ch) => Evo.diffuse(this.channels[ch], this.scratch, this.cols, this.rows, s.diffusion, 1 - s.decay, 0.001));
+
+    // The pond surface at x, or null where there is no water
+    waterLevelAt(x) {
+      for (const p of this.ponds) if (x >= p.x0 && x <= p.x1) return p.level;
+      return null;
     }
   }
 
-  const SEXES = ['FEMALE', 'MALE', 'FEMALE', 'MALE', 'FEMALE', 'MALE']; // Balanced founding group
+  const SEXES = ['FEMALE', 'MALE', 'FEMALE', 'MALE', 'FEMALE', 'MALE'];
   const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
+  const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
+  const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
 
-  class TerrariumWorld {
-    constructor(width = 600, height = 600) {
+  class World {
+    constructor({ width = WORLD_W, height = WORLD_H } = {}) {
       this.width = width;
       this.height = height;
       this.events = new Evo.EventBus();
-      this.tick = 0;                 // World clock
-      this.scentGrid = new ScentGrid(36, 36);
-      this.organisms = [];
-      this.focusedOrganism = null;
+      this.clock = { tick: 0, day: 0, phase: 0.3, light: 1, sunElevation: 1 };
+      this.startPhase = 0.3; // Begin on a morning
+      this.season = { key: SEASONS[0].key, index: 0, progress: 0 };
+      this.creatures = [];
       this.items = [];
-      this.regenTicks = 0;
-      this.season = 'TEMPERATE';
-      this.stats = {
-        births: 0, meals: 0, poisonings: 0, migrants: 0, refoundings: 0, injuries: 0,
-        deaths: { starvation: 0, dehydration: 0, 'old age': 0, injury: 0 }
+      this.sounds = [];
+      this.history = [];     // Everyone who has lived here: { id, name, sex, generation, born, died, cause, motherId, fatherId }
+      this.seedBank = [];    // Genomes of creatures that mated: wanderers and re-founders come from here
+      this.stats = { hatched: 0, eggsLaid: 0, matings: 0, meals: 0, poisonings: 0, wanderers: 0, refoundings: 0, deaths: {} };
+      this.hand = { x: 0, y: 0, holding: null };
+      this.edge = 150;       // Creatures and items stay this far from the world's ends (the cliffs are scenery)
+
+      this.buildLandscape();
+      this.scent = {
+        cols: Math.ceil(width / SCENT_CELL), rows: Math.ceil(height / SCENT_CELL), cell: SCENT_CELL,
+        channels: SCENTS.map(() => new Float32Array(Math.ceil(width / SCENT_CELL) * Math.ceil(height / SCENT_CELL)))
       };
-      // Persistent places: food grows from these, so there is something to learn about WHERE things are.
-      // Positions are fractions of the arena so they survive resizing.
-      this.sources = [];
-      this.hazards = []; // Thorn bushes: they hurt on contact
-      this.placeLandscape();
-      // Genomes of organisms that successfully bred. Migrants and re-founders come from here, so
-      // evolutionary progress survives population crashes (and only proven breeders get in).
-      this.seedBank = [];
-
-      this.seedPrimordialPopulation();
-      this.seedEcosystem();
-    }
-
-    get environment() {
-      return { waterLoss: SEASONS[this.season].waterLoss };
-    }
-
-    get isFull() {
-      return this.organisms.length >= LIMITS.MAX_POPULATION;
-    }
-
-    placeLandscape() {
-      const spots = [];
-      const pick = () => {
-        for (let tries = 0; tries < 40; tries++) {
-          const p = [Evo.randRange(0.12, 0.88), Evo.randRange(0.12, 0.88)];
-          if (spots.every(s => Math.hypot(s[0] - p[0], s[1] - p[1]) > 0.22)) { spots.push(p); return p; }
+      this.scentScratch = new Float32Array(this.scent.cols * this.scent.rows);
+      this.scentSolid = new Uint8Array(this.scent.cols * this.scent.rows);
+      for (let r = 0; r < this.scent.rows; r++) {
+        for (let c = 0; c < this.scent.cols; c++) {
+          // A cell is solid when its centre is underground
+          if ((r + 0.5) * SCENT_CELL > this.terrain.groundY((c + 0.5) * SCENT_CELL) + SCENT_CELL * 0.5) this.scentSolid[r * this.scent.cols + c] = 1;
         }
-        const p = [Evo.randRange(0.15, 0.85), Evo.randRange(0.15, 0.85)];
-        spots.push(p);
-        return p;
-      };
-      this.sources = [
-        { kind: 'bush', yields: 'carb', pos: pick() },
-        { kind: 'bush', yields: 'carb', pos: pick() },
-        { kind: 'field', yields: 'starch', pos: pick() },
-        { kind: 'field', yields: 'starch', pos: pick() },
-        { kind: 'spring', yields: 'water', pos: pick() },
-        { kind: 'log', yields: 'grub', pos: pick() }
+      }
+      this.updateClock();
+      this.found();
+      this.seedFood();
+    }
+
+    // ---------- Landscape ----------
+    buildLandscape() {
+      const W = this.width;
+      const jitter = f => (f + Evo.randRange(-0.015, 0.015)) * W;
+      const big = jitter(0.58), small = jitter(0.06);
+      const layout = { hill: jitter(0.31), ponds: [[big, big + 420, 80], [small, small + 170, 45]] };
+      this.terrain = new Terrain(W, this.height, layout);
+      const t = this.terrain;
+      const at = x => ({ x, y: t.groundY(x) });
+      let id = 0;
+      const feature = (kind, x, props) => ({ id: ++id, kind, ...at(x), ...props });
+      this.features = [
+        feature('thornbush', jitter(0.125), { radius: 22 }),
+        feature('tree', jitter(0.16), { species: 'fruit', height: 210, canopy: 85, fruiting: 0.5 }),
+        feature('tree', jitter(0.235), { species: 'mimic', height: 140, canopy: 55, fruiting: 0.4 }),
+        feature('rock', layout.hill + 30, { w: 96, h: 52, warm: 0 }),
+        feature('grass', jitter(0.41), { width: 230, height: 40, seeding: 0.4 }),
+        feature('log', jitter(0.49), { length: 150 }),
+        ...this.terrain.ponds.flatMap(p => [feature('reeds', p.x0 - 20, { width: 50 }), feature('reeds', p.x1 + 20, { width: 50 })]),
+        feature('tree', jitter(0.79), { species: 'fruit', height: 230, canopy: 95, fruiting: 0.5 }),
+        feature('thornbush', jitter(0.84), { radius: 20 }),
+        feature('grass', jitter(0.905), { width: 210, height: 40, seeding: 0.4 }),
+        feature('thornbush', jitter(0.70), { radius: 18 })
       ];
-      // Thorns grow beside one fruit bush and one grain field: the best food is guarded
-      this.hazards = [this.sources[0], this.sources[2]].map(src => {
-        const a = Evo.random() * Math.PI * 2;
-        return { fx: src.pos[0] + Math.cos(a) * 0.07, fy: src.pos[1] + Math.sin(a) * 0.07, radius: 16 };
-      });
-      this.hazards.push({ fx: Evo.randRange(0.15, 0.85), fy: Evo.randRange(0.15, 0.85), radius: 16 });
+      const rock = this.features.find(f => f.kind === 'rock');
+      const log = this.features.find(f => f.kind === 'log');
+      this.platforms = [
+        { x0: rock.x - rock.w / 2 + 6, x1: rock.x + rock.w / 2 - 6, y: rock.y - rock.h + 4, kind: 'rock' },
+        { x0: log.x - log.length / 2, x1: log.x + log.length / 2, y: log.y - 24, kind: 'log' }
+      ];
     }
 
-    hazardXY(h) {
-      return [h.fx * this.width, h.fy * this.height];
+    // The highest surface at or below fromY at x: the ground, or a platform the thing is above
+    surfaceBelow(x, fromY) {
+      let y = this.terrain.groundY(x);
+      for (const p of this.platforms) if (x >= p.x0 && x <= p.x1 && p.y >= fromY && p.y < y) y = p.y;
+      return y;
     }
 
-    // The arena changed size (e.g. rotating a phone): keep everything reachable
-    resize(width, height) {
-      this.width = width;
-      this.height = height;
-      for (const item of this.items) {
-        item.x = clamp(item.x, 20, width - 20);
-        item.y = clamp(item.y, 20, height - 20);
+    // ---------- Time, light, seasons, temperature ----------
+    updateClock() {
+      const c = this.clock;
+      const total = c.tick + this.startPhase * DAY_TICKS;
+      c.day = Math.floor(total / DAY_TICKS);
+      c.phase = (total % DAY_TICKS) / DAY_TICKS;
+      c.sunElevation = Math.sin((c.phase - 0.25) * Math.PI * 2);
+      c.light = clamp01(0.08 + 0.92 * clamp01((c.sunElevation + 0.15) / 0.45));
+      const idx = Math.floor(c.day / SEASON_DAYS) % SEASONS.length;
+      const progress = (c.day % SEASON_DAYS + c.phase) / SEASON_DAYS;
+      if (idx !== this.season.index) {
+        this.season = { key: SEASONS[idx].key, index: idx, progress };
+        this.events.emit('season', { season: this.season });
+      } else {
+        this.season.progress = progress;
       }
-      for (const org of this.organisms) {
-        const m = org.currentRadius + 4;
-        org.x = clamp(org.x, m, width - m);
-        org.y = clamp(org.y, m, height - m);
+    }
+
+    get seasonInfo() { return SEASONS[this.season.index]; }
+
+    // Air temperature (0 freezing .. 1 hot): the season, the sun, shade, water, and the warm rock
+    temperatureAt(x, y) {
+      const s = this.seasonInfo, c = this.clock;
+      let t = s.temp + s.swing * c.sunElevation;
+      for (const f of this.features) {
+        if (f.kind === 'tree' && Math.abs(x - f.x) < f.canopy && y > f.y - f.height) t -= 0.05 * c.light; // Shade
+        if (f.kind === 'rock' && Math.abs(x - f.x) < f.w * 0.8 && y > f.y - f.h - 40) t += 0.04 + f.warm * 0.14; // Stored sun
       }
+      const level = this.terrain.waterLevelAt(x);
+      if (level !== null && y > level) t -= 0.08;
+      return clamp01(t);
+    }
+
+    // ---------- Scent ----------
+    scentIndex(x, y) {
+      const s = this.scent;
+      return clamp(Math.floor(y / s.cell), 0, s.rows - 1) * s.cols + clamp(Math.floor(x / s.cell), 0, s.cols - 1);
     }
 
     depositScent(x, y, channel, amount) {
-      this.scentGrid.deposit(x, y, this.width, this.height, channel, amount);
+      const g = this.scent.channels[channel], i = this.scentIndex(x, y);
+      if (!this.scentSolid[i]) g[i] = Math.min(2.5, g[i] + amount);
     }
 
-    // ---------- Populating ----------
-    randomPoint(margin) {
-      return [Evo.randRange(margin, this.width - margin), Evo.randRange(margin, this.height - margin)];
+    // Bilinear sample; a cell's centre is at (k + 0.5) * cell
+    sampleScent(x, y, channel) {
+      const s = this.scent, g = s.channels[channel];
+      const gx = clamp(x / s.cell - 0.5, 0, s.cols - 1), gy = clamp(y / s.cell - 0.5, 0, s.rows - 1);
+      const c0 = Math.floor(gx), r0 = Math.floor(gy);
+      const c1 = Math.min(s.cols - 1, c0 + 1), r1 = Math.min(s.rows - 1, r0 + 1);
+      const fx = gx - c0, fy = gy - r0;
+      const top = g[r0 * s.cols + c0] * (1 - fx) + g[r0 * s.cols + c1] * fx;
+      const bot = g[r1 * s.cols + c0] * (1 - fx) + g[r1 * s.cols + c1] * fx;
+      return top * (1 - fy) + bot * fy;
     }
 
-    // Place a mature adult carrying `reserves`. Every way an adult enters the world goes through here.
-    spawnAdult(genome, { generation = 1, lineage = 'Added', reserves = Evo.ADULT_RESERVES, extraAge = 0 } = {}) {
-      const [x, y] = this.randomPoint(40);
-      const org = new Evo.Organism(genome, x, y, generation, lineage, reserves);
-      org.body.ageTicks = org.body.maturityTicks + extraAge;
-      this.organisms.push(org);
-      return org;
-    }
-
-    // A fresh adult with a founder genome, added by the player. Returns null when the world is full.
-    addAdult(sex) {
-      if (this.isFull) return null;
-      const org = this.spawnAdult(new Evo.Genome(null, chromFor(sex)));
-      this.events.emit('birth', { child: org, added: true });
-      return org;
-    }
-
-    // A mutated copy of a proven breeder's genome, from the wider metapopulation
-    spawnFromBank(sex) {
-      if (!this.seedBank.length) return null;
-      const src = Evo.pick(this.seedBank);
-      const genome = src.genome.cloneWithMutation(0.02);
-      genome.sexChrom = chromFor(sex);
-      return this.spawnAdult(genome, { generation: src.generation, lineage: src.lineage });
-    }
-
-    addMigrant(sex) {
-      if (this.isFull) return null;
-      const org = this.spawnFromBank(sex);
-      if (org) {
-        this.stats.migrants++;
-        this.events.emit('migrant', { org });
+    // ---------- What things look like to an eye ----------
+    lookOf(item) {
+      const def = ITEM_TYPES[item.type];
+      if (item.type === 'egg' || item.type === 'ball') {
+        const l = Evo.hueFeatures(item.hue || 0, 0.8);
+        if (item.type === 'ball' && Math.abs(item.vx) > 0.3) l.motion = Math.min(1, Math.abs(item.vx) / 3);
+        return l;
       }
-      return org;
+      if (def.crawls && Math.abs(item.vx) > 0.1) return { ...def.look, motion: Math.min(1, Math.abs(item.vx) * 2) };
+      return def.look;
     }
 
-    bankGenome(org) {
-      this.seedBank.push({ genome: org.genome.clone(), generation: org.generation, lineage: org.lineage });
-      if (this.seedBank.length > LIMITS.SEED_BANK) this.seedBank.shift();
+    // Another creature: a big furry shape, faintly the colour of its coat
+    lookOfCreature(c) {
+      const l = Evo.hueFeatures(c.traits.hue, 0.25);
+      l.creature = 1;
+      if (c.fertile) l.pink = Math.max(l.pink || 0, 0.8); // Courtship display: the crest flushes pink
+      const speed = Math.abs(c.vx) + Math.abs(c.vy) * 0.5;
+      if (speed > 0.3) l.motion = Math.min(1, speed / 2);
+      return l;
     }
 
-    seedPrimordialPopulation() {
-      this.organisms = [];
-      if (this.seedBank.length) {
-        // Re-found from the seed bank rather than starting evolution over
-        SEXES.forEach(sex => this.spawnFromBank(sex));
-        this.stats.refoundings++;
-      } else {
-        // Balanced founders, mature, carrying founder reserves, at staggered ages so they don't
-        // all die of old age together
-        const baseGenome = new Evo.Genome();
-        SEXES.forEach((sex, i) => {
-          const genome = baseGenome.cloneWithMutation(0.04, false);
-          genome.sexChrom = chromFor(sex);
-          const org = this.spawnAdult(genome, { lineage: `Lineage-${String.fromCharCode(65 + i)}`, reserves: Evo.FOUNDER_RESERVES });
-          org.body.ageTicks += Math.floor(Evo.random() * 0.4 * org.body.maxLifespanTicks);
-        });
+    lookOfFeature(f) {
+      if (f.kind === 'thornbush') return { x: f.x, y: f.y - f.radius * 0.6, radius: f.radius, features: { violet: 1, green: 0.3 } };
+      if (f.kind === 'tree' && f.fruiting > 0.2) {
+        return { x: f.x, y: f.y - f.height + f.canopy * 0.4, radius: f.canopy * 0.35 * f.fruiting, features: f.species === 'mimic' ? { red: 0.9, violet: 0.25 } : { red: 1 } };
       }
-      this.focusedOrganism = this.organisms[0] || null;
+      return null;
     }
 
-    seedEcosystem() {
-      this.items = [];
-      ['carb', 'carb', 'carb', 'starch', 'starch', 'starch', 'water', 'water', 'water', 'grub', 'grub', 'bug', 'deceptive']
-        .forEach(type => this.growItem(type));
+    // The nearest point of pond surface within range (as seen from x)
+    nearestWater(x, range) {
+      let best = null;
+      for (const p of this.terrain.ponds) {
+        const px = clamp(x, p.x0, p.x1);
+        if (Math.abs(px - x) <= range && (!best || Math.abs(px - x) < Math.abs(best.x - x))) best = { x: px, y: p.level };
+      }
+      return best;
     }
 
     // ---------- Items ----------
-    // Place an item (or a thorn bush). Without coordinates it lands somewhere random.
-    spawnItem(type, x = null, y = null, contents = null) {
-      if (type === 'thorn') {
-        if (x !== null) this.hazards.push({ fx: x / this.width, fy: y / this.height, radius: 16 });
-        return;
-      }
+    spawnItem(type, x, y, props = {}) {
       const def = ITEM_TYPES[type];
-      if (!def) return;
-      if (x === null) [x, y] = this.randomPoint(32);
-      this.items.push({
-        id: Evo.nextId(),
-        type, x, y,
-        vx: def.mobile ? (Evo.random() - 0.5) * 0.8 : 0,
-        vy: def.mobile ? (Evo.random() - 0.5) * 0.8 : 0,
-        radius: def.radius,
-        contents, // What a carcass still holds
-        age: 0,
-        pulse: Evo.random() * Math.PI * 2
-      });
-    }
-
-    // Food mostly grows where its plant is; some scatters randomly. Mimic fruit grows among real fruit.
-    growItem(type) {
-      const want = type === 'deceptive' ? 'carb' : type;
-      const homes = this.sources.filter(s => s.yields === want);
-      if (homes.length && Evo.chance(0.8)) {
-        const src = Evo.pick(homes);
-        const a = Evo.random() * Math.PI * 2, d = Evo.random() * 42;
-        this.spawnItem(type,
-          clamp(src.pos[0] * this.width + Math.cos(a) * d, 24, this.width - 24),
-          clamp(src.pos[1] * this.height + Math.sin(a) * d, 24, this.height - 24));
-      } else {
-        this.spawnItem(type);
-      }
-    }
-
-    // What an item gives when eaten (carrion returns what the dead organism still held)
-    nutrientsOf(item) {
-      if (item.type === 'carrion') return item.contents;
-      return ITEM_TYPES[item.type].nutrients;
-    }
-
-    // Remove everything edible (lures stay: they aren't food)
-    clearFood() {
-      this.items = this.items.filter(item => !this.nutrientsOf(item));
-    }
-
-    // ---------- Senses ----------
-    // Which side of the body a nearby object touches, or null when it is out of reach
-    touchSide(c, x, y, radius) {
-      if (Math.hypot(x - c.x, y - c.y) >= c.currentRadius + radius + 6) return null;
-      const rel = wrapAngle(Math.atan2(y - c.y, x - c.x) - c.angle);
-      return Math.abs(rel) < 0.7 ? 'fwd' : rel > 0 ? 'right' : 'left';
-    }
-
-    sense(c) {
-      const T = c.traits;
-      const maxVisionDist = T.visionRange;
-      const halfAperture = T.visionAperture;
-
-      // Optics: a target's signal is its apparent (angular) size, which falls off as 1/distance,
-      // weighted by where it sits in the ray's receptive field
-      const inRay = (tx, ty, radius, rayAngle) => {
-        const dx = tx - c.x, dy = ty - c.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > maxVisionDist) return null;
-        const angleDiff = wrapAngle(Math.atan2(dy, dx) - rayAngle);
-        if (Math.abs(angleDiff) >= halfAperture) return null;
-        const apparentSize = Math.min(1.0, 1.8 * radius / Math.max(1, dist));
-        return { dist, intensity: apparentSize * Math.max(0, Math.cos((angleDiff / halfAperture) * (Math.PI * 0.5))) };
+      if (!def) return null;
+      const item = {
+        id: Evo.nextId(), type, x, y: y === undefined ? this.terrain.groundY(x) : y,
+        vx: props.vx || 0, vy: props.vy || 0, radius: def.radius, rot: Evo.random() * Math.PI * 2,
+        age: 0, held: null, onGround: false, ...props
       };
+      this.items.push(item);
+      return item;
+    }
 
-      const visionRays = RAYS.map(r => {
-        const rayAngle = c.angle + r.angle;
-        const ray = { carb: 0, starch: 0, water: 0, toxic: 0, pheromone: 0, hitDist: maxVisionDist }; // hitDist: drawn on the map
-        const see = (hit, channel, strength) => {
-          ray[channel] = Math.max(ray[channel], Math.min(1.0, hit.intensity * strength));
-          ray.hitDist = Math.min(ray.hitDist, hit.dist);
-        };
+    // A player (or plant) drops an item from a height; it falls to the ground
+    dropItem(type, x, y) {
+      if (type === 'thorn') return this.addThornbush(x);
+      const props = type === 'ball' ? { hue: Evo.randInt(360) } : {};
+      x = clamp(x, this.edge, this.width - this.edge);
+      return this.spawnItem(type, x, Math.min(y, this.surfaceBelow(x, y) - 1), props);
+    }
 
-        for (const item of this.items) {
-          const hit = inRay(item.x, item.y, item.radius, rayAngle);
-          if (!hit) continue;
-          const sight = ITEM_TYPES[item.type].sight;
-          for (const ch in sight) see(hit, ch, sight[ch]);
+    addThornbush(x) {
+      const f = { id: Evo.nextId(), kind: 'thornbush', x, y: this.terrain.groundY(x), radius: 18 };
+      this.features.push(f);
+      return f;
+    }
+
+    // What eating an item puts in the gut (null if it isn't food)
+    foodOf(item) {
+      const def = ITEM_TYPES[item.type];
+      if (def.food === 'contents') return item.contents;
+      return def.food;
+    }
+
+    get foodCount() {
+      let n = 0;
+      for (const i of this.items) if (ITEM_TYPES[i.type].food && i.type !== 'carrion') n++;
+      return n;
+    }
+
+    removeItem(item) {
+      const i = this.items.indexOf(item);
+      if (i >= 0) this.items.splice(i, 1);
+      if (item.held && item.held !== 'hand') {
+        const c = this.creatures.find(k => k.id === item.held);
+        if (c && c.carrying === item) c.carrying = null;
+      }
+      if (this.hand.holding && this.hand.holding.item === item) this.hand.holding = null;
+    }
+
+    consumeItem(creature, item, food) {
+      this.removeItem(item);
+      creature.meals++;
+      if (food.toxin) this.stats.poisonings++; else this.stats.meals++;
+      this.events.emit('eat', { creature, item, food });
+    }
+
+    pickUpItem(creature, item) {
+      if (item.held) return;
+      item.held = creature.id;
+      creature.carrying = item;
+      this.events.emit('grab', { creature, item });
+    }
+
+    dropCarried(creature) {
+      const item = creature.carrying;
+      if (!item) return;
+      item.held = null;
+      item.vx = creature.vx + creature.facing * 0.6;
+      item.vy = -0.5;
+      creature.carrying = null;
+    }
+
+    // ---------- Sound ----------
+    makeSound(creature) {
+      const T = creature.traits;
+      const baby = creature.stage <= STAGE.CHILD;
+      this.sounds.push({ x: creature.headX, y: creature.headY, pitch: Math.min(1, T.voicePitch + (baby ? 0.3 : 0)), loudness: T.voiceLoudness, age: 0, sourceId: creature.id });
+      this.events.emit('call', { creature });
+    }
+
+    // ---------- Creatures ----------
+    // A founder genome with its own looks (appearance and voice vary between founders)
+    founderGenome(sex) {
+      const g = Evo.Genome.founder(chromFor(sex));
+      for (const gene of g.findGenes()) {
+        const name = Evo.GENES[gene.type].name;
+        if (name === 'Appearance' || name === 'Voice') {
+          for (let k = gene.start + 2; k < gene.end; k++) g.dna[k] = Evo.randInt(256);
         }
-        // Thorn bushes look dangerous (toxic-coloured)
-        for (const h of this.hazards) {
-          const [hx, hy] = this.hazardXY(h);
-          const hit = inRay(hx, hy, h.radius, rayAngle);
-          if (hit) see(hit, 'toxic', 0.7);
+      }
+      return g;
+    }
+
+    addCreature(genome, x, opts) {
+      const c = new Evo.Creature(genome, x, this.terrain.groundY(x), opts);
+      this.creatures.push(c);
+      this.history.push({ id: c.id, name: c.name, sex: c.sex, generation: c.generation, born: this.clock.tick, died: null, cause: null, motherId: c.motherId, fatherId: c.fatherId });
+      return c;
+    }
+
+    // A grown adult arriving (founders, wanderers, or added by the player)
+    addAdult(sex, { genome = null, x = null, reserves = FOUNDER_RESERVES, generation = 1 } = {}) {
+      if (this.creatures.length >= LIMITS.MAX_POPULATION) return null;
+      genome = genome || this.founderGenome(sex);
+      genome.sexChrom = chromFor(sex);
+      const lifespan = genome.develop().lifespanTicks;
+      const px = x === null ? Evo.randRange(0.2, 0.8) * this.width : x;
+      return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(0.36, 0.5)) });
+    }
+
+    found() {
+      const fromBank = this.seedBank.length > 0;
+      for (const sex of SEXES) {
+        if (fromBank) {
+          const src = Evo.pick(this.seedBank);
+          this.addAdult(sex, { genome: src.genome.cloneWithMutation(), generation: src.generation, reserves: WANDERER_RESERVES });
+        } else {
+          this.addAdult(sex);
         }
-        // A mature opposite-sex organism in estrus is a visible courtship display
-        for (const other of this.organisms) {
-          if (other === c || other.body.isDead || other.sex === c.sex) continue;
-          if (!other.body.isMature || other.body.libido <= 0.2) continue;
-          const hit = inRay(other.x, other.y, other.currentRadius, rayAngle);
-          if (hit) see(hit, 'pheromone', 1.0);
-        }
-        return ray;
+      }
+      if (fromBank) {
+        this.stats.refoundings++;
+        this.events.emit('refound', {});
+      }
+    }
+
+    bankGenome(creature) {
+      this.seedBank.push({ genome: creature.genome.clone(), generation: creature.generation });
+      if (this.seedBank.length > LIMITS.SEED_BANK) this.seedBank.shift();
+    }
+
+    // A wanderer walks in from the edge when one sex is nearly gone
+    maybeWanderer() {
+      if (this.creatures.length >= LIMITS.MAX_POPULATION) return;
+      const females = this.creatures.filter(c => c.sex === 'FEMALE' && c.isAdult).length;
+      const males = this.creatures.filter(c => c.sex === 'MALE' && c.isAdult).length;
+      const sex = females < 2 ? 'FEMALE' : males < 2 ? 'MALE' : null;
+      if (!sex) return;
+      const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;
+      const c = this.addAdult(sex, {
+        genome: src ? src.genome.cloneWithMutation() : null, generation: src ? src.generation : 1,
+        reserves: WANDERER_RESERVES, x: Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30
       });
+      if (c) {
+        this.stats.wanderers++;
+        this.events.emit('wanderer', { creature: c });
+      }
+    }
 
-      // Bilateral olfaction: raw odor concentration at each antenna, the snout and the body core
-      const antLen = c.antennaLength, spread = T.antennaSpread, r = c.currentRadius;
-      const noses = [
-        [c.x + Math.cos(c.angle - spread) * antLen, c.y + Math.sin(c.angle - spread) * antLen],
-        [c.x + Math.cos(c.angle + spread) * antLen, c.y + Math.sin(c.angle + spread) * antLen],
-        [c.x + Math.cos(c.angle) * (r + 6), c.y + Math.sin(c.angle) * (r + 6)],
-        [c.x, c.y]
-      ];
-      // Each sex smells the other's pheromone; one receptor responds to both its volatile and trail forms
-      const [pheroCh, trailCh] = c.sex === 'MALE' ? [SCENT.pheroF, SCENT.trailF] : [SCENT.pheroM, SCENT.trailM];
-      const g = this.scentGrid, W = this.width, H = this.height;
-      const scents = noses.map(([x, y]) => {
-        const s = ch => g.sample(x, y, W, H, ch);
-        return {
-          carb: Math.min(1.0, s(SCENT.carb)),
-          starch: Math.min(1.0, s(SCENT.starch)),
-          water: Math.min(1.0, s(SCENT.water)),
-          toxic: Math.min(1.0, s(SCENT.toxic)),
-          pheromone: Math.min(1.0, s(pheroCh) + s(trailCh)),
-          alarm: Math.min(1.0, s(SCENT.alarm))
-        };
+    // Mating: a fertile female and male touching may mate; she carries the egg
+    tryMating() {
+      for (const f of this.creatures) {
+        if (f.sex !== 'FEMALE' || f.pregnancy || f.mateCooldown > 0 || !f.fertile) continue;
+        for (const m of this.creatures) {
+          if (m.sex !== 'MALE' || m.mateCooldown > 0 || !m.fertile) continue;
+          if (Math.abs(m.x - f.x) > (m.size + f.size) * 0.45 || Math.abs(m.y - f.y) > 20) continue;
+          if (!Evo.chance(0.03)) continue;
+          f.pregnancy = { genome: Evo.Genome.recombine(f.genome, m.genome), fatherId: m.id, generation: Math.max(f.generation, m.generation) + 1,
+            parents: [f, m], progress: 0, reserves: Object.fromEntries(Object.keys(Evo.EGG_CONTENTS).map(k => [k, 0])) };
+          f.stim.mated = 1; m.stim.mated = 1;
+          f.mateCooldown = m.mateCooldown = 1800;
+          f.timesMated++; m.timesMated++;
+          m.chem.add('protein', -0.04);
+          this.bankGenome(f); this.bankGenome(m);
+          this.stats.matings++;
+          this.events.emit('mate', { mother: f, father: m });
+          break;
+        }
+      }
+    }
+
+    layEgg(mother, pregnancy) {
+      const traits = pregnancy.genome.develop();
+      this.spawnItem('egg', mother.x - mother.facing * mother.size * 0.4, mother.y, {
+        genome: pregnancy.genome, reserves: pregnancy.reserves, parents: pregnancy.parents.map(p => ({ id: p.id, syllables: p.syllables })),
+        generation: pregnancy.generation, hue: traits.hue, accentHue: traits.accentHue, progress: 0, incubationTicks: traits.incubationTicks
       });
+      this.stats.eggsLaid++;
+      this.events.emit('egg', { mother });
+    }
 
-      // Touch
-      const touch = { fwd: 0, left: 0, right: 0 };
+    // A founder egg placed by the player: a fresh genome, provisioned as a mother would
+    addEgg(x, y, { sex = Evo.chance(0.5) ? 'FEMALE' : 'MALE', genome = null } = {}) {
+      genome = genome || this.founderGenome(sex);
+      const traits = genome.develop();
+      x = clamp(x, this.edge, this.width - this.edge);
+      return this.spawnItem('egg', x, Math.min(y, this.surfaceBelow(x, y) - 1), {
+        genome, reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1,
+        hue: traits.hue, accentHue: traits.accentHue, progress: 0, incubationTicks: traits.incubationTicks
+      });
+    }
+
+    // Eggs incubate faster when warm, stall when cold, and hatch into babies
+    incubate(egg) {
+      const t = this.temperatureAt(egg.x, egg.y - 5);
+      egg.progress += clamp((t - 0.15) / 0.3, 0, 1.3) / egg.incubationTicks;
+      if (egg.progress < 1 || this.creatures.length >= LIMITS.MAX_POPULATION || egg.held) return;
+      this.removeItem(egg);
+      const c = this.addCreature(egg.genome, egg.x, { generation: egg.generation, parents: egg.parents, reserves: egg.reserves, growth: 0 });
+      c.y = egg.y;
+      this.stats.hatched++;
+      this.events.emit('hatch', { creature: c });
+    }
+
+    // Mouth against another creature: a nuzzle, felt by both as friendly touch
+    nuzzle(from, to) {
+      to.stim.gentle = Math.max(to.stim.gentle, 0.5);
+      to.stim.touchingFriend = 1;
+      from.stim.touchingFriend = 1;
+      this.events.emit('nuzzle', { from, to });
+    }
+
+    // A shove pushes the other creature away, and hurts a little
+    shove(from, to) {
+      to.stim.impact = Math.max(to.stim.impact, 0.4);
+      to.stim.flinch = 1;
+      to.vx += from.facing * 2.5;
+      to.vy = Math.min(to.vy, -1.5);
+      to.onGround = false;
+      this.events.emit('shove', { from, to });
+    }
+
+    // Company, crowding and touch between creatures (a purely local interaction)
+    socialContact() {
+      const cs = this.creatures;
+      for (const c of cs) { c.companyCount = 0; }
+      for (let i = 0; i < cs.length; i++) {
+        const a = cs[i];
+        for (let j = i + 1; j < cs.length; j++) {
+          const b = cs[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 160) continue;
+          a.companyCount++; b.companyCount++;
+          if (d < (a.radius + b.radius) * 1.1 && !a.held && !b.held) {
+            a.stim.touchingFriend = 1; b.stim.touchingFriend = 1;
+            a.stim[dx > 0 ? 'contactR' : 'contactL'] = 1;
+            b.stim[dx > 0 ? 'contactL' : 'contactR'] = 1;
+          }
+        }
+      }
+      for (const c of cs) {
+        c.company = Math.min(1, c.companyCount * 0.5);
+        c.crowding = clamp01((c.companyCount - 3) / 4);
+        if (c.mateCooldown > 0) c.mateCooldown--;
+      }
+    }
+
+    handleDeath(c) {
+      this.creatures.splice(this.creatures.indexOf(c), 1);
+      this.stats.deaths[c.causeOfDeath] = (this.stats.deaths[c.causeOfDeath] || 0) + 1;
+      const rec = this.history.find(h => h.id === c.id);
+      if (rec) { rec.died = this.clock.tick; rec.cause = c.causeOfDeath; }
+      const ch = c.chem;
+      const contents = { gutProtein: Math.min(0.5, ch.get('protein') * 0.6 + 0.1 * c.growth), gutFat: ch.get('fat') * 0.5, gutSugar: ch.get('glucose') * 0.3 };
+      this.spawnItem('carrion', c.x, c.y, { contents, hue: c.traits.hue });
+      if (this.hand.holding && this.hand.holding.creature === c) this.hand.holding = null;
+    }
+
+    // ---------- Plants and animals that make food ----------
+    growFood() {
+      const s = this.seasonInfo, light = this.clock.light;
+      const full = this.foodCount >= LIMITS.MAX_FOOD;
+      for (const f of this.features) {
+        if (f.kind === 'tree') {
+          f.fruiting = clamp01(f.fruiting + s.grow[f.species === 'mimic' ? 'mimic' : 'fruit'] * 0.00009 * light);
+          if (!full && f.fruiting > 0.3 && Evo.chance(f.fruiting * 0.0025)) {
+            this.spawnItem(f.species === 'mimic' ? 'mimic' : 'fruit', f.x + Evo.randRange(-0.7, 0.7) * f.canopy, f.y - f.height + f.canopy * 0.5);
+            f.fruiting -= 0.06;
+          }
+        } else if (f.kind === 'grass') {
+          f.seeding = clamp01(f.seeding + s.grow.grain * 0.0001 * light);
+          if (!full && f.seeding > 0.3 && Evo.chance(f.seeding * 0.003)) {
+            const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
+            this.spawnItem('grain', x, this.terrain.groundY(x) - f.height);
+            f.seeding -= 0.05;
+          }
+          // Dew forms on the grass at dawn
+          if (!full && this.clock.phase > 0.2 && this.clock.phase < 0.3 && Evo.chance(0.004 * s.dew)) {
+            const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
+            this.spawnItem('dew', x, this.terrain.groundY(x) - 2);
+          }
+          if (!full && Evo.chance(0.0004 * s.grow.bug)) this.spawnItem('bug', f.x + Evo.randRange(-0.5, 0.5) * f.width, f.y - 4);
+        } else if (f.kind === 'log') {
+          if (!full && Evo.chance(0.0007 * s.grow.grub)) {
+            const x = f.x + (Evo.chance(0.5) ? -1 : 1) * (f.length / 2 + Evo.randRange(0, 30));
+            this.spawnItem('grub', x, this.terrain.groundY(x), { home: f.x });
+          }
+        } else if (f.kind === 'rock') {
+          // The rock soaks up sunshine by day and gives it back at night
+          f.warm = clamp01(f.warm + (light > 0.5 ? 0.0004 : -0.00025));
+        }
+      }
+    }
+
+    seedFood() {
+      for (const f of this.features) {
+        if (f.kind === 'tree') for (let i = 0; i < 3; i++) this.spawnItem(f.species === 'mimic' ? 'mimic' : 'fruit', f.x + Evo.randRange(-1, 1) * f.canopy);
+        if (f.kind === 'grass') for (let i = 0; i < 4; i++) this.spawnItem('grain', f.x + Evo.randRange(-0.5, 0.5) * f.width);
+        if (f.kind === 'log') for (let i = 0; i < 2; i++) this.spawnItem('grub', f.x + (i ? 1 : -1) * (f.length / 2 + 10), undefined, { home: f.x });
+      }
+      this.spawnItem('ball', this.width * 0.45, undefined, { hue: 200 });
+    }
+
+    // ---------- Item physics ----------
+    moveItems() {
       for (const item of this.items) {
-        const side = this.touchSide(c, item.x, item.y, item.radius);
-        if (side) touch[side] = 1.0;
-      }
-      for (const h of this.hazards) {
-        const [hx, hy] = this.hazardXY(h);
-        const side = this.touchSide(c, hx, hy, h.radius);
-        if (side) touch[side] = 1.0;
-      }
-
-      // Wall proximity is graded over the last 40px; shock fires only on an actual impact
-      const wallGap = Math.min(c.x, this.width - c.x, c.y, this.height - c.y) - r;
-
-      let tailTouch = 0;
-      const tailTip = c.tailSegments[c.tailSegments.length - 1];
-      for (const other of this.organisms) {
-        if (other === c || other.body.isDead) continue;
-        if (Math.hypot(other.x - tailTip.x, other.y - tailTip.y) < other.currentRadius + 4) { tailTouch = 1.0; break; }
-      }
-
-      return {
-        visionRays,
-        scents,
-        bumpFwd: touch.fwd,
-        bumpLeft: touch.left,
-        bumpRight: touch.right,
-        wallDist: clamp(1 - wallGap / 40, 0, 1),
-        bumpShock: c.wallImpact ? 1.0 : 0.0,
-        tailTouch,
-        kineticSpeed: Math.min(1.0, Math.abs(c.speed) / 2.5)
-      };
-    }
-
-    // ---------- Breeding ----------
-    // Two parents pay their dowries into a new child. Every birth goes through here.
-    // Returns the child, or null if the world is full or either parent is still a juvenile.
-    breed(a, b) {
-      if (this.isFull || a.sex === b.sex || !a.body.isMature || !b.body.isMature) return null;
-      const female = a.sex === 'FEMALE' ? a : b;
-      const male = female === a ? b : a;
-      const reserves = Evo.BodySimulator.childReserves(female.body.deductParentalDowry(), male.body.deductParentalDowry());
-      const child = new Evo.Organism(Evo.Genome.recombine(female.genome, male.genome),
-        clamp((female.x + male.x) * 0.5 + (Evo.random() - 0.5) * 16, 20, this.width - 20),
-        clamp((female.y + male.y) * 0.5 + (Evo.random() - 0.5) * 16, 20, this.height - 20),
-        Math.max(female.generation, male.generation) + 1, female.lineage, reserves);
-      this.organisms.push(child);
-      this.stats.births++;
-      this.bankGenome(female);
-      this.bankGenome(male);
-      this.events.emit('birth', { child, mother: female, father: male });
-      return child;
-    }
-
-    // ---------- Time ----------
-    nextSeason() {
-      const names = Object.keys(SEASONS);
-      this.setSeason(names[(names.indexOf(this.season) + 1) % names.length]);
-    }
-
-    setSeason(season) {
-      this.season = season;
-      this.events.emit('season', { season });
-    }
-
-    step() {
-      this.tick++;
-      if (this.tick % SEASON_LENGTH === 0) {
-        // A new season, never the same one again
-        this.setSeason(Evo.pick(Object.keys(SEASONS).filter(s => s !== this.season)));
-      }
-
-      // Items release odor into the diffusion grid, which then spreads and decays; perishables rot
-      for (const item of this.items) {
-        for (const [ch, rate] of ITEM_TYPES[item.type].scent) this.depositScent(item.x, item.y, ch, rate);
+        const def = ITEM_TYPES[item.type];
         item.age++;
-      }
-      this.items = this.items.filter(item => !ITEM_TYPES[item.type].ttl || item.age < ITEM_TYPES[item.type].ttl);
-      this.scentGrid.step();
-      this.moveLivePrey();
-
-      for (let idx = this.organisms.length - 1; idx >= 0; idx--) {
-        const org = this.organisms[idx];
-        org.step(this);
-        if (org.body.isDead) {
-          this.handleDeath(org, idx);
+        if (item.held) {
+          const holder = item.held === 'hand' ? null : this.creatures.find(c => c.id === item.held);
+          if (holder) { item.x = holder.mouthX + holder.facing * item.radius * 0.5; item.y = holder.mouthY + item.radius; item.vx = holder.vx; item.vy = 0; }
           continue;
         }
-        this.applyHazards(org);
-        if (org.mouthOpen) this.feed(org);
-        this.tryMating(org);
+        // Little animals move by themselves
+        if (def.crawls && item.onGround) {
+          if (Evo.chance(0.03)) item.vx += (Evo.random() - 0.5) * def.crawls;
+          if (def.flees) {
+            for (const c of this.creatures) {
+              const dx = item.x - c.x;
+              if (Math.abs(dx) < 70 && Math.abs(item.y - c.y) < 40) {
+                item.vx += Math.sign(dx || 1) * 0.08;
+                if (def.hops && Evo.chance(0.02)) item.vy = -3.2;
+              }
+            }
+          }
+          if (item.home !== undefined && Math.abs(item.x - item.home) > 120) item.vx += Math.sign(item.home - item.x) * 0.05;
+          item.vx = clamp(item.vx, -def.crawls * 2, def.crawls * 2);
+          const ahead = item.x + Math.sign(item.vx) * 10;
+          if (this.terrain.waterLevelAt(ahead) !== null) item.vx = -item.vx; // Bugs keep out of the water
+        }
+        item.vy += GRAVITY;
+        const prevY = item.y;
+        item.x = clamp(item.x + item.vx, this.edge, this.width - this.edge);
+        item.y += item.vy;
+        const floor = this.surfaceBelow(item.x, prevY - 1);
+        const level = this.terrain.waterLevelAt(item.x);
+        if (level !== null && item.y > level && !def.crawls && item.type !== 'dew') {
+          item.y = Math.min(item.y, level); // Floats
+          item.vy = 0; item.vx *= 0.96; item.onGround = true;
+        } else if (item.y >= floor) {
+          item.y = floor;
+          item.vy = Math.abs(item.vy) > 1.5 ? -item.vy * (def.bounce || 0) : 0;
+          item.onGround = true;
+          item.vx *= def.rolls ? 0.985 : def.crawls ? 0.9 : 0.8;
+          if (def.rolls || def.bounce) item.vx += this.terrain.slopeAt(item.x) * 0.12;
+          if (def.rolls) item.rot += item.vx / item.radius;
+        } else {
+          item.onGround = false;
+        }
+        if (item.type === 'egg') this.incubate(item);
       }
-
-      this.growFood();
-
-      // Occasional migration keeps a small population from dying out for lack of a mate
-      if (this.tick % 600 === 0 && !this.isFull) {
-        const females = this.organisms.filter(o => o.sex === 'FEMALE').length;
-        const males = this.organisms.length - females;
-        if (females < 2) this.addMigrant('FEMALE');
-        else if (males < 2) this.addMigrant('MALE');
-      }
-
-      // Re-found after total extinction
-      if (this.organisms.length === 0) this.seedPrimordialPopulation();
+      this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.held);
     }
 
-    // Live prey skitters away from nearby organisms
-    moveLivePrey() {
-      const m = 20;
+    // Odours rise from items and bodies, spread through the air, and fade
+    stepScent() {
       for (const item of this.items) {
-        if (!ITEM_TYPES[item.type].mobile) continue;
-        for (const org of this.organisms) {
-          if (Math.hypot(org.x - item.x, org.y - item.y) < 70) {
-            const a = Math.atan2(item.y - org.y, item.x - org.x);
-            item.vx += Math.cos(a) * 0.3;
-            item.vy += Math.sin(a) * 0.3;
-          }
+        for (const [ch, rate] of ITEM_TYPES[item.type].odour) this.depositScent(item.x, item.y - item.radius, ch, rate);
+      }
+      for (const p of this.terrain.ponds) for (let x = p.x0; x < p.x1; x += 60) this.depositScent(x, p.level - 10, Evo.SCENT.moist, 0.02);
+      if (this.clock.tick % SCENT_EVERY) return;
+      const s = this.scent;
+      SCENTS.forEach((sc, ch) => Evo.diffuse(s.channels[ch], this.scentScratch, s.cols, s.rows,
+        sc.diffusion * SCENT_EVERY, Math.pow(1 - sc.decay, SCENT_EVERY), 0.0005, this.scentSolid));
+    }
+
+    // ---------- The player's hand ----------
+    pat(c) {
+      c.stim.gentle = 1; c.stim.back = Math.max(c.stim.back, 0.6);
+      this.events.emit('pat', { creature: c });
+    }
+
+    slap(c) {
+      c.stim.impact = 1; c.stim.back = 1; c.stim.flinch = 1;
+      c.injury = Math.min(1, c.injury + 0.01);
+      this.events.emit('slap', { creature: c });
+    }
+
+    // holding: { creature } or { item }
+    grab(holding, x, y) {
+      this.releaseHand(0, 0);
+      if (holding.creature) {
+        holding.creature.held = true;
+        if (holding.creature.carrying) this.dropCarried(holding.creature);
+      }
+      if (holding.item) {
+        if (holding.item.held && holding.item.held !== 'hand') {
+          const c = this.creatures.find(k => k.id === holding.item.held);
+          if (c) c.carrying = null;
         }
-        item.vx *= 0.92; item.vy *= 0.92;
-        item.x += item.vx; item.y += item.vy;
-        if (item.x < m || item.x > this.width - m) { item.x = clamp(item.x, m, this.width - m); item.vx *= -1; }
-        if (item.y < m || item.y > this.height - m) { item.y = clamp(item.y, m, this.height - m); item.vy *= -1; }
+        holding.item.held = 'hand';
       }
+      this.hand.holding = holding;
+      this.moveHand(x, y);
     }
 
-    // Death: the body's remaining energy returns to the ground as carrion
-    handleDeath(org, idx) {
-      const cause = org.body.causeOfDeath;
-      this.stats.deaths[cause] = (this.stats.deaths[cause] || 0) + 1;
-      // Some of the body is lost to decay; the rest (including its own tissue) feeds scavengers
-      const b = org.body;
-      const contents = { carbs: b.carbs * 0.5, fats: b.fats * 0.6, protein: b.protein * 0.6 + 6, bulk: 20 };
-      if (contents.carbs + contents.fats + contents.protein > 4) this.spawnItem('carrion', org.x, org.y, contents);
-      this.organisms.splice(idx, 1);
-      if (this.focusedOrganism === org) this.focusedOrganism = this.organisms[0] || null;
-      this.events.emit('death', { org, cause });
+    moveHand(x, y) {
+      this.hand.x = clamp(x, 0, this.width);
+      this.hand.y = clamp(y, 0, this.height);
+      const h = this.hand.holding;
+      if (!h) return;
+      if (h.creature) { h.creature.x = clamp(x, this.edge, this.width - this.edge); h.creature.y = y + h.creature.size * 0.7; }
+      if (h.item) { h.item.x = x; h.item.y = y + h.item.radius; }
     }
 
-    // Thorns hurt: contact causes pain and injury
-    applyHazards(org) {
-      for (const h of this.hazards) {
-        const [hx, hy] = this.hazardXY(h);
-        if (Math.hypot(hx - org.x, hy - org.y) < org.currentRadius + h.radius - 4) {
-          if (org.body.pain < 0.5) {
-            this.stats.injuries++;
-            this.events.emit('hurt', { org });
-          }
-          org.body.pain = 1.0;
-          org.body.injury = Math.min(1.0, org.body.injury + 0.003);
-        }
+    releaseHand(vx, vy) {
+      const h = this.hand.holding;
+      if (!h) return;
+      if (h.creature) { h.creature.held = false; h.creature.vx = clamp(vx, -8, 8); h.creature.vy = clamp(vy, -10, 10); h.creature.onGround = false; }
+      if (h.item) { h.item.held = null; h.item.vx = clamp(vx, -8, 8); h.item.vy = clamp(vy, -10, 10); }
+      this.hand.holding = null;
+    }
+
+    // ---------- One tick ----------
+    step() {
+      this.clock.tick++;
+      this.updateClock();
+      this.growFood();
+      this.moveItems();
+      this.stepScent();
+      this.socialContact();
+      for (const c of [...this.creatures]) {
+        c.step(this);
+        if (c.dead) this.handleDeath(c);
       }
+      this.tryMating();
+      for (const s of this.sounds) s.age++;
+      this.sounds = this.sounds.filter(s => s.age < 90);
+      if (this.clock.tick % WANDER_INTERVAL === 0) this.maybeWanderer();
+      if (this.creatures.length === 0 && !this.items.some(i => i.type === 'egg')) this.found();
     }
 
-    // Feeding: an open mouth at an edible item eats it
-    feed(org) {
-      const reach = org.currentRadius + 4;
-      const snoutX = org.x + Math.cos(org.angle) * reach;
-      const snoutY = org.y + Math.sin(org.angle) * reach;
-      for (let i = this.items.length - 1; i >= 0; i--) {
-        const item = this.items[i];
-        const nutrients = this.nutrientsOf(item);
-        if (!nutrients) continue; // Lures aren't food
-        if (Math.hypot(item.x - snoutX, item.y - snoutY) >= item.radius + org.traits.mouthRadius) continue;
-        org.body.ingest(nutrients);
-        if (nutrients.toxin) this.stats.poisonings++;
-        else { this.stats.meals++; org.meals++; }
-        this.items.splice(i, 1);
-        this.events.emit('eat', { org, item, nutrients });
-      }
-    }
-
-    // Sexual reproduction between touching, ready partners
-    tryMating(org) {
-      if (this.isFull || !org.body.canReproduce()) return;
-      const partner = this.organisms.find(other => other !== org && other.sex !== org.sex && other.body.canReproduce() &&
-        Math.hypot(org.x - other.x, org.y - other.y) < org.currentRadius + other.currentRadius + 22);
-      if (partner) this.breed(org, partner);
-    }
-
-    // Primary productivity: growable food appears on a seasonal timer up to the carrying capacity
-    growFood() {
-      const season = SEASONS[this.season];
-      if (++this.regenTicks < season.regenTicks) return;
-      this.regenTicks = 0;
-      if (this.items.filter(i => ITEM_TYPES[i.type].growable).length >= LIMITS.MAX_ITEMS) return;
-      let roll = Evo.random();
-      for (const [type, weight] of Object.entries(season.weights)) {
-        roll -= weight;
-        if (roll <= 0) { this.growItem(type); break; }
-      }
-    }
-
-    // The nearest mature opposite-sex organism to `org`, or null
-    nearestPartner(org) {
-      return minBy(this.organisms.filter(o => o !== org && o.sex !== org.sex && o.body.isMature),
-        o => Math.hypot(o.x - org.x, o.y - org.y));
+    // ---------- Queries ----------
+    creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
+    nearestCreature(x, y, maxDist = Infinity) {
+      const c = minBy(this.creatures, k => Math.hypot(k.x - x, k.y - k.size * 0.4 - y));
+      return c && Math.hypot(c.x - x, c.y - c.size * 0.4 - y) <= maxDist ? c : null;
     }
   }
 
-  Object.assign(Evo, { TerrariumWorld, ScentGrid });
+  Object.assign(Evo, { World, Terrain, WORLD: { WIDTH: WORLD_W, HEIGHT: WORLD_H, SCENT_CELL } });
 })(globalThis.Evo);

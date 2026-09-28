@@ -1,222 +1,205 @@
 // Permissive bytecode genome (evo-devo grammar).
-// Promoter-driven gene expression. Every byte string is a valid genome: a gene is expressed only
-// where a promoter byte sits in front of it, and everything else is silent (junk) DNA that
-// mutates freely. A point mutation can create a promoter (switching on a brand-new gene) or
-// destroy one (silencing a gene). A frameshift garbles only the gene it lands in. Every decoded
-// value is clamped by construction, so a broken gene makes a bad organism, never a broken
-// simulation. Sex is carried on its own chromosome (X or Y), outside the mutable gene string.
+// A gene is expressed only where a promoter byte sits in front of it:
+//
+//   A5  HH  payload…      type = HH % 32 (row in GENES), stage = HH >> 5 (life stage it switches on at)
+//
+// Everything else is silent junk DNA that mutates freely. A point mutation can create a promoter
+// (switching on a brand-new gene) or destroy one. A frameshift garbles only the gene it lands in.
+// Every decoded value is clamped by construction, so a broken gene makes a bad creature, never a
+// broken simulation. Sex is carried on its own chromosome (X or Y), outside the mutable gene string.
 (function (Evo) {
   'use strict';
-  const { mean } = Evo.util;
-  const { LOBE_ORDER, LOBE_COUNT } = Evo;
+  const { mean, clamp } = Evo.util;
+  const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS } = Evo;
 
   const PROMOTER = 0xA5;
-  const MIN_LENGTH = 96;
-  const MAX_LENGTH = 768;
-  const FOUNDER_MIN_LENGTH = 256;
+  const TYPE_SLOTS = 32;
+  const MIN_LENGTH = 256;
+  const MAX_LENGTH = 2400;
 
-  // One row per gene type (the type is the byte after the promoter, modulo the table length).
-  //   payload: bytes that follow the type byte
-  //   express(d): what the gene builds. d.q(k) is payload byte k scaled to [0, 1], d.raw(k) the
-  //   byte itself, d.F is true for females, d.set(trait, value) votes for a trait value.
+  // ---- Codecs: how one payload byte decodes to a value, and how a founder value encodes to a byte ----
+  const byte = v => clamp(Math.round(v), 0, 255);
+  const CODEC = {
+    unit: { decode: b => b / 255, encode: v => byte(v * 255) },
+    raw: { decode: b => b, encode: v => byte(v) },
+    // A chemical slot (0 = nothing). Founder genes name chemicals; mutation can reach any slot.
+    chem: { decode: b => b % N_CHEM, encode: v => (v === null ? 0 : CHEM[v]) },
+    // What an emitter reads: a body locus (codes < 128) or a chemical (codes >= 128)
+    locus: {
+      decode: b => (b < 128 ? { body: b % BODY_LOCI.length } : { chem: (b - 128) % N_CHEM }),
+      encode: v => (v.startsWith('chem:') ? 128 + CHEM[v.slice(5)] : LOCUS[v])
+    },
+    target: { decode: b => b % TARGETS.length, encode: v => TARGET[v] },
+    lobe: { decode: b => b % LOBE_COUNT, encode: v => LOBE_ORDER.indexOf(v) },
+    // Reaction rate constant per tick, logarithmic from 1e-6 to 0.1
+    rate: { decode: b => Math.pow(10, -6 + 5 * b / 255), encode: k => byte((Math.log10(k) + 6) / 5 * 255) },
+    // Product yield, 0..~4
+    yield: { decode: b => b / 64, encode: v => byte(v * 64) },
+    // Emitter output per tick at full signal, 0..0.05 (quadratic, for fine control of small rates)
+    emit: { decode: b => (b / 255) ** 2 * 0.05, encode: v => byte(Math.sqrt(v / 0.05) * 255) },
+    // Receptor gain, 0..4
+    gain: { decode: b => b / 64, encode: v => byte(v * 64) },
+    // Half-life in ticks: 2^(b/16) (1 tick .. ~16 minutes); 255 = never decays
+    halfLife: { decode: b => (b === 255 ? Infinity : Math.pow(2, b / 16)), encode: t => (t === Infinity ? 255 : byte(Math.log2(t) * 16)) }
+  };
+  const flagsOf = b => ({ invert: !!(b & 1), digital: !!(b & 2), negative: !!(b & 4) });
+  const u = key => [key, CODEC.unit];
+
+  // Axon guidance source byte: bits 0-3 lobe, bit 4 x relative to the source's own tag,
+  // bit 5 y relative, bit 6 x mirrored (a crossed projection)
+  const guidanceSource = {
+    decode: b => ({ lobe: (b & 15) % LOBE_COUNT, relX: !!(b & 16), relY: !!(b & 32), mirrorX: !!(b & 64) }),
+    encode: v => LOBE_ORDER.indexOf(v.lobe) | (v.relX ? 16 : 0) | (v.relY ? 32 : 0) | (v.mirrorX ? 64 : 0)
+  };
+
+  // One row per gene type. fields: [name, codec] per payload byte, in order.
+  // express(v, d): what the gene builds from its decoded values v.
+  //   d.set(trait, value) votes for a trait (several copies of a gene average: co-dominance);
+  //   d.add(list, entry) appends to a list trait; d.F is true for females.
   const GENES = [
-    { name: 'Morphology', payload: 3, express(d) {
-      d.set('radius', (d.F ? 14.0 : 12.0) + d.q(0) * 5.5);
-      d.set('exoskeletonDrag', 0.84 + d.q(1) * 0.08);
-      d.set('mouthRadius', 5.0 + d.q(2) * 7.0);
-      d.set('coatColorHue', d.q(0) * 360);
-    } },
-    { name: 'Antennae', payload: 3, express(d) {
-      d.set('antennaLength', (d.F ? 20.0 : 26.0) + d.q(0) * 14.0);
-      d.set('antennaSpread', 0.40 + d.q(1) * 0.28);
-      d.set('scentGain', 0.6 + d.q(2) * 1.0);
-    } },
-    { name: 'Optics', payload: 3, express(d) { // Optics & receptive fields
-      d.set('visionRange', 210.0 + d.q(0) * 90.0);
-      d.set('visionAperture', 0.24 + d.q(1) * 0.16);
-      d.set('opticGain', 0.6 + d.q(2) * 1.0);
-    } },
-    { name: 'Membrane', payload: 3, express(d) { // Membrane biophysics
-      d.set('baseThreshold', -58.0 + d.q(0) * 10.0);
-      d.set('tauLeak', 0.72 + d.q(1) * 0.19);
-      d.set('refractoryTicks', 1 + d.q(2) * 2);
-    } },
-    { name: 'Energetics', payload: 2, express(d) { // Energetics & spike economy
-      d.set('spikeEnergyCost', 0.00002 + d.q(0) * 0.00005);
-      d.set('basalCost', (d.F ? 0.0006 : 0.0007) + d.q(1) * 0.0004);
-    } },
-    { name: 'Enzymes', payload: 4, express(d) { // Digestive enzymes
-      d.set('amylaseRate', 0.0018 + d.q(0) * 0.0036);
-      d.set('lipolysisEfficiency', 0.6 + d.q(1) * 0.35);
-      d.set('combustionSpeed', 0.003 + d.q(2) * 0.0036);
-      d.set('lipogenesisRate', 0.001 + d.q(3) * 0.002);
-    } },
-    { name: 'Osmoregulation', payload: 2, express(d) {
-      d.set('waterDrainRate', 0.0012 + d.q(0) * 0.0010);
-      d.set('dehydrationTolerance', 0.7 + d.q(1) * 0.3);
-    } },
-    { name: 'Detox', payload: 2, express(d) { // Liver detoxification
-      d.set('detoxRate', 0.014 + d.q(0) * 0.026);
-      d.set('toxinResistance', 0.75 + d.q(1) * 0.50);
-    } },
-    { name: 'Plasticity', payload: 4, express(d) { // Meta-plasticity
-      d.set('learningRate', 0.018 + d.q(0) * 0.045);
-      d.set('traceDecay', 0.88 + d.q(1) * 0.115); // Eligibility half-life from ~5 to ~140 ticks
-      d.set('sproutingThreshold', 3.0 + d.q(2) * 7.0);
-      d.set('pruningRate', 0.02 + d.q(3) * 0.03);
-    } },
-    { name: 'Reinforcement', payload: 2, express(d) { // Reinforcement sensitivity
-      d.set('joyGain', 0.9 + d.q(0) * 1.3);
-      d.set('stressGain', 1.1 + d.q(1) * 1.6);
-    } },
-    { name: 'Muscle', payload: 3, express(d) {
-      d.set('speedMult', (d.F ? 0.92 : 1.05) + d.q(0) * 0.35);
-      d.set('turnAgility', 0.038 + d.q(1) * 0.024);
-      d.set('burstFactor', 1.2 + d.q(2) * 0.6);
-    } },
-    { name: 'Life history', payload: 2, express(d) {
-      d.set('maturityAgeSeconds', 18.0 + d.q(0) * 22.0);
-      d.set('maxLifespanSeconds', 220.0 + d.q(1) * 180.0);
-    } },
-    { name: 'Endocrine', payload: 3, express(d) { // Endocrine sensitivity
-      d.set('ghrelinGain', 0.7 + d.q(0) * 0.6);
-      d.set('leptinGain', 0.7 + d.q(1) * 0.6);
-      d.set('crowdingSensitivity', 0.7 + d.q(2) * 0.8);
-    } },
-    { name: 'Pheromone', payload: 2, express(d) { // How much, and what share is the long-lasting trail form
-      d.set('pheromoneEmissionRate', (d.F ? 0.09 : 0.05) + d.q(0) * 0.08);
-      d.set('trailFraction', d.q(1));
-    } },
-    { name: 'Anomaly', payload: 2, express(d) { // Metabolic anomaly (effects compound, within limits)
-      if (d.q(0) < 0.12) d.anomaly.noiseAdd += 0.25;
-      if (d.q(1) < 0.10) d.anomaly.basalMul *= 1.4;
-      if (d.q(0) > 0.88 && d.q(1) > 0.88) d.anomaly.spikeMul *= 0.65;
-    } },
-    { name: 'Axon guidance', payload: 8, express(d) { // Axon guidance rule
-      d.traits.axonGuidanceTags.push({
-        sourceLobeIdx: d.raw(0) % LOBE_COUNT,
-        targetVector: [d.q(1), d.q(2), d.q(3)],
-        affinityRadius: 0.2 + d.q(4) * 0.6,
-        // Sign and strength: bytes above 120 are excitatory, stronger the higher they go
-        weightSign: d.raw(5) > 120 ? Math.min(1.0, 0.2 + (d.raw(5) - 120) / 100) : -0.80,
-        reach: 0.15 + d.q(6) * 0.85,        // How far these axons can grow (brain widths)
-        conduction: 0.08 + d.q(7) * 0.50    // Myelination: distance per tick
-      });
-    } },
-    { name: 'Pacemaker', payload: 2, express(d) { // Steady depolarizing current for a whole lobe
-      d.traits.pacemakers.push({ lobeIdx: d.raw(0) % LOBE_COUNT, bias: d.q(1) * 3.0 });
-    } },
-    { name: 'Neurochemistry', payload: 2, express(d) { // How far a brain chemical spreads before breaking down
-      d.chem(['DA', 'ST', 'NO'][d.raw(0) % 3], d.q(1));
-    } },
-    { name: 'Anatomy', payload: 5, express(d) { // Region, depth shift, width, size, neuron count
-      d.anatomy(LOBE_ORDER[d.raw(0) % LOBE_COUNT], {
-        shift: (d.q(1) - 0.5) * 0.3, lateral: 0.6 + d.q(2) * 0.8, size: 0.6 + d.q(3) * 0.9, count: 0.5 + d.q(4) * 1.1
-      });
-    } },
-    { name: 'Reproduction', payload: 2, express(d) { // Reproductive investment
-      d.set('parentalDowryRatio', (d.F ? 0.20 : 0.10) + d.q(0) * 0.30);
-      d.set('estrusCooldownTicks', (d.F ? 420 : 260) + d.q(1) * 320);
-    } },
-    { name: 'Curiosity', payload: 2, express(d) { // How fast boredom builds, and how fast senses get used to things
-      d.set('boredomRate', 0.0002 + d.q(0) * 0.0012);
-      d.set('habituationRate', 0.0005 + d.q(1) * 0.004);
-    } },
-    { name: 'Region duplication', payload: 5, express(d) { // Copy a region; the copy starts wired in register
-      d.traits.duplications.push({
-        sourceLobeIdx: d.raw(0) % LOBE_COUNT,
-        depth: 0.45 + d.q(1) * 0.45,        // Where the copy sits, front (0) to back (1)
-        lateral: 0.6 + d.q(2) * 0.8,        // Narrower or wider than the original
-        chemShift: (d.q(3) - 0.5) * 0.8,    // How far its chemical identity drifts from the original
-        inputWeight: 0.3 + d.q(4) * 0.6     // Strength of the in-register input from the original
-      });
-    } }
+    { name: 'Appearance', fields: [u('hue'), u('accentHue'), u('pattern'), u('patternScale'), u('earSize'), u('tailLength'), u('eyeSize'), u('plumpness')],
+      express(v, d) {
+        d.set('hue', v.hue * 360); d.set('accentHue', v.accentHue * 360); d.set('pattern', Math.min(3, Math.floor(v.pattern * 4)));
+        for (const k of ['patternScale', 'earSize', 'tailLength', 'eyeSize', 'plumpness']) d.set(k, v[k]);
+      } },
+    { name: 'Morphology', fields: [u('size'), u('legLength'), u('mouthReach'), u('crest')],
+      express(v, d) {
+        d.set('adultSize', (d.F ? 32 : 30) + v.size * 16);      // Adult body length, px
+        d.set('legLength', v.legLength);
+        d.set('mouthReach', 4 + v.mouthReach * 8);
+        d.set('crest', v.crest);
+      } },
+    { name: 'Eyes', fields: [u('range'), u('gain'), u('night')],
+      express(v, d) { d.set('visionRange', 180 + v.range * 280); d.set('opticGain', 0.6 + v.gain); d.set('nightVision', v.night); } },
+    { name: 'Nose', fields: [u('reach'), u('gain')],
+      express(v, d) { d.set('noseReach', 14 + v.reach * 30); d.set('scentGain', 0.6 + v.gain); } },
+    { name: 'Membrane', fields: [u('threshold'), u('leak'), u('refractory')],
+      express(v, d) { d.set('baseThreshold', -58 + v.threshold * 10); d.set('tauLeak', 0.72 + v.leak * 0.19); d.set('refractoryTicks', 1 + v.refractory * 2); } },
+    { name: 'Plasticity', fields: [u('rate'), u('memory'), u('sprouting'), u('pruning')],
+      express(v, d) {
+        d.set('learningRate', 0.018 + v.rate * 0.045);
+        d.set('traceDecay', 0.88 + v.memory * 0.115); // Eligibility half-life from ~5 to ~140 ticks
+        d.set('sproutingThreshold', 3 + v.sprouting * 7);
+        d.set('pruningRate', 0.02 + v.pruning * 0.03);
+      } },
+    { name: 'Reinforcement', fields: [u('joy'), u('stress')],
+      express(v, d) { d.set('joyGain', 0.9 + v.joy * 1.3); d.set('stressGain', 1.1 + v.stress * 1.6); } },
+    { name: 'Muscle', fields: [u('speed'), u('jump'), u('run')],
+      express(v, d) { d.set('walkSpeed', 0.8 + v.speed * 1.0); d.set('jumpPower', 3.5 + v.jump * 3.5); d.set('runBoost', 1.2 + v.run * 0.8); } },
+    { name: 'Life history', fields: [u('lifespan'), u('gestation')],
+      express(v, d) { d.set('lifespanTicks', (20 + v.lifespan * 24) * 60 * 60); d.set('gestationTicks', 3000 + v.gestation * 6000); } },
+    { name: 'Voice', fields: [u('pitch'), u('loudness')],
+      express(v, d) { d.set('voicePitch', v.pitch); d.set('voiceLoudness', 0.4 + v.loudness * 0.6); } },
+    { name: 'Curiosity', fields: [u('habituation'), u('novelty')],
+      express(v, d) { d.set('habituationRate', 0.0005 + v.habituation * 0.004); d.set('noveltyGain', 4 + v.novelty * 8); } },
+    { name: 'Anatomy', fields: [['region', CODEC.lobe], u('shift'), u('lateral'), u('size'), u('count')],
+      express(v, d) {
+        d.anatomy(LOBE_ORDER[v.region], { shift: (v.shift - 0.5) * 0.3, lateral: 0.6 + v.lateral * 0.8, size: 0.6 + v.size * 0.9, count: 0.5 + v.count * 1.1 });
+      } },
+    { name: 'Region duplication', fields: [['source', CODEC.lobe], u('depth'), u('lateral'), u('chemShift'), u('input')],
+      express(v, d) {
+        d.add('duplications', {
+          sourceLobeIdx: v.source,
+          depth: 0.45 + v.depth * 0.45,       // Where the copy sits, front (0) to back (1)
+          lateral: 0.6 + v.lateral * 0.8,     // Narrower or wider than the original
+          chemShift: (v.chemShift - 0.5) * 0.8, // How far its chemical identity drifts from the original
+          inputWeight: 0.3 + v.input * 0.6    // Strength of the in-register input from the original
+        });
+      } },
+    { name: 'Axon guidance', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction')],
+      express(v, d) {
+        d.add('axonGuidance', {
+          source: v.source,
+          target: [v.tx, v.ty, v.tz],        // Receptor chemistry sought (x/y relative to the source's own tag if relX/relY)
+          affinityRadius: 0.04 + v.radius * 0.76,
+          // Sign and strength: bytes above 120 are excitatory, below inhibitory, stronger the
+          // further from 120 they are (0.2 .. 1.0 either way)
+          weightSign: (v.sign > 120 ? 1 : -1) * Math.min(1.0, 0.2 + Math.abs(v.sign - 120) / 100),
+          reach: 0.15 + v.reach * 1.35,      // How far these axons can grow (brain widths)
+          conduction: 0.08 + v.conduction * 0.50 // Myelination: distance per tick
+        });
+      } },
+    { name: 'Pacemaker', fields: [['lobe', CODEC.lobe], u('bias')],
+      express(v, d) { d.add('pacemakers', { lobeIdx: v.lobe, bias: v.bias * 3.0 }); } },
+    { name: 'Neurochemistry', fields: [['chem', CODEC.raw], u('spread')],
+      express(v, d) { d.neurochem(['DA', 'ST', 'NO'][v.chem % 3], v.spread); } },
+    { name: 'Reaction', fields: [['a', CODEC.chem], ['b', CODEC.chem], ['c', CODEC.chem], ['d', CODEC.chem], ['rate', CODEC.rate], ['yieldC', CODEC.yield], ['yieldD', CODEC.yield]],
+      express(v, d) { if (v.a) d.add('reactions', v); } },
+    { name: 'Emitter', fields: [['locus', CODEC.locus], ['chem', CODEC.chem], u('threshold'), ['gain', CODEC.emit], ['flags', CODEC.raw]],
+      express(v, d) { if (v.chem) d.add('emitters', { ...v, ...flagsOf(v.flags) }); } },
+    { name: 'Receptor', fields: [['chem', CODEC.chem], ['target', CODEC.target], u('threshold'), ['gain', CODEC.gain], ['flags', CODEC.raw]],
+      express(v, d) { if (v.chem && v.target) d.add('receptors', { ...v, ...flagsOf(v.flags) }); } },
+    { name: 'Half-life', fields: [['chem', CODEC.chem], ['halfLife', CODEC.halfLife]],
+      express(v, d) { if (v.chem) d.halfLife(v.chem, v.halfLife); } },
+    { name: 'Initial concentration', fields: [['chem', CODEC.chem], u('amount')],
+      express(v, d) { if (v.chem) d.add('initial', v); } },
+    { name: 'Instinct', fields: [['lobeA', CODEC.lobe], ['indexA', CODEC.raw], ['lobeB', CODEC.lobe], ['indexB', CODEC.raw], ['motor', CODEC.raw], ['chem', CODEC.chem], u('amount')],
+      express(v, d) { d.add('instincts', v); } },
+    { name: 'Insulation', fields: [u('insulation'), u('bodyHeat')],
+      express(v, d) { d.set('insulation', 0.3 + v.insulation * 0.6); d.set('bodyHeat', v.bodyHeat); } },
+    { name: 'Reproduction', fields: [u('investment'), u('incubation')],
+      express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); } }
   ];
+  GENES.forEach(g => { g.payload = g.fields.length; });
   const GENE_INDEX = Object.fromEntries(GENES.map((g, i) => [g.name, i]));
 
   // Defaults for any trait whose gene is missing
   function defaultTraits(F) {
     return {
-      radius: F ? 16.0 : 13.8, exoskeletonDrag: 0.88, mouthRadius: 8.0,
-      coatColorHue: 180,
-      antennaLength: F ? 25.0 : 32.0, antennaSpread: F ? 0.48 : 0.62, scentGain: 1.0,
-      visionRange: 260.0, visionAperture: 0.32, opticGain: 1.0,
-      baseThreshold: -52.0, tauLeak: 0.82, refractoryTicks: 2, spikeEnergyCost: 0.00004, membraneNoise: 0.35,
-      basalCost: 0.0009, combustionSpeed: 0.0048, lipogenesisRate: 0.0020,
-      amylaseRate: 0.0032, lipolysisEfficiency: 0.8,
-      waterDrainRate: 0.0016, dehydrationTolerance: 0.85,
-      detoxRate: 0.024, toxinResistance: 1.0,
-      learningRate: 0.038, traceDecay: 0.94, sproutingThreshold: 6.0, pruningRate: 0.035,
+      hue: 30, accentHue: 45, pattern: 0, patternScale: 0.5, earSize: 0.5, tailLength: 0.5, eyeSize: 0.5, plumpness: 0.5,
+      adultSize: F ? 40 : 38, legLength: 0.5, mouthReach: 8, crest: 0.5,
+      visionRange: 300, opticGain: 1.0, nightVision: 0.3, noseReach: 26, scentGain: 1.0,
+      baseThreshold: -52, tauLeak: 0.82, refractoryTicks: 2, membraneNoise: 0.35,
+      learningRate: 0.038, traceDecay: 0.94, sproutingThreshold: 6, pruningRate: 0.035,
       joyGain: 1.45, stressGain: 1.85,
-      speedMult: 1.0, turnAgility: 0.048, burstFactor: 1.45,
-      maturityAgeSeconds: 28.0, maxLifespanSeconds: 300.0,
-      parentalDowryRatio: F ? 0.35 : 0.20, estrusCooldownTicks: F ? 580 : 360,
-      ghrelinGain: 1.0, leptinGain: 1.0, crowdingSensitivity: 1.0,
-      boredomRate: 0.0006, habituationRate: 0.0015,
-      pheromoneEmissionRate: F ? 0.12 : 0.08, trailFraction: 0.3,
-      axonGuidanceTags: [], pacemakers: [], duplications: [],
+      walkSpeed: 1.3, jumpPower: 5, runBoost: 1.5,
+      lifespanTicks: 30 * 60 * 60, gestationTicks: 5400,
+      voicePitch: F ? 0.65 : 0.4, voiceLoudness: 0.7,
+      habituationRate: 0.0015, noveltyGain: 8,
+      insulation: 0.6, bodyHeat: 0.5,
+      eggInvestment: 0.35, incubationTicks: 5400,
+      axonGuidance: [], pacemakers: [], duplications: [],
+      reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [],
       neurochem: { DA: 0.5, ST: 0.5, NO: 0.15 },
       anatomy: {}
     };
   }
 
-  // Primordial founder genome. These are ordinary genes behind ordinary promoters: they mutate,
-  // duplicate, recombine and can be lost. Each is [type, ...payload].
-  const G = GENE_INDEX;
-  const FOUNDER_GENES = [
-    [G['Morphology'], 0x80, 0x70, 0x80],             // Size, drag, mouth reach
-    [G['Antennae'], 0x75, 0x60, 102],                // Length, spread, smell sensitivity
-    [G['Optics'], 0x85, 0x55, 102],                  // Range, field of view, eye sensitivity
-    [G['Membrane'], 0x70, 0x80, 0x80],               // Threshold, leak, refractory period
-    [G['Energetics'], 0x60, 0x50],
-    [G['Enzymes'], 0x75, 0x65, 128, 128],            // Starch digestion, fat burning, sugar burning, fat storing
-    [G['Plasticity'], 0x55, 0x70, 109, 128],         // Learning rate, memory span, sprouting, pruning
-    [G['Life history'], 0x66, 0x99],                 // Maturity, lifespan
-    [G['Reproduction'], 0x80, 0x80],                 // Parental investment, estrus cooldown
-    [G['Pheromone'], 0x66, 0x4D],                    // Emission rate, trail share (~30% long-lasting)
-    // Axon guidance: source lobe, target chemistry x3, affinity radius, sign, reach, myelination
-    [G['Axon guidance'], 0, 128, 128, 230, 250, 200, 120, 112],  // Vision -> motor (same-side favoured by distance)
-    [G['Axon guidance'], 1, 128, 128, 230, 250, 200, 120, 112],  // Olfaction -> motor
-    [G['Axon guidance'], 3, 128, 128, 25, 250, 200, 105, 90],    // Hypothalamus -> limbic
-    [G['Axon guidance'], 4, 128, 51, 230, 43, 200, 165, 112],    // Limbic -> forward thrust & jaws
-    [G['Axon guidance'], 4, 128, 128, 180, 250, 200, 200, 180],  // Limbic modulatory projection (broad, fast)
-    [G['Pacemaker'], 8, 77],                                     // Pacemaker on the motor lobe
-    [G['Region duplication'], 8, 255, 128, 128, 234],            // Copy of the movement lobe: an efference copy of every command
-    // Anticipation: smell reaches the joy and stress neurons, weakly at first. These synapses learn
-    // what each smell predicts, so smells can come to trigger joy or fear.
-    [G['Axon guidance'], 1, 51, 230, 25, 21, 135, 225, 200],     // Olfaction -> joy neuron
-    [G['Axon guidance'], 1, 230, 51, 25, 21, 135, 225, 200],     // Olfaction -> stress neuron
-    [G['Axon guidance'], 2, 128, 25, 230, 43, 220, 225, 200],    // Innate reflex: touch -> jaws
-    [G['Curiosity'], 0x80, 0x80],                                // Boredom and habituation rates
-    // Duplicated sensory maps placed just in front of the motor area. Geometry alone should wire
-    // each side of these copies to the same-side muscles (a tectum-like orienting map).
-    [G['Region duplication'], 0, 176, 128, 128, 234],            // Copy of the visual map
-    [G['Region duplication'], 1, 142, 128, 128, 234]             // Copy of the smell map
-  ];
-
-  // A random junk byte that is never a promoter
   const junkByte = () => { const b = Evo.randInt(256); return b === PROMOTER ? 0x5A : b; };
 
+  // Encode one founder gene { gene: 'Reaction', stage: 0, ...values } into bytes (promoter included)
+  function encodeGene(spec) {
+    const type = GENE_INDEX[spec.gene];
+    if (type === undefined) throw new Error(`Unknown gene ${spec.gene}`);
+    const def = GENES[type];
+    const bytes = [PROMOTER, ((spec.stage || 0) << 5) | type];
+    for (const [key, codec] of def.fields) {
+      if (!(key in spec)) throw new Error(`${spec.gene} gene is missing "${key}"`);
+      bytes.push(codec.encode(spec[key]));
+    }
+    return bytes;
+  }
+
   class Genome {
-    // new Genome() builds a founder; new Genome(bytes, sexChrom) wraps (a copy of) existing DNA
-    constructor(bytes = null, sexChrom = null) {
-      this.dna = bytes ? new Uint8Array(bytes) : Genome.founderDNA();
+    // new Genome(bytes, sexChrom) wraps (a copy of) existing DNA; Genome.founder() builds a founder
+    constructor(bytes, sexChrom = null) {
+      this.dna = new Uint8Array(bytes);
       this.sexChrom = sexChrom || (Evo.chance(0.5) ? 'X' : 'Y');
       this.mutationCount = 0; // Mutation events along the longest parental line since the founders
     }
 
-    // Founder genes separated by a few junk bytes, then junk padding. The chromosome is sized to
-    // hold every founder gene, so founders always carry exactly these genes.
-    static founderDNA() {
+    // Founder genes (Evo.FOUNDER_GENOME, see founder.js) separated by a few junk bytes, then junk
+    // padding. The chromosome is sized to hold every founder gene.
+    static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
       const bytes = [];
       const junk = n => { for (let i = 0; i < n; i++) bytes.push(junkByte()); };
       junk(4);
-      for (const g of FOUNDER_GENES) {
-        bytes.push(PROMOTER, ...g);
-        junk(3 + Evo.randInt(4));
+      for (const spec of genes) {
+        bytes.push(...encodeGene(spec));
+        junk(2 + Evo.randInt(3));
       }
-      junk(Math.max(0, FOUNDER_MIN_LENGTH - bytes.length));
-      return Uint8Array.from(bytes);
+      junk(Math.max(0, MIN_LENGTH - bytes.length));
+      return new Genome(Uint8Array.from(bytes), sexChrom);
     }
 
     // Locate every expressed gene in a DNA string: [start, end) spans including the promoter
@@ -225,10 +208,11 @@
       let i = 0;
       while (i < len) {
         if (dna[i] !== PROMOTER || i + 1 >= len) { i++; continue; }
-        const type = dna[i + 1] % GENES.length;
+        const type = dna[i + 1] % TYPE_SLOTS;
+        if (type >= GENES.length) { i++; continue; } // An unused type slot: silent
         const end = i + 2 + GENES[type].payload;
         if (end > len) break; // Truncated at the chromosome's end: not expressed
-        genes.push({ start: i, end, type });
+        genes.push({ start: i, end, type, stage: dna[i + 1] >> 5 });
         i = end;
       }
       return genes;
@@ -238,6 +222,13 @@
       return Genome.findGenes(this.dna);
     }
 
+    // The decoded values of one gene (for display)
+    decode(gene) {
+      const v = {};
+      GENES[gene.type].fields.forEach(([key, codec], k) => { v[key] = codec.decode(this.dna[gene.start + 2 + k]); });
+      return v;
+    }
+
     // An exact copy, including the family line's mutation count
     clone() {
       const g = new Genome(this.dna, this.sexChrom);
@@ -245,7 +236,7 @@
       return g;
     }
 
-    cloneWithMutation(mutationRate = 0.035, allowIndels = true) {
+    cloneWithMutation(mutationRate = 0.004, allowIndels = true) {
       const dna = Array.from(this.dna);
       let muts = 0;
 
@@ -270,7 +261,7 @@
           genes = Genome.findGenes(dna); // Positions moved: find the genes again
         }
         // 3. Gene loss: a whole expressed gene is deleted
-        if (genes.length && Evo.chance(0.025) && dna.length > MIN_LENGTH) {
+        if (genes.length && Evo.chance(0.02) && dna.length > MIN_LENGTH) {
           const g = Evo.pick(genes);
           dna.splice(g.start, g.end - g.start);
           muts++;
@@ -302,32 +293,33 @@
 
       const child = new Genome(dna, Evo.chance(0.5) ? 'X' : 'Y');
       child.mutationCount = Math.max(mother.mutationCount, father.mutationCount);
-      return child.cloneWithMutation(0.018);
+      return child.cloneWithMutation();
     }
 
-    develop() {
+    // Build the traits of a creature at a life stage: every gene whose switch-on stage has been
+    // reached (stages 0 and 1 are both "from birth"). Each list entry records the gene it came
+    // from (`gene`: its start offset), so callers can tell which ones are new at a later stage.
+    develop(stage = 1) {
       const sex = this.sexChrom === 'Y' ? 'MALE' : 'FEMALE';
       const F = sex === 'FEMALE';
       const traits = defaultTraits(F);
       traits.sex = sex;
 
-      // Gene dosage: several copies of a gene average their values (co-dominance)
       const acc = {}, chemAcc = {}, anatomyAcc = {};
-      const anomaly = { noiseAdd: 0, basalMul: 1, spikeMul: 1 };
       const push = (table, key, v) => { (table[key] = table[key] || []).push(v); };
-      const dna = this.dna;
       for (const gene of this.findGenes()) {
-        const base = gene.start + 2;
-        GENES[gene.type].express({
-          F, traits, anomaly,
-          q: k => dna[base + k] / 255.0,
-          raw: k => dna[base + k],
+        if (gene.stage > Math.max(1, stage)) continue;
+        GENES[gene.type].express(this.decode(gene), {
+          F, traits,
           set: (name, v) => push(acc, name, v),
-          chem: (name, v) => push(chemAcc, name, v),
-          anatomy: (region, v) => push(anatomyAcc, region, v)
+          add: (list, entry) => traits[list].push({ ...entry, gene: gene.start, stage: gene.stage }),
+          neurochem: (name, v) => push(chemAcc, name, v),
+          anatomy: (region, v) => push(anatomyAcc, region, v),
+          halfLife: (chem, ticks) => { traits.halfLives[chem] = ticks; }
         });
       }
 
+      // Gene dosage: several copies of a gene average their values (co-dominance)
       for (const name in acc) traits[name] = mean(acc[name]);
       for (const chem in chemAcc) traits.neurochem[chem] = mean(chemAcc[chem]);
       for (const region in anatomyAcc) {
@@ -337,16 +329,11 @@
           size: mean(list.map(a => a.size)), count: mean(list.map(a => a.count))
         };
       }
-
       traits.refractoryTicks = Math.round(traits.refractoryTicks);
-      traits.estrusCooldownTicks = Math.round(traits.estrusCooldownTicks);
-      traits.bodyMass = 0.8 + (traits.radius / 14.0) ** 2 * 0.4;
-      traits.membraneNoise = Math.min(1.5, traits.membraneNoise + anomaly.noiseAdd);
-      traits.basalCost *= Math.min(3.0, anomaly.basalMul);
-      traits.spikeEnergyCost *= Math.max(0.3, anomaly.spikeMul);
+      traits.pattern = Math.round(traits.pattern);
       return traits;
     }
   }
 
-  Object.assign(Evo, { Genome, GENES, GENE_INDEX, FOUNDER_GENES, PROMOTER });
+  Object.assign(Evo, { Genome, GENES, GENE_INDEX, PROMOTER, CODEC, encodeGene });
 })(globalThis.Evo);

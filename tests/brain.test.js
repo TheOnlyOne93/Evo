@@ -1,44 +1,104 @@
 'use strict';
 
-test('brain: synapse list, lookup set and outgoing lists stay in step', (Evo, assert) => {
-  const org = new Evo.Organism(new Evo.Genome(), 100, 100);
-  const brain = org.brain;
-  const check = () => {
-    assert.strictEqual(brain.synapseKeys.size, brain.synapses.length);
-    const outgoing = brain.allNeurons.reduce((a, n) => a + n.outgoingSynapses.length, 0);
-    assert.strictEqual(outgoing, brain.synapses.length);
-  };
-  check();
-  for (let i = 0; i < 40; i++) brain.removeSynapseAt(Evo.randInt(brain.synapses.length));
-  check();
-  const [a, b] = [brain.allNeurons[0], brain.centralNeurons[5]];
-  brain.addSynapse(a, b, 0.2);
-  assert.strictEqual(brain.addSynapse(a, b, 0.2), null, 'no duplicate synapses');
-  check();
+const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
+
+// The synapse arrays, the lookup set and the outgoing lists must always agree
+function checkWiring(brain, assert) {
+  assert.strictEqual(brain.keys.size, brain.S);
+  brain.rebuildAdjacency();
+  assert.strictEqual(brain.outStart[brain.N], brain.S);
+  for (let i = 0; i < brain.N; i++) {
+    for (const s of brain.outgoing(i)) assert.strictEqual(brain.sSrc[s], i);
+  }
+  for (let s = 0; s < brain.S; s++) assert.ok(brain.keys.has(brain.sSrc[s] * 4096 + brain.sDst[s]));
+}
+
+test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  checkWiring(brain, assert);
+  for (let i = 0; i < 60; i++) brain.removeSynapse(Evo.randInt(brain.S));
+  checkWiring(brain, assert);
+  const a = brain.lobes.touch[0], b = brain.lobes.cortex[3];
+  if (brain.keys.has(a * 4096 + b)) brain.removeSynapse(brain.incoming(b).find(s => brain.sSrc[s] === a));
+  assert.ok(brain.addSynapse(a, b, 0.2) >= 0);
+  assert.strictEqual(brain.addSynapse(a, b, 0.2), -1, 'no duplicate synapses');
+  assert.strictEqual(brain.addSynapse(b, b, 0.2), -1, 'no self-synapses');
+  checkWiring(brain, assert);
 });
 
-test('brain: learning keeps weights inside their limits', (Evo, assert) => {
-  const org = new Evo.Organism(new Evo.Genome(), 100, 100);
-  const syn = org.brain.synapses[0];
-  for (let i = 0; i < 2000; i++) syn.nudge(5);
-  assert.ok(syn.weight <= Evo.BRAIN.WEIGHT_MAX);
-  for (let i = 0; i < 2000; i++) syn.nudge(-5);
-  assert.ok(syn.weight >= Evo.BRAIN.WEIGHT_MIN);
+test('brain: nothing ever synapses onto a sensory cell', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  for (let s = 0; s < brain.S; s++) assert.ok(!brain.isSensory[brain.sDst[s]] || brain.neurons[brain.sDst[s]].copyOf !== null);
+});
+
+test('brain: weights stay inside their limits under relentless reward and punishment', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const drive = new Float32Array(brain.N);
+  for (let t = 0; t < 1500; t++) {
+    for (let i = 0; i < brain.N; i++) drive[i] = brain.isSensory[i] ? 25 * Evo.random() : 0;
+    brain.outcome[0] = t < 750 ? 1 : 0; brain.outcome[1] = t < 750 ? 0 : 1;
+    brain.lDA.fill(0);
+    brain.chem[0].fill(t < 750 ? 3 : 0); brain.chem[1].fill(t < 750 ? 0 : 3);
+    brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
+    if (t % 80 === 0) brain.runMorphogenesis();
+  }
+  const { WEIGHT_MIN, WEIGHT_MAX } = Evo.BRAIN;
+  for (let s = 0; s < brain.S; s++) {
+    assert.ok(brain.sW[s] >= WEIGHT_MIN && brain.sW[s] <= WEIGHT_MAX && Number.isFinite(brain.sW[s]));
+    assert.strictEqual(brain.sW[s] < 0, !!(brain.sFlags[s] & Evo.BRAIN.INHIBITORY) && brain.sW[s] !== 0, 'no synapse changes sign');
+  }
+  for (let i = 0; i < brain.N; i++) assert.ok(Number.isFinite(brain.v[i]) && Number.isFinite(brain.thr[i]));
+  checkWiring(brain, assert);
 });
 
 test('brain: every neuron has a plain-language name', (Evo, assert) => {
-  const org = new Evo.Organism(new Evo.Genome(), 100, 100);
-  for (const n of org.brain.allNeurons) {
-    const name = Evo.text.neuronName(n);
-    assert.ok(name && !/undefined/.test(name), `${n.id} -> ${name}`);
+  const brain = founderBrain(Evo);
+  for (const n of brain.neurons) {
+    const name = Evo.text.neuronName(brain, n);
+    assert.ok(name && !/undefined|NaN/.test(name), `${n.id} -> ${name}`);
     assert.ok(!/undefined/.test(Evo.text.lobeName(n)));
   }
 });
 
-test('brain: founders grow the smell-map copy and the visual-map copy', (Evo, assert) => {
-  for (let i = 0; i < 20; i++) {
-    const org = new Evo.Organism(new Evo.Genome(), 100, 100);
-    const parents = org.brain.duplicateLobes.map(l => org.brain.lobe(l)[0].parentLobe);
-    assert.deepStrictEqual(parents.sort(), ['motor', 'olfactory', 'vision']);
+test('brain: founders grow the movement copy and the sight copy', (Evo, assert) => {
+  for (let i = 0; i < 10; i++) {
+    const brain = founderBrain(Evo);
+    const parents = brain.duplicateLobes.map(l => brain.neurons[brain.lobes[l][0]].parentLobe);
+    assert.deepStrictEqual(parents.sort(), ['motor', 'sight']);
   }
+});
+
+test('brain: founders are born with their reflex arcs', (Evo, assert) => {
+  const has = (brain, from, to) => brain.keys.has(from * 4096 + to);
+  const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
+  const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);
+  const arcs = { needEat: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, needRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
+  const trials = 20;
+  for (let i = 0; i < trials; i++) {
+    const b = founderBrain(Evo, i % 2 ? 'X' : 'Y');
+    const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)];
+    if (has(b, b.lobes.needs[motor('eat')], M('eat'))) arcs.needEat++;
+    if (has(b, T('mouthL'), M('eat'))) arcs.mouthEatL++;
+    if (has(b, T('mouthR'), M('eat'))) arcs.mouthEatR++;
+    if (has(b, T('lips'), M('drink'))) arcs.lipsDrink++;
+    if (has(b, b.lobes.needs[motor('rest')], M('rest'))) arcs.needRest++;
+    if (has(b, T('contactL'), M('walkR'))) arcs.bumpTurnL++;
+    if (has(b, T('contactR'), M('walkL'))) arcs.bumpTurnR++;
+  }
+  // Development is stochastic: most founders are born with each arc, and learning covers the rest
+  for (const [arc, n] of Object.entries(arcs)) assert.ok(n >= trials * 0.6, `${arc}: ${n}/${trials}`);
+});
+
+test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const drive = new Float32Array(brain.N);
+  let before = 0, after = 0;
+  const cortex = brain.lobes.cortex;
+  for (let t = 0; t < 400; t++) {
+    const on = t >= 200;
+    for (const i of brain.lobes.sight) drive[i] = on ? 30 : 0;
+    brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
+    for (const i of cortex) { const f = brain.hist[i] & 1; if (on) after += f; else before += f; }
+  }
+  assert.ok(after > before, `cortex spikes: ${before} quiet, ${after} seeing`);
 });
