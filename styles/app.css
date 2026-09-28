@@ -1,0 +1,203 @@
+/* ===== Tokens: colour always means the same thing (map, bars, brain) =====
+   The canvas renderers read these same variables at start-up (Evo.theme), so a colour
+   changed here changes everywhere. */
+:root {
+  --pond: #0f1e22; --pond-deep: #0a1619; --panel: #15282c; --panel-raised: #1b3136;
+  --line: #29444a; --text: #e6ede3; --muted: #9ab0aa; --faint: #6b837e; --accent: #9be3c8;
+  --fruit: #f0605d; --grain: #e8a33d; --water: #3fc1d9; --protein: #7bc96f; --fat: #d9b26a;
+  --grub: #d9c38a; --carrion: #8f8a84; --mimic-spot: #581c87; --alarm: #fb923c;
+  --energy: #f5c542; --toxin: #a77bf3; --injury: #e86fa8; --joy: #ffb86b; --stress: #f0607a;
+  --bored: #7aa7f0; --female: #ec6fa8; --male: #6aa8f0; --gas: #e2e8f0; --pulse: #fde68a; --copy: #c4b5fd;
+  --ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --lab-w: clamp(380px, 34vw, 520px); --peek: 70px; --lab-anim: .34s; --ease: cubic-bezier(.22,.8,.24,1);
+  --r-sm: 8px; --r-md: 14px;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--pond-deep);
+}
+* { box-sizing: border-box; }
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { height: 100%; margin: 0; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--pond-deep); color: var(--text); font: 400 14px/1.45 var(--ui); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacing: 0.005em; }
+.muted { color: var(--muted); }
+.hidden { display: none !important; }
+
+/* ===== Header ===== */
+.topbar { height: 50px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 14px;
+  background: var(--pond-deep); border-bottom: 1px solid var(--line); }
+.wordmark { font-family: var(--display); font-weight: 650; font-size: 21px; letter-spacing: 0.01em; white-space: nowrap; }
+.wordmark span { color: var(--accent); }
+.status { display: flex; gap: 6px; margin-left: auto; overflow: hidden; }
+.chip { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); white-space: nowrap; color: var(--muted); }
+.chip b { color: var(--text); font-weight: 700; }
+.icon-btn { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; }
+.icon-btn:hover { background: var(--panel); }
+
+/* ===== Stage: the map always fills it; the lab docks, slides or sheets ===== */
+#stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+#arena { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, var(--pond) 0%, var(--pond-deep) 100%); }
+#terrariumCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.float { position: absolute; z-index: 10; background: rgba(15, 30, 34, 0.9); border: 1px solid var(--line);
+  border-radius: var(--r-md); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+/* Creature card */
+#creatureCard { top: 10px; left: 10px; width: min(250px, calc(100% - 20px)); padding: 10px 12px; }
+.card-head { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.sex-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.card-title { font-weight: 700; font-size: 14.5px; }
+.card-sub { font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.doing { font-size: 13px; color: var(--accent); margin: 4px 0 8px; }
+.mini-bars { display: grid; gap: 5px; }
+.mini { display: grid; grid-template-columns: 58px 1fr 34px; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.mini .num { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.fill { height: 100%; width: 0; border-radius: 3px; transition: width 0.25s linear; }
+.card-more { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); display: grid; gap: 3px; }
+.card-more b { color: var(--text); font-weight: 700; }
+#creatureCard.collapsed .card-more { display: none; }
+.chev { transition: transform 0.2s; color: var(--faint); }
+#creatureCard.collapsed .chev { transform: rotate(-90deg); }
+
+/* Playback */
+#playback { top: 10px; right: 10px; display: flex; align-items: center; gap: 2px; padding: 4px; }
+.seg { min-width: 38px; height: 34px; padding: 0 9px; border-radius: 9px; font-size: 13px; color: var(--muted); }
+.seg[aria-pressed="true"] { background: var(--panel-raised); color: var(--text); font-weight: 700; }
+.seg:hover { color: var(--text); }
+.divider { width: 1px; height: 20px; background: var(--line); margin: 0 3px; }
+
+/* Toolbar */
+#toolbar { left: 50%; bottom: 10px; transform: translateX(-50%); width: min(760px, calc(100% - 20px));
+  display: flex; align-items: center; gap: 6px; padding: 6px; overflow-x: auto; scrollbar-width: none; }
+#toolbar::-webkit-scrollbar { display: none; }
+.tool { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 11px; border-radius: 10px;
+  font-size: 13px; color: var(--muted); border: 1px solid transparent; white-space: nowrap; }
+.tool:hover { color: var(--text); background: var(--panel); }
+.tool[aria-pressed="true"] { color: var(--text); background: var(--panel-raised); border-color: var(--line); }
+.swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.tool-label { font-size: 12px; color: var(--faint); padding: 0 4px 0 6px; white-space: nowrap; }
+
+#labOpenBtn { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 12;
+  padding: 14px 8px; border-radius: 12px 0 0 12px; background: var(--panel); border: 1px solid var(--line); border-right: 0;
+  writing-mode: vertical-rl; font-weight: 700; font-size: 13px; color: var(--accent); }
+
+/* ===== Lab panel ===== */
+#labPanel { display: flex; flex-direction: column; background: var(--panel); z-index: 40; overflow: hidden;
+  transition: transform var(--lab-anim) var(--ease), width var(--lab-anim) var(--ease), height var(--lab-anim) var(--ease); }
+#labInner { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#sheetHandle { display: none; }
+[data-layout="desktop"] #labPanel { position: relative; width: var(--lab-w); flex: 0 0 auto; border-left: 1px solid var(--line); }
+[data-layout="desktop"] #labInner { width: var(--lab-w); height: 100%; }
+[data-layout="desktop"]:not(.lab-open) #labPanel { width: 0; border-left-width: 0; }
+[data-layout="drawer"] #labPanel { position: absolute; top: 0; right: 0; bottom: 0; width: min(430px, 90vw);
+  border-left: 1px solid var(--line); box-shadow: -16px 0 40px rgba(0,0,0,0.5); transform: translateX(102%); }
+[data-layout="drawer"].lab-open #labPanel { transform: none; }
+[data-layout="sheet"] #labPanel { position: absolute; left: 0; right: 0; bottom: 0; height: var(--peek);
+  border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; box-shadow: 0 -14px 36px rgba(0,0,0,0.55); }
+[data-layout="sheet"][data-sheet="half"] #labPanel { height: 55%; }
+[data-layout="sheet"][data-sheet="full"] #labPanel { height: 92%; }
+[data-layout="sheet"] #labPanel.dragging { transition: none; }
+[data-layout="sheet"] #sheetHandle { display: flex; justify-content: center; align-items: center; height: 22px; flex: 0 0 auto; cursor: grab; touch-action: none; }
+#sheetHandle span { width: 42px; height: 5px; border-radius: 3px; background: var(--line); }
+[data-layout="sheet"] #toolbar { bottom: calc(var(--peek) + 8px); }
+[data-layout="desktop"]:not(.lab-open) #labOpenBtn, [data-layout="drawer"]:not(.lab-open) #labOpenBtn { display: block; }
+[data-layout="sheet"]:not(.lab-open) #labCloseBtn { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { #labPanel, .fill, .chev { transition: none; } }
+
+.tabs { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.tab { flex: 1 1 0; height: 40px; border-radius: 10px; font-size: 14px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.tab[aria-selected="true"] { color: var(--text); background: var(--panel-raised); font-weight: 700; }
+#labCloseBtn { flex: 0 0 40px; }
+
+.deck { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 14px 28px; display: grid; align-content: start; gap: 18px; }
+.deck-intro h2 { font-size: 22px; }
+.deck-intro p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; max-width: 60ch; }
+section.block { display: grid; gap: 8px; }
+section.block > h3 { font-size: 16px; }
+.note { font-size: 12.5px; color: var(--faint); margin: 0; }
+.empty { font-size: 13px; color: var(--muted); padding: 10px 0; }
+
+/* Brain */
+.brain-frame { position: relative; height: 250px; border-radius: var(--r-md); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
+#brainCanvas, #scopeCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.neuron-card { background: var(--panel-raised); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
+.neuron-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.neuron-name { font-weight: 700; font-size: 15px; }
+.neuron-lobe { font-size: 12.5px; color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--text); }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { height: 38px; padding: 0 14px; border-radius: 10px; font-size: 13.5px; font-weight: 700; background: var(--panel); border: 1px solid var(--line); }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: #0b2a22; border-color: var(--accent); }
+.links { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; }
+.link { display: grid; grid-template-columns: 22px 1fr 64px 34px; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 2px; border-bottom: 1px solid rgba(41,68,74,0.5); }
+.link .dir { color: var(--faint); text-align: center; }
+.link .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link .delay { color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+.strength { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+.strength span { position: absolute; top: 0; bottom: 0; }
+
+.learned { display: grid; gap: 6px; }
+.learn-row { display: grid; grid-template-columns: 1fr 120px 88px; align-items: center; gap: 10px; font-size: 13px; }
+.learn-row .verdict { font-size: 12.5px; text-align: right; color: var(--muted); }
+.centered-track { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+.centered-track::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--faint); }
+.centered-track span { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.scope-frame { height: 72px; border-radius: var(--r-sm); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
+
+/* Body */
+.life-line { font-size: 14px; }
+.life-line b { color: var(--accent); }
+.bars { display: grid; gap: 9px; }
+.bar { display: grid; grid-template-columns: 112px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.bar .num { text-align: right; font-variant-numeric: tabular-nums; }
+.bar .track { height: 8px; border-radius: 4px; }
+.bar .hint { grid-column: 1 / -1; font-size: 12px; color: var(--faint); margin-top: -4px; }
+.urges { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
+.urges .bar { grid-template-columns: 1fr 44px; }
+.urges .bar .track { grid-column: 1 / -1; order: 3; }
+
+/* Genes */
+.traits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+.trait { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(41,68,74,0.5); padding-bottom: 4px; }
+.trait b { color: var(--text); font-variant-numeric: tabular-nums; }
+.gene-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.gene-tag { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--panel-raised); }
+details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+.dna-grid { font: 12px/1.7 var(--mono); margin-top: 8px; display: grid; gap: 1px; overflow-x: auto; }
+.dna-row { display: flex; gap: 10px; white-space: nowrap; }
+.dna-row .addr { color: var(--faint); }
+.dna-row .junk { color: #3d5a58; }
+.dna-row .prom { color: var(--text); text-decoration: underline; }
+.dna-row .names { color: var(--muted); font-family: var(--ui); }
+
+/* Population */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tile { background: var(--panel-raised); border-radius: var(--r-sm); padding: 9px 10px; }
+.tile b { display: block; font-family: var(--display); font-size: 22px; font-weight: 650; line-height: 1.1; }
+.tile span { font-size: 12px; color: var(--muted); }
+.roster { display: grid; gap: 2px; }
+.member { display: grid; grid-template-columns: 12px 1fr 70px 44px; align-items: center; gap: 10px; padding: 8px 6px;
+  border-radius: var(--r-sm); font-size: 13px; text-align: left; width: 100%; }
+.member:hover { background: var(--panel-raised); }
+.member[aria-current="true"] { background: var(--panel-raised); outline: 1px solid var(--line); }
+.member .meta { font-size: 12px; color: var(--muted); }
+.member .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Narrow screens */
+.compact .wordmark { font-size: 18px; }
+.compact .status .chip:nth-child(3) { display: none; }
+.compact #creatureCard { top: 58px; }
+.compact .tab-text { display: none; }
+.compact .tab { font-size: 17px; }
+@media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, 1fr); } .learn-row { grid-template-columns: 1fr 90px 76px; } }
+
+/* Toast: short messages over the map */
+#toast { left: 50%; top: 58px; transform: translateX(-50%); padding: 8px 14px; font-size: 13.5px; z-index: 30; max-width: calc(100% - 20px); }
