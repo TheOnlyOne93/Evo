@@ -1,5 +1,5 @@
 // Flat ESLint config. Plain browser scripts (no modules, no build) that share globalThis.Evo;
-// tests and tools run in Node. Run: npx eslint@9 .
+// tests and tools run in Node. Run: npx eslint@10 .
 'use strict';
 
 const browser = ['window', 'document', 'location', 'navigator', 'localStorage', 'requestAnimationFrame', 'cancelAnimationFrame',
