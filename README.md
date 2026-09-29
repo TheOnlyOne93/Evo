@@ -23,7 +23,7 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 ```sh
 node tests/run.js              # everything
 node tests/run.js genome       # tests whose name contains "genome"
-node tools/behave.js 12        # behaviour bench: one creature in controlled situations
+node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds non-gating metrics)
 node tools/evaluate.js 2 3     # ecology: several seeds in parallel, meals, sleep, births, deaths
 node tools/simulate.js 2 1     # one headless run with a running report
 ```

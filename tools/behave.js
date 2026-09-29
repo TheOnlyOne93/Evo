@@ -1,7 +1,12 @@
 // Behaviour bench: one creature in a controlled situation, many trials, and how often (and how
 // fast) it does the sensible thing. Drives are held at fixed levels during a trial.
-//   node tools/behave.js [trials=12] [filter]
+//   node tools/behave.js [trials=12] [filter] [--report]
+// Scenarios live in tools/scenarios/*.js. Each file exports ({ Evo, lab, session, trial, avoids }) =>
+// ({ scenarios, reports }): scenarios map a name to seed => tick it passed (null = fail); reports map a
+// name to seed => number and are averaged and printed only with --report (they never gate anything).
 'use strict';
+const fs = require('fs');
+const path = require('path');
 const Evo = require('../tests/load')();
 
 // A quiet world with one creature and nothing else happening
@@ -42,79 +47,33 @@ const avoids = (setup, ticks, done) => {
   return r.at === null && !r.died ? 0 : null;
 };
 
-const SCENARIOS = {
-  'hungry, food at mouth -> eats': seed => {
-    const s = lab(seed);
-    s.hold = { hunger: 0.7 };
-    s.world.spawnItem('fruit', s.c.mouthX + 3);
-    return trial(s, 600, w => !w.items.length);
-  },
-  'sated, food at mouth -> leaves it': seed => {
-    const s = lab(seed);
-    s.world.spawnItem('fruit', s.c.mouthX + 3);
-    return avoids(s, 600, w => !w.items.length);
-  },
-  'hungry, fruit 150px left -> reaches and eats it': seed => {
-    const s = lab(seed);
-    s.hold = { hunger: 0.7 };
-    s.c.facing = 1;
-    s.world.spawnItem('fruit', s.c.x - 150);
-    return trial(s, 1800, w => !w.items.length);
-  },
-  'hungry, fruit 150px right -> reaches and eats it': seed => {
-    const s = lab(seed);
-    s.hold = { hunger: 0.7 };
-    s.world.spawnItem('fruit', s.c.x + 150);
-    return trial(s, 1800, w => !w.items.length);
-  },
-  'thirsty at the pond -> drinks': seed => {
-    const s = lab(seed);
-    const p = s.world.terrain.ponds[0];
-    Object.assign(s.c, { x: p.x0 + 12, facing: 1 });
-    s.c.y = s.world.terrain.groundY(s.c.x);
-    s.hold = { thirst: 0.7 };
-    let drank = false;
-    s.world.events.on('drink', () => { drank = true; });
-    return trial(s, 900, () => drank);
-  },
-  'not thirsty at the pond -> rarely drinks': seed => {
-    const s = lab(seed);
-    const p = s.world.terrain.ponds[0];
-    Object.assign(s.c, { x: p.x0 + 12, facing: 1 });
-    s.c.y = s.world.terrain.groundY(s.c.x);
-    let drinks = 0;
-    s.world.events.on('drink', () => { drinks++; });
-    return avoids(s, 900, () => drinks > 8);
-  },
-  'sleepy at night -> falls asleep': seed => {
-    const s = lab(seed, { phase: 0.95 });
-    s.hold = { sleepiness: 0.7, tiredness: 0.3 };
-    return trial(s, 1800, (w, c) => c.asleep);
-  },
-  'rested by day -> stays awake': seed => {
-    const s = lab(seed);
-    return avoids(s, 1200, (w, c) => c.asleep);
-  },
-  'in pain -> runs': seed => {
-    const s = lab(seed);
-    s.hold = { pain: 0.6 };
-    return trial(s, 600, (w, c) => c.runTimer > 0);
-  },
-  'lonely -> calls': seed => {
-    const s = lab(seed);
-    s.hold = { loneliness: 0.8 };
-    return trial(s, 900, (w, c) => c.callTimer > 0);
-  },
-  'thorn bush 120px right -> keeps away': seed => {
-    const s = lab(seed);
-    const bush = s.world.addThornbush(s.c.x + 120);
-    // Fails if it ever walks up to the bush (within 35 px of its centre)
-    return avoids(s, 1200, (w, c) => c.x > bush.x - 35);
-  }
-};
+// A creature kept across trials: one world and brain, so learning carries over. place() puts an item
+// dx pixels from the creature (clearing any others); resetBody() clears toxin, injury and pain and
+// restores health, but keeps the brain.
+function session(seed, opts) {
+  const s = lab(seed, opts);
+  s.place = (type, dx) => { s.world.items.length = 0; return s.world.spawnItem(type, s.c.x + dx); };
+  s.resetBody = () => {
+    const { c } = s;
+    c.health = 1; c.injury = 0; c.damageLog = {};
+    c.chem.set('toxin', 0); c.chem.set('pain', 0);
+  };
+  return s;
+}
 
-const trials = Number(process.argv[2] || 12);
-const filter = process.argv[3] || '';
+const kit = { Evo, lab, session, trial, avoids };
+const SCENARIOS = {}, REPORTS = {};
+const dir = path.join(__dirname, 'scenarios');
+for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
+  const { scenarios, reports } = require(path.join(dir, file))(kit);
+  Object.assign(SCENARIOS, scenarios);
+  Object.assign(REPORTS, reports);
+}
+
+const args = process.argv.slice(2);
+const showReport = args.includes('--report');
+const [trialsArg, filter = ''] = args.filter(a => a !== '--report');
+const trials = Number(trialsArg || 12);
 for (const [name, scenario] of Object.entries(SCENARIOS)) {
   if (!name.includes(filter)) continue;
   const times = [];
@@ -122,4 +81,12 @@ for (const [name, scenario] of Object.entries(SCENARIOS)) {
   const ok = times.filter(t => t !== null);
   const median = ok.length ? ok.sort((a, b) => a - b)[Math.floor(ok.length / 2)] : null;
   console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(48)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
+}
+if (showReport) {
+  for (const [name, metric] of Object.entries(REPORTS)) {
+    if (!name.includes(filter)) continue;
+    let sum = 0;
+    for (let seed = 1; seed <= trials; seed++) sum += metric(seed);
+    console.log(`  ~  ${name.padEnd(48)} mean ${(sum / trials).toFixed(3)}`);
+  }
 }
