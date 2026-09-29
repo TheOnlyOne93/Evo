@@ -178,8 +178,8 @@
 
     // The creature under a screen point (CSS px), or null. Touch-friendly padding.
     creatureAt(sx, sy) {
-      const cs = this.world && this.world.creatures;
-      if (!cs) return null;
+      if (!this.world) return null;
+      const cs = this.world.creatures;
       const p = this.screenToWorld(sx, sy);
       const pad = 8 / this.cam.zoom;
       let best = null, bestD = Infinity;
@@ -270,7 +270,7 @@
       const z = this.cam.zoom, vw = this.w / z, vh = this.h / z;
       const c = this.target;
       if (c) {
-        const lead = clamp((c.vx || 0) * 14, -vw * 0.1, vw * 0.1) + (c.facing || 0) * Math.min(36, vw * 0.06);
+        const lead = clamp(c.vx * 14, -vw * 0.1, vw * 0.1) + c.facing * Math.min(36, vw * 0.06);
         out.x = c.x + lead;
         // Mostly the ground under the creature, so jumps don't bob the whole world
         const ground = this._groundLine(c.x, Math.min(160, vw * 0.25));
@@ -712,17 +712,17 @@
 
     // Poses are computed once per frame (culled to the view) and reused for shadows, drawing and hover
     _preparePoses() {
-      const cs = this.world.creatures || [];
+      const cs = this.world.creatures;
       const poses = this.poses;
       poses.length = cs.length;
       // The art draws each posed creature's shadow and focus ring; the view does for placeholders
-      const useArt = !!(Evo.poseOf && Evo.CreatureArt && !this.artBroken);
+      const useArt = !this.artBroken;
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         const vis = c.x > this.vx0 - 90 && c.x < this.vx1 + 90 && c.y > this.vy0 - 90 && c.y < this.vy1 + 140;
         const pose = poses[i] = vis && useArt ? this._safePose(c) : null;
         // Where the ground is, so a jumping creature's shadow stays on it (an optional pose field)
-        if (pose && pose.groundY === undefined) pose.groundY = this.world.surfaceBelow(c.x, c.y - 1);
+        if (pose) pose.groundY = this.world.surfaceBelow(c.x, c.y - 1);
       }
       // Hover under the hand
       this.hoveredCreature = null;
@@ -758,17 +758,17 @@
     _poseFor(c, i) {
       const p = this.poses[i];
       if (p && this.world.creatures[i] === c) return p;
-      return Evo.poseOf && Evo.CreatureArt && !this.artBroken ? this._safePose(c) : null;
+      return this.artBroken ? null : this._safePose(c);
     }
 
     // Distance-like score of a hit (Infinity if missed)
     _creatureHit(c, pose, x, y, pad) {
-      if (pose && Evo.CreatureArt && Evo.CreatureArt.bounds) {
+      if (pose) {
         const b = Evo.CreatureArt.bounds(pose);
         if (x < b.x0 - pad || x > b.x1 + pad || y < b.y0 - pad || y > b.y1 + pad) return Infinity;
         return Math.hypot(x - (b.x0 + b.x1) / 2, y - (b.y0 + b.y1) / 2);
       }
-      const r = (c.size || (pose && pose.size) || 30) * 0.6 + pad;
+      const r = c.size * 0.6 + pad;
       const d = Math.hypot(x - c.x, y - (c.y - 15));
       return d < r ? d : Infinity;
     }
@@ -789,13 +789,13 @@
       const f = this.options.focused;
       if (f == null) return null;
       if (typeof f === 'object') return f;
-      const cs = this.world.creatures || [];
+      const cs = this.world.creatures;
       for (let i = 0; i < cs.length; i++) if (cs[i].id === f) return cs[i];
       return null;
     }
 
     _drawShadows(g) {
-      const items = this.world.items, cs = this.world.creatures || [];
+      const items = this.world.items, cs = this.world.creatures;
       g.fillStyle = 'rgba(28,20,36,0.2)';
       g.beginPath();
       for (let i = 0; i < items.length; i++) {
@@ -813,7 +813,7 @@
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         if (c.x < this.vx0 - 60 || c.x > this.vx1 + 60 || c.held || this.poses[i]) continue;
-        const size = (this.poses[i] && this.poses[i].size) || c.size || 30;
+        const size = c.size;
         const sy = this.world.surfaceBelow(c.x, c.y);
         const gap = sy - c.y;
         if (gap > 120 || gap < -20) continue;
@@ -857,7 +857,6 @@
 
     _drawCreatures(g, t) {
       const cs = this.world.creatures;
-      if (!cs || !cs.length) return;
       const focused = this._focused();
       const art = Evo.CreatureArt;
       for (let pass = 0; pass < 2; pass++) {
@@ -866,24 +865,24 @@
           if ((c === focused) !== (pass === 1)) continue;
           if (c.x < this.vx0 - 90 || c.x > this.vx1 + 90 || c.y < this.vy0 - 90 || c.y > this.vy1 + 140) continue;
           const pose = this.poses[i];
-          const ringFromArt = !!pose;
-          if (c === focused && !ringFromArt) this._drawFocusRing(g, c, pose, t, true);
+          const ring = c === focused && !pose; // posed creatures get their ring from the art
+          if (ring) this._drawFocusRing(g, c, t, true);
           this._setWorldTransform(g);
-          if (pose && art && !this.artBroken) {
-            try { art.draw(g, pose, t); } catch (err) { this._artFailed(err); this._drawPlaceholder(g, c, pose, t); }
+          if (pose && !this.artBroken) {
+            try { art.draw(g, pose, t); } catch (err) { this._artFailed(err); this._drawPlaceholder(g, c); }
           } else {
-            this._drawPlaceholder(g, c, pose, t);
+            this._drawPlaceholder(g, c);
           }
           this._setWorldTransform(g);
           g.globalAlpha = 1;
-          if (c === focused && !ringFromArt) this._drawFocusRing(g, c, pose, t, false);
+          if (ring) this._drawFocusRing(g, c, t, false);
         }
       }
     }
 
     // A glowing ring on the ground under the focused creature: back half behind it, front half in front
-    _drawFocusRing(g, c, pose, t, back) {
-      const size = (pose && pose.size) || c.size || 30;
+    _drawFocusRing(g, c, t, back) {
+      const size = c.size;
       const sy = this.world.surfaceBelow(c.x, c.y - 2);
       const rx = size * 0.55 + 6, ry = rx * 0.28;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3);
@@ -898,12 +897,11 @@
       }
     }
 
-    // Used until Evo.CreatureArt is loaded: a simple round critter
-    _drawPlaceholder(g, c, pose, t) {
-      const size = (pose && pose.size) || c.size || 30;
-      const dir = ((pose ? pose.facing : c.facing) || 1) < 0 ? -1 : 1;
-      const hue = (pose && pose.looks && pose.looks.hue) || (c.looks && c.looks.hue) || c.hue || 30;
-      const walk = Math.sin((c.x || 0) * 0.25);
+    // A simple round critter, drawn instead once Evo.poseOf or Evo.CreatureArt has thrown
+    // (see _artFailed), so one bug in the art doesn't blank the world
+    _drawPlaceholder(g, c) {
+      const size = c.size, dir = c.facing < 0 ? -1 : 1, hue = c.traits.hue;
+      const walk = Math.sin(c.x * 0.25);
       g.save();
       g.translate(c.x, c.y);
       g.scale(dir, 1);
