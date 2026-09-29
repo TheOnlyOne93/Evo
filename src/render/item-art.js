@@ -461,18 +461,6 @@
     return item.y - r * (LIFT[item.type] || 1);
   }
 
-  // World-space box around what draw() paints (for picking and culling)
-  function bounds(item, out) {
-    const r = item.radius || RADIUS[item.type] || 5;
-    const o = out || {};
-    const cy = centerY(item);
-    const up = item.type === 'lure' ? 3.6 : item.type === 'carrion' ? 2.2 : 1.5;
-    const wide = item.type === 'grain' ? 2.1 : 1.3;
-    o.x0 = item.x - r * wide; o.x1 = item.x + r * wide;
-    o.y0 = cy - r * up; o.y1 = Math.max(item.y, cy + r * 1.1);
-    return o;
-  }
-
   // Draw an item type centred in a box of `size` CSS px (toolbar swatches, cards)
   const iconItem = { id: 7, type: 'fruit', x: 0, y: 0, radius: 5, rot: 0, vx: 0, onGround: true, hue: 40, accentHue: 220, progress: 0.3 };
   function drawIcon(g, type, x, y, size, t) {
@@ -483,5 +471,5 @@
     draw(g, iconItem, t || 0);
   }
 
-  Evo.ItemArt = { draw, bounds, centerY, drawIcon, RADIUS, LIFT };
+  Evo.ItemArt = { draw, centerY, drawIcon, LIFT };
 })(globalThis.Evo);

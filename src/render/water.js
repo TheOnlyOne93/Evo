@@ -194,5 +194,5 @@
     }
   }
 
-  Evo.Water = { draw: drawWater, drawGlints, iceAmount, wave };
+  Evo.Water = { draw: drawWater, drawGlints };
 })(globalThis.Evo);
