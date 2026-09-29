@@ -1,6 +1,7 @@
-// Placeholder Evo.poseOf and Evo.CreatureArt for the world lab (dev only), so the page runs before
-// src/render/pose.js and src/render/creature-art.js exist. install() defines each only if it is
-// missing, so the real ones win whenever they are loaded first.
+// Stand-in Evo.poseOf and Evo.CreatureArt for the world lab (dev only), so the lab runs without
+// the simulation's creatures. Like the real art (DESIGN.md §8) it draws each creature's ground
+// shadow and focus ring from the pose. install() defines each only if it is missing, so the real
+// ones win whenever they are loaded first.
 (function (Evo) {
   'use strict';
   const TAU = Math.PI * 2;
@@ -9,7 +10,7 @@
   function mockPoseOf(c) {
     const calling = c.calling > 0;
     return {
-      id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex, looks: c.looks,
+      id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex, looks: c.traits,
       motion: { vx: c.vx, airborne: !c.onGround, walkPhase: c.walkPhase, lying: c.asleep ? 1 : 0 },
       face: { eyesClosed: c.asleep ? 1 : 0, pupilX: c.facing * 0.5, pupilY: 0, mouthOpen: calling ? 0.8 : 0, smile: 0.5, earDroop: 0, blush: 0 },
       state: {
@@ -22,8 +23,37 @@
 
   const hsl = (h, s, l) => `hsl(${h},${s}%,${l}%)`;
 
+  // On the ground under the creature (pose.groundY, filled in by the WorldView): its shadow and,
+  // when focused, a glowing ring whose back half goes behind the body and front half in front
+  function drawGround(g, pose, t, back) {
+    const s = pose.size, x = pose.x, gy = pose.groundY;
+    if (back) {
+      const gap = gy - pose.y;
+      if (gap <= 120 && gap >= -20) {
+        const k = 1 - Math.max(0, Math.min(1, gap / 120)), rx = s * (0.3 + 0.28 * k);
+        g.fillStyle = 'rgba(28,20,36,0.2)';
+        g.beginPath(); g.ellipse(x, gy, rx, rx * 0.26, 0, 0, TAU); g.fill();
+      }
+    }
+    if (!pose.focused) return;
+    const rx = s * 0.55 + 6, ry = rx * 0.28;
+    g.lineWidth = 2;
+    g.strokeStyle = 'rgba(155,227,200,' + (0.55 + 0.35 * (0.5 + 0.5 * Math.sin(t * 3))).toFixed(3) + ')';
+    g.beginPath(); g.ellipse(x, gy, rx, ry, 0, back ? Math.PI : 0, back ? TAU : Math.PI); g.stroke();
+    if (back) {
+      g.fillStyle = 'rgba(155,227,200,0.14)';
+      g.beginPath(); g.ellipse(x, gy, rx, ry, 0, 0, TAU); g.fill();
+    }
+  }
+
   // A round-bodied critter: body, head, ears, tail and legs from pose.looks and pose.motion
   function draw(g, pose, t) {
+    drawGround(g, pose, t, true);
+    drawBody(g, pose, t);
+    drawGround(g, pose, t, false);
+  }
+
+  function drawBody(g, pose, t) {
     const s = pose.size, L = pose.looks || {}, m = pose.motion || {}, face = pose.face || {};
     const hue = L.hue || 30, acc = L.accentHue === undefined ? hue + 180 : L.accentHue;
     const lying = m.lying || 0;
@@ -130,11 +160,11 @@
     const k = Math.min(w, h) / (s * 1.8);
     g.translate(w / 2, h * 0.8);
     g.scale(k, k);
-    draw(g, Object.assign({}, pose, { x: 0, y: 0 }), t);
+    drawBody(g, Object.assign({}, pose, { x: 0, y: 0 }), t);
     g.restore();
   }
 
-  const MockCreatureArt = { placeholder: true, draw, bounds, drawPortrait };
+  const MockCreatureArt = { draw, bounds, drawPortrait };
 
   function install() {
     if (!Evo.poseOf) Evo.poseOf = mockPoseOf;

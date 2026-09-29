@@ -194,7 +194,7 @@
         this.creatures.push({
           id: this.nextId++, name: NAMES[i % NAMES.length], sex: i % 2 ? 'MALE' : 'FEMALE', stage,
           x, y: this.groundAt(x), vx: 0, vy: 0, facing: R() < 0.5 ? -1 : 1, onGround: true, size, held: false, inWater: false,
-          looks: {
+          traits: { // the looks part of a real creature's traits
             hue: (i * 67 + 20) % 360, accentHue: (i * 67 + 200) % 360, pattern: i % 4, patternScale: R(),
             earSize: 0.3 + R() * 0.7, tailLength: 0.3 + R() * 0.7, eyeSize: 0.4 + R() * 0.6, plumpness: R(), legLength: 0.3 + R() * 0.5, crest: R(),
           },
@@ -317,7 +317,7 @@
           if (c.idle <= 0) c.target = Math.max(this.edge, Math.min(this.width - this.edge, c.x + (R() < 0.5 ? -1 : 1) * (120 + R() * 420)));
         } else {
           const dx = c.target - c.x;
-          c.vx = Math.sign(dx) * (0.55 + (c.stage < 3 ? 0.2 : 0.35) * c.looks.legLength) * (c.inWater ? 0.5 : 1);
+          c.vx = Math.sign(dx) * (0.55 + (c.stage < 3 ? 0.2 : 0.35) * c.traits.legLength) * (c.inWater ? 0.5 : 1);
           if (Math.abs(dx) < 4) c.idle = 60 + R() * 260;
         }
         if (Math.abs(c.vx) > 0.05) c.facing = c.vx > 0 ? 1 : -1;

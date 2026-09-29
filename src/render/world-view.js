@@ -715,9 +715,8 @@
       const cs = this.world.creatures || [];
       const poses = this.poses;
       poses.length = cs.length;
+      // The art draws each posed creature's shadow and focus ring; the view does for placeholders
       const useArt = !!(Evo.poseOf && Evo.CreatureArt && !this.artBroken);
-      // The real art draws each creature's shadow and focus ring from the pose; placeholders don't
-      this.artGround = useArt && !Evo.CreatureArt.placeholder && Evo.CreatureArt.drawsGround !== false;
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         const vis = c.x > this.vx0 - 90 && c.x < this.vx1 + 90 && c.y > this.vy0 - 90 && c.y < this.vy1 + 140;
@@ -813,7 +812,7 @@
       }
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
-        if (c.x < this.vx0 - 60 || c.x > this.vx1 + 60 || c.held || (this.artGround && this.poses[i])) continue;
+        if (c.x < this.vx0 - 60 || c.x > this.vx1 + 60 || c.held || this.poses[i]) continue;
         const size = (this.poses[i] && this.poses[i].size) || c.size || 30;
         const sy = this.world.surfaceBelow(c.x, c.y);
         const gap = sy - c.y;
@@ -867,7 +866,7 @@
           if ((c === focused) !== (pass === 1)) continue;
           if (c.x < this.vx0 - 90 || c.x > this.vx1 + 90 || c.y < this.vy0 - 90 || c.y > this.vy1 + 140) continue;
           const pose = this.poses[i];
-          const ringFromArt = this.artGround && pose;
+          const ringFromArt = !!pose;
           if (c === focused && !ringFromArt) this._drawFocusRing(g, c, pose, t, true);
           this._setWorldTransform(g);
           if (pose && art && !this.artBroken) {
