@@ -17,11 +17,25 @@
   // Drives drawn in the history chart
   const HISTORY = ['hunger', 'thirst', 'tiredness', 'sleepiness', 'loneliness', 'boredom', 'coldness', 'fear', 'reward', 'punishment'];
   const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time at 1×
+  // Genes left out of the comparison with the founders: every founder gets its own looks and voice
+  const FOUNDER_VARIES = ['Appearance', 'Voice'];
+  const GENOME_MEMORY = 400; // Genomes remembered by creature id, so a child can be compared with its parents
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const RECENT = 30;         // Ticks within which a connection counts as just used
 
   const FEATURE_WORD = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, f.word]));
   const SIDE_WORD = { L: 'left', R: 'right' };
+  const GROUP_KINDS = {
+    brain: ['How neurons work', 'Regions', 'Wiring'],
+    chemistry: ['What events do', 'What the body makes', 'What chemicals act on', 'Reactions', 'How fast chemicals fade', 'Born with']
+  };
+  const KIND_NOTES = {
+    'What events do': 'Stimulus genes: what each thing that happens to it releases.',
+    'What the body makes': 'Emitter genes: a body reading (or a chemical) above or below a level makes a chemical.',
+    'What chemicals act on': 'Receptor genes: a chemical pushes on the body or on one brain cell.',
+    Reactions: 'Reaction genes: one chemical turns into another.',
+    Wiring: 'Axon guidance genes: which cells grow connections to which.'
+  };
 
   class Inspector {
     constructor(app) {
@@ -32,6 +46,7 @@
       this.genesFor = null;
       this.history = null;
       this.population = [];
+      this.genomes = new Map(); // Creature id -> genome, for comparing children with their parents
       this.mind = null;         // What the followed creature's brain is up to (see sample)
       this.chart = $('historyCanvas');
       this.chartCtx = this.chart.getContext('2d');
@@ -61,6 +76,7 @@
         this.brainView.probed = Number(el.dataset.neuron);
         this.renderProbe();
       });
+      $('geneFilter').addEventListener('input', () => this.filterGenes());
       // Links to other creatures anywhere in the panel
       $('labInner').addEventListener('click', e => {
         const el = e.target.closest('[data-creature]');
@@ -89,7 +105,14 @@
       this.genesFor = null;
       this.history = c ? { id: c.id, data: HISTORY.map(() => new Float32Array(HISTORY_LEN)), n: 0 } : null;
       this.mind = c ? { error: [0, 0], winner: -1, since: 0, idle: 0 } : null;
+      if (c) this.remember(c);
       this.update(true);
+    }
+
+    remember(c) {
+      if (this.genomes.has(c.id)) return;
+      this.genomes.set(c.id, c.genome);
+      if (this.genomes.size > GENOME_MEMORY) this.genomes.delete(this.genomes.keys().next().value);
     }
 
     // Every tick: sample the drive history, what the brain is up to, and the population
@@ -101,6 +124,7 @@
         h.n++;
       }
       if (c && this.mind) this.sampleMind(c.brain, tick);
+      if (tick % 60 === 0) for (const x of world.creatures) this.remember(x);
       if (tick % 600 === 0) {
         this.population.push(world.creatures.length);
         if (this.population.length > 400) this.population.shift();
@@ -391,27 +415,109 @@
     renderGenes(c) {
       this.genesFor = c;
       this.genesStage = c.stage;
-      const g = c.genome, genes = g.findGenes(), t = T, tr = c.traits;
-      $('genesSummary').textContent = `${genes.length} genes in ${g.dna.length} bytes of DNA. ${g.sexChrom === 'Y' ? 'Male (XY)' : 'Female (XX)'}. ${g.mutationCount} mutations in its family line.`;
-      const traits = [
-        ['Adult size', `${Math.round(tr.adultSize)} px`], ['Walking speed', tr.walkSpeed.toFixed(2)], ['Jump', tr.jumpPower.toFixed(1)],
-        ['Sight', `${Math.round(tr.visionRange)} px`], ['Night sight', `${Math.round(tr.nightVision * 100)}%`], ['Nose', `${Math.round(tr.noseReach)} px`],
-        ['Lifespan', t.clock(tr.lifespanTicks)], ['Egg takes', t.clock(tr.gestationTicks)], ['Hatches in', t.clock(tr.incubationTicks)],
-        ['Fur', `${Math.round(tr.insulation * 100)}%`], ['Learning', tr.learningRate.toFixed(3)], ['Voice', tr.voicePitch > 0.5 ? 'high' : 'low']
-      ];
-      $('traitList').innerHTML = traits.map(([k, v]) => `<div class="trait"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+      const g = c.genome, genes = g.findGenes();
+      $('genesSummary').textContent = `${genes.length} genes in ${g.dna.length} bytes of DNA. ${g.sexChrom === 'Y' ? 'Male (XY)' : 'Female (XX)'}. ` +
+        `${g.mutationCount} ${g.mutationCount === 1 ? 'mutation' : 'mutations'} in its family line since the founders.`;
+      $('traitList').innerHTML = T.traitWords(c.traits).map(([k, v, exact]) =>
+        `<div class="trait"><span>${k}</span><b title="${esc(exact)}">${esc(v)} <span class="exact">${esc(exact)}</span></b></div>`).join('');
+      const marked = this.renderMutations(c);
+
       const groups = { body: [], brain: [], chemistry: [], instinct: [] };
       for (const gene of genes) {
-        const d = t.describeGene(g, gene, c.brain);
+        const d = T.describeGene(g, gene, c.brain);
         const later = gene.stage > Math.max(1, c.stage);
         const when = gene.stage > 1 ? `<span class="stage-tag${later ? ' later' : ''}">${later ? 'from' : 'since'} ${Evo.STAGES[gene.stage].word.toLowerCase()}</span>` : '';
-        groups[d.group].push(`<div class="gene${later ? ' dormant' : ''}"><span class="gene-name">${esc(d.name)}</span><span class="gene-text">${esc(d.text)}</span>${when}</div>`);
+        const mut = marked.get(gene.start);
+        const tag = mut ? `<span class="mut-tag ${mut}">${mut === 'copy' ? 'extra copy' : mut}</span>` : '';
+        // Chemistry and instinct genes go under headings that already name them, so they drop the name
+        const bare = d.group === 'chemistry' || d.group === 'instinct';
+        const text = d.group === 'instinct' ? d.text.replace(/^Dreams: /, '') : d.text;
+        groups[d.group].push({ kind: d.kind, sortBy: text, html: `<div class="gene${later ? ' dormant' : ''}${bare ? ' bare' : ''}" data-find="${esc(`${d.name} ${d.text}`.toLowerCase())}">` +
+          `${bare ? '' : `<span class="gene-name">${esc(d.name)}</span>`}<span class="gene-text">${esc(text)}</span><span class="gene-tags">${tag}${when}</span></div>` });
       }
       for (const k in groups) {
-        $(`genes-${k}`).innerHTML = groups[k].join('') || '<p class="empty">None.</p>';
-        $(`genes-${k}-count`).textContent = groups[k].length;
+        const list = groups[k], kinds = GROUP_KINDS[k];
+        let html;
+        if (!kinds) html = list.map(x => x.html).join('');
+        else {
+          // Chemistry genes sorted by what they say, so genes about one chemical sit together
+          html = kinds.map(kind => {
+            const own = list.filter(x => x.kind === kind);
+            if (k === 'chemistry') own.sort((a, z) => a.sortBy.localeCompare(z.sortBy));
+            if (!own.length) return '';
+            return `<details class="gene-kind"${k === 'brain' && kind !== 'Wiring' ? ' open' : ''}><summary>${kind} <span class="count">${own.length}</span></summary>` +
+              `${KIND_NOTES[kind] ? `<p class="note">${KIND_NOTES[kind]}</p>` : ''}${own.map(x => x.html).join('')}</details>`;
+          }).join('');
+        }
+        $(`genes-${k}`).innerHTML = html || '<p class="empty">None.</p>';
+        $(`genes-${k}-count`).textContent = list.length;
       }
       this.renderDNA(g, genes);
+      this.filterGenes();
+    }
+
+    // Changes against its parents (when their genes are known) and against the founders. Returns
+    // gene start -> kind of change, for tagging the gene lists (against the parents if known).
+    renderMutations(c) {
+      const g = c.genome, hist = this.app.world.history, marked = new Map();
+      const parents = [c.motherId, c.fatherId].filter(id => id !== null).map(id => ({ id, genome: this.genomes.get(id), rec: hist.find(h => h.id === id) }));
+      const known = parents.filter(p => p.genome);
+      const sections = [];
+      if (c.motherId === null) {
+        sections.push(`<p class="note">${c.generation > 1 ? 'It wandered in from outside, so its parents are not known here.' : 'A founder: it has no parents here.'}</p>`);
+      } else if (known.length) {
+        const names = known.map(p => (p.rec ? esc(p.rec.name) : 'a parent')).join(' and ');
+        const changes = T.geneChanges(g, known.map(p => p.genome));
+        for (const ch of changes) if (ch.gene) marked.set(ch.gene.start, ch.kind);
+        sections.push(this.changeList(c, changes, `Compared with its parents, ${names}`,
+          'Exactly as inherited: every gene is one of its parents\' genes, mixed by recombination.'));
+      } else sections.push('<p class="note">Its parents lived before you started watching, so their genes are not known.</p>');
+      const founders = T.geneChanges(g, [T.founderGenome(g.sexChrom)], FOUNDER_VARIES);
+      if (!marked.size) for (const ch of founders) if (ch.gene) marked.set(ch.gene.start, ch.kind);
+      sections.push(this.changeList(c, founders, 'Compared with the first creatures',
+        'The same genes as the founders (only looks and voice, which every founder gets its own of, can differ).'));
+      $('mutationList').innerHTML = sections.join('');
+      return marked;
+    }
+
+    changeList(c, changes, title, none) {
+      if (!changes.length) return `<div class="mut-block"><h4>${title}</h4><p class="note">${none}</p></div>`;
+      const WORD = { changed: 'changed', new: 'new', copy: 'extra copy', lost: 'lost' };
+      const order = { changed: 0, new: 1, copy: 2, lost: 3 };
+      const rows = changes.slice().sort((a, z) => order[a.kind] - order[z.kind]).map(ch => {
+        const gene = ch.gene || ch.ref.gene, genome = ch.gene ? c.genome : ch.ref.genome;
+        const d = T.describeGene(genome, gene, c.brain);
+        let body = `<span class="mut-text">${esc(d.text)}</span>`;
+        if (ch.kind === 'changed') {
+          const before = T.describeGene(ch.ref.genome, ch.ref.gene, c.brain).text;
+          const fields = T.fieldChanges(c.genome, ch.gene, ch.ref.genome, ch.ref.gene)
+            .map(f => `${esc(f.field)} <s>${esc(f.before)}</s> → <b>${esc(f.after)}</b>`).join(' · ');
+          body = before !== d.text ? `<span class="mut-text"><s>${esc(before)}</s><br>${esc(d.text)}</span>` : body;
+          if (fields) body += `<span class="mut-fields">${fields}</span>`;
+        }
+        return `<div class="mut"><span class="mut-tag ${ch.kind}">${WORD[ch.kind]}</span><span class="mut-name">${esc(d.name)}</span>${body}</div>`;
+      });
+      const shown = rows.slice(0, 8).join(''), rest = rows.length > 8 ? `<details class="mut-more"><summary>${rows.length - 8} more</summary>${rows.slice(8).join('')}</details>` : '';
+      return `<div class="mut-block"><h4>${title}: ${changes.length} ${changes.length === 1 ? 'difference' : 'differences'}</h4>${shown}${rest}</div>`;
+    }
+
+    // Show only genes whose name or words contain the search text (opening the groups they are in)
+    filterGenes() {
+      const q = $('geneFilter').value.trim().toLowerCase();
+      let n = 0;
+      document.querySelectorAll('#deck-genes .gene').forEach(el => {
+        const hit = !q || el.dataset.find.includes(q);
+        el.classList.toggle('hidden', !hit);
+        if (hit) n++;
+      });
+      if (q) {
+        document.querySelectorAll('#deck-genes details.gene-group, #deck-genes details.gene-kind').forEach(d => {
+          const any = !!d.querySelector('.gene:not(.hidden)');
+          d.classList.toggle('hidden', !any);
+          if (any) d.open = true;
+        });
+      } else document.querySelectorAll('#deck-genes details.gene-group, #deck-genes details.gene-kind').forEach(d => d.classList.remove('hidden'));
+      $('geneFilterCount').textContent = q ? `${n} ${n === 1 ? 'gene' : 'genes'}` : '';
     }
 
     renderDNA(g, genes) {

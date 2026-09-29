@@ -256,9 +256,10 @@ i.grown { display: inline-block; width: 7px; height: 7px; border-radius: 50%; ba
 details.gene-group { background: var(--panel-raised); border-radius: var(--r-md); padding: 10px 12px; }
 details.gene-group summary { cursor: pointer; font-family: var(--display); font-weight: 650; font-size: 16px; }
 details.gene-group .count { font-family: var(--ui); font-weight: 400; font-size: 12.5px; color: var(--muted); margin-left: 6px; }
-.genes { display: grid; gap: 1px; margin-top: 8px; max-height: 420px; overflow-y: auto; }
+.genes { display: grid; gap: 1px; margin-top: 8px; }
 .gene { display: grid; grid-template-columns: 118px 1fr auto; gap: 10px; align-items: baseline; font-size: 12.5px; padding: 4px 2px;
   border-bottom: 1px solid rgba(41,68,74,0.5); }
+.gene.bare { grid-template-columns: 1fr auto; }
 .gene-name { color: var(--faint); }
 .gene-text { color: var(--text); }
 .gene.dormant .gene-text { color: var(--faint); }
@@ -267,6 +268,30 @@ details.gene-group .count { font-family: var(--ui); font-weight: 400; font-size:
 .traits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
 .trait { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(41,68,74,0.5); padding-bottom: 4px; }
 .trait b { color: var(--text); font-variant-numeric: tabular-nums; }
+.trait .exact { color: var(--faint); font-weight: 400; font-size: 12px; margin-left: 4px; }
+details.gene-kind { margin-top: 6px; }
+details.gene-kind > summary { cursor: pointer; font-family: var(--ui); font-size: 13px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+details.gene-kind .count { font-weight: 400; margin-left: 4px; }
+details.gene-kind > .note { margin: 0 0 4px; }
+.gene-find { display: flex; align-items: center; gap: 10px; }
+.gene-find input { flex: 1 1 auto; min-width: 0; height: 36px; padding: 0 12px; border-radius: 10px; font: inherit; font-size: 13.5px;
+  color: var(--text); background: var(--panel); border: 1px solid var(--line); }
+.gene-find input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mutations { display: grid; gap: 12px; }
+.mut-block { display: grid; gap: 1px; }
+.mut-block h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.mut { display: grid; grid-template-columns: auto 108px 1fr; gap: 4px 10px; align-items: baseline; font-size: 12.5px; padding: 5px 2px; border-bottom: 1px solid rgba(41,68,74,0.5); }
+.mut-name { color: var(--faint); }
+.mut-text s { color: var(--faint); }
+.mut-fields { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
+.mut-fields s { color: var(--faint); }
+.mut-fields b { color: var(--text); font-weight: 700; }
+.mut-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); padding: 4px 2px; }
+.mut-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: rgba(245,197,66,0.14); color: var(--energy); }
+.mut-tag.new, .mut-tag.copy { background: rgba(155,227,200,0.12); color: var(--accent); }
+.mut-tag.lost { background: rgba(240,96,122,0.14); color: var(--stress); }
+.gene-tags { display: flex; gap: 4px; justify-content: flex-end; }
+.gene-tags:empty { display: none; }
 .gene-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .gene-tag { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--panel-raised); }
 details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }

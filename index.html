@@ -174,10 +174,17 @@
             <p id="genesSummary"></p>
           </div>
           <section class="block needs-creature"><h3>What its genes built</h3><div class="traits" id="traitList"></div></section>
+          <section class="block needs-creature"><h3>Mutations</h3><div class="mutations" id="mutationList"></div></section>
+          <div class="gene-find needs-creature">
+            <input type="search" id="geneFilter" placeholder="Find a gene: hunger, patted, sight…" aria-label="Find a gene" autocomplete="off">
+            <span class="note" id="geneFilterCount"></span>
+          </div>
           <details class="gene-group needs-creature" open><summary>Body <span class="count" id="genes-body-count"></span></summary><div class="genes" id="genes-body"></div></details>
-          <details class="gene-group needs-creature"><summary>Chemistry <span class="count" id="genes-chemistry-count"></span></summary><div class="genes" id="genes-chemistry"></div></details>
           <details class="gene-group needs-creature"><summary>Brain <span class="count" id="genes-brain-count"></span></summary><div class="genes" id="genes-brain"></div></details>
-          <details class="gene-group needs-creature"><summary>Instincts <span class="count" id="genes-instinct-count"></span></summary><div class="genes" id="genes-instinct"></div></details>
+          <details class="gene-group needs-creature"><summary>Chemistry <span class="count" id="genes-chemistry-count"></span></summary><div class="genes" id="genes-chemistry"></div></details>
+          <details class="gene-group needs-creature"><summary>Instincts <span class="count" id="genes-instinct-count"></span></summary>
+            <p class="note">Dreamt while asleep: the inputs, then the action, then the feeling, so it learns them without living them.</p>
+            <div class="genes" id="genes-instinct"></div></details>
           <details class="dna needs-creature">
             <summary>Raw DNA</summary>
             <p class="note">A gene is read only where a promoter byte (A5, underlined) sits in front of it. Dim bytes are silent DNA that mutation can turn into new genes.</p>
