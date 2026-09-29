@@ -9,7 +9,6 @@
   const TAU = Math.PI * 2;
   const DAY_TICKS = 10800;  // 3 minutes at 60 ticks per second, as in the simulation
   const SEASON_DAYS = 2;
-  const SEASON_KEYS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
   const GRAVITY = 0.25;
   const NAMES = ['Pip', 'Moss', 'Bramble', 'Tansy', 'Wren', 'Sorrel', 'Fennel', 'Juniper', 'Clover', 'Nettle', 'Rowan', 'Hazel', 'Yarrow', 'Burdock', 'Teasel', 'Sedge'];
 
@@ -125,7 +124,7 @@
     }
 
     temperatureAt(x, y) {
-      const base = [0.48, 0.6, 0.44, 0.22][this.season.index];
+      const base = Evo.SEASONS[this.season.index].temp;
       let t = base + 0.13 * this.clock.sunElevation;
       const rock = this.warmRock;
       if (Math.abs(x - rock.x) < rock.w * 0.8 && y > rock.y - rock.h - 40) t += 0.04 + rock.warm * 0.14;
@@ -225,21 +224,22 @@
       c.phase = (c.tick % DAY_TICKS) / DAY_TICKS;
       c.sunElevation = Math.sin((c.phase - 0.25) * TAU);
       c.light = Math.max(0, Math.min(1, 0.08 + 0.92 * Math.max(0, Math.min(1, (c.sunElevation + 0.15) / 0.45))));
-      const si = Math.floor(c.day / SEASON_DAYS) % 4;
+      const si = Math.floor(c.day / SEASON_DAYS) % Evo.SEASON_COUNT;
       this.season.index = si;
-      this.season.key = SEASON_KEYS[si];
+      this.season.key = Evo.SEASONS[si].key;
       this.season.progress = ((c.day % SEASON_DAYS) + c.phase) / SEASON_DAYS;
     }
 
     // Fruit in summer and autumn, seed heads most of the year, a rock that warms in the sun
     _updatePlants(ticks) {
       const si = this.season.index, tick = this.clock.tick;
+      const { SPRING, WINTER } = Evo.SEASON;
       for (const f of this.features) {
-        if (f.kind === 'tree') f.fruiting = si === 3 ? 0.05 : si === 0 ? 0.25 : Math.max(0, Math.min(1, 0.6 + 0.4 * Math.sin(tick / 4000 + f.id)));
-        if (f.kind === 'grass') f.seeding = si === 3 ? 0.15 : Math.max(0, Math.min(1, 0.55 + 0.45 * Math.sin(tick / 5000 + f.id)));
+        if (f.kind === 'tree') f.fruiting = si === WINTER ? 0.05 : si === SPRING ? 0.25 : Math.max(0, Math.min(1, 0.6 + 0.4 * Math.sin(tick / 4000 + f.id)));
+        if (f.kind === 'grass') f.seeding = si === WINTER ? 0.15 : Math.max(0, Math.min(1, 0.55 + 0.45 * Math.sin(tick / 5000 + f.id)));
       }
       const rock = this.warmRock;
-      const goal = (si === 3 ? 0.35 : 1) * Math.max(0, this.clock.sunElevation);
+      const goal = (si === WINTER ? 0.35 : 1) * Math.max(0, this.clock.sunElevation);
       rock.warm = ticks ? rock.warm + (goal - rock.warm) * Math.min(1, 0.001 * ticks) : goal;
     }
 
