@@ -4,17 +4,10 @@
 (function (Evo) {
   'use strict';
   const { clamp } = Evo.util;
-  const T = () => Evo.text;
+  const T = Evo.text;
   const $ = id => document.getElementById(id);
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const pct = v => Math.round(clamp(v, 0, 1) * 100);
-  const chemColor = key => `var(${(Evo.CHEMICALS.find(c => c.key === key) || {}).token || '--muted'})`;
-  const sexColor = sex => (sex === 'FEMALE' ? 'var(--female)' : 'var(--male)');
-  const sexGlyph = sex => (sex === 'FEMALE' ? '♀' : '♂');
-
-  const bar = (label, value, color, num = pct(value), title = '') =>
-    `<div class="bar"${title ? ` title="${esc(title)}"` : ''}><span>${esc(label)}</span><div class="track"><div class="fill" style="width:${pct(value)}%;background:${color}"></div></div><span class="num">${num}</span></div>`;
-  const chemBar = (c, key) => bar(Evo.text.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
+  const { esc, bar, percentOf, sexColor, sexGlyph, chemToken, chemColor, VISION_BY_KEY, SCENT_BY_KEY } = Evo.uiHelpers;
+  const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
   const FEELINGS = ['reward', 'punishment', 'endorphin', 'adrenaline'];
@@ -116,10 +109,10 @@
 
     // ---------- Body ----------
     renderBody(c) {
-      const t = T(), st = Evo.STAGES[c.stage];
+      const t = T, st = Evo.STAGES[c.stage];
       const bits = [`<b>${c.sex === 'FEMALE' ? 'Female' : 'Male'}</b>`, st.word.toLowerCase(), `${t.clock(c.ageTicks)} old (lives about ${t.clock(c.lifespan)})`, `generation ${c.generation}`, `${c.meals} ${c.meals === 1 ? 'meal' : 'meals'}`];
       let status = c.dead ? 'Dead.' : c.asleep ? 'Asleep.' : `${t.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
-      if (c.pregnancy) status += ` Carrying an egg (${pct(c.pregnancy.progress)}% formed).`;
+      if (c.pregnancy) status += ` Carrying an egg (${percentOf(c.pregnancy.progress)}% formed).`;
       if (c.carrying) status += ` Holding ${Evo.ITEM_TYPES[c.carrying.type].word}.`;
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
 
@@ -149,7 +142,7 @@
       if (!h || h.n < 2) return;
       const n = Math.min(h.n, HISTORY_LEN), start = h.n - n;
       HISTORY.forEach((key, i) => {
-        ctx.strokeStyle = Evo.theme.color((Evo.CHEMICALS.find(x => x.key === key) || {}).token || '--muted');
+        ctx.strokeStyle = Evo.theme.color(chemToken(key));
         ctx.lineWidth = key === 'reward' || key === 'punishment' ? 1 : 1.6;
         ctx.globalAlpha = key === 'reward' || key === 'punishment' ? 0.6 : 0.9;
         ctx.beginPath();
@@ -161,7 +154,7 @@
         ctx.stroke();
       });
       ctx.globalAlpha = 1;
-      $('historyLegend').innerHTML = HISTORY.map(k => `<span><i style="background:${chemColor(k)}"></i>${Evo.text.CHEM_WORDS[k]}</span>`).join('');
+      $('historyLegend').innerHTML = HISTORY.map(k => `<span><i style="background:${chemColor(k)}"></i>${T.CHEM_WORDS[k]}</span>`).join('');
     }
 
     // ---------- Brain ----------
@@ -177,7 +170,7 @@
       $('neuronEmpty').classList.toggle('hidden', show);
       $('neuronDetail').classList.toggle('hidden', !show);
       if (!show) return;
-      const n = b.neurons[i], t = T();
+      const n = b.neurons[i], t = T;
       $('neuronName').textContent = t.neuronName(b, n);
       $('neuronLobe').textContent = t.lobeName(n);
       $('neuronRate').textContent = `${Math.round(b.rate[i] * 100)}%`;
@@ -216,7 +209,7 @@
       for (let s = 0; s < b.S; s++) {
         if (!(b.sFlags[s] & Evo.BRAIN.CUE)) continue;
         const src = b.neurons[b.sSrc[s]], m = src.meta;
-        const key = m.kind === 'sight' ? `Seeing ${Evo.VISION_FEATURES.find(f => f.key === m.feature).word}` : `Smelling ${Evo.SCENTS.find(x => x.key === m.odour).word}`;
+        const key = m.kind === 'sight' ? `Seeing ${VISION_BY_KEY[m.feature].word}` : `Smelling ${SCENT_BY_KEY[m.odour].word}`;
         const row = rows.get(key) || { good: 0, bad: 0, n: 0 };
         if (b.modulator[b.sDst[s]] === 0) row.good += b.sW[s]; else row.bad += b.sW[s];
         row.n++;
@@ -243,7 +236,7 @@
     renderGenes(c) {
       this.genesFor = c;
       this.genesStage = c.stage;
-      const g = c.genome, genes = g.findGenes(), t = T(), tr = c.traits;
+      const g = c.genome, genes = g.findGenes(), t = T, tr = c.traits;
       $('genesSummary').textContent = `${genes.length} genes in ${g.dna.length} bytes of DNA. ${g.sexChrom === 'Y' ? 'Male (XY)' : 'Female (XX)'}. ${g.mutationCount} mutations in its family line.`;
       const traits = [
         ['Adult size', `${Math.round(tr.adultSize)} px`], ['Walking speed', tr.walkSpeed.toFixed(2)], ['Jump', tr.jumpPower.toFixed(1)],
@@ -291,7 +284,7 @@
       const person = h => {
         if (!h) return '<span class="muted">unknown</span>';
         const alive = world.creatureById(h.id);
-        const fate = alive ? (alive === c ? 'this one' : 'alive') : h.died !== null ? T().DEATH_WORDS[h.cause] || 'died' : 'gone';
+        const fate = alive ? (alive === c ? 'this one' : 'alive') : h.died !== null ? T.DEATH_WORDS[h.cause] || 'died' : 'gone';
         return `<button class="member" ${alive ? `data-creature="${h.id}"` : 'disabled'}><span class="sex-glyph" style="color:${sexColor(h.sex)}">${sexGlyph(h.sex)}</span>` +
           `<span>${esc(h.name)} <span class="meta">gen ${h.generation}</span></span><span class="meta">${esc(fate)}</span></button>`;
       };
@@ -307,7 +300,7 @@
 
     // ---------- World ----------
     renderWorld() {
-      const world = this.app.world, st = world.stats, t = T(), clock = world.clock;
+      const world = this.app.world, st = world.stats, t = T, clock = world.clock;
       const deaths = Object.values(st.deaths).reduce((a, v) => a + v, 0);
       const temp = world.temperatureAt(world.width / 2, world.terrain.groundY(world.width / 2) - 20);
       $('worldLine').textContent = `Day ${clock.day + 1}, ${t.timeOfDay(clock.phase)}. ${world.seasonInfo.word}, ${temp < 0.3 ? 'cold' : temp > 0.62 ? 'hot' : temp < 0.42 ? 'cool' : 'mild'}. ${world.foodCount} bits of food about.`;
@@ -322,7 +315,7 @@
         return `<button class="member" data-creature="${c.id}" aria-current="${c === this.app.focus}">` +
           `<span class="sex-glyph" style="color:${sexColor(c.sex)}">${sexGlyph(c.sex)}</span>` +
           `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(t.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
-          `<span class="meta">${need && need[1] > 0.2 ? esc(Evo.text.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
+          `<span class="meta">${need && need[1] > 0.2 ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
       }).join('') || '<p class="empty">Nobody lives here now.</p>';
       this.renderPopulation();
     }
@@ -341,5 +334,5 @@
     }
   }
 
-  Object.assign(Evo, { Inspector, uiHelpers: { esc, bar, pct, sexColor, sexGlyph, chemColor } });
+  Evo.Inspector = Inspector;
 })(globalThis.Evo);

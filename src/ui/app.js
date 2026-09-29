@@ -3,7 +3,7 @@
   'use strict';
   const { clamp, minBy } = Evo.util;
   const $ = id => document.getElementById(id);
-  const H = () => Evo.uiHelpers;
+  const H = Evo.uiHelpers;
 
   // Tools in the toolbar: the hand's three uses, then things to drop into the world
   const HAND_TOOLS = [
@@ -53,7 +53,7 @@
       const c = el && world.creatureById(Number(el.dataset.creature));
       if (c) app.select(c);
     });
-    const who = c => `<b style="color:${H().sexColor(c.sex)}">${H().esc(c.name)}</b>`;
+    const who = c => `<b style="color:${H.sexColor(c.sex)}">${H.esc(c.name)}</b>`;
     const events = world.events;
     events.on('hatch', ({ creature }) => log(`${who(creature)} hatched`, creature));
     events.on('death', ({ creature, cause }) => log(`${who(creature)} ${Evo.text.DEATH_WORDS[cause] || 'died'}`));
@@ -219,7 +219,7 @@
     // ---------- Toolbar ----------
     const toolbar = $('toolTray');
     const toolButton = (key, label, hint, icon) =>
-      `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H().esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;
+      `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H.esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;
     const HAND_ICONS = { grab: '✋', pat: '🪶', slap: '💥' };
     toolbar.innerHTML =
       HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('') +
@@ -316,15 +316,15 @@
       if (!c) { $('cardName').textContent = 'Nobody'; $('cardSub').textContent = 'Tap a creature to follow it'; return; }
       const t = Evo.text;
       if (force) {
-        $('cardSex').textContent = H().sexGlyph(c.sex);
-        $('cardSex').style.color = H().sexColor(c.sex);
+        $('cardSex').textContent = H.sexGlyph(c.sex);
+        $('cardSex').style.color = H.sexColor(c.sex);
         $('cardName').textContent = c.name;
       }
       $('cardSub').textContent = `${Evo.STAGES[c.stage].word} · gen ${c.generation} · ${t.clock(c.ageTicks)} old`;
       $('cardDoing').textContent = c.asleep ? 'Asleep' : `${t.ACTION_WORDS[c.action] || c.action} · ${c.mood}`;
       const drives = c.topDrives(3).filter(([, v]) => v > 0.02);
-      $('cardDrives').innerHTML = H().bar('Health', c.health, 'var(--protein)') +
-        drives.map(([k, v]) => H().bar(Evo.text.CHEM_WORDS[k], v, H().chemColor(k))).join('');
+      $('cardDrives').innerHTML = H.bar('Health', c.health, 'var(--protein)') +
+        drives.map(([k, v]) => H.bar(Evo.text.CHEM_WORDS[k], v, H.chemColor(k))).join('');
     }
     function drawPortrait(t) {
       const c = app.focus, ctx = portraitCtx, { width: w, height: h } = portraitSize;
@@ -344,7 +344,7 @@
       const ids = world.creatures.map(c => c.id).join(',');
       if (ids !== stripIds) {
         stripIds = ids;
-        strip.innerHTML = world.creatures.map(c => `<button class="avatar" data-creature="${c.id}" title="${H().esc(c.name)}" style="--ring:${H().sexColor(c.sex)}"><canvas width="68" height="68"></canvas></button>`).join('');
+        strip.innerHTML = world.creatures.map(c => `<button class="avatar" data-creature="${c.id}" title="${H.esc(c.name)}" style="--ring:${H.sexColor(c.sex)}"><canvas width="68" height="68"></canvas></button>`).join('');
       }
       strip.querySelectorAll('.avatar').forEach(b => {
         const c = world.creatureById(Number(b.dataset.creature));
