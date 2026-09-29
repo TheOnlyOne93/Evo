@@ -35,7 +35,8 @@
   const VALUE_RATE = 0.03;           // Step size of value (TD) learning
   const RATE_ALPHA = 0.012;          // Firing-rate smoothing per tick
   const SEIZURE_SHARE = 0.25, SEIZURE_TICKS = 3, SEIZURE_BRAKE = 10; // See tick()
-  const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
+  const LEARN_EVERY = 4;
+  const EPISODES = 8;                // Remembered moments of surprise, replayed in sleep             // Ticks between weight updates (the signal is summed in between)
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
@@ -112,6 +113,10 @@
       this.seizures = 0;      // Times the seizure brake has come on
       this.overdrive = 0;     // Consecutive ticks with too many neurons firing
       this.brake = 0;         // mV held back from every central neuron this tick
+      this.awake = true;
+      this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, t }
+      this.episodes = [];     // Up to EPISODES recent surprises: { inputs, motor, value, tick }
+      this.replayOutcome = new Float32Array(N_MOD); // Outcome a replayed episode adds this tick
       this.novelty = 0;
       // The outcome each modulatory channel predicts (0 reward, 1 punishment); the creature sets it
       // before each tick from whatever receptor genes drive the first two feelings cells
@@ -611,6 +616,8 @@
       const N = this.N;
       const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator, lateral } = this;
       const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire, brake = this.brake;
+      this.awake = !opts.asleep;
+      if (this.awake) this.dream = null;
 
       // 1. Every neuron integrates what arrived this tick. With conduction delays there is no
       // hand-ordered pipeline: where and how far activity travels comes from the wiring itself.
@@ -686,6 +693,56 @@
       return spikes;
     }
 
+    // A surprise worth dreaming about (value: + good, - bad): the senses active just then and the
+    // action under way. At most one every 20 ticks; the oldest is forgotten.
+    rememberEpisode(value) {
+      const now = this.tickCount, last = this.episodes[this.episodes.length - 1];
+      if (last && now - last.tick < 20) return;
+      const { rate, isSensory, modulator } = this;
+      const inputs = [];
+      for (let i = 0; i < this.N; i++) if (isSensory[i] && modulator[i] < 0 && rate[i] > 0.05) inputs.push(i);
+      inputs.sort((a, b) => rate[b] - rate[a]);
+      let motor = -1, most = 0.01;
+      for (const i of this.lobes.motor) if (rate[i] > most) { most = rate[i]; motor = i; }
+      this.episodes.push({ inputs: inputs.slice(0, 24), motor, value: Math.sign(value) * Math.min(1, Math.abs(value)), tick: now });
+      if (this.episodes.length > EPISODES) this.episodes.shift();
+    }
+
+    // Asleep, called before each tick. Now and then a dream starts: half the time (when there are
+    // any) a remembered surprise is replayed (its senses, then its action, then its outcome), and
+    // otherwise an instinct gene (its inputs, then its action, then its chemical, put into the body's
+    // biochemistry). The ordinary learning rule does the rest.
+    sleepStep(instincts, chem) {
+      if (!this.dream) {
+        if (Evo.chance(1 / 150)) {
+          if (this.episodes.length && Evo.chance(0.5)) this.dream = { episode: Evo.pick(this.episodes), t: 0 };
+          else if (instincts.length) this.dream = { instinct: Evo.pick(instincts), t: 0 };
+        }
+        return;
+      }
+      const d = this.dream, t = d.t;
+      if (d.episode) {
+        const { inputs, motor, value } = d.episode;
+        if (t < 20) for (const i of inputs) this.inject(i, 25, 1);
+        if (t >= 8 && t < 20 && motor >= 0) this.inject(motor, 40, 1);
+        if (t === 18) this.replayOutcome[value > 0 ? 0 : 1] += 0.5 * Math.abs(value);
+      } else {
+        const inst = d.instinct;
+        const neuronOf = (lobeIdx, index) => {
+          const lobe = this.lobes[LOBE_ORDER[lobeIdx]];
+          return index < lobe.length ? lobe[index] : -1;
+        };
+        if (t < 30) {
+          const a = neuronOf(inst.lobeA, inst.indexA), b = neuronOf(inst.lobeB, inst.indexB);
+          if (a >= 0) this.inject(a, 35, 1);
+          if (b >= 0) this.inject(b, 35, 1);
+        }
+        if (t >= 10 && t < 30) this.inject(this.lobes.motor[inst.motor % MOTORS.length], 45, 1);
+        if (t === 26 && inst.chem) chem.c[inst.chem] = Math.min(1, chem.c[inst.chem] + inst.amount);
+      }
+      if (++d.t >= 40) this.dream = null;
+    }
+
     // Deliver mV of input to neuron i, arriving delayTicks ticks from now (1 = on the next tick)
     inject(i, mV, delayTicks = 1) {
       const d = clamp(Math.round(delayTicks), 1, MAX_DELAY);
@@ -711,8 +768,9 @@
       const decayPow = this.decayPow;
       for (let c = 0; c < N_MOD; c++) {
         const O = this.outcome[c], mean = this.outcomeMean[c];
-        const r = O > mean ? O - mean : 0;
+        const r = (O > mean ? O - mean : 0) + this.replayOutcome[c];
         this.outcomeMean[c] += (O - mean) / OUTCOME_MEMORY;
+        this.replayOutcome[c] = 0;
         const list = this.valueIn[c];
         let V = 0;
         for (let k = 0; k < list.length; k++) {
@@ -737,6 +795,7 @@
         }
         // A positive error makes the modulator cell fire (on the next tick)
         if (d > 0) this.inject(this.modulatorCells[c], ERROR_DRIVE * d, 1);
+        if (this.awake && (d > 0.2 || d < -0.2)) this.rememberEpisode((c === 0 ? 1 : -1) * d);
       }
 
       // 3. Eligibility, event-driven and causal: when a neuron fires, each input that arrived in the

@@ -143,3 +143,60 @@ test('learning: flat-out input and relentless reward neither run away nor break 
   const { WEIGHT_MIN, WEIGHT_MAX } = Evo.BRAIN;
   for (let s = 0; s < brain.S; s++) assert.ok(Number.isFinite(brain.sW[s]) && brain.sW[s] >= WEIGHT_MIN && brain.sW[s] <= WEIGHT_MAX);
 });
+
+// Awake, sight cell A and muscle X fire together and reward follows; then the brain sleeps for
+// 3000 ticks, replaying what it remembers (or, with forget, remembering nothing). Returns the
+// change of w(A->X) during sleep.
+function sleepAfterReward(Evo, forget) {
+  Evo.seed(7);
+  const brain = founderBrain(Evo);
+  const A = brain.lobes.sight[Evo.BRAIN_BODY_PLAN.sightIndex('L', 'low', 'red')], X = brain.lobes.motor[0];
+  const old = brain.incoming(X).find(s => brain.sSrc[s] === A);
+  if (old !== undefined) brain.removeSynapse(old);
+  const ax = brain.addSynapse(A, X, 0.2);
+  const drive = new Float32Array(brain.N);
+  const awake = { noise: 0.35, arousal: 0, canFire: true, asleep: false }, asleep = { ...awake, asleep: true };
+  for (let t = 0; t < 200; t++) brain.tick(drive, awake);
+  for (let trial = 0; trial < 4; trial++) {
+    for (let t = 0; t < 100; t++) {
+      drive[A] = t < 30 ? 30 : 0;
+      drive[X] = t >= 5 && t < 30 ? 20 : 0;
+      brain.outcome[0] = t >= 25 && t < 30 ? 0.5 : 0;
+      brain.tick(drive, awake);
+    }
+  }
+  drive.fill(0);
+  if (forget) brain.episodes.length = 0;
+  const episodes = brain.episodes.length, w0 = brain.sW[ax];
+  for (let t = 0; t < 3000; t++) {
+    brain.sleepStep([], null);
+    brain.tick(drive, asleep);
+  }
+  return { episodes, dw: brain.sW[ax] - w0 };
+}
+
+test('learning: sleep replays a rewarded moment and strengthens what led to it', (Evo, assert) => {
+  const replay = sleepAfterReward(Evo, false), idle = sleepAfterReward(Evo, true);
+  assert.ok(replay.episodes > 0, 'the reward was remembered');
+  assert.ok(replay.dw > idle.dw + 0.002, `w(A->X) grows by ${replay.dw.toFixed(4)} replaying, ${idle.dw.toFixed(4)} idle`);
+});
+
+test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => {
+  const run = dream => {
+    Evo.seed(3);
+    const world = new Evo.World();
+    world.creatures.length = 1;
+    const c = world.creatures[0], b = c.brain;
+    const inst = c.traits.instincts.find(i => i.chem === Evo.CHEM.reward && i.indexA < b.lobes[Evo.LOBE_ORDER[i.lobeA]].length);
+    const a = b.lobes[Evo.LOBE_ORDER[inst.lobeA]][inst.indexA], m = b.lobes.motor[inst.motor];
+    const s = b.incoming(m).find(k => b.sSrc[k] === a) ?? b.addSynapse(a, m, 0.2);
+    c.traits = { ...c.traits, instincts: dream ? [inst] : [] };
+    c.updateSleep = () => {};
+    c.asleep = true;
+    const w0 = b.sW[s];
+    for (let t = 0; t < 3000; t++) { c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); world.step(); }
+    return b.sW[s] - w0;
+  };
+  const dreaming = run(true), idle = run(false);
+  assert.ok(dreaming > idle + 0.01, `the instinct's synapse grows by ${dreaming.toFixed(4)} dreaming it, ${idle.toFixed(4)} not`);
+});

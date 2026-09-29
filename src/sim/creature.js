@@ -327,30 +327,10 @@
       world.events.emit('wake', { creature: this });
     }
 
-    // While asleep, instinct genes are replayed as dreams: the brain is driven with the gene's
-    // inputs, then its action, then its chemical, and the ordinary learning rule does the rest.
+    // While asleep the brain dreams: instinct genes and remembered surprises are replayed (see
+    // Brain.sleepStep); an instinct's chemical goes into the body
     dreamStep() {
-      const brain = this.brain, instincts = this.traits.instincts;
-      if (!this.dream) {
-        if (instincts.length && Evo.chance(1 / 150)) this.dream = { instinct: Evo.pick(instincts), t: 0 };
-        return;
-      }
-      const d = this.dream, inst = d.instinct;
-      const neuronOf = (lobeIdx, index) => {
-        const lobe = brain.lobes[Evo.LOBE_ORDER[lobeIdx]];
-        return index < lobe.length ? lobe[index] : -1;
-      };
-      if (d.t < 30) {
-        const a = neuronOf(inst.lobeA, inst.indexA), b = neuronOf(inst.lobeB, inst.indexB);
-        if (a >= 0) this.drive[a] += 35;
-        if (b >= 0) this.drive[b] += 35;
-      }
-      if (d.t >= 10 && d.t < 30) {
-        const m = neuronOf(Evo.LOBE_ORDER.indexOf('motor'), inst.motor % MOTORS.length);
-        if (m >= 0) this.drive[m] += 45;
-      }
-      if (d.t === 26 && inst.chem) this.chem.c[inst.chem] = Math.min(1, this.chem.c[inst.chem] + inst.amount);
-      if (++d.t >= 40) this.dream = null;
+      this.brain.sleepStep(this.traits.instincts, this.chem);
     }
 
     // ---------- Senses: the world becomes neuron currents ----------
@@ -515,7 +495,8 @@
       brain.tick(this.drive, {
         noise: 0.35 + this.chem.get('toxin') * 12,
         arousal: this.chem.effect('arousal'),
-        canFire: this.chem.get('glucose') > 0.0005
+        canFire: this.chem.get('glucose') > 0.0005,
+        asleep: this.asleep
       });
       if (brain.tickCount % 80 === 0) brain.runMorphogenesis();
 
