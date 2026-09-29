@@ -35,13 +35,13 @@
       case 'cell': return `${LOBE_INFO[n.lobe].cell} ${m.index + 1}`;
       case 'need': {
         const chems = needChemicals(brain, m.index);
-        return chems.length ? `Feels ${chems.join(' & ').toLowerCase()}` : `Needs cell ${m.index + 1} (unused)`;
+        return chems.length ? `Feels ${chems.join(' & ').toLowerCase()}` : `Drives cell ${m.index + 1} (unused)`;
       }
       default: return n.label;
     }
   }
 
-  // Which chemicals drive a Needs cell, according to the creature's receptor genes
+  // Which chemicals drive a Drives cell, according to the creature's receptor genes
   function needChemicals(brain, k) {
     const target = Evo.TARGET[`need:${k}`];
     const receptors = (brain.traits && brain.traits.receptors) || [];
@@ -80,7 +80,7 @@
     const key = Evo.TARGETS[target];
     if (key.startsWith('need:')) {
       const k = Number(key.slice(5));
-      return k < MOTORS.length ? `the urge to ${MOTORS[k].word.toLowerCase()}` : `Needs cell ${k + 1}`;
+      return Evo.DRIVES[k] ? `the ${CHEM_WORDS[Evo.DRIVES[k]].toLowerCase()} cell` : `drives cell ${k + 1}`;
     }
     if (key.startsWith('limbic:')) {
       const k = Number(key.slice(7));

@@ -1,7 +1,7 @@
 // The founder genome: metabolism, drives, receptors and instincts (see founder.js).
 (function (Evo) {
   'use strict';
-  const { reaction, emitter, receptor, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, MOTOR, GENERAL, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
+  const { reaction, emitter, receptor, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
 
   Evo.founderChem = [
     // ---------- Metabolism ----------
@@ -110,19 +110,10 @@
     receptor('hotness', 'cooling', 0.1, 2),                              // Panting
     receptor('fear', 'scentAlarm', 0.3, 2),
 
-    // ---------- Receptors: what the brain can feel (Needs and Feelings cells) ----------
-    receptor('tiredness', NEED('rest'), 0.05, 1.2), receptor('sleepiness', NEED('rest'), 0.05, 1.2),
-    receptor('loneliness', NEED('call'), 0.05, 1.2),
-    receptor('fear', NEED('run'), 0.05, 1.5), receptor('pain', NEED('run'), 0.05, 1.5), receptor('crowdedness', NEED('run'), 0.1, 0.6),
-    // Hunger and thirst also feel like wanting to use the mouth, so food at the mouth is eaten
-    // when needed, not whenever it happens to be there
-    receptor('hunger', NEED('eat'), 0.1, 0.7), receptor('proteinHunger', NEED('eat'), 0.1, 0.6), receptor('thirst', NEED('drink'), 0.1, 0.7),
-    // Hunger and boredom make a creature restless: both walk muscles, so it roams
-    receptor('hunger', NEED('walkL'), 0.3, 0.4), receptor('hunger', NEED('walkR'), 0.3, 0.4),
-    receptor('boredom', NEED('walkL'), 0.2, 1.0), receptor('boredom', NEED('walkR'), 0.2, 1.0),
-    receptor('anger', NEED('grab'), 0.2, 0.8),                            // Anger: shove
-    ...GENERAL.map(drive => receptor(drive, NEED(drive), 0.05, 1.2)),
-    receptor('nausea', NEED('hotness'), 0.05, 1.2),
+    // ---------- Receptors: what the brain can feel (Drives and Feelings cells) ----------
+    // Each drive has its own cell in the Drives lobe; what it makes the creature do is up to the
+    // brain's wiring (innate priors in founder-brain.js, then learning)
+    ...Evo.DRIVES.map(drive => receptor(drive, NEED(drive), 0.05, 1.2)),
     receptor('reward', 'limbic:0', 0.01, 3),
     receptor('punishment', 'limbic:1', 0.01, 3),
 
@@ -139,11 +130,11 @@
 
     // ---------- Instincts: replayed in dreams whenever the creature sleeps (switched on from birth,
     // so they matter most in early life, before experience has wired the brain) ----------
-    instinct('needs', need('rest'), 'needs', none, MOTOR.rest, 'reward', 0.5),                          // Tired: rest
+    instinct('needs', need('tiredness'), 'needs', none, MOTOR.rest, 'reward', 0.5),                          // Tired: rest
     instinct('needs', need('hunger'), 'touch', TOUCH.mouthL, MOTOR.eat, 'reward', 0.5),      // Hungry, food at mouth: eat
     instinct('needs', need('hunger'), 'touch', TOUCH.mouthR, MOTOR.eat, 'reward', 0.5),
     instinct('needs', need('thirst'), 'touch', TOUCH.lips, MOTOR.drink, 'reward', 0.5),      // Thirsty, water at lips: drink
-    instinct('needs', need('call'), 'needs', none, MOTOR.call, 'reward', 0.3),                           // Lonely: call
+    instinct('needs', need('loneliness'), 'needs', none, MOTOR.call, 'reward', 0.3),                           // Lonely: call
     instinct('sight', sight('L', 'low', 'red'), 'needs', need('hunger'), MOTOR.walkL, 'reward', 0.4), // Hungry, sees red: go to it
     instinct('sight', sight('R', 'low', 'red'), 'needs', need('hunger'), MOTOR.walkR, 'reward', 0.4),
     instinct('sight', sight('L', 'low', 'blue'), 'needs', need('thirst'), MOTOR.walkL, 'reward', 0.4), // Thirsty, sees water: go to it

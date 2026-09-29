@@ -71,16 +71,16 @@ test('brain: founders grow the movement copy and the sight copy', (Evo, assert) 
 test('brain: founders are born with their reflex arcs', (Evo, assert) => {
   const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
   const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);
-  const arcs = { needEat: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, needRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
-  const trials = 20;
+  const arcs = { painRun: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, sleepyRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
+  const trials = 40;
   for (let i = 0; i < trials; i++) {
     const b = founderBrain(Evo, i % 2 ? 'X' : 'Y');
-    const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)];
-    if (b.hasSynapse(b.lobes.needs[motor('eat')], M('eat'))) arcs.needEat++;
+    const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)], D = k => b.lobes.needs[Evo.driveCell(k)];
+    if (b.hasSynapse(D('pain'), M('run'))) arcs.painRun++;
     if (b.hasSynapse(T('mouthL'), M('eat'))) arcs.mouthEatL++;
     if (b.hasSynapse(T('mouthR'), M('eat'))) arcs.mouthEatR++;
     if (b.hasSynapse(T('lips'), M('drink'))) arcs.lipsDrink++;
-    if (b.hasSynapse(b.lobes.needs[motor('rest')], M('rest'))) arcs.needRest++;
+    if (b.hasSynapse(D('sleepiness'), M('rest'))) arcs.sleepyRest++;
     if (b.hasSynapse(T('contactL'), M('walkR'))) arcs.bumpTurnL++;
     if (b.hasSynapse(T('contactR'), M('walkL'))) arcs.bumpTurnR++;
   }

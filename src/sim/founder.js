@@ -41,16 +41,16 @@
   const FEATURES = Evo.VISION_FEATURES.map(f => f.key);
   const ODOURS = Evo.SCENTS.map(s => s.key);
   const MOTOR = Object.fromEntries(Evo.MOTORS.map((m, i) => [m.key, i]));
-  // Needs cells 0-8 share an address with the muscle of the same index (brain.js), so a drive
-  // wired to need(muscle) excites that muscle. The remaining cells (up to N_NEEDS) address no
-  // muscle: these general cells carry one drive each that the brain should feel apart.
-  const GENERAL = ['hunger', 'proteinHunger', 'fatHunger', 'thirst', 'coldness', 'hotness', 'boredom', 'sexDrive', 'crowdedness'];
-  const need = key => (key in MOTOR ? MOTOR[key] : Evo.MOTORS.length + GENERAL.indexOf(key));
+  // Drives cell of each drive chemical (Evo.driveCell), for receptor targets and instincts
+  const need = key => Evo.driveCell(key);
   const NEED = key => `need:${need(key)}`;
+  // An innate prior: axons from one drive's cell only (a source window) to one muscle
+  const prior = (drive, motor, weight) => guide('needs', [...Evo.MOTORS[MOTOR[motor]].tag, 0.9],
+    { radius: 0.08, weight, conduction: 0.3, from: [...Evo.DRIVE_CELL_TAGS[need(drive)], 0.04] });
   const { sightIndex: sight, smellIndex: smell } = Evo.BRAIN_BODY_PLAN;
   const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));
 
-  Evo.founderKit = { reaction, emitter, receptor, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, GENERAL, need, NEED, sight, smell, TOUCH };
+  Evo.founderKit = { reaction, emitter, receptor, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, need, NEED, prior, sight, smell, TOUCH };
 
   Evo.founderBody = [
     { gene: 'Appearance', hue: 0.08, accentHue: 0.12, pattern: 0.3, patternScale: 0.5, earSize: 0.6, tailLength: 0.6, eyeSize: 0.6, plumpness: 0.55 },

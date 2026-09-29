@@ -146,7 +146,7 @@
     { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true },
     { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true },
     { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true },
-    { key: 'needs',    word: 'Needs',        color: '#eab308', sensory: true },
+    { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true },
     { key: 'feelings', word: 'Feelings',     color: '#10b981' },
     { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },
     { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell' },
@@ -158,8 +158,8 @@
   const LOBE_INFO = Object.fromEntries(LOBES.map(l => [l.key, l]));
   const SENSORY_LOBES = LOBES.filter(l => l.sensory).map(l => l.key);
 
-  // Muscles (Movement lobe). tag[0..1] is each muscle's chemical address: topographic guidance
-  // genes wire a sense or need cell to the muscle whose address matches its own.
+  // Muscles (Movement lobe). tag[0..1] is each muscle's chemical address: guidance genes find a
+  // muscle by it (a topographic gene wires a sense cell to the muscle whose address matches its own).
   const MOTORS = [
     { key: 'walkL', word: 'Walk left',  tag: [0.10, 0.50], pos: [0.18, 0.86] },
     { key: 'walkR', word: 'Walk right', tag: [0.90, 0.50], pos: [0.82, 0.86] },
@@ -172,12 +172,11 @@
     { key: 'drink', word: 'Drink',      tag: [0.50, 0.12], pos: [0.50, 0.87] }
   ];
 
-  // The first Needs cells share an address with one muscle each (same order as MOTORS); the rest
-  // address nothing in particular
-  const DRIVE_CELL_TAGS = [
-    ...MOTORS.map(m => m.tag),
-    [0.15, 0.04], [0.38, 0.04], [0.62, 0.04], [0.85, 0.04], [0.15, 0.97], [0.38, 0.97], [0.62, 0.97], [0.85, 0.97], [0.5, 0.97]
-  ].slice(0, N_NEEDS);
+  // Drives lobe: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
+  // genes), plus spare cells. Their addresses form a grid that shares nothing with the muscles, so
+  // what a drive makes the creature do is up to guidance genes aimed at single cells.
+  const DRIVE_CELL_TAGS = Array.from({ length: N_NEEDS }, (_, k) => [(k % 6 + 0.5) / 6, (Math.floor(k / 6) + 0.5) / 3]);
+  const driveCell = key => DRIVES.indexOf(key);
 
   // ---- Neurochemicals: chemicals diffusing through the brain tissue (volume transmission), in
   // channel order. Neurochemistry genes pick one by index. base: default spread when no gene sets it.
@@ -200,7 +199,7 @@
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
     BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
-    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, NEUROCHEMS,
+    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, driveCell, NEUROCHEMS,
     LIMITS
   });
 })(globalThis.Evo);
