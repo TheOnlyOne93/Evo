@@ -730,13 +730,13 @@
       this.hoveredItem = null;
       const hand = this.options.hand;
       if (hand && hand.x != null) {
-        const p = hand.space === 'world' ? hand : this.screenToWorld(hand.x, hand.y);
+        const p = this.screenToWorld(hand.x, hand.y);
         let bestD = Infinity;
         for (let i = 0; i < cs.length; i++) {
           const d = this._creatureHit(cs[i], poses[i], p.x, p.y, 4 / this.cam.zoom);
           if (d < bestD) { bestD = d; this.hoveredCreature = cs[i]; }
         }
-        if (!this.hoveredCreature && (!hand.mode || hand.mode === 'grab') && !hand.holding) this.hoveredItem = this._itemAtWorld(p.x, p.y, 6 / this.cam.zoom);
+        if (!this.hoveredCreature && hand.mode === 'grab' && !hand.holding) this.hoveredItem = this._itemAtWorld(p.x, p.y, 6 / this.cam.zoom);
       }
       const focused = this._focused();
       for (let i = 0; i < cs.length; i++) {
@@ -1097,8 +1097,7 @@
     _drawHand(g, t) {
       const hand = this.options.hand;
       if (!hand || hand.x == null) return;
-      let sx = hand.x, sy = hand.y;
-      if (hand.space === 'world') { const p = this.worldToScreen(hand.x, hand.y); sx = p.x; sy = p.y; }
+      const sx = hand.x, sy = hand.y;
       const dpr = this.dpr;
       // Drop shadow, then the hand
       for (let pass = 0; pass < 2; pass++) {
@@ -1107,11 +1106,11 @@
           g.globalAlpha = 0.25;
           g.save();
           // The same shape in a flat dark colour
-          Evo.HandArt.drawSilhouette(g, hand.mode || 'grab', !!hand.holding, t);
+          Evo.HandArt.drawSilhouette(g, hand.mode, hand.holding, t);
           g.restore();
           g.globalAlpha = 1;
         } else {
-          Evo.HandArt.draw(g, hand.mode || 'grab', !!hand.holding, t);
+          Evo.HandArt.draw(g, hand.mode, hand.holding, t);
         }
       }
       g.setTransform(1, 0, 0, 1, 0, 0);
