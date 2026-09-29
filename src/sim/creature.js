@@ -65,6 +65,7 @@
       this.walkPhase = 0;
       this.growth = opts.growth !== undefined ? opts.growth : this.stage >= STAGE.YOUTH ? 1 : 0;
       this.health = 1;
+      this.strength = 1;               // Muscle strength (set each tick by physiology)
       this.injury = 0;
       this.bodyTemp = 0.5;
       this.dead = false;
@@ -86,12 +87,13 @@
       // Transient sensations, decaying each tick
       this.stim = { impact: 0, gentle: 0, back: 0, mated: 0, heardCall: 0, flinch: 0, contactL: 0, contactR: 0, touchingFriend: 0 };
       this.taste = { sweet: 0, starch: 0, savory: 0, fat: 0, bitter: 0, water: 0 };
-      this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
+      this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
 
       this.loci = new Float32Array(BODY_LOCI.length);
       this.drive = new Float32Array(this.brain.N);
       this.senses = null;              // The last sensory reading (for the UI)
+      this.visionBuffer = new Float32Array(4 * NF); // Sight cell signals, reused each tick
     }
 
     // ---------- Geometry ----------
@@ -311,7 +313,7 @@
       // low band (at or below eye level) or the high band (above). Signal = apparent size.
       const ex = this.headX, ey = this.headY;
       const range = T.visionRange;
-      const sight = this.visionBuffer || (this.visionBuffer = new Float32Array(4 * NF));
+      const sight = this.visionBuffer;
       sight.fill(0);
       // Like smell, sight responds logarithmically to apparent size (radius / distance), so a
       // small fruit across a clearing still registers while a nearby creature doesn't swamp it
