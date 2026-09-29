@@ -13,22 +13,9 @@
   const GRAVITY = 0.25;
   const NAMES = ['Pip', 'Moss', 'Bramble', 'Tansy', 'Wren', 'Sorrel', 'Fennel', 'Juniper', 'Clover', 'Nettle', 'Rowan', 'Hazel', 'Yarrow', 'Burdock', 'Teasel', 'Sedge'];
 
-  // Item sizes and behaviour, as in src/sim/constants.js (used when that file is not loaded)
-  const TYPES = Evo.ITEM_TYPES || {
-    fruit: { radius: 6, bounce: 0.3 }, grain: { radius: 5, bounce: 0.2 }, grub: { radius: 5, crawls: 0.15 },
-    bug: { radius: 4.5, crawls: 0.6, hops: true }, mimic: { radius: 6, bounce: 0.3 }, dew: { radius: 4 },
-    lure: { radius: 6 }, carrion: { radius: 9 }, egg: { radius: 7, bounce: 0.2 }, ball: { radius: 8, bounce: 0.7, rolls: true },
-  };
+  // Item sizes and behaviour (src/sim/constants.js is loaded by the lab page)
+  const TYPES = Evo.ITEM_TYPES;
 
-  // Scent channels for the overlay, only when the real list is not loaded (same keys and tokens)
-  if (!Evo.SCENTS) {
-    Evo.SCENTS = [
-      { key: 'sweet', token: '--fruit' }, { key: 'starch', token: '--grain' }, { key: 'moist', token: '--water' },
-      { key: 'bitter', token: '--toxin' }, { key: 'earthy', token: '--grub' }, { key: 'prey', token: '--protein' },
-      { key: 'muskF', token: '--female' }, { key: 'muskM', token: '--male' }, { key: 'alarm', token: '--alarm' },
-      { key: 'decay', token: '--carrion' },
-    ];
-  }
   const SCENT_OF = { fruit: 0, mimic: 3, grain: 1, dew: 2, grub: 4, bug: 5, lure: 6, carrion: 9 };
 
   const rng = Evo.util.mulberry32;

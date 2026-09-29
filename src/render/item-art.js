@@ -7,7 +7,7 @@
   'use strict';
   const { TAU } = Evo.util;
 
-  const RADIUS = { fruit: 6, grain: 5, dew: 4, grub: 5, bug: 4.5, mimic: 6, lure: 6, carrion: 9, egg: 7, ball: 8 };
+  const RADIUS = Object.fromEntries(Object.entries(Evo.ITEM_TYPES).map(([k, v]) => [k, v.radius]));
   // How far above (item.x, item.y) each body's centre sits, in radii (so it rests on its lowest point)
   const LIFT = { fruit: 0.92, mimic: 0.92, grain: 0.72, dew: 1.26, grub: 0.98, bug: 0.95, lure: 0.84, carrion: 0.9, egg: 1, ball: 1 };
 
