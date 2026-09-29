@@ -49,8 +49,14 @@
     // Association: senses and needs into the thinking regions, and thinking regions to the muscles
     guide('needs', [0.5, 0.5, 0.55], { radius: 0.3, weight: 0.4, reach: 0.8 }),
     guide('sight', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
+    // The colours of food and water (red to blue) on one side reach the thinking cells tagged for
+    // that side strongly enough to start working memory there
+    ...[0.1, 0.9].map(x => guide('sight', [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] })),
     guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     guide('cortex', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    // …and each thinking cell also pulls on the walk muscle on its own side, so what working memory
+    // holds (something there, a moment ago) keeps the creature heading toward it once it is out of sight
+    guide('cortex', [0.5, 0.5, 0.9], { radius: 0.2, weight: 0.7, reach: 0.8, relX: true }),
     guide('central', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
     { gene: 'Region duplication', source: 'motor', depth: 1.0, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Efference copy

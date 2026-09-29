@@ -150,6 +150,9 @@ with tau; fatigue slows recovery from adaptation. The founder uses it three time
   sight lobe's approach tracts, so what is attended pulls hardest. `brain.attended()` reads
   `{ side, band, feature }`.
 - *Thinking*: weak competition, strong persistence: working memory that outlasts what caused it.
+  The colours of food and water on one side excite the thinking cells tagged for that side, and
+  those pull on that side's walk muscle, so a creature keeps heading where it saw food after it
+  vanishes (`memory:` reports in tools/scenarios/learning.js, against a persistence-0 knockout).
 A seizure brake holds every central neuron back 10 mV for a tick when more than a quarter of the
 brain has fired for 3 ticks running (`brain.seizures` counts it).
 
