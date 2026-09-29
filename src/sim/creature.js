@@ -18,7 +18,7 @@
   const NF = VISION_FEATURES.length;  // Sight cells: [left low, left high, right low, right high] × features
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
-  // Physiological receptor targets are read at these scales (see docs/DESIGN.md §4)
+  // Per-tick scales for the physiological receptor targets (chem.effect(target) × scale)
   const SCALE = { damage: 0.001, healing: 0.0002, growth: 0.00003, scentSex: 0.02, scentAlarm: 0.05 };
 
   // Pronounceable names; children mix syllables from their parents' names
@@ -71,7 +71,7 @@
       this.causeOfDeath = null;
       this.held = false;               // Carried by the player's hand
       this.carrying = null;            // An item held in the mouth
-      this.pregnancy = null;           // { genome, father, progress, reserves }
+      this.pregnancy = null;           // { genome, fatherId, generation, parents, progress, reserves }
       this.timesMated = 0;
       this.meals = 0;
 
@@ -169,8 +169,8 @@
       const muscle = clamp(1 + c.effect('muscle'), 0.1, 2);
       this.strength = muscle;
 
-      // Running costs, paid from blood sugar: a basal rate (scaled by size^0.75, Kleiber's law),
-      // shivering when cold, and the muscles in use
+      // Running costs, paid from blood sugar: a basal rate (mass^0.75, Kleiber's law, taking mass
+      // as (size / 40)^2 for a body seen side-on), shivering when cold, and the muscles in use
       const mass = (this.size / 40) ** 2;
       const basal = 0.00003 * Math.pow(mass, 0.75) * (1 + c.effect('metabolism')) * (this.asleep ? 0.7 : 1);
       const shiver = 0.00003 * Math.max(0, c.effect('thermogenesis'));

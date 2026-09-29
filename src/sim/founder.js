@@ -37,9 +37,9 @@
   const FEATURES = Evo.VISION_FEATURES.map(f => f.key);
   const ODOURS = Evo.SCENTS.map(s => s.key);
   const MOTOR = Object.fromEntries(Evo.MOTORS.map((m, i) => [m.key, i]));
-  // Needs cells 0-7 share an address with the muscle of the same index (brain.js), so a drive
-  // wired to need(muscle) excites that muscle; cells 8-15 address no muscle
-  // General Needs cells (after the muscle-aligned ones), one per drive the brain should feel apart
+  // Needs cells 0-8 share an address with the muscle of the same index (brain.js), so a drive
+  // wired to need(muscle) excites that muscle. The remaining cells (up to N_NEEDS) address no
+  // muscle: these general cells carry one drive each that the brain should feel apart.
   const GENERAL = ['hunger', 'proteinHunger', 'fatHunger', 'thirst', 'coldness', 'hotness', 'boredom', 'sexDrive', 'crowdedness'];
   const need = key => (key in MOTOR ? MOTOR[key] : Evo.MOTORS.length + GENERAL.indexOf(key));
   const NEED = key => `need:${need(key)}`;
@@ -239,7 +239,8 @@
     emitter('always', 'ageing', 0, 0.00004, 0, 7),
     receptor('ageing', 'damage', 0.45, 1.5),
 
-    // ---------- Instincts: replayed in dreams while a baby sleeps ----------
+    // ---------- Instincts: replayed in dreams whenever the creature sleeps (switched on from birth,
+    // so they matter most in early life, before experience has wired the brain) ----------
     instinct('needs', need('rest'), 'needs', none, MOTOR.rest, 'reward', 0.5),                          // Tired: rest
     instinct('needs', need('hunger'), 'touch', TOUCH.mouthL, MOTOR.eat, 'reward', 0.5),      // Hungry, food at mouth: eat
     instinct('needs', need('hunger'), 'touch', TOUCH.mouthR, MOTOR.eat, 'reward', 0.5),
