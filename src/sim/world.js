@@ -61,6 +61,9 @@
     }
   }
 
+  // What each tree species grows (an ITEM_TYPES key)
+  const TREE_YIELDS = { fruit: 'fruit', mimic: 'mimic' };
+
   const SEXES = ['FEMALE', 'MALE', 'FEMALE', 'MALE', 'FEMALE', 'MALE'];
   const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
   const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
@@ -112,15 +115,17 @@
       const at = x => ({ x, y: t.groundY(x) });
       let id = 0;
       const feature = (kind, x, props) => ({ id: ++id, kind, ...at(x), ...props });
+      // A tree's species decides the item type it yields (renderers draw by species)
+      const tree = (x, species, props) => feature('tree', x, { species, yields: TREE_YIELDS[species], ...props });
       this.features = [
         feature('thornbush', jitter(0.125), { radius: 22 }),
-        feature('tree', jitter(0.16), { species: 'fruit', height: 210, canopy: 85, fruiting: 0.5 }),
-        feature('tree', jitter(0.235), { species: 'mimic', height: 140, canopy: 55, fruiting: 0.4 }),
+        tree(jitter(0.16), 'fruit', { height: 210, canopy: 85, fruiting: 0.5 }),
+        tree(jitter(0.235), 'mimic', { height: 140, canopy: 55, fruiting: 0.4 }),
         feature('rock', layout.hill + 30, { w: 96, h: 52, warm: 0 }),
         feature('grass', jitter(0.41), { width: 230, height: 40, seeding: 0.4 }),
         feature('log', jitter(0.49), { length: 150 }),
         ...this.terrain.ponds.flatMap(p => [feature('reeds', p.x0 - 20, { width: 50 }), feature('reeds', p.x1 + 20, { width: 50 })]),
-        feature('tree', jitter(0.79), { species: 'fruit', height: 230, canopy: 95, fruiting: 0.5 }),
+        tree(jitter(0.79), 'fruit', { height: 230, canopy: 95, fruiting: 0.5 }),
         feature('thornbush', jitter(0.84), { radius: 20 }),
         feature('grass', jitter(0.905), { width: 210, height: 40, seeding: 0.4 }),
         feature('thornbush', jitter(0.70), { radius: 18 })
@@ -221,7 +226,7 @@
     lookOfFeature(f) {
       if (f.kind === 'thornbush') return { x: f.x, y: f.y - f.radius * 0.6, radius: f.radius, features: { violet: 1, green: 0.3 } };
       if (f.kind === 'tree' && f.fruiting > 0.2) {
-        return { x: f.x, y: f.y - f.height + f.canopy * 0.4, radius: f.canopy * 0.35 * f.fruiting, features: f.species === 'mimic' ? { red: 0.9, violet: 0.25 } : { red: 1 } };
+        return { x: f.x, y: f.y - f.height + f.canopy * 0.4, radius: f.canopy * 0.35 * f.fruiting, features: ITEM_TYPES[f.yields].look };
       }
       return null;
     }
@@ -507,9 +512,9 @@
       const full = this.foodCount >= LIMITS.MAX_FOOD;
       for (const f of this.features) {
         if (f.kind === 'tree') {
-          f.fruiting = clamp01(f.fruiting + s.grow[f.species === 'mimic' ? 'mimic' : 'fruit'] * 0.00009 * light);
+          f.fruiting = clamp01(f.fruiting + s.grow[f.yields] * 0.00009 * light);
           if (!full && f.fruiting > 0.3 && Evo.chance(f.fruiting * 0.0025)) {
-            this.spawnItem(f.species === 'mimic' ? 'mimic' : 'fruit', f.x + Evo.randRange(-0.7, 0.7) * f.canopy, f.y - f.height + f.canopy * 0.5);
+            this.spawnItem(f.yields, f.x + Evo.randRange(-0.7, 0.7) * f.canopy, f.y - f.height + f.canopy * 0.5);
             f.fruiting -= 0.06;
           }
         } else if (f.kind === 'grass') {
@@ -539,7 +544,7 @@
 
     seedFood() {
       for (const f of this.features) {
-        if (f.kind === 'tree') for (let i = 0; i < 3; i++) this.spawnItem(f.species === 'mimic' ? 'mimic' : 'fruit', f.x + Evo.randRange(-1, 1) * f.canopy);
+        if (f.kind === 'tree') for (let i = 0; i < 3; i++) this.spawnItem(f.yields, f.x + Evo.randRange(-1, 1) * f.canopy);
         if (f.kind === 'grass') for (let i = 0; i < 4; i++) this.spawnItem('grain', f.x + Evo.randRange(-0.5, 0.5) * f.width);
         if (f.kind === 'log') for (let i = 0; i < 2; i++) this.spawnItem('grub', f.x + (i ? 1 : -1) * (f.length / 2 + 10), undefined, { home: f.x });
       }
