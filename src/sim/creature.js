@@ -525,8 +525,7 @@
         }
       }
       // Resting: each spike of the rest muscle keeps the creature lying down for a while
-      if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = 90;
-      if (this.restTimer > 0) this.vx *= 0.6;
+      if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = 90; // move() brakes a resting body
       // Calling
       if (m[MOTOR_INDEX.call] && this.callTimer === 0) {
         this.callTimer = 40;
@@ -569,7 +568,7 @@
       if (this.held) { this.vx = 0; this.vy = 0; this.onGround = false; return; }
       const terrain = world.terrain;
       this.vy += GRAVITY;
-      if (this.onGround && this.restTimer > 0) this.vx *= 0.6;
+      if (this.onGround && this.restTimer > 0) this.vx *= 0.6; // Resting: lying down brakes the body
       if (this.inWater) { this.vx *= 0.9; this.vy *= 0.85; }
 
       // Horizontal: a rise higher than a step blocks the way (jump to climb it)
