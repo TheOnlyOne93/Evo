@@ -30,8 +30,58 @@ brain is wired, and what a creature is born "knowing". Nothing is labelled good 
 
 ## 2. Time and scale
 
-* 60 ticks = 1 simulated second at 1× speed.
-* A day lasts `DAY_TICKS` (3 minutes); a season lasts 2 days; a year is 8 days.
+**One clock.** The simulation counts in ticks: 1 tick = 1/60 simulated second (`TICKS_PER_SECOND`).
+`world.step()` is one tick and is the only thing that advances time. Speed is a multiplier on how many
+ticks run per wall second (60 × speed); it never changes what a tick means. The sim never sees wall
+time or the frame rate.
+
+**The frame clock** (`Evo.FrameClock`, `src/core/clock.js`; pure, the caller passes the frame's `dt`).
+Each frame turns wall time into a whole number of ticks: `dt` (clamped to 250 ms, so a hidden tab or
+a hitch is not a burst) × 60 × speed is added to an accumulator and the whole part is run. Paused, it
+runs none and owes none. The loop stops early once a frame's simulation budget is spent; the ticks
+cut off are dropped, not owed, so the speed falls rather than the frame rate, and the status shows the
+achieved speed only when it falls short. `.` steps one tick while paused. Everything that watches the
+sim (the card log, hearts, charge trace, brain-map history) runs after every tick, not every frame.
+
+**A tick** (`World.step()`). Each creature phase runs for every creature before the next begins, so
+every creature senses the same settled world and nothing depends on its place in the list.
+
+| Phase | What happens |
+|---|---|
+| time | the clock advances |
+| environment | food grows, items fall and drift (eggs hatch), scent diffuses (see cadences) |
+| contact | creatures jostle each other and prick against spiky things |
+| body | `Creature.body`: age and stage, loci, biochemistry, physiology, sleep. A creature may die here. Scent and eggs it gives off are queued, not written |
+| body commit | `applyQueuedWrites` lands the queued scent and eggs in creature order; the dead leave carrion |
+| mind | `Creature.mind`: senses, dreams, the brain's tick. Everyone reads the same world |
+| act | muscles, mouth and hands: eating, grabbing, shoving, nuzzling, calling |
+| settle | movement (a carried item follows its carrier's mouth), then stimuli fade |
+| ecology | mating, sounds age, wanderers arrive, an empty world is founded again |
+
+Only physiology kills, so no creature dies after the body commit. A call made in the act phase is
+heard by every other creature in the mind phase of the next two ticks (the sound is age 1 and 2, so a
+refractory hearing cell cannot miss it); the *heard a call* stimulus fires once, at age 1.
+`creature.stimulate()` changes chemistry at once, wherever the event happens (inside a phase, or from
+the hand between ticks), so the next body phase sees it.
+
+**Units.** Every rate, half-life, delay, cooldown and threshold in the simulation is per tick, in
+ticks. Seconds appear only in text shown to people, converted with `TICKS_PER_SECOND`. Nothing in
+`src/sim/` reads a clock or scales by `dt`.
+
+**The brain and the tick rate.** The brain is a discrete-time network: one step is one sim tick, and
+its constants (membrane decay, axon delays, eligibility half-lives, learning and morphogenesis
+periods, the outcome baseline) are all in ticks. It ticks exactly once per sim tick and is never
+substepped, so speed changes how many ticks happen per second, not what a tick computes.
+
+**Cadences.** Some work runs only every few ticks, each on its own counter:
+
+| Counter | Work |
+|---|---|
+| world tick (`world.clock.tick`) | scent diffuses every `SCENT_EVERY` = 3 ticks, at triple rate; a wanderer may arrive every `WANDER_INTERVAL` = 1800 ticks |
+| brain tick (`brain.tickCount`, one per world tick) | weights update every `LEARN_EVERY` = 4 ticks (the signal is summed in between); morphogenesis regrows and prunes wiring every `MORPHOGENESIS_EVERY` = 80 ticks |
+| age tick (`creature.ageTicks`, one per body phase, from birth) | life stage (age over lifespan); the time stamp on `lastStimulus` |
+
+* A day lasts `DAY_TICKS` (3 minutes at 1×); a season lasts 2 days; a year is 8 days.
 * A creature lives roughly 25–40 minutes of simulated time (about one year), set by its genes.
 * Life stages, as fractions of lifespan: baby 0–5%, child –15%, adolescent –25%, youth –35%,
   adult –75%, old –90%, senile after that.
@@ -314,6 +364,13 @@ class WorldView {
 
 Colours come from CSS tokens through `Evo.theme` where a colour *means* something (food types,
 sexes, reward/stress). Environment art may use its own palette.
+
+**Time in the views.** Renderers depict sim state in ticks; they never drive it. Pose easing moves
+per sim tick (a paused world freezes, and high speed keeps up); the brain map lights a neuron if it
+fired in any tick since the last frame; observers (card log, hearts, charge trace) sample after each
+tick. Only decoration with no sim meaning (camera, weather, water glints, `t` for idle wobble) uses
+the wall `dt`. The hand converts its own timing into ticks (`PAT_TICKS` between pats, flings at the
+hand's on-screen speed), so it feels the same at every speed.
 
 Performance: 60 fps with 16 creatures and 80 items on a mid-range laptop. Cache static layers
 (terrain, far scenery) in offscreen canvases; avoid per-frame allocation in hot paths.

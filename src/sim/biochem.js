@@ -1,7 +1,8 @@
 // Genetic biochemistry, after Creatures: chemicals in 64 slots, and the genes acting on them. Each
 // tick: emitters release chemicals from body readings, reactions convert chemicals, chemicals decay
-// by their half-lives, and receptors push on the body and brain. Between ticks, stimulus genes
-// release chemicals when something happens to the creature (stimulate).
+// by their half-lives, and receptors push on the body and brain (all in the creature's body phase).
+// Stimulus genes release chemicals the moment something happens to the creature (stimulate): from
+// any phase of a tick, or from the hand between ticks. The change is read by the next body phase.
 (function (Evo) {
   'use strict';
   const { N_CHEM, TARGETS, TARGET, CHEM_BY_ID, STIMULI } = Evo;

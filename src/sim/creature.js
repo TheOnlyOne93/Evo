@@ -1,8 +1,13 @@
 // A creature: genome, biochemistry, brain and body, living in the side-view world.
 //
-// Each tick: the body's state is read into loci; the biochemistry runs (emitters, reactions,
-// receptors); physiology follows the receptors (strength, growth, healing, damage, sleep, fertility);
-// the senses turn the world into neuron currents; the brain ticks; and the muscles that fired act.
+// A tick is four phases, each run for every creature before the next (see World.step):
+//   body    the body's state is read into loci; the biochemistry runs (emitters, reactions,
+//           receptors); physiology follows the receptors (strength, growth, healing, damage, sleep,
+//           fertility). The only phase where a creature dies.
+//   mind    the senses turn the settled world into neuron currents; the brain ticks (once per tick)
+//   act     the muscles that fired act: mouth, hands, calls
+//   settle  the body moves, a carried item follows the mouth, and stimuli fade
+// A stimulus (stimulate) changes chemistry at once and is read by the next body phase.
 // Geometry: x = centre, y = feet on the ground, facing ±1; `size` is the body length in px.
 (function (Evo) {
   'use strict';

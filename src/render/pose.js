@@ -4,7 +4,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  // creature -> values eased between frames (weakly held: forgotten once the creature is gone)
+  // creature -> values eased per sim tick (weakly held: forgotten once the creature is gone)
   const smooth = new WeakMap();
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
