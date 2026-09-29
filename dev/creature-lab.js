@@ -56,7 +56,6 @@
 
   const scenes = [];
   let showBounds = params.has('bounds'), paused = params.has('t'), pauseT = +params.get('t') || 0, pauseAt = 0;
-  const drawn = [];   // [pose, canvas] pairs drawn this frame, for picking
 
   function scene(id, build, paint) {
     const canvas = document.getElementById(id), ctx = canvas.getContext('2d');
@@ -214,7 +213,7 @@
       });
     }
   }, (s, t, dt) => {
-    const { ctx, w, h } = s;
+    const { ctx, w } = s;
     const heights = [110, 150, 300];
     let y0 = 0;
     for (let zi = 0; zi < 3; zi++) {

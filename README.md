@@ -26,6 +26,7 @@ node tests/run.js genome       # tests whose name contains "genome"
 node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds non-gating metrics)
 node tools/evaluate.js 2 3     # ecology: several seeds in parallel, meals, sleep, births, deaths
 node tools/simulate.js 2 1     # one headless run with a running report
+npx eslint@9 .                 # lint (flat config in eslint.config.js; needs no install or package.json)
 ```
 
 The runner loads every script that `index.html` marks `data-headless` into Node, in page order,
