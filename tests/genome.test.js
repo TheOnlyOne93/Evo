@@ -174,3 +174,17 @@ test('genome: a brain-building gene that switches on after birth says it has no 
   assert.ok(/no effect/.test(late), late);
   assert.ok(!/no effect/.test(early), early);
 });
+
+test('genome: the mutation list pairs a changed gene with the one it came from', (Evo, assert) => {
+  const parent = Evo.Genome.founder();
+  assert.deepStrictEqual(Evo.text.geneChanges(parent, [parent]), [], 'no differences from itself');
+  const child = new Evo.Genome(parent.dna.slice(), parent.sexChrom);
+  const gene = child.findGenes().find(x => Evo.GENES[x.type].name === 'Stimulus');
+  child.dna[gene.start + 4] ^= 0x40; // One payload byte of a Stimulus gene
+  const changes = Evo.text.geneChanges(child, [parent]);
+  assert.strictEqual(changes.length, 1, JSON.stringify(changes.map(c => c.kind)));
+  assert.strictEqual(changes[0].kind, 'changed');
+  const fields = Evo.text.fieldChanges(child, changes[0].gene, changes[0].ref.genome, changes[0].ref.gene);
+  assert.strictEqual(fields.length, 1);
+  assert.notStrictEqual(fields[0].before, fields[0].after);
+});

@@ -1,5 +1,5 @@
 // Plain-language words for what's inside a creature and what it is doing (the code keeps its
-// technical names).
+// technical names). Pure functions, no page access: tests load this file in Node.
 (function (Evo) {
   'use strict';
   const { LOBE_INFO, VISION_FEATURES, SCENTS, STAGES, CHEMICALS, MOTORS } = Evo;
@@ -18,14 +18,64 @@
     starvation: 'starved', dehydration: 'died of thirst', poison: 'was poisoned', 'old age': 'died of old age',
     injury: 'died of injuries', cold: 'froze', heat: 'overheated', illness: 'fell ill and died'
   };
+  // A stimulus (Evo.STIMULI) that has just happened
+  const STIMULUS_PAST = {
+    ate: 'ate', drank: 'drank', patted: 'was patted', slapped: 'was slapped', nuzzled: 'nuzzled another', wasNuzzled: 'was nuzzled',
+    shoved: 'shoved another', wasShoved: 'was shoved', called: 'called', heardCall: 'heard a call', grabbed: 'picked something up',
+    dropped: 'dropped something', bumped: 'bumped into something', fell: 'landed hard', woke: 'woke up', fellAsleep: 'fell asleep',
+    mated: 'mated', played: 'played', pricked: 'was pricked by thorns'
+  };
 
-  function lobeName(n) {
+  // ---------- Brain regions and neurons ----------
+  // The sight copy whose cells compete (Lobe dynamics) is what the creature attends with
+  const isAttention = (brain, lobe) => !!(brain && brain.duplicatesOf && (brain.duplicatesOf.sight || [])[0] === lobe &&
+    brain.dynamics && brain.dynamics.some(d => d.lobe === lobe));
+  const dynamicsOf = (brain, lobe) => (brain && brain.dynamics ? brain.dynamics.find(d => d.lobe === lobe) : null) || null;
+
+  // A region of this brain by its id in brain.lobes (duplicates: 'dup1_sight' and so on)
+  function regionName(brain, lobe) {
+    if (LOBE_INFO[lobe]) return LOBE_INFO[lobe].word;
+    if (isAttention(brain, lobe)) return 'Attention';
+    const parent = lobe.replace(/^dup\d+_/, '');
+    return `${LOBE_INFO[parent] ? LOBE_INFO[parent].word : parent} copy`;
+  }
+
+  // What a region is for, in a sentence
+  const REGION_ABOUT = {
+    sight: 'What its eyes see: each colour (and other creatures, and movement) on the left or right, low or high.',
+    smell: 'What its two antennae smell, left and right.',
+    hearing: 'Calls heard on the left or right, low or high.',
+    touch: 'Touch on each side, its mouth, lips, back and feet; pain; falling; being in water.',
+    taste: 'The taste of what it is eating or drinking.',
+    near: 'The look of whatever is right at its mouth.',
+    needs: 'One cell per drive (hunger, thirst, fear…), driven by whichever chemicals its receptor genes attach.',
+    feelings: 'The reward and punishment cells fire on surprises (better or worse than expected); that is what it learns from.',
+    cortex: 'General cells that associate senses and drives.',
+    side: 'General cells, one group on each side.',
+    central: 'General cells in the middle.',
+    motor: 'One cell per muscle. The busiest one is what it is doing.',
+    stem: 'General cells at the back of the brain.'
+  };
+  function regionAbout(brain, lobe) {
+    if (isAttention(brain, lobe)) return 'A copy of sight whose cells compete, so it settles on one thing at a time; what it needs biases which.';
+    const dyn = dynamicsOf(brain, lobe);
+    let text = REGION_ABOUT[lobe] || `A copy of the ${regionName(brain, lobe.replace(/^dup\d+_/, '')).toLowerCase()} region: each cell is fed by its original.`;
+    if (dyn && lobe === 'cortex' && dyn.persistence > 1) text = 'Working memory: a cell that starts firing keeps going for a while, so what it just saw outlasts the sight.';
+    else if (dyn && lobe === 'motor') text += ' The muscles compete, so one action wins and is held until it tires.';
+    return text;
+  }
+
+  function lobeName(n, brain = null) {
+    if (n.copyOf !== null && brain) return regionName(brain, n.lobe);
     const word = LOBE_INFO[n.parentLobe].word;
     return n.copyOf !== null ? `${word} copy` : word;
   }
 
   function neuronName(brain, n) {
-    if (n.copyOf !== null) return `Copy of ${neuronName(brain, brain.neurons[n.copyOf]).toLowerCase()}`;
+    if (n.copyOf !== null) {
+      const original = neuronName(brain, brain.neurons[n.copyOf]);
+      return isAttention(brain, n.lobe) ? `Attends: ${original.toLowerCase()}` : `Copy of ${original.toLowerCase()}`;
+    }
     const m = n.meta;
     switch (m.kind) {
       case 'sight': return `Sees ${FEATURE_WORDS[m.feature]} to the ${SIDE[m.side]}${m.band === 'high' ? ', up high' : ''}`;
@@ -39,6 +89,28 @@
         return chems.length ? `Feels ${chems.join(' & ').toLowerCase()}` : `Drives cell ${m.index + 1} (unused)`;
       }
       default: return n.label;
+    }
+  }
+
+  // What one neuron does, in a sentence (for the neuron card)
+  function neuronRole(brain, n) {
+    const m = n.meta;
+    if (brain.modulator[n.index] === 0) return 'Fires when things turn out better than expected. Its inputs learn to predict reward, and its signal is what makes the brain learn.';
+    if (brain.modulator[n.index] === 1) return 'Fires when things turn out worse than expected. Its inputs learn to predict trouble, and its signal teaches the brain to avoid it.';
+    if (isAttention(brain, n.lobe)) return 'An attention cell. It competes with the others in its region; when it wins, this is what the creature is looking at.';
+    if (n.copyOf !== null) return 'A copy of another cell, fed by it. Its own wiring can grow in a different direction.';
+    switch (m.kind) {
+      case 'sight': case 'smell': case 'hearing': case 'near': return 'A sense cell: the world drives it directly.';
+      case 'need': return 'A drive cell: the chemicals named above push current into it, so it fires more the stronger the drive.';
+      case 'motor': return dynamicsOf(brain, n.lobe)
+        ? 'A muscle cell. When it fires the creature does this; the muscles compete, and the busiest one wins.'
+        : 'A muscle cell. When it fires the creature does this.';
+      case 'cell': {
+        const dyn = dynamicsOf(brain, n.lobe);
+        if (dyn && dyn.persistence > 1) return 'Working memory: once started it keeps firing for a while. Its role comes from its wiring and from learning.';
+        return 'A general-purpose cell. Its role comes from its wiring and from learning.';
+      }
+      default: return n.lobe === 'touch' || n.lobe === 'taste' ? 'A sense cell: the body drives it directly.' : 'A feelings cell: receptor genes can drive it, and emitter genes can read it.';
     }
   }
 
@@ -95,9 +167,12 @@
     return s < 1 ? 'under a second' : s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
   };
   const num = (v, d = 2) => (Math.abs(v) >= 100 ? Math.round(v) : Number(v.toFixed(d)));
+  const percent = x => `${Math.round(x * 100)}%`;   // A 0..1 fraction as a percentage
+  const signed = (v, d = 2) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(d)}`;
+  // A value on a scale lo..hi as one of a few words (low to high)
+  const level = (v, lo, hi, names) => names[Math.max(0, Math.min(names.length - 1, Math.floor((v - lo) / (hi - lo) * names.length)))];
 
   // Word helpers handed to each gene's describe() (see GENES in genome.js)
-  const percent = x => `${Math.round(x * 100)}%`;   // A 0..1 fraction as a percentage
   function geneWords(brain) {
     const lobe = i => LOBE_INFO[Evo.LOBE_ORDER[i]].word;
     // An instinct's input cell by lobe and index (null for "no input")
@@ -110,18 +185,223 @@
     return { chem: chemName, locus: locusName, target: targetName, lobe, cell, percent, num, seconds };
   }
 
-  // One gene in plain words. Returns { name, group, text }; group is 'body' | 'brain' | 'chemistry' | 'instinct'.
-  // The gene's own describe() says what it does; genes without one list the traits they express.
+  // ---------- Genes ----------
+  const hueWord = h => ['red', 'orange', 'yellow', 'lime', 'green', 'teal', 'cyan', 'blue', 'indigo', 'violet', 'magenta', 'pink'][Math.round(((h % 360) + 360) % 360 / 30) % 12];
+  const PATTERNS = ['plain', 'stripes', 'spots', 'patches'];
+  const speedWord = perSecond => (perSecond < 0.05 ? 'a trickle' : perSecond < 0.3 ? 'slowly' : perSecond < 1.2 ? 'steadily' : 'quickly');
+  const rateWord = k => level(Math.log10(k), -6, -1, ['very slowly', 'slowly', 'at a moderate pace', 'fast', 'very fast']);
+
+  // Which cells an axon guidance gene reaches in this brain: the same chemical match the brain grows
+  // by (brain.growTracts), without the chance. Returns { from, to } in words, or null without a brain.
+  function guidanceReach(brain, x) {
+    if (!brain) return null;
+    const src = x.source, parent = Evo.LOBE_ORDER[src.lobe], win = x.srcWindow, r = x.affinityRadius;
+    const sources = (brain.lobes[parent] || []).map(i => brain.neurons[i])
+      .filter(s => !win || Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) <= win.r);
+    const hits = new Map(), cells = new Set(), senders = [];
+    for (const s of sources) {
+      const tx = src.relX ? (src.mirrorX ? 1 - s.tag[0] : s.tag[0]) + x.target[0] - 0.5 : x.target[0];
+      const ty = src.relY ? s.tag[1] + x.target[1] - 0.5 : x.target[1];
+      let any = false;
+      for (const d of brain.neurons) {
+        if (d === s || brain.isSensory[d.index]) continue;
+        if (Math.hypot(d.tag[0] - tx, d.tag[1] - ty, d.tag[2] - x.target[2]) >= r) continue;
+        cells.add(d.index);
+        hits.set(d.lobe, (hits.get(d.lobe) || 0) + 1);
+        any = true;
+      }
+      if (any) senders.push(s);
+    }
+    // Name the sending cells when only some of the region sends: by what they sense, or one by one
+    const lobeWord = LOBE_INFO[parent].word;
+    const what = s => (s.meta.feature ? `seeing ${FEATURE_WORDS[s.meta.feature]}` : s.meta.odour ? `the smell of ${ODOUR_WORDS[s.meta.odour]}` : neuronName(brain, s).toLowerCase());
+    const kinds = [...new Set(senders.map(what))];
+    const from = !senders.length ? `${lobeWord} (no cells match)`
+      : senders.length === sources.length && !win ? lobeWord
+        : kinds.length <= 2 ? kinds.join(' and ') : `${senders.length} ${lobeWord.toLowerCase()} cells`;
+    // Leave out copies whose original is reached too (a duplicate region inherits its parent's wiring)
+    const reached = [...cells].map(i => brain.neurons[i]).filter(d => d.copyOf === null || !cells.has(d.copyOf));
+    const cellWord = d => (isAttention(brain, d.lobe) ? `attention to ${FEATURE_WORDS[d.meta.feature]} on the ${SIDE[d.meta.side]}` : neuronName(brain, d).toLowerCase());
+    const names = [...new Set(reached.map(cellWord))];
+    const regions = [...hits.entries()].filter(([l]) => !/^dup\d+_/.test(l) || !hits.has(l.replace(/^dup\d+_/, '')))
+      .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([l]) => regionName(brain, l));
+    const to = !cells.size ? 'nothing it can find' : names.length <= 2 ? names.join(' and ') : regions.join(' and ');
+    return { from, to };
+  }
+
+  // Friendlier words for some genes than their own describe() (or where they have none). Each gets
+  // (v decoded, x expressed, w word helpers, brain) and returns the text.
+  const FRIENDLY = {
+    Appearance: (v, x) => `${hueWord(x.hue)} fur with ${hueWord(x.accentHue)} markings, ${PATTERNS[x.pattern]}; ` +
+      `${level(x.earSize, 0, 1, ['small', 'medium', 'big'])} ears, ${level(x.tailLength, 0, 1, ['short', 'medium', 'long'])} tail`,
+    Morphology: (v, x) => `Grows to ${Math.round(x.adultSize)} px, ${level(x.legLength, 0, 1, ['short', 'medium', 'long'])} legs, reaches ${num(x.mouthReach, 0)} px with its mouth`,
+    Eyes: (v, x) => `Sees ${Math.round(x.visionRange)} px, ${level(x.nightVision, 0, 1, ['poorly', 'fairly', 'well'])} at night`,
+    Nose: (v, x) => `Smells ${Math.round(x.noseReach)} px around it, sensitivity ×${num(x.scentGain, 1)}`,
+    Muscle: (v, x) => `Walks at ${num(x.walkSpeed)}, runs ×${num(x.runBoost, 1)}, jumps ${num(x.jumpPower, 1)}`,
+    Voice: (v, x) => `A ${x.voicePitch > 0.5 ? 'high' : 'low'}, ${level(x.voiceLoudness, 0.4, 1, ['soft', 'clear', 'loud'])} voice`,
+    Insulation: (v, x) => `${level(x.insulation, 0.3, 0.9, ['Thin', 'Medium', 'Thick'])} fur (${percent(x.insulation)}), ${level(x.bodyHeat, 0, 1, ['cool', 'warm', 'hot'])}-blooded`,
+    Stimulus(v, x, w) {
+      const parts = [[v.chem1, v.amount1], [v.chem2, v.amount2]].filter(([c, a]) => c && a).map(([c, a]) => `${w.chem(c).toLowerCase()} ${signed(a)}`);
+      return `When it ${Evo.STIMULUS_WORDS[Evo.STIMULI[x.event]]}: ${parts.join(', ') || 'nothing'}`;
+    },
+    // (Emitters and receptors that name no chemical express nothing, so these read the decoded bytes)
+    Emitter(v, x, w) {
+      const reading = w.locus(v.locus), out = w.chem(v.chem).toLowerCase(), invert = v.flags & 1, digital = v.flags & 2;
+      if (Evo.BODY_LOCI[v.locus.body] === 'always') return `Always makes ${out}, ${speedWord(v.gain * 60)}`;
+      const when = invert ? ` below ${percent(v.threshold)}` : v.threshold > 0.005 ? ` above ${percent(v.threshold)}` : '';
+      return `${reading.charAt(0).toUpperCase()}${reading.slice(1)}${when} → makes ${out}${digital ? ' (all or nothing)' : `, ${speedWord(v.gain * 60)}`}`;
+    },
+    Receptor(v, x, w) {
+      const invert = v.flags & 1, negative = v.flags & 4;
+      const when = invert ? `below ${percent(v.threshold)}` : v.threshold > 0.005 ? `above ${percent(v.threshold)}` : '';
+      return `${w.chem(v.chem)}${when ? ` ${when}` : ''} ${negative ? 'lowers' : 'raises'} ${w.target(v.target)} (×${num(v.gain, 1)})`;
+    },
+    Reaction(v, x, w) {
+      const ins = [v.a, v.b].filter(Boolean), outs = [[v.c, v.yieldC], [v.d, v.yieldD]].filter(([c, y]) => c && y > 0);
+      const side = pairs => pairs.map(([c, y]) => `${Math.abs(y - 1) > 0.05 ? `${num(y, 1)} ` : ''}${w.chem(c).toLowerCase()}`).join(' + ');
+      // A chemical on both sides is not used up: it drives the reaction ("Insulin turns blood sugar into glycogen")
+      const cat = ins.find(c => outs.some(([o]) => o === c));
+      if (cat && ins.length === 2) {
+        const other = w.chem(ins.find(c => c !== cat) || cat).toLowerCase(), made = outs.filter(([o]) => o !== cat);
+        return `${w.chem(cat)} ${made.length ? `turns ${other} into ${side(made)}` : `uses up ${other}`}, ${rateWord(v.rate)}`;
+      }
+      const lhs = ins.map(c => w.chem(c).toLowerCase()).join(' + ');
+      const text = `${lhs || 'nothing'} → ${side(outs) || 'nothing'}, ${rateWord(v.rate)}`;
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    },
+    'Lobe dynamics'(v, x, w, brain) {
+      const parent = Evo.LOBE_ORDER[x.lobeIdx];
+      const lobe = x.copy ? brain && (brain.duplicatesOf[parent] || [])[x.copy - 1] : parent;
+      const region = lobe ? regionName(brain, lobe) : `${LOBE_INFO[parent].word} copy ${x.copy} (not there)`;
+      return `${region}: cells compete ${level(x.competition, 0, 8, ['weakly', 'moderately', 'strongly'])}, and one that fires keeps going ` +
+        `${level(x.persistence, 0, 4, ['briefly', 'for a while', 'for long'])} (about ${seconds(1 / (1 - x.keep))})`;
+    },
+    'Axon guidance'(v, x, w, brain) {
+      const reach = guidanceReach(brain, x);
+      if (!reach) return null;
+      const map = x.source.relX || x.source.relY ? (x.source.mirrorX ? ', each cell to the opposite side' : ', each cell to its match') : '';
+      return `${reach.from.charAt(0).toUpperCase()}${reach.from.slice(1)} → ${reach.to}: ${x.weightSign > 0 ? 'excites' : 'inhibits'}${map}`;
+    }
+  };
+
+  // Genes within a group, by kind (the order they are listed in)
+  const GENE_KIND = {
+    Stimulus: 'What events do', Emitter: 'What the body makes', Receptor: 'What chemicals act on', Reaction: 'Reactions',
+    'Half-life': 'How fast chemicals fade', 'Initial concentration': 'Born with',
+    Membrane: 'How neurons work', Plasticity: 'How neurons work', Reinforcement: 'How neurons work', Curiosity: 'How neurons work', Neurochemistry: 'How neurons work',
+    Anatomy: 'Regions', 'Region duplication': 'Regions', 'Lobe dynamics': 'Regions', Pacemaker: 'Regions', 'Axon guidance': 'Wiring'
+  };
+
+  // One gene in plain words. Returns { name, group, kind, text }; group is 'body' | 'brain' |
+  // 'chemistry' | 'instinct', kind a heading within the group.
   function describeGene(genome, gene, brain = null) {
     const def = Evo.GENES[gene.type];
-    const x = genome.expressed(gene);
+    const v = genome.decode(gene), x = genome.expressed(gene), w = geneWords(brain);
     const d = def.describe
-      ? def.describe(genome.decode(gene), x, geneWords(brain))
-      : { group: 'body', text: Object.entries(x).slice(0, 4).map(([k, v]) => `${words(k)} ${typeof v === 'number' ? num(v, Math.abs(v) >= 10 ? 0 : 2) : v}`).join(', ') };
+      ? def.describe(v, x, w)
+      : { group: 'body', text: Object.entries(x).slice(0, 4).map(([k, val]) => `${words(k)} ${typeof val === 'number' ? num(val, Math.abs(val) >= 10 ? 0 : 2) : val}`).join(', ') };
+    const friendly = FRIENDLY[def.name] && FRIENDLY[def.name](v, x, w, brain);
+    if (friendly) d.text = friendly;
     // The brain is built once, at birth: a brain-building gene that switches on later does nothing
     if (def.birthOnly && gene.stage > 1) d.text += ' (only works from birth, so this late copy has no effect)';
-    return { name: def.name, ...d };
+    return { name: def.name, kind: GENE_KIND[def.name] || '', ...d };
   }
+
+  // ---------- Mutations ----------
+  // Each gene's identity: its stage and type byte plus payload
+  const signature = (genome, gene) => Array.prototype.join.call(genome.dna.subarray(gene.start + 1, gene.end), ',');
+
+  // One field's value in words, for a before → after line
+  function fieldValue(codec, value) {
+    const C = Evo.CODEC;
+    if (codec === C.chem) return value ? chemName(value).toLowerCase() : 'nothing';
+    if (codec === C.locus) return locusName(value);
+    if (codec === C.target) return targetName(value);
+    if (codec === C.lobe) return LOBE_INFO[Evo.LOBE_ORDER[value]].word.toLowerCase();
+    if (typeof value === 'number') return value === Infinity ? 'never' : String(num(value, 2));
+    return '…';
+  }
+
+  // What differs between a gene and the gene it came from: [{ field, before, after }]
+  function fieldChanges(genome, gene, refGenome, refGene) {
+    const out = [];
+    if (gene.stage !== refGene.stage) out.push({ field: 'switches on', before: STAGES[Math.max(1, refGene.stage)].word.toLowerCase(), after: STAGES[Math.max(1, gene.stage)].word.toLowerCase() });
+    Evo.GENES[gene.type].fields.forEach(([key, codec], k) => {
+      const a = refGenome.dna[refGene.start + 2 + k], b = genome.dna[gene.start + 2 + k];
+      if (a !== b) out.push({ field: words(key), before: fieldValue(codec, codec.decode(a)), after: fieldValue(codec, codec.decode(b)) });
+    });
+    return out;
+  }
+
+  // How a genome differs from reference genomes (its parents, or the founders): genes that match
+  // none of them, each paired with the most similar reference gene of its kind when there is one
+  // ('changed'), else 'new' (or 'copy' when it is an extra copy of a gene they have); and genes that
+  // every reference has but it lacks ('lost'). skip: gene names to leave out.
+  // Returns [{ kind, gene, ref: { genome, gene } | null }], gene = null for 'lost'.
+  function geneChanges(genome, refs, skip = []) {
+    const skipTypes = new Set(skip.map(n => Evo.GENE_INDEX[n]));
+    const listed = g => g.findGenes().filter(x => !skipTypes.has(x.type)).map(x => ({ gene: x, sig: signature(g, x), genome: g }));
+    const mine = listed(genome), theirs = refs.map(listed);
+    const count = list => list.reduce((m, x) => m.set(x.sig, (m.get(x.sig) || 0) + 1), new Map());
+    const myCount = count(mine), theirCounts = theirs.map(count);
+    const most = sig => Math.max(0, ...theirCounts.map(m => m.get(sig) || 0));
+    const out = [], used = new Set(), seen = new Map();
+    // Reference genes the child has no exact copy of: what a changed gene may have come from
+    const orphans = theirs.flat().filter(x => !myCount.has(x.sig));
+    for (const x of mine) {
+      const n = (seen.get(x.sig) || 0) + 1;
+      seen.set(x.sig, n);
+      if (n <= most(x.sig)) continue;
+      if (most(x.sig) > 0) { out.push({ kind: 'copy', gene: x.gene, ref: null }); continue; }
+      let best = null, bestD = Infinity;
+      const a = genome.dna, len = x.gene.end - x.gene.start;
+      for (const o of orphans) {
+        if (o.gene.type !== x.gene.type || used.has(o)) continue;
+        let d = 0;
+        for (let k = 1; k < len; k++) if (a[x.gene.start + k] !== o.genome.dna[o.gene.start + k]) d++;
+        if (d < bestD) { bestD = d; best = o; }
+      }
+      if (best && bestD <= Math.ceil((len - 1) / 2)) {
+        used.add(best);
+        for (const o of orphans) if (o.sig === best.sig) used.add(o); // The same gene in the other parent
+        out.push({ kind: 'changed', gene: x.gene, ref: { genome: best.genome, gene: best.gene } });
+      } else out.push({ kind: 'new', gene: x.gene, ref: null });
+    }
+    // Lost: in every reference (so it could not simply have been left out by recombination)
+    const lostSeen = new Set();
+    for (const o of theirs[0] || []) {
+      if (used.has(o) || lostSeen.has(o.sig) || myCount.has(o.sig)) continue;
+      if (theirCounts.every(m => m.has(o.sig))) { lostSeen.add(o.sig); out.push({ kind: 'lost', gene: null, ref: { genome: o.genome, gene: o.gene } }); }
+    }
+    return out;
+  }
+
+  // The founders' genes as one reference genome (no junk DNA), with the given sex chromosome
+  let founderBytes = null;
+  function founderGenome(sexChrom) {
+    if (!founderBytes) founderBytes = Uint8Array.from(Evo.FOUNDER_GENOME.flatMap(spec => Evo.encodeGene(spec)));
+    return new Evo.Genome(founderBytes, sexChrom);
+  }
+
+  // ---------- Traits ----------
+  // What a creature's genes built, as [label, words, exact value]
+  function traitWords(tr) {
+    return [
+      ['Adult size', level(tr.adultSize, 30, 48, ['small', 'medium', 'large']), `${Math.round(tr.adultSize)} px`],
+      ['Walking', level(tr.walkSpeed, 0.8, 1.8, ['slow', 'steady', 'brisk', 'fast']), num(tr.walkSpeed)],
+      ['Jumping', level(tr.jumpPower, 3.5, 7, ['weak', 'fair', 'good', 'springy']), num(tr.jumpPower, 1)],
+      ['Eyesight', level(tr.visionRange, 180, 460, ['short', 'medium', 'long']), `${Math.round(tr.visionRange)} px`],
+      ['Night sight', level(tr.nightVision, 0, 1, ['poor', 'some', 'good']), percent(tr.nightVision)],
+      ['Nose', level(tr.noseReach, 14, 44, ['short', 'medium', 'keen']), `${Math.round(tr.noseReach)} px`],
+      ['Lifespan', seconds(tr.lifespanTicks), clock(tr.lifespanTicks)],
+      ['Egg takes', seconds(tr.gestationTicks), clock(tr.gestationTicks)],
+      ['Hatches in', seconds(tr.incubationTicks), clock(tr.incubationTicks)],
+      ['Fur', level(tr.insulation, 0.3, 0.9, ['thin', 'medium', 'thick']), percent(tr.insulation)],
+      ['Learning', level(tr.learningRate, 0.018, 0.063, ['slow', 'average', 'quick']), num(tr.learningRate, 3)],
+      ['Voice', tr.voicePitch > 0.5 ? 'high' : 'low', percent(tr.voiceLoudness) + ' loud']
+    ];
+  }
+
   const stageName = stage => STAGES[stage].word;
 
   // Simulated time: ticks as minutes:seconds
@@ -137,8 +417,9 @@
   const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
 
   Evo.text = {
-    lobeName, neuronName, needChemicals, chemName, stageName, clock, timeOfDay, titleCase,
-    locusName, targetName, describeGene, seconds,
-    ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS
+    lobeName, neuronName, neuronRole, regionName, regionAbout, needChemicals, chemName, stageName, clock, timeOfDay, titleCase,
+    locusName, targetName, describeGene, geneWords, seconds, num, percent, signed, level,
+    geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
+    ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, STIMULUS_PAST
   };
 })(globalThis.Evo);
