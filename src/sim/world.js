@@ -371,8 +371,8 @@
     // A wanderer walks in from the edge when one sex is nearly gone
     maybeWanderer() {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return;
-      const females = this.creatures.filter(c => c.sex === 'FEMALE' && c.isAdult).length;
-      const males = this.creatures.filter(c => c.sex === 'MALE' && c.isAdult).length;
+      const females = this.creatures.filter(c => c.sex === 'FEMALE' && c.isMature).length;
+      const males = this.creatures.filter(c => c.sex === 'MALE' && c.isMature).length;
       const sex = females < 2 ? 'FEMALE' : males < 2 ? 'MALE' : null;
       if (!sex) return;
       const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;

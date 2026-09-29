@@ -102,7 +102,7 @@
     get mouthX() { return this.x + this.facing * (this.size * 0.55 + 2); }
     get mouthY() { return this.y - this.size * 0.45; }
     get sex() { return this.traits.sex; }
-    get isAdult() { return this.stage >= STAGE.ADOLESCENT; }
+    get isMature() { return this.stage >= STAGE.ADOLESCENT; } // Adolescent or older: sexually mature
     get fertile() { return !this.dead && !this.asleep && this.stage >= STAGE.ADOLESCENT && this.stage <= STAGE.OLD && this.chem.effect('fertility') > 1; }
     get lying() { return this.dead || this.asleep || this.restTimer > 30; }
 

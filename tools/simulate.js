@@ -31,7 +31,7 @@ for (let t = 1; t <= total; t++) {
   t0 = Date.now();
   const actions = Evo.util.countBy(cs, c => c.action);
   console.log(`day ${world.clock.day} ${f2(world.clock.phase)} ${world.season.key.padEnd(6)} ` +
-    `pop ${String(cs.length).padStart(2)} (adults ${cs.filter(c => c.isAdult).length}, eggs ${world.items.filter(i => i.type === 'egg').length}) ` +
+    `pop ${String(cs.length).padStart(2)} (mature ${cs.filter(c => c.isMature).length}, eggs ${world.items.filter(i => i.type === 'egg').length}) ` +
     `food ${world.foodCount}  ${ms.toFixed(2)} ms/tick`);
   console.log(`   doing   ${Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   const drive = k => f2(avg(cs, c => c.chem.get(k)));
