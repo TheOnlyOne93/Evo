@@ -10,7 +10,7 @@ if (process.argv[2] === '--child') {
   Evo.seed(seed);
   const world = new Evo.World();
   const counts = {};
-  for (const ev of ['eat', 'drink', 'nuzzle', 'shove', 'call', 'mate', 'egg', 'hatch', 'death', 'wanderer', 'grab', 'sleep', 'refound']) {
+  for (const ev of ['eat', 'drink', 'nuzzle', 'shove', 'call', 'mate', 'egg', 'hatch', 'wanderer']) {
     world.events.on(ev, e => { counts[ev] = (counts[ev] || 0) + 1; if (ev === 'eat') counts[e.item.type] = (counts[e.item.type] || 0) + 1; });
   }
   const died = [];
