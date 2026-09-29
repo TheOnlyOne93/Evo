@@ -71,7 +71,7 @@
   function paletteFor(e, pose, r) {
     const L = pose.looks || EMPTY, k = e.key;
     const hue = ((num(L.hue, 28) % 360) + 360) % 360, acc = ((num(L.accentHue, 40) % 360) + 360) % 360;
-    const k0 = hue | 0, k1 = acc | 0, k2 = r.stage, k3 = Math.round(r.sick * 10), k4 = Math.round(r.cold * 10);
+    const k0 = hue | 0, k1 = acc | 0, k2 = r.stage + (r.female ? 0 : 8), k3 = Math.round(r.sick * 10), k4 = Math.round(r.cold * 10);
     const k5 = Math.round(r.wet * 10), k6 = r.dead ? 1 : 0, k7 = r.heat > 0 ? 1 : 0;
     if (k[0] === k0 && k[1] === k1 && k[2] === k2 && k[3] === k3 && k[4] === k4 && k[5] === k5 && k[6] === k6 && k[7] === k7) return e.pal;
     k[0] = k0; k[1] = k1; k[2] = k2; k[3] = k3; k[4] = k4; k[5] = k5; k[6] = k6; k[7] = k7;
@@ -99,14 +99,29 @@
     p.patch = hsl(hueTo(h, ah, 0.35), s * 0.95, l - 17);
     p.inner = hsl(hueTo(ah, 345, 0.3), as + 6, al - 7);
     p.innerFar = hsl(hueTo(ah, 345, 0.3), as, al - 18);
-    p.crest = hsl(ah, (k6 ? 20 : 74) * (1 - 0.45 * ag), k7 ? 66 : 58);
-    p.crestHi = hsl(ah, (k6 ? 20 : 86) * (1 - 0.45 * ag), k7 ? 84 : 76);
+    // From adolescence the crest leans toward the colour of its sex, so the sexes tell apart at a glance
+    const ch = r.stage >= 3 ? hueTo(ah, sexHue(r.female), 0.75) : ah;
+    p.crest = hsl(ch, (k6 ? 20 : 74) * (1 - 0.45 * ag), k7 ? 66 : 58);
+    p.crestHi = hsl(ch, (k6 ? 20 : 86) * (1 - 0.45 * ag), k7 ? 84 : 76);
     p.iris = hsl(hueTo(ah, 30, 0.2), k6 ? 8 : 48, 30);
     p.nose = hsl(hueTo(h, 350, 0.6), k6 ? 10 : 34, 34);
     p.mouth = hsl(352, k6 ? 12 : 48, 26);
     p.tongue = hsl(350, k6 ? 16 : 70, 70);
     p.brow = ag > 0 ? hsl(h, 8, 92) : hsl(h + 12, Math.min(s, 40), 30);
     return p;
+  }
+
+  // Hue (degrees) of the --female or --male colour token
+  const SEX_HUE = {};
+  function sexHue(female) {
+    const key = female ? '--female' : '--male';
+    if (SEX_HUE[key] === undefined) {
+      const [r, g, b] = Evo.theme.rgb(key).map(v => v / 255);
+      const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+      const h = !d ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      SEX_HUE[key] = (h * 60 + 360) % 360;
+    }
+    return SEX_HUE[key];
   }
 
   // ---- The rig: every point of the current pose, in units ------------------------------------
