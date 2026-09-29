@@ -750,7 +750,7 @@
     }
 
     _safePose(c) {
-      try { return Evo.poseOf(c); } catch (err) { this._artFailed(err); return null; }
+      try { return Evo.poseOf(c, { world: this.world }); } catch (err) { this._artFailed(err); return null; }
     }
 
     _artFailed(err) {

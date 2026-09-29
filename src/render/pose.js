@@ -1,5 +1,6 @@
 // Evo.poseOf(creature): turn simulation state into the plain pose object the creature artist draws
 // from (docs/DESIGN.md §7). Smooths a few values between frames so poses don't flicker.
+// Evo.attentionOf(creature, world): the thing in the world the creature is attending to.
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
@@ -11,9 +12,14 @@
     return state[key];
   }
 
-  // Where the creature is looking: toward the strongest thing its eyes report (pupilX: -1 left,
-  // +1 right, in world terms; pupilY: -1 up). The sight reading is in the brain's sight-cell order.
-  function gaze(c) {
+  // Where the creature is looking (pupilX: -1 left, +1 right, in world terms; pupilY: -1 up): at
+  // the thing it is attending to when there is one, otherwise toward the strongest thing its eyes
+  // report (the sight reading is in the brain's sight-cell order)
+  function gaze(c, target) {
+    if (target) {
+      const dx = target.x - c.headX, dy = target.y - c.headY, d = Math.hypot(dx, dy) || 1;
+      return [clamp(dx / 30, -1, 1), clamp(dy / d, -0.9, 0.9)];
+    }
     const sight = c.senses && c.senses.sight;
     if (!sight) return [0, 0];
     let best = 0, k = -1;
@@ -23,6 +29,63 @@
     return [cell.side === 'L' ? -1 : 1, cell.band === 'high' ? -0.8 : 0.2];
   }
 
+  // What a creature is attending to, as a thing in the world. The brain's attended() gives a side
+  // and a vision feature; the thing on that side, within sight, that shows that feature most (by
+  // apparent size, as the eye weighs it) is taken to be it. Returns
+  // { kind: 'item' | 'creature' | 'feature' | 'water', ref, x, y, radius, word } or null. Resolved again
+  // every few ticks; in between, the position follows a moving target.
+  const attention = new WeakMap();
+  const RESOLVE_EVERY = 6;   // ticks
+  function attentionOf(c, world) {
+    if (!world || !c.brain || !c.brain.attended || c.dead || c.asleep || c.held) return null;
+    const tick = world.clock.tick;
+    let a = attention.get(c);
+    if (!a || tick < a.tick || tick - a.tick >= RESOLVE_EVERY) {
+      if (!a) attention.set(c, a = { tick, target: null });
+      a.tick = tick;
+      const att = c.brain.attended();
+      a.target = att ? resolve(c, world, att) : null;
+    }
+    const t = a.target;
+    if (!t) return null;
+    if (t.kind === 'item') {
+      if (!world.items.includes(t.ref)) return (a.target = null);
+      t.x = t.ref.x; t.y = t.ref.y - t.ref.radius;
+    } else if (t.kind === 'creature') {
+      if (t.ref.dead || !world.creatures.includes(t.ref)) return (a.target = null);
+      t.x = t.ref.x; t.y = t.ref.y - t.ref.size * 0.4;
+    }
+    return t;
+  }
+
+  function resolve(c, world, { side, feature }) {
+    const ex = c.headX, ey = c.headY, range = c.traits.visionRange;
+    let best = null, most = 0;
+    const consider = (kind, ref, x, y, radius, look, word) => {
+      const w = look && look[feature];
+      if (!w) return;
+      const dx = x - ex, dist = Math.hypot(dx, y - ey);
+      if (dist > range || (side === 'L' ? dx > 3 : dx < -3)) return;
+      const score = w * Math.min(1, radius / (dist + 8));
+      if (score > most) { most = score; best = { kind, ref, x, y, radius, word }; }
+    };
+    for (const it of world.items) {
+      if (it.held === c.id) continue;
+      consider('item', it, it.x, it.y - it.radius, it.radius, world.lookOf(it), (Evo.ITEM_TYPES[it.type] || { word: it.type }).word);
+    }
+    for (const o of world.creatures) {
+      if (o !== c) consider('creature', o, o.x, o.y - o.size * 0.4, o.size * 0.45, world.lookOfCreature(o), o.name);
+    }
+    for (const f of world.features) {
+      const l = world.lookOfFeature(f);
+      if (l) consider('feature', f, l.x, l.y, l.radius, l.features, f.kind === 'thornbush' ? 'thorn bush' : f.kind === 'tree' ? 'fruit tree' : f.kind);
+    }
+    const pond = world.nearestWater(ex, range);
+    if (pond) consider('water', null, pond.x, pond.y, 30, { blue: 1 }, 'water');
+    return best;
+  }
+  Evo.attentionOf = attentionOf;
+
   // A short gesture repeated every `period` ticks while its cause lasts: 0 → 1 → 0 over `len`
   // ticks, each creature on its own beat
   function every(c, period, len, salt) {
@@ -30,12 +93,13 @@
     return u < len ? Math.sin(u / len * Math.PI) : 0;
   }
 
-  Evo.poseOf = function poseOf(c, { focused = false, hovered = false } = {}) {
+  // world (optional): lets the eyes follow what the creature is attending to
+  Evo.poseOf = function poseOf(c, { focused = false, hovered = false, world = null } = {}) {
     let s = smooth.get(c);
     if (!s) smooth.set(c, s = {});
     const ch = c.chem;
     const get = k => ch.get(k);
-    const [gx, gy] = gaze(c);
+    const [gx, gy] = gaze(c, attentionOf(c, world));
     const T = c.traits;
     const mouth = Math.max(c.mouthTimer, c.drinkTimer || 0);
     const awake = !c.asleep && !c.dead && !c.held;
