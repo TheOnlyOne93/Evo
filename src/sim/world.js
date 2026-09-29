@@ -502,7 +502,6 @@
       for (const c of cs) {
         c.company = Math.min(1, c.companyCount * 0.5);
         c.crowding = clamp01((c.companyCount - 3) / 4);
-        if (c.mateCooldown > 0) c.mateCooldown--;
       }
     }
 

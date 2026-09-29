@@ -467,6 +467,7 @@
       if (this.drinkTimer > 0) this.drinkTimer--;
       if (this.jumpCooldown > 0) this.jumpCooldown--;
       if (this.grabCooldown > 0) this.grabCooldown--;
+      if (this.mateCooldown > 0) this.mateCooldown--;
       if (this.callTimer > 0) this.callTimer--;
       if (this.runTimer > 0) this.runTimer--;
       if (this.restTimer > 0) this.restTimer--;
