@@ -3,7 +3,8 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  const smooth = new Map(); // creature id -> values eased between frames
+  // creature -> values eased between frames (weakly held: forgotten once the creature is gone)
+  const smooth = new WeakMap();
 
   function ease(state, key, target, rate) {
     state[key] = state[key] === undefined ? target : state[key] + (target - state[key]) * rate;
@@ -23,8 +24,8 @@
   }
 
   Evo.poseOf = function poseOf(c, { focused = false, hovered = false } = {}) {
-    const s = smooth.get(c.id) || {};
-    smooth.set(c.id, s);
+    let s = smooth.get(c);
+    if (!s) smooth.set(c, s = {});
     const ch = c.chem;
     const get = k => ch.get(k);
     const [gx, gy] = gaze(c);
@@ -58,7 +59,4 @@
       focused, hovered
     };
   };
-
-  // Forget eased values for creatures that are gone
-  Evo.poseOf.prune = liveIds => { for (const id of smooth.keys()) if (!liveIds.has(id)) smooth.delete(id); };
 })(globalThis.Evo);
