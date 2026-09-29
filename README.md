@@ -4,6 +4,8 @@ An artificial-life world inspired by the *Creatures* series, driven by recurrent
 networks instead of feed-forward lobes. Everything is bottom-up: genes build the body, the
 biochemistry and the brain's wiring; drives, learning and behaviour emerge from them.
 
+**Play it in your browser: https://theonlyone93.github.io/Evo/** (updates with every push to `main`)
+
 ## Running
 
 Open `index.html` in a browser (double-click works; there is no build step). Runs are deterministic: the world starts from a fixed seed
