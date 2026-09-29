@@ -19,8 +19,8 @@ brain is wired, and what a creature is born "knowing". Nothing is labelled good 
 | Drives are chemicals (hunger, pain, loneliness…) | Same. Emitter genes turn body states into drive chemicals; receptor genes let the brain feel each one in its own Drives cell |
 | Stimulus genes: an event releases chemicals | Same: *stimulus* genes say what being patted, slapped, nuzzled, shoved, eating, falling asleep… releases |
 | Reward and punishment chemicals teach the brain | Same, but reward comes from **drive-reduction reactions** at the moment of relief (`Hunger + sweet taste → Reward`), so eating only rewards a hungry creature, and punishment from acute harm (pain, nausea, fear, a bitter taste) |
-| Lobes with fixed roles (attention, decision) | Spatial lobes of spiking neurons; roles emerge from genetic axon guidance and learning |
-| Instincts, processed while asleep | Instinct genes are replayed as **dreams**: the sleeping brain is driven with the gene's inputs and action, then its chemical, so the ordinary learning rule wires the association |
+| Lobes with fixed roles (attention, decision) | Spatial lobes of spiking neurons; roles emerge from genetic axon guidance, Lobe dynamics genes (competition, persistence) and learning from prediction errors |
+| Instincts, processed while asleep | Instinct genes are replayed as **dreams**: the sleeping brain is driven with the gene's inputs and action, then its chemical, so the ordinary learning rule wires the association; it also replays surprising moments it lived through |
 | Life stages; genes switch on at a stage | Every gene carries a switch-on stage (baby → senile). Sex hormones start at adolescence, ageing at old age, new brain tracts can grow mid-life |
 | The hand: tickle, slap, pick up | Pat and slap are *physical* stimuli (gentle touch, impact). Genes decide how they feel; the founder genome makes pats pleasant and slaps painful |
 | Social life, calls, mating, eggs | Loneliness, crowding, fear and anger are drive chemicals; calls are sounds others hear left/right; mating leads to pregnancy and an egg that incubates and hatches |
@@ -55,13 +55,13 @@ decoded value is clamped, so a broken gene makes a bad creature, never a broken 
 Gene kinds: appearance, morphology, eyes, nose, membrane, plasticity, reinforcement sensitivity,
 muscle, life history, voice, curiosity, anatomy, region duplication, axon guidance, pacemaker,
 neurochemistry, **reaction, emitter, receptor, half-life, initial concentration, instinct**,
-insulation, reproduction, **stimulus**. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
+insulation, reproduction, **stimulus**, lobe dynamics. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
 expresses traits, and describes itself in plain words for the UI.
 
 Genes that switch on at a later stage join the traits then: the biochemistry is reconfigured, new
 axon guidance tracts and pacemakers grow, and a later life-history gene changes the lifespan (life
 stages only move forward). The brain's layout and cell properties are built once, at birth, so
-later copies of **anatomy, region duplication, membrane and neurochemistry** genes have no effect
+later copies of **anatomy, region duplication, membrane, neurochemistry and lobe dynamics** genes have no effect
 (the genome view says so).
 
 ---
@@ -114,11 +114,53 @@ stimulus genes (a slap).
 
 ## 5. Brain (`src/sim/brain.js`)
 
-Leaky integrate-and-fire neurons with conduction delays (spikes travel along axons), homeostatic
-thresholds, adaptation, and three-factor learning: a Hebbian eligibility trace times the reward
-minus stress chemical *at the synapse's location*. Reward and stress chemicals are released by two
-limbic cells at the ends of their axons (volume transmission), so where learning happens depends
-on where those axons grew. Cue synapses onto the limbic cells learn by temporal difference.
+A recurrent spiking network grown from the genome: leaky integrate-and-fire neurons with conduction
+delays (spikes travel along axons), homeostatic thresholds and adaptation. Nothing is hand-wired
+into lobes that "do" attention or decisions: competition, persistence and memory come from Lobe
+dynamics genes, and learning from whatever the genes make rewarding.
+
+**Learning.** The first two Feelings cells are modulators: reward (channel 0) and punishment
+(channel 1). What they learn from is `brain.outcome[c]`, set by the creature each tick from the
+receptor effects on `limbic:0` / `limbic:1` (so which chemicals feel good is up to receptor genes;
+the brain never reads a chemical by name). Only a rise above the recent level counts
+(r = max(0, O − Ō), Ō following O over 120 ticks). Every synapse onto a modulator is a *value*
+synapse: it carries a prediction V (= Σ w·x, x = its recent input) and delivers no current. The
+prediction error δ = r + 0.98·V − V_prev (clamped ±1) trains the value synapses by TD(λ) and makes the
+modulator fire on positive errors (60 mV × δ), so the cells stay silent when nothing unexpected
+happens. Elsewhere, learning is three-factor: when a neuron fires, each input that arrived in the
+4 ticks before (at that axon's delay) becomes eligible (e ← e·λ^Δt + 1, capped at 2; λ from the
+Plasticity memory gene, half-life 14–140 ticks); every 4 ticks each weight moves by
+0.25 × learning rate × e × the summed signal at its target, joy × δ_R × F_R − stress × δ_P × F_P.
+F_c is the modulator's *learning field*: Gaussians around its axon terminals (width set by the
+Neurochemistry gene), so where learning happens depends on where its axons grew. Synapses keep
+their sign (Dale's law) and soft bounds. `brain.chem[0..2]` are 20×20 images of this signal for the
+brain view (the old NO channel is retired: a Neurochemistry gene that picks it does nothing).
+
+**Lobe dynamics** (gene: lobe, which copy, competition, persistence, tau, fatigue). The cells of a
+region inhibit each other in proportion to the others' recent firing; cells crossing threshold in
+the same tick are resolved strongest first, each later one held back by the competition current of
+those already firing; each spike adds a self-sustaining current (up to 3 spikes' worth) that fades
+with tau; fatigue slows recovery from adaptation. The founder uses it three times:
+- *Movement*: weak competition, low persistence. The most strongly driven muscle wins and keeps
+  going until it tires or a clearly stronger input takes over (actions persist; rivals rarely fire
+  in the same tick).
+- *The sight copy* (the second region duplication): strong competition, so it settles on one thing;
+  windowed guidance genes from each drive's Needs cell bias the features it cares about (hunger:
+  red, yellow, green; thirst: blue; loneliness: creatures; sex drive: pink). The copy inherits the
+  sight lobe's approach tracts, so what is attended pulls hardest. `brain.attended()` reads
+  `{ side, band, feature }`.
+- *Thinking*: weak competition, strong persistence: working memory that outlasts what caused it.
+A seizure brake holds every central neuron back 10 mV for a tick when more than a quarter of the
+brain has fired for 3 ticks running (`brain.seizures` counts it).
+
+**Sleep.** `brain.sleepStep(instincts, chem)` runs before each sleeping tick. A dream starts now and
+then: an instinct gene (its inputs, then its action, then its chemical, into the body), or, half
+the time, a replayed *episode*: awake, each prediction error beyond ±0.2 stores the active senses,
+the working muscle and the error's sign and size (8 at most); asleep, the replay drives those
+senses, then the muscle, then adds half the value to the reward or punishment outcome.
+
+**Cost.** ~25–30 µs of brain and ~20 µs of senses per creature-tick (16 creatures ≈ 1.1 ms per
+world tick headless); `node tools/behave.js 12 cost --report` measures it.
 
 Brain coordinates: x = the creature's left (0) to right (1) **in the world** (the side view has
 two hemifields: things to the left and things to the right); y = front (senses) to back (motor).
@@ -139,7 +181,7 @@ two hemifields: things to the left and things to the right); y = front (senses) 
 The sensory layouts are defined once, in `Evo.BRAIN_BODY_PLAN`: `sightIndex(side, band, feature)`,
 `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and
 `sightCell(k)` / `smellCell(k)` decode it (the body's senses, founder instincts and the pose use
-them). The volume-transmission chemicals (DA reward, ST stress, NO) are listed in `Evo.NEUROCHEMS`.
+them). The modulatory channels (DA reward, ST stress, and the retired NO) are listed in `Evo.NEUROCHEMS`.
 `brain.inject(neuron, mV, delayTicks)` delivers an input that arrives after a delay (the inspector's
 "stimulate").
 
