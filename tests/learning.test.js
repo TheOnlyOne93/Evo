@@ -199,3 +199,33 @@ test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => 
   const dreaming = run(true), idle = run(false);
   assert.ok(dreaming > idle + 0.01, `the instinct's synapse grows by ${dreaming.toFixed(4)} dreaming it, ${idle.toFixed(4)} not`);
 });
+
+// In a quiet world a creature is made to call (its call muscle driven for a few ticks) every 300
+// ticks, and the hand pats it `lag` ticks after each call. Returns the change in the summed weight
+// of the synapses into the call muscle.
+function patAfterCall(Evo, seed, lag) {
+  Evo.seed(seed);
+  const world = new Evo.World();
+  world.items = []; world.maybeWanderer = () => {}; world.growFood = () => {};
+  world.creatures.length = 1;
+  const c = world.creatures[0], b = c.brain, call = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === 'call')];
+  const inputs = () => b.incoming(call).reduce((w, s) => w + b.sW[s], 0);
+  const calm = () => { for (const k of Evo.DRIVES) c.chem.set(k, 0); c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); };
+  for (let t = 0; t < 200; t++) { calm(); world.step(); }
+  const w0 = inputs();
+  for (let k = 0; k < 4; k++) {
+    for (let t = 0; t < 300; t++) {
+      calm();
+      if (t < 6) b.inject(call, 40, 1);
+      if (t === lag) world.pat(c);
+      world.step();
+    }
+  }
+  return inputs() - w0;
+}
+
+test('learning: a pat just after an action strengthens what drove it; the same pat much later does not', (Evo, assert) => {
+  let soon = 0, late = 0;
+  for (let seed = 1; seed <= 3; seed++) { soon += patAfterCall(Evo, seed, 10); late += patAfterCall(Evo, seed, 150); }
+  assert.ok(soon > late + 0.3, `inputs to the call muscle grow by ${soon.toFixed(2)} patted just after calling, ${late.toFixed(2)} patted 150 ticks later`);
+});

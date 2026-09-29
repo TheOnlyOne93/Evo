@@ -5,8 +5,6 @@
 // lands stimulus genes (A2), consummatory reward and bitter taste (A3) and the 'near' lobe (A5):
 // TODO mimic aversion: hunger .7, 10 mimic exposures interleaved with 10 fruits; eating mimic in
 //   exposures 8-10 at most half as often as in 1-3 while fruit is still eaten >= 80% (>= 60% of seeds).
-// TODO pat reinforces jumping as well as calling, and slap/pat through the 'slapped'/'patted'
-//   stimuli rather than today's pain and gentle-touch emitters.
 'use strict';
 
 module.exports = ({ Evo, lab, session, trial }) => {
@@ -136,11 +134,13 @@ module.exports = ({ Evo, lab, session, trial }) => {
 
   // Operant conditioning of calling. A lonely creature's calls are counted for 1500 ticks; then for
   // 3000 ticks the hand slaps (or pats) it 5-15 ticks after each call; then calls are counted for
-  // 1500 more. A yoked control gets the same touches at the same times, whatever it does.
+  // 1500 more. A yoked control, another creature (seed + 1000), gets the same touches at the same
+  // times, whatever it does. (Yoking a copy of the same creature doesn't work: until chance
+  // sets the two apart the copy calls when the original did, so most of its pats follow a call too.)
   // Returns the change in calls, (test - baseline) / the larger of the two (-1 .. 1), for the
   // contingent and the yoked creature.
   const consequence = kind => cached(seed => {
-    const run = schedule => {
+    const run = (seed, schedule) => {
       const s = lab(seed);
       const hold = { loneliness: 0.3, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
       const touches = schedule || [];
@@ -162,8 +162,8 @@ module.exports = ({ Evo, lab, session, trial }) => {
       }
       return { change: (calls - base) / Math.max(1, base, calls), touches };
     };
-    const contingent = run(null);
-    return { contingent: contingent.change, yoked: run(contingent.touches).change };
+    const contingent = run(seed, null);
+    return { contingent: contingent.change, yoked: run(seed + 1000, contingent.touches).change };
   });
   const slapped = consequence('slap'), patted = consequence('pat');
 
@@ -195,8 +195,31 @@ module.exports = ({ Evo, lab, session, trial }) => {
     'memory: walks toward hidden fruit (cortex persistence 0)': permanence.knockout
   };
 
+  // A pat reinforces what the creature was just doing. A quiet creature is made to call (or jump),
+  // its muscle driven for a few ticks, every 300 ticks, 8 times, and patted `lag` ticks after each;
+  // then how often it calls (jumps) on its own in the next 1500 ticks is counted.
+  const moulded = (seed, action, lag) => {
+    const s = lab(seed), b = s.c.brain, muscle = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === action)];
+    const hold = { loneliness: 0, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
+    const did = action === 'jump' ? () => s.c.jumpCooldown === 30 : () => s.c.callTimer === 40;
+    let n = 0;
+    for (let t = 0; t < 2400 + 1500; t++) {
+      for (const k in hold) s.c.chem.set(k, hold[k]);
+      if (t < 2400 && t % 300 < 6) b.inject(muscle, 40, 1);
+      if (t < 2400 && t % 300 === lag) s.world.pat(s.c);
+      s.world.step();
+      if (t >= 2400 && did()) n++;
+    }
+    return n;
+  };
+  const pattedSoon = action => seed => (moulded(seed, action, 10) > moulded(seed, action, 150) ? 0 : null);
+
   return {
-    scenarios: { ...choice },
+    scenarios: {
+      ...choice,
+      'made to call, patted just after -> calls more than patted later': pattedSoon('call'),
+      'made to jump, patted just after -> jumps more than patted later': pattedSoon('jump')
+    },
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
       'bench: hungry approach time, trials 6-8 over 1-3': approachLatency,
