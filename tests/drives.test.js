@@ -61,3 +61,28 @@ test('drives: the world raises stimuli where they physically happen', (Evo, asse
   world.pickUpItem(a, ball); world.dropCarried(a);
   assert.deepStrictEqual(seen, ['a:patted', 'a:slapped', 'a:nuzzled', 'b:wasNuzzled', 'b:shoved', 'a:wasShoved', 'a:called', 'a:grabbed', 'a:played', 'a:dropped']);
 });
+
+// One founder, alone, eats an item of this type with hunger h; returns the reward peak within 10
+// ticks and the summed reward and punishment over 30 ticks
+function taste(Evo, type, h) {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  for (const k of Evo.DRIVES) c.chem.set(k, 0);
+  c.chem.set('hunger', h);
+  c.ingest(world.foodOf({ type }));
+  let peak = 0, reward = 0, punishment = 0;
+  for (let t = 0; t < 30; t++) {
+    c.readLoci(world); c.chem.step(c.loci); c.decayStimuli();
+    if (t < 10) peak = Math.max(peak, c.chem.get('reward'));
+    reward += c.chem.get('reward'); punishment += c.chem.get('punishment');
+  }
+  return { peak, reward, punishment };
+}
+
+test('drives: eating rewards at once, in proportion to hunger; bitter punishes', (Evo, assert) => {
+  const hungry = taste(Evo, 'fruit', 0.7), sated = taste(Evo, 'fruit', 0);
+  assert.ok(hungry.peak >= 0.15, `hungry fruit: reward peak ${hungry.peak}`);
+  assert.ok(sated.peak < 0.03, `sated fruit: reward peak ${sated.peak}`);
+  const mimic = taste(Evo, 'mimic', 0.7);
+  assert.ok(mimic.punishment > mimic.reward, `mimic: punishment ${mimic.punishment} vs reward ${mimic.reward}`);
+});

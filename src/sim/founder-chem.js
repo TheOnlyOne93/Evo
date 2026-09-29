@@ -70,9 +70,13 @@
     emitter('resting', 'restRelief', 0.5, 0.01),
     emitter('asleep', 'sleepSignal', 0.5, 0.01),
     emitter('tasteWater', 'drink', 0, 0.05),
+    // Tasting food is what satisfies at the moment of eating (consummatory relief)
+    emitter('tasteSweet', 'sweetTaste', 0.05, 0.05), emitter('tasteStarch', 'sweetTaste', 0.05, 0.05),
+    emitter('tasteSavory', 'savouryTaste', 0.05, 0.05), emitter('tasteFat', 'savouryTaste', 0.05, 0.05),
     emitter('mated', 'mating', 0, 0.05),
     halfLife('warmth', 60), halfLife('coolness', 60), halfLife('company', 60), halfLife('endorphin', 200),
     halfLife('novelty', 30), halfLife('restRelief', 30), halfLife('sleepSignal', 60), halfLife('drink', 20), halfLife('mating', 120),
+    halfLife('sweetTaste', 15), halfLife('savouryTaste', 15),
     // ---------- Stimuli: what happens to the creature releases chemicals directly ----------
     stimulus('patted', 'reward', 0.2, 'company', 0.1),
     stimulus('slapped', 'punishment', 0.25, 'fear', 0.05),
@@ -83,10 +87,15 @@
     stimulus('bumped', 'pain', 0.02),
 
     // ---------- Reinforcement: relief turns drive into reward; harm releases punishment ----------
-    reaction('hunger', 'gutSugar', 'reward', 'gutSugar', 0.06, 0.8, 1),
-    reaction('hunger', 'gutStarch', 'reward', 'gutStarch', 0.04, 0.8, 1),
-    reaction('proteinHunger', 'gutProtein', 'reward', 'gutProtein', 0.06, 0.8, 1),
-    reaction('fatHunger', 'gutFat', 'reward', 'gutFat', 0.06, 0.8, 1),
+    // Eating rewards when the food is tasted, in proportion to the hunger it meets…
+    reaction('hunger', 'sweetTaste', 'reward', null, 0.1, 2, 0),
+    reaction('proteinHunger', 'savouryTaste', 'reward', null, 0.1, 2, 0),
+    reaction('fatHunger', 'savouryTaste', 'reward', 'savouryTaste', 0.1, 0.8, 1),
+    // …while a full gut quietly sates, without reward (so a meal doesn't keep rewarding long after)
+    reaction('hunger', 'gutSugar', null, 'gutSugar', 0.01, 0, 1),
+    reaction('hunger', 'gutStarch', null, 'gutStarch', 0.01, 0, 1),
+    reaction('proteinHunger', 'gutProtein', null, 'gutProtein', 0.01, 0, 1),
+    reaction('fatHunger', 'gutFat', null, 'gutFat', 0.01, 0, 1),
     reaction('thirst', 'drink', 'reward', null, 0.1, 0.8, 0),
     reaction('tiredness', 'restRelief', 'reward', null, 0.08, 0.5, 0),
     reaction('sleepiness', 'sleepSignal', 'reward', 'sleepSignal', 0.002, 3, 1), // Sleep feels good, but night keeps it going
@@ -101,7 +110,9 @@
     reaction('adenosine', 'sleepSignal', null, 'sleepSignal', 0.03, 0, 1), // Sleep clears fatigue
     reaction('adenosine', 'restRelief', null, 'restRelief', 0.01, 0, 1),
     emitter('chem:pain', 'punishment', 0.05, 0.02),
-    emitter('chem:nausea', 'punishment', 0.1, 0.005),
+    emitter('chem:nausea', 'punishment', 0.1, 0.02),
+    emitter('tasteBitter', 'punishment', 0.05, 0.05),                    // Bitter tastes bad at once…
+    emitter('tasteBitter', 'nausea', 0.2, 0.01),                         // …and a lot of it sickens
     emitter('chem:fear', 'punishment', 0.3, 0.003),
     halfLife('reward', 20), halfLife('punishment', 20),
 

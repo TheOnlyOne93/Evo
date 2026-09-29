@@ -66,17 +66,21 @@ test('biochem: receptors act on their target, and damage is blamed on its chemic
   assert.strictEqual(b.damageCause(), 'poison');
 });
 
-test('biochem: a hungry founder eating sugar turns hunger into reward', (Evo, assert) => {
+test('biochem: in a hungry founder, sweet taste turns hunger into reward and gut sugar sates quietly', (Evo, assert) => {
   const traits = Evo.Genome.founder('X').develop();
   const b = new Evo.Biochemistry();
   b.configure(traits);
   b.setInitial(traits);
   b.set('hunger', 0.6);
   b.set('gutSugar', 0.3);
+  const L = loci(Evo);
   let reward = 0;
-  for (let t = 0; t < 60; t++) { b.step(loci(Evo)); reward = Math.max(reward, b.get('reward')); }
-  assert.ok(reward > 0.05, `reward peaked at ${reward}`);
-  assert.ok(b.get('hunger') < 0.5, `hunger fell to ${b.get('hunger')}`);
+  for (let t = 0; t < 60; t++) { b.step(L); reward = Math.max(reward, b.get('reward')); }
+  assert.ok(reward < 0.01, `gut sugar alone gives no reward (${reward})`);
+  assert.ok(b.get('hunger') < 0.59, `…but sates (hunger ${b.get('hunger')})`);
+  L[Evo.LOCUS.tasteSweet] = 1;
+  for (let t = 0; t < 30; t++) { b.step(L); reward = Math.max(reward, b.get('reward')); }
+  assert.ok(reward > 0.1, `tasting sugar rewards (${reward})`);
 });
 
 test('biochem: a founder going without food gets hungry, and without water gets thirsty', (Evo, assert) => {
