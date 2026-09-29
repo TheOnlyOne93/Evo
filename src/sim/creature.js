@@ -41,7 +41,7 @@
   }
 
   class Creature {
-    // opts: { generation, parents: [mother, father], reserves: { glucose, ... }, ageTicks }
+    // opts: { generation, parents: [mother, father], reserves: { glucose, ... }, ageTicks, growth }
     constructor(genome, x, y, opts = {}) {
       this.id = Evo.nextId();
       const n = makeName(opts.parents);
@@ -88,7 +88,6 @@
       this.grabCooldown = 0; this.mateCooldown = 0; this.bumpCooldown = 0; this.prickCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
       this.muscle = new Float32Array(MOTORS.length); // Muscle activation: spike trains smoothed into force
       this.asleep = false;
-      this.dream = null;               // The instinct currently being replayed in a dream
       this.action = 'idle';
 
       // Transient sensations, decaying each tick
@@ -96,7 +95,6 @@
       this.taste = { sweet: 0, starch: 0, savory: 0, fat: 0, bitter: 0, water: 0 };
       this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
-      this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it
       this.familiar = new Float32Array(FEATURE_KEYS.length); // How used it is to each look (vision feature)
       this.novelty = 0;                // How new the thing in front of it looks (0..1)
 
@@ -144,7 +142,6 @@
     // Something happened to the creature or it did something (a key of Evo.STIMULI): its stimulus
     // genes release their chemicals
     stimulate(key, s = 1) {
-      this.lastStimulus = { key, strength: s, tick: this.ageTicks };
       this.chem.stimulate(STIMULUS[key], s);
     }
 
@@ -315,14 +312,12 @@
 
     fallAsleep(world) {
       this.asleep = true;
-      this.dream = null;
       this.stimulate('fellAsleep');
       world.events.emit('sleep', { creature: this });
     }
 
     wake(world) {
       this.asleep = false;
-      this.dream = null;
       this.stimulate('woke');
       world.events.emit('wake', { creature: this });
     }
@@ -713,5 +708,5 @@
   // What a mother puts into an egg (and a hatchling starts with), in chemical units
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
 
-  Object.assign(Evo, { Creature, makeName, CREATURE: { GRAVITY, STEP_HEIGHT, NEURAL_GAIN, WALK_PHASE_PER_PX } });
+  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX } });
 })(globalThis.Evo);
