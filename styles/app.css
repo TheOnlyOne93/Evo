@@ -50,23 +50,33 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 .fill { height: 100%; width: 0; border-radius: 3px; transition: width 0.25s linear; }
 
 /* Creature card */
-#creatureCard { top: 10px; left: 10px; width: min(272px, calc(100% - 20px)); padding: 8px 10px 10px; }
-.card-top { display: flex; align-items: center; gap: 10px; }
-#portrait { width: 76px; height: 76px; flex: 0 0 auto; border-radius: 12px;
+#creatureCard { top: 10px; left: 10px; width: min(288px, calc(100% - 20px)); padding: 8px 10px 10px; }
+.card-top { position: relative; display: flex; align-items: center; gap: 10px; padding-right: 24px; }
+#portrait { width: 68px; height: 68px; flex: 0 0 auto; border-radius: 12px;
   background: radial-gradient(90% 90% at 50% 35%, #29434a 0%, #16292e 100%); }
 .card-id { min-width: 0; flex: 1 1 auto; }
 .card-name-row { display: flex; align-items: baseline; gap: 6px; }
 .sex-glyph { font-weight: 700; font-size: 15px; line-height: 1; }
 .card-title { font-family: var(--display); font-weight: 650; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-sub { font-size: 12.5px; color: var(--muted); }
-.doing { font-size: 13px; color: var(--accent); margin-top: 2px; }
+.card-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doing { font-size: 13px; line-height: 1.3; color: var(--accent); margin-top: 2px; }
 .icon-btn.small { width: 30px; height: 30px; align-self: flex-start; }
+#cardToggle { position: absolute; top: -4px; right: -8px; width: 36px; height: 36px; }
+/* Needs and recent events: small chips under the name, visible even when the card is folded */
+.card-needs, .card-events { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.card-needs:empty, .card-events:empty, .empty-card .card-needs, .empty-card .card-events { display: none; }
+.card-events { margin-top: 4px; }
+.need, .event { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 1; padding: 4px 8px 4px 6px;
+  border-radius: 999px; background: var(--panel-raised); border: 1px solid var(--line); white-space: nowrap; }
+.need.strong { border-color: var(--alarm); color: #ffe3cc; }
+.need.calm { color: var(--muted); }
+.event { font-size: 11.5px; color: var(--muted); background: transparent; border-style: dashed; }
 .card-more { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: grid; gap: 9px; }
 #creatureCard.collapsed .card-more { display: none; }
 #creatureCard.empty-card .card-more { display: none; }
 .chev { display: inline-block; transition: transform 0.2s; color: var(--faint); }
 #creatureCard.collapsed .chev { transform: rotate(-90deg); }
-.compact-bars .bar { grid-template-columns: 84px 1fr 30px; font-size: 12.5px; }
+.compact-bars .bar { grid-template-columns: 104px 1fr 30px; font-size: 12.5px; }
 .compact-bars .bar .track { height: 6px; }
 .btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
 .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }

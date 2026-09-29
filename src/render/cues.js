@@ -8,7 +8,6 @@
   'use strict';
   const { TAU, clamp, clamp01 } = Evo.util;
 
-  const LOG_KEYS = new Set(['patted', 'slapped', 'pricked', 'ate', 'drank', 'wasNuzzled', 'wasShoved', 'fell', 'mated', 'woke', 'fellAsleep', 'played']);
   const HEARTS = { patted: 3, wasNuzzled: 2, mated: 4 };
   const BURSTS = { slapped: '#ffe27a', pricked: '#f28bc0', fell: '#e8dcc8' };
   const FX_LIFE = 1.3;          // s hearts stay on screen
@@ -30,6 +29,16 @@
     fear: { icon: '😨', word: 'Scared' }, anger: { icon: '💢', word: 'Angry' }, boredom: { icon: '💭', word: 'Bored' },
     sexDrive: { icon: '💕', word: 'Wants a mate' }, nausea: { icon: '🤢', word: 'Queasy' }
   };
+  // Things that happen to a creature that the card lists (keys are Evo.STIMULI)
+  Evo.EVENT_LOOK = {
+    patted: { icon: '🪶', word: 'Tickled' }, slapped: { icon: '💥', word: 'Slapped' }, pricked: { icon: '🌵', word: 'Pricked by thorns' },
+    fell: { icon: '🤕', word: 'Fell hard' }, wasShoved: { icon: '😠', word: 'Shoved' }, wasNuzzled: { icon: '🤗', word: 'Nuzzled' },
+    ate: { icon: '🍽️', word: 'Ate' }, drank: { icon: '💧', word: 'Drank' }, played: { icon: '⚽', word: 'Played' },
+    mated: { icon: '💞', word: 'Mated' }, fellAsleep: { icon: '💤', word: 'Fell asleep' }, woke: { icon: '☀️', word: 'Woke up' }
+  };
+  // Its strongest needs, strongest first: [{ key, level, icon, word }] for drives above `min`
+  Evo.needsOf = (c, n = 3, min = 0.25) => c.topDrives(n).filter(([, v]) => v > min)
+    .map(([key, level]) => ({ key, level, ...(Evo.DRIVE_LOOK[key] || { icon: '•', word: key }) }));
   // Icons for actions (keys are Evo.MOTORS), shown in dreams
   Evo.MOTOR_ICON = { walkL: '👣', walkR: '👣', jump: '🦘', eat: '🍎', grab: '✊', rest: '💤', call: '🎵', run: '💨', drink: '💧' };
 
@@ -57,11 +66,12 @@
         const r = this.rec(c), s = c.lastStimulus;
         if (s && s !== r.last) {
           r.last = s;
-          if (HEARTS[s.key] || BURSTS[s.key]) {
+          const prev = r.fx[r.fx.length - 1];
+          if ((HEARTS[s.key] || BURSTS[s.key]) && !(prev && prev.key === s.key && t - prev.t0 < 0.4)) {
             r.fx.push({ key: s.key, t0: t });
             if (r.fx.length > 4) r.fx.shift();
           }
-          if (LOG_KEYS.has(s.key)) {
+          if (Evo.EVENT_LOOK[s.key]) {
             const top = r.log[0], tick = world.clock.tick;
             if (top && top.key === s.key && tick - top.tick < REPEAT_TICKS) { top.n++; top.tick = tick; }
             else { r.log.unshift({ key: s.key, tick, n: 1 }); if (r.log.length > 3) r.log.pop(); }
