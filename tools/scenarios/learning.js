@@ -1,8 +1,15 @@
 // Learning and decision probes. See tools/behave.js for the shape. The reports never gate anything:
 // they measure how the brain behaves (run with --report).
+//
+// Learning bench (one creature kept across trials, with matched controls). Still to add once Track 1
+// lands stimulus genes (A2), consummatory reward and bitter taste (A3) and the 'near' lobe (A5):
+// TODO mimic aversion: hunger .7, 10 mimic exposures interleaved with 10 fruits; eating mimic in
+//   exposures 8-10 at most half as often as in 1-3 while fruit is still eaten >= 80% (>= 60% of seeds).
+// TODO pat reinforces jumping as well as calling, and slap/pat through the 'slapped'/'patted'
+//   stimuli rather than today's pain and gentle-touch emitters.
 'use strict';
 
-module.exports = ({ Evo, lab, trial }) => {
+module.exports = ({ Evo, lab, session, trial }) => {
   const cached = fn => { const memo = new Map(); return seed => { if (!memo.has(seed)) memo.set(seed, fn(seed)); return memo.get(seed); }; };
 
   // A creature with several moderate drives, things to look at and no reward or punishment: which
@@ -111,10 +118,64 @@ module.exports = ({ Evo, lab, trial }) => {
     return left / 120;
   };
 
+  // Does finding food get quicker? A hungry creature finds fruit placed 150 px away, alternately
+  // left and right, 8 times: mean time to eat in trials 6-8 over trials 1-3.
+  const approachLatency = cached(seed => {
+    const s = session(seed);
+    s.hold = { hunger: 0.7 };
+    const times = [];
+    for (let k = 0; k < 8; k++) {
+      s.resetBody();
+      const fruit = s.place('fruit', k % 2 ? 150 : -150);
+      const at = trial(s, 1800, w => !w.items.includes(fruit));
+      times.push(at === null ? 1800 : at);
+    }
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    return mean(times.slice(5)) / Math.max(1, mean(times.slice(0, 3)));
+  });
+
+  // Operant conditioning of calling. A lonely creature's calls are counted for 1500 ticks; then for
+  // 3000 ticks the hand slaps (or pats) it 5-15 ticks after each call; then calls are counted for
+  // 1500 more. A yoked control gets the same touches at the same times, whatever it does.
+  // Returns the change in calls, (test - baseline) / the larger of the two (-1 .. 1), for the
+  // contingent and the yoked creature.
+  const consequence = kind => cached(seed => {
+    const run = schedule => {
+      const s = lab(seed);
+      const hold = { loneliness: 0.3, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
+      const touches = schedule || [];
+      let calls = 0, due = -1;
+      s.world.events.on('call', ({ creature }) => { if (creature === s.c) { calls++; if (!schedule && due < 0) due = 5 + Evo.randInt(11); } });
+      let base = 0;
+      for (let t = 0; t < 6000; t++) {
+        for (const k in hold) s.c.chem.set(k, hold[k]);
+        if (t === 1500) { base = calls; calls = 0; }
+        if (t === 4500) calls = 0;
+        const training = t >= 1500 && t < 4500;
+        if (schedule ? touches.includes(t) : training && due === 0) {
+          s.world[kind](s.c);
+          if (!schedule) touches.push(t);
+        }
+        if (due >= 0) due--;
+        if (!training) due = -1;
+        s.world.step();
+      }
+      return { change: (calls - base) / Math.max(1, base, calls), touches };
+    };
+    const contingent = run(null);
+    return { contingent: contingent.change, yoked: run(contingent.touches).change };
+  });
+  const slapped = consequence('slap'), patted = consequence('pat');
+
   return {
     scenarios: { ...choice },
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
+      'bench: hungry approach time, trials 6-8 over 1-3': approachLatency,
+      'bench: calls after slaps that follow each call (change)': seed => slapped(seed).contingent,
+      'bench: calls after the same slaps at random (yoked, change)': seed => slapped(seed).yoked,
+      'bench: calls after pats that follow each call (change)': seed => patted(seed).contingent,
+      'bench: calls after the same pats at random (yoked, change)': seed => patted(seed).yoked,
       'memory: walks left after fruit there vanishes (share above control)': seed => walkingLeft(seed, true) - walkingLeft(seed, false),
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
