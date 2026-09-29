@@ -119,6 +119,16 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
   assert.ok(world.history.some(h => h.id === baby.id));
 });
 
+test('world: a hatching egg does not make the next item skip its tick', (Evo, assert) => {
+  const world = emptyWorld(Evo);
+  world.items = [];
+  const egg = world.spawnItem('egg', world.width / 2, undefined, { genome: Evo.Genome.founder(), reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1, progress: 1, incubationTicks: 5000 });
+  const ball = world.spawnItem('ball', world.width / 2 + 40, undefined, { hue: 0 });
+  world.moveItems();
+  assert.ok(!world.items.includes(egg) && world.creatures.length === 1, 'the egg hatched');
+  assert.strictEqual(ball.age, 1, 'the item after the egg still moved this tick');
+});
+
 test('world: the population cap holds for adults and hatchlings', (Evo, assert) => {
   const world = new Evo.World();
   while (world.creatures.length < Evo.LIMITS.MAX_POPULATION) assert.ok(world.addAdult('FEMALE'));

@@ -429,11 +429,16 @@
       });
     }
 
-    // Eggs incubate faster when warm, stall when cold, and hatch into babies
+    // Eggs incubate faster when warm, stall when cold, and hatch into babies. Returns true when the
+    // egg is ready to hatch (the caller hatches it once it is no longer iterating the items).
     incubate(egg) {
       const t = this.temperatureAt(egg.x, egg.y - 5);
       egg.progress += clamp((t - 0.15) / 0.3, 0, 1.3) / egg.incubationTicks;
-      if (egg.progress < 1 || this.creatures.length >= LIMITS.MAX_POPULATION || egg.held) return;
+      return egg.progress >= 1;
+    }
+
+    hatch(egg) {
+      if (this.creatures.length >= LIMITS.MAX_POPULATION || egg.held) return;
       this.removeItem(egg);
       const c = this.addCreature(egg.genome, egg.x, { generation: egg.generation, parents: egg.parents, reserves: egg.reserves, growth: 0 });
       c.y = egg.y;
@@ -543,6 +548,7 @@
 
     // ---------- Item physics ----------
     moveItems() {
+      const hatching = [];
       for (const item of this.items) {
         const def = ITEM_TYPES[item.type];
         item.age++;
@@ -587,8 +593,10 @@
         } else {
           item.onGround = false;
         }
-        if (item.type === 'egg') this.incubate(item);
+        if (item.type === 'egg' && this.incubate(item)) hatching.push(item);
       }
+      // Hatch after the loop: removing an egg from this.items mid-loop would skip the next item
+      for (const egg of hatching) this.hatch(egg);
       this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.held);
     }
 
