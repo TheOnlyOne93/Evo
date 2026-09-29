@@ -114,6 +114,10 @@
     { name: 'hills', f: 0.26, period: 1400, height: 230, base: -6, haze: 0.2 },
     { name: 'forest', f: 0.5, period: 1200, height: 190, base: 18, haze: 0.1 },
   ];
+  // Seeds of the per-tree streams (seed + tree index) for branches and crowns, so however many
+  // draws a tree takes in a season, later trees sit in the same places in every season
+  const HILL_TREE_SEED = 2020, FOREST_TREE_SEED = 3030;
+  const CLOUDS_BY_SEASON = [7, 5, 9, 9]; // clouds in the sky, by season
 
   // A sum of sines whose frequencies fit the period exactly, so the layer tiles seamlessly
   function periodicNoise(R, period, terms) {
@@ -257,7 +261,7 @@
     }
   }
 
-  // A small tree for the hills and the forest edge
+  // A small tree for the hills and the forest edge. R is the tree's own stream (branches, crown).
   function paintSmallTree(g, x, y, h, conifer, col, si, R, trunkCol) {
     const dark = rgb(scale(col, 0.78));
     if (conifer) {
@@ -352,7 +356,8 @@
         const h = (ri ? 16 : 11) + R() * (ri ? 16 : 10);
         const col = pal.trees[(R() * pal.trees.length) | 0];
         const dy = 3 + R() * (ri ? 26 : 16);
-        wrapped(P, x, 20, xx => paintSmallTree(g, xx, yAt(xx) + dy, h, conifer, col, si, R, [96, 76, 62]));
+        const seed = HILL_TREE_SEED + ri * 100 + k;
+        wrapped(P, x, 20, xx => paintSmallTree(g, xx, yAt(xx) + dy, h, conifer, col, si, rng(seed), [96, 76, 62]));
       }
     });
   }
@@ -360,15 +365,18 @@
   function paintForest(g, P, H, si) {
     const pal = FOREST[si];
     const R = rng(303);
+    let k = 0;
     for (let row = 0; row < 2; row++) {
       let x = R() * 20;
       while (x < P) {
         const conifer = R() < (si === WINTER ? 0.55 : 0.42);
         const h = (row ? 88 : 64) + R() * (row ? 76 : 50);
         const y = H - (row ? 14 : 24) + R() * 4;
-        const col0 = conifer ? pal.conifer : pal.round[(R() * pal.round.length) | 0];
+        const round = pal.round[(R() * pal.round.length) | 0]; // drawn for conifers too
+        const col0 = conifer ? pal.conifer : round;
         const col = row ? col0 : mix(col0, [200, 220, 230], 0.2);
-        wrapped(P, x, 60, xx => paintSmallTree(g, xx, y, h, conifer, col, si, R, pal.trunk));
+        const seed = FOREST_TREE_SEED + k++;
+        wrapped(P, x, 60, xx => paintSmallTree(g, xx, y, h, conifer, col, si, rng(seed), pal.trunk));
         x += (row ? 24 : 18) + R() * (row ? 28 : 20);
       }
     }
@@ -639,12 +647,16 @@
 
       // Clouds drift with the wind and barely move with the camera
       const ss = this.ss;
-      const count = [7, 5, 9, 9][ss.cur];
+      // Clouds the two seasons don't share fade out (or in) with the season blend
+      const nCur = CLOUDS_BY_SEASON[ss.cur], nNext = CLOUDS_BY_SEASON[ss.next];
+      const count = ss.blend > 0 ? Math.max(nCur, nNext) : nCur, shared = Math.min(nCur, nNext);
+      const fade = nCur > nNext ? 1 - ss.blend : ss.blend;
       const res = Math.min(2, dpr);
       const sprites = this._cloudSprites(res);
       const span = w + 700;
-      g.globalAlpha = 0.9 - pal.night * 0.25;
+      const alpha = 0.9 - pal.night * 0.25;
       for (let i = 0; i < count; i++) {
+        g.globalAlpha = i < shared ? alpha : alpha * fade;
         const c = this.clouds[i], sp = sprites[c.shape];
         const cs = c.scale * sc;
         let x = (c.x * span + t * c.speed - v.cam.x * 0.04 * v.cam.zoom) % span;

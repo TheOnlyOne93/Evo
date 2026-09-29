@@ -133,9 +133,9 @@
     }
   }
 
+  // alpha fades them with the ice; while winter thaws they come back already in spring's colours
   function drawLilies(g, v, p, pi, t, amp, alpha) {
-    const si = v.ss.cur;
-    if (si === WINTER) return;
+    const si = v.ss.cur === WINTER ? v.ss.next : v.ss.cur;
     const n = Math.max(2, Math.round((p.x1 - p.x0) / 70));
     g.globalAlpha = alpha;
     for (let k = 0; k < n; k++) {
