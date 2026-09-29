@@ -185,9 +185,14 @@
     g.beginPath(); g.arc(hx + r * 0.1, hy - r * 0.05, r * 0.07, 0, TAU); g.fill();
   }
 
+  // A bug keeps facing the way it last moved; the renderer remembers that here, not on the sim item
+  const bugFacing = new WeakMap();
+
   // A small green beetle seen from the side, legs scurrying when it moves
   function bugBody(g, r, c, t, item) {
-    const dir = (item.vx || 0) < -0.01 ? -1 : (item.vx || 0) > 0.01 ? 1 : (item.facing || 1);
+    const vx = item.vx || 0;
+    if (Math.abs(vx) > 0.01) bugFacing.set(item, Math.sign(vx));
+    const dir = bugFacing.get(item) || 1;
     const moving = Math.abs(item.vx || 0) > 0.01 ? 1 : 0.15;
     g.scale(dir, 1);
     g.strokeStyle = c.bugLeg;
@@ -328,7 +333,8 @@
 
   // A speckled egg. It rocks more and more as it gets close to hatching, then cracks.
   function eggBody(g, r, item, t) {
-    const hs = hueSet(item.hue || 40, item.accentHue === undefined ? (item.hue || 40) + 180 : item.accentHue);
+    const hue = item.hue === undefined ? 40 : item.hue;
+    const hs = hueSet(hue, item.accentHue === undefined ? hue + 180 : item.accentHue);
     const p = item.progress || 0;
     const id = item.id | 0;
     const rx = r * 0.78, ry = r;
@@ -383,7 +389,7 @@
   }
 
   function ballBody(g, r, item) {
-    const hs = hueSet(item.hue || 200, 0);
+    const hs = hueSet(item.hue === undefined ? 200 : item.hue, 0);
     const cols = [hs.b1, '#fbf7ee', hs.b2, '#fbf7ee', hs.b3, '#fbf7ee'];
     for (let k = 0; k < 6; k++) {
       g.fillStyle = cols[k];
