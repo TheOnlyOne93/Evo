@@ -167,6 +167,34 @@ module.exports = ({ Evo, lab, session, trial }) => {
   });
   const slapped = consequence('slap'), patted = consequence('pat');
 
+  // ---------- Working memory: object permanence ----------
+  // A hungry creature sees fruit 150 px to one side (alternating by seed) for 60 ticks; then the
+  // fruit vanishes. Share of the next 120 ticks spent walking toward where it was, for the founder
+  // and for a knockout whose thinking (cortex) Lobe dynamics gene has persistence 0 (same seed).
+  const cortexKnockout = Evo.FOUNDER_GENOME.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
+  const labWith = (seed, genes) => {
+    const saved = Evo.FOUNDER_GENOME;
+    Evo.FOUNDER_GENOME = genes;
+    try { return lab(seed); } finally { Evo.FOUNDER_GENOME = saved; }
+  };
+  const hiddenFruit = genes => cached(seed => {
+    const s = labWith(seed, genes), side = seed % 2 ? -1 : 1;
+    s.world.spawnItem('fruit', s.c.x + side * 150);
+    let toward = 0;
+    for (let t = 0; t < 180 && !s.c.dead; t++) {
+      s.c.chem.set('hunger', 0.7);
+      if (t === 60) s.world.items.length = 0;
+      s.world.step();
+      if (t >= 60 && s.c.vx * side > 0.25) toward++;
+    }
+    return toward / 120;
+  });
+  const permanence = { founder: hiddenFruit(Evo.FOUNDER_GENOME), knockout: hiddenFruit(cortexKnockout) };
+  const memoryReports = {
+    'memory: walks toward hidden fruit (founder)': permanence.founder,
+    'memory: walks toward hidden fruit (cortex persistence 0)': permanence.knockout
+  };
+
   return {
     scenarios: { ...choice },
     reports: {
@@ -181,7 +209,8 @@ module.exports = ({ Evo, lab, session, trial }) => {
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,
       'cost: senses us per creature-tick': seed => cost(seed).senses,
-      'cost: ms per world tick (16 creatures)': seed => cost(seed).worldMs
+      'cost: ms per world tick (16 creatures)': seed => cost(seed).worldMs,
+      ...memoryReports
     }
   };
 };
