@@ -81,6 +81,7 @@
       this.carrying = null;            // An item held in the mouth
       this.pregnancy = null;           // { genome, fatherId, generation, parents, progress, reserves }
       this.timesMated = 0;
+      this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it (the card shows it)
       this.meals = 0;
 
       // What the muscles are doing
@@ -142,6 +143,7 @@
     // Something happened to the creature or it did something (a key of Evo.STIMULI): its stimulus
     // genes release their chemicals
     stimulate(key, s = 1) {
+      this.lastStimulus = { key, strength: s, tick: this.ageTicks };
       this.chem.stimulate(STIMULUS[key], s);
     }
 

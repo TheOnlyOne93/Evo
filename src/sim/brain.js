@@ -110,6 +110,7 @@
       this.sproutedCount = 0;
       this.prunedCount = 0;
       this.spikesThisTick = 0;
+      this.seizures = 0;      // Times the seizure brake has come on (shown in the brain view)
       this.overdrive = 0;     // Consecutive ticks with too many neurons firing
       this.brake = 0;         // mV held back from every central neuron this tick
       this.awake = true;
@@ -660,6 +661,7 @@
       // recurrent excitation, e.g. in working memory), every central neuron is held back next tick
       this.overdrive = this.spikesThisTick > SEIZURE_SHARE * N ? this.overdrive + 1 : 0;
       this.brake = this.overdrive >= SEIZURE_TICKS ? SEIZURE_BRAKE : 0;
+      if (this.overdrive === SEIZURE_TICKS) this.seizures++;
 
       // 2. New spikes depart along their axons
       const { sDst, sW, sDelay, sActive, outStart, outList } = this;
