@@ -66,7 +66,8 @@
   // What each tree species grows (an ITEM_TYPES key)
   const TREE_YIELDS = { fruit: 'fruit', mimic: 'mimic' };
 
-  const SEXES = ['FEMALE', 'MALE', 'FEMALE', 'MALE', 'FEMALE', 'MALE'];
+  const FIRST_PAIR = ['FEMALE', 'MALE'];  // A new world starts with one female and one male
+  const REFOUNDERS = ['FEMALE', 'MALE', 'FEMALE', 'MALE', 'FEMALE', 'MALE']; // After extinction, from the seed bank
   const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
   const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
   const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
@@ -102,7 +103,7 @@
         }
       }
       this.updateClock();
-      this.found();
+      this.found(FIRST_PAIR);
       this.seedFood();
     }
 
@@ -369,9 +370,9 @@
       return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(0.36, 0.5)) });
     }
 
-    found() {
+    found(sexes = REFOUNDERS) {
       const fromBank = this.seedBank.length > 0;
-      for (const sex of SEXES) {
+      for (const sex of sexes) {
         if (fromBank) {
           const src = Evo.pick(this.seedBank);
           this.addAdult(sex, { genome: src.genome.cloneWithMutation(), generation: src.generation, reserves: WANDERER_RESERVES });
