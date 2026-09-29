@@ -263,7 +263,7 @@
       return item;
     }
 
-    // A player (or plant) drops an item from a height; it falls to the ground
+    // The player drops an item from a height (it falls to the ground), or plants a thorn bush
     dropItem(type, x, y) {
       if (type === 'thorn') return this.addThornbush(x);
       const props = type === 'ball' ? { hue: Evo.randInt(360) } : {};
@@ -718,5 +718,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, Terrain, WORLD: { WIDTH: WORLD_W, HEIGHT: WORLD_H, SCENT_CELL, HOLD_GRIP, SOUND_LIFE } });
+  Object.assign(Evo, { World, WORLD: { HOLD_GRIP, SOUND_LIFE } });
 })(globalThis.Evo);
