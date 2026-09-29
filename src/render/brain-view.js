@@ -383,6 +383,10 @@
       this.height = height;
     }
 
+    clear() {
+      this.history.fill(-70);
+    }
+
     push(v) {
       this.history[this.head] = v;
       this.head = (this.head + 1) % this.history.length;

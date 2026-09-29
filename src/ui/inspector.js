@@ -170,6 +170,7 @@
       this.brainView.setBrain(c.brain);
       this.brainView.render();
       const b = c.brain, i = this.scopeCell(b);
+      if (i !== this.scopeFor) { this.scope.clear(); this.scopeFor = i; } // Don't join one cell's trace to another's
       this.scope.push(b.vShow[i]);
       this.scope.render(b.thr[i]);
     }
