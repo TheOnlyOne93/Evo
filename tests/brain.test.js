@@ -211,3 +211,32 @@ test('brain: attention goes to what the creature needs', (Evo, assert) => {
   assert.ok(red >= seeds * 0.6, `hungry: red wins in ${red} of ${seeds}`);
   assert.ok(blue >= seeds * 0.6, `thirsty: blue wins in ${blue} of ${seeds}`);
 });
+
+// Red seen on the left for 60 ticks, then nothing: cortex spikes before, while seeing, and from 10
+// ticks after it stops, for a brain grown from the given genes
+function cortexAfterSight(Evo, seed, genes) {
+  Evo.seed(seed);
+  const brain = new Evo.Brain(Evo.Genome.founder('X', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
+  const drive = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  const eyes = ['low', 'high'].map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
+  const spikes = { before: 0, seeing: 0, gap: 0, after: 0 };
+  for (let t = 0; t < 200; t++) {
+    const seeing = t >= 50 && t < 110;
+    for (const i of eyes) drive[i] = seeing ? 20 : 0;
+    brain.tick(drive, opts);
+    let n = 0;
+    for (const i of brain.lobes.cortex) n += brain.hist[i] & 1;
+    spikes[t < 50 ? 'before' : seeing ? 'seeing' : t < 120 ? 'gap' : 'after'] += n;
+  }
+  return spikes;
+}
+
+test('brain: working memory keeps the cortex going after what it saw is gone; a persistence knockout does not', (Evo, assert) => {
+  const knockout = Evo.FOUNDER_GENOME.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
+  for (let seed = 1; seed <= 4; seed++) {
+    const wm = cortexAfterSight(Evo, seed), ko = cortexAfterSight(Evo, seed, knockout);
+    assert.ok(wm.seeing > 0 && ko.seeing > 0, `seed ${seed}: the cortex hears the eyes (${wm.seeing}, knockout ${ko.seeing})`);
+    assert.ok(wm.after >= 8 && wm.after > 3 * wm.before, `seed ${seed}: founder cortex after the sight: ${wm.after} spikes (${wm.before} before)`);
+    assert.ok(ko.after <= 2, `seed ${seed}: knockout cortex after the sight: ${ko.after} spikes`);
+  }
+});
