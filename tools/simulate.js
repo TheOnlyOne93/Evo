@@ -16,7 +16,7 @@ const f2 = v => v.toFixed(2);
 const counts = {};
 world.events.on('eat', e => { counts[e.item.type] = (counts[e.item.type] || 0) + 1; });
 world.events.on('drink', () => { counts.drinks = (counts.drinks || 0) + 1; });
-for (const ev of ['mate', 'egg', 'hatch', 'death', 'wanderer', 'call', 'bite', 'sleep', 'grab', 'refound']) {
+for (const ev of ['mate', 'egg', 'hatch', 'death', 'wanderer', 'call', 'sleep', 'grab', 'refound']) {
   world.events.on(ev, () => { counts[ev] = (counts[ev] || 0) + 1; });
 }
 
