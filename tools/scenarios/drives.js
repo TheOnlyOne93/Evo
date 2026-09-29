@@ -17,6 +17,17 @@ module.exports = ({ lab, trial, avoids }) => ({
       s.world.events.on('nuzzle', e => { if (e.from === s.c) nuzzles++; });
       return avoids(s, 900, () => nuzzles > 3);
     },
+    // The small pond lies near the world's end: a thirsty creature between them must still drink
+    'thirsty, 200px from the small pond (edge side) -> drinks': seed => {
+      const s = lab(seed);
+      const p = s.world.terrain.ponds[1];
+      Object.assign(s.c, { x: Math.max(s.world.edge, (p.x0 + p.x1) / 2 - 200), facing: 1 });
+      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.hold = { thirst: 0.7 };
+      let drank = false;
+      s.world.events.on('drink', () => { drank = true; });
+      return trial(s, 1800, () => drank);
+    },
     // Stimulus genes: the hand's pat and slap release reward and punishment at once
     'patted -> reward >= 0.15 next tick': seed => {
       const s = lab(seed);
@@ -32,6 +43,16 @@ module.exports = ({ lab, trial, avoids }) => ({
     }
   },
   reports: {
+    'thirsty, 200px inland of the small pond -> drinks within 1800 ticks': seed => {
+      const s = lab(seed);
+      const p = s.world.terrain.ponds[1];
+      Object.assign(s.c, { x: p.x1 + 200, facing: -1 });
+      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.hold = { thirst: 0.7 };
+      let drank = false;
+      s.world.events.on('drink', () => { drank = true; });
+      return trial(s, 1800, () => drank) === null ? 0 : 1;
+    },
     // Novelty comes from things: a bored creature with a ball nearby (share of seeds that touch it)
     'bored, ball 60 px -> touches or grabs it within 1800 ticks': seed => {
       const s = lab(seed);

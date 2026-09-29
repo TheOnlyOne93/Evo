@@ -464,9 +464,12 @@
       this.senses = { sight, scentsL, scentsR, hear, touch, mouthItem };
     }
 
+    // Water the lips can reach: in the water, it is at the chin (even facing the bank); on the bank
+    // or wading, the head reaches forward and down, to a surface a little below the feet
     waterAtMouth(world) {
+      if (this.inWater) return true;
       const level = world.terrain.waterLevelAt(this.mouthX);
-      return level !== null && Math.abs(this.mouthY - level) < this.traits.mouthReach + 2;
+      return level !== null && level > this.mouthY - this.traits.mouthReach - 2 && level < this.y + this.size * 0.4;
     }
 
     // What is in reach of the mouth: a carried item first, then an item in front (the head reaches
@@ -638,7 +641,8 @@
       if (this.inWater) { this.vx *= 0.9; this.vy *= 0.85; }
 
       // Horizontal: a rise higher than a step blocks the way (jump to climb it)
-      const nx = clamp(this.x + this.vx, world.edge, world.width - world.edge);
+      const wantX = this.x + this.vx;
+      const nx = clamp(wantX, world.edge, world.width - world.edge);
       const groundHere = world.surfaceBelow(this.x, this.y - STEP_HEIGHT);
       const groundNext = world.surfaceBelow(nx, this.y - STEP_HEIGHT);
       if (this.onGround && groundNext < this.y - STEP_HEIGHT && groundNext < groundHere - 0.5) {
@@ -647,7 +651,8 @@
       } else {
         this.x = nx;
       }
-      if (this.x <= world.edge + 0.5 || this.x >= world.width - world.edge - 0.5) this.bump(this.x < world.width / 2 ? 'contactL' : 'contactR');
+      // The world's end is felt only when walking into it, not while standing beside it
+      if (wantX !== nx && Math.abs(this.vx) > 0.05) this.bump(wantX < nx ? 'contactL' : 'contactR');
 
       // Vertical: land on the ground or a platform (one-way, from above)
       const prevY = this.y;
