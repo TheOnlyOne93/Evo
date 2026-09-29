@@ -7,8 +7,10 @@
   // creature -> values eased between frames (weakly held: forgotten once the creature is gone)
   const smooth = new WeakMap();
 
+  // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
+  // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
   function ease(state, key, target, rate) {
-    state[key] = state[key] === undefined ? target : state[key] + (target - state[key]) * rate;
+    state[key] = state[key] === undefined ? target : state[key] + (target - state[key]) * (1 - Math.pow(1 - rate, state.n));
     return state[key];
   }
 
@@ -97,6 +99,12 @@
   Evo.poseOf = function poseOf(c, { focused = false, hovered = false, world = null } = {}) {
     let s = smooth.get(c);
     if (!s) smooth.set(c, s = {});
+    // Ticks since this creature's pose last eased: world ticks when there is a world (a dead
+    // creature's ageTicks stops, but its eyes still have to close), else its own age. The clock
+    // is remembered so a call with the other kind counts as one tick rather than a bogus gap.
+    const clock = world ? 'world' : 'age', now = world ? world.clock.tick : c.ageTicks;
+    s.n = s.clock === clock && now >= s.tick ? now - s.tick : 1;
+    s.clock = clock; s.tick = now;
     const ch = c.chem;
     const get = k => ch.get(k);
     const [gx, gy] = gaze(c, attentionOf(c, world));
