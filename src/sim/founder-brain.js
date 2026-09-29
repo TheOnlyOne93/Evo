@@ -23,7 +23,7 @@
     prior('sleepiness', 'rest', 1.0), prior('tiredness', 'rest', 0.7), prior('nausea', 'rest', 0.6),
     prior('loneliness', 'call', 0.6), prior('hunger', 'eat', 0.4), prior('proteinHunger', 'eat', 0.3),
     prior('thirst', 'drink', 0.5), prior('anger', 'grab', 0.6),
-    ...['boredom', 'crowdedness', 'hunger'].flatMap(d => [prior(d, 'walkL', 0.4), prior(d, 'walkR', 0.4)]),
+    ...['boredom', 'crowdedness', 'hunger', 'thirst'].flatMap(d => [prior(d, 'walkL', 0.4), prior(d, 'walkR', 0.4)]),
     // Each touch cell excites the muscle that shares its address (something at the mouth -> eat it)
     guide('touch', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
     // Bumping into something on one side makes the opposite leg push: turn away from walls
