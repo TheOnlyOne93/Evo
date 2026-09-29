@@ -16,6 +16,8 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 * **Tickle** and **Slap**: touch a creature. Tickling is pleasant (stroke to keep going); a slap
   hurts, so it learns to stop doing whatever it was doing.
 * **Items**: pick one in the toolbar, then tap the world to drop it. **Egg** places a new founder egg.
+* **Add a creature**: a grown female (♀) or male (♂) arrives near the one you follow. On a phone,
+  each toolbar group (Food, More, Add) opens from one button.
 * **Inside view**: the followed creature's body chemistry, brain, genes and family, and the world.
 * Keys: arrows / WASD pan, `+` `−` zoom, `0` reset zoom, `F` follow, `Tab` next creature,
   `Space` pause, `1`–`4` speed, `Esc` back to the hand.
