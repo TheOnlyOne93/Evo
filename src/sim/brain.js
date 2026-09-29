@@ -12,7 +12,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, mean } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS } = Evo;
+  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -77,12 +77,6 @@
     { key: 'savory', word: 'Tastes savoury', tag: [0.50, 0.30] }, { key: 'fat', word: 'Tastes fatty', tag: [0.50, 0.30] },
     { key: 'bitter', word: 'Tastes bitter', tag: [0.50, 0.96] }, { key: 'water', word: 'Tastes water', tag: [0.50, 0.30] }
   ];
-  // The first Needs cells share an address with one muscle each (same order as MOTORS); the rest
-  // address nothing in particular
-  const NEED_TAGS = [
-    ...MOTORS.map(m => m.tag),
-    [0.15, 0.04], [0.38, 0.04], [0.62, 0.04], [0.85, 0.04], [0.15, 0.97], [0.38, 0.97], [0.62, 0.97], [0.85, 0.97], [0.5, 0.97]
-  ].slice(0, N_NEEDS);
   // Feelings cells: 0 releases the reward chemical, 1 the stress chemical. Cell 2's address matches
   // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
   const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENTS.findIndex(s => s.key === 'alarm') + 0.5) / SCENTS.length],
@@ -148,7 +142,7 @@
       TOUCH.forEach(t => add('touch', `touch_${t.key}`, t.word, [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }));
       TASTES.forEach((t, k) => add('taste', `taste_${t.key}`, t.word, [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }));
       for (let k = 0; k < N_NEEDS; k++) {
-        add('needs', `need_${k}`, `Needs cell ${k + 1}`, [...NEED_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
+        add('needs', `need_${k}`, `Needs cell ${k + 1}`, [...DRIVE_CELL_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
       }
       for (let k = 0; k < N_LIMBIC; k++) {
         add('feelings', `feel_${k}`, k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`,
@@ -654,7 +648,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { MAX_DELAY, SYNAPTIC_GAIN, WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, CHEM_CHANNELS },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, HEARING, NEED_TAGS, FEELING_TAGS, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
+      TOUCH, TASTES, HEARING, DRIVE_CELL_TAGS, FEELING_TAGS, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

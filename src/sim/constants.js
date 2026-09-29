@@ -172,6 +172,13 @@
     { key: 'drink', word: 'Drink',      tag: [0.50, 0.12], pos: [0.50, 0.87] }
   ];
 
+  // The first Needs cells share an address with one muscle each (same order as MOTORS); the rest
+  // address nothing in particular
+  const DRIVE_CELL_TAGS = [
+    ...MOTORS.map(m => m.tag),
+    [0.15, 0.04], [0.38, 0.04], [0.62, 0.04], [0.85, 0.04], [0.15, 0.97], [0.38, 0.97], [0.62, 0.97], [0.85, 0.97], [0.5, 0.97]
+  ].slice(0, N_NEEDS);
+
   // ---- Neurochemicals: chemicals diffusing through the brain tissue (volume transmission), in
   // channel order. Neurochemistry genes pick one by index. base: default spread when no gene sets it.
   const NEUROCHEMS = [
@@ -193,7 +200,7 @@
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
     BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
-    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, NEUROCHEMS,
+    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, NEUROCHEMS,
     LIMITS
   });
 })(globalThis.Evo);
