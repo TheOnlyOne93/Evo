@@ -311,12 +311,23 @@
   // Each gene's identity: its stage and type byte plus payload
   const signature = (genome, gene) => Array.prototype.join.call(genome.dna.subarray(gene.start + 1, gene.end), ',');
 
+  // Gene fields whose code name says little
+  const FIELD_WORDS = {
+    tx: 'target left–right', ty: 'target front–back', tz: 'target depth', sx: 'senders left–right', sy: 'senders front–back',
+    sr: 'senders spread', radius: 'target spread', a: 'input', b: 'second input', c: 'output', d: 'second output',
+    yieldC: 'output amount', yieldD: 'second output amount', chem1: 'chemical', amount1: 'amount', chem2: 'second chemical',
+    amount2: 'second amount', lobeA: 'input region', indexA: 'input cell', lobeB: 'second input region', indexB: 'second input cell',
+    motor: 'action', flags: 'switches', tau: 'holding time', chemShift: 'chemical shift'
+  };
+  const fieldWord = key => FIELD_WORDS[key] || words(key);
+
   // One field's value in words, for a before → after line
   function fieldValue(codec, value) {
     const C = Evo.CODEC;
     if (codec === C.chem) return value ? chemName(value).toLowerCase() : 'nothing';
     if (codec === C.locus) return locusName(value);
     if (codec === C.target) return targetName(value);
+    if (codec === C.halfLife) return value === Infinity ? 'never' : seconds(value);
     if (codec === C.lobe) return LOBE_INFO[Evo.LOBE_ORDER[value]].word.toLowerCase();
     if (typeof value === 'number') return value === Infinity ? 'never' : String(num(value, 2));
     return '…';
@@ -328,7 +339,7 @@
     if (gene.stage !== refGene.stage) out.push({ field: 'switches on', before: STAGES[Math.max(1, refGene.stage)].word.toLowerCase(), after: STAGES[Math.max(1, gene.stage)].word.toLowerCase() });
     Evo.GENES[gene.type].fields.forEach(([key, codec], k) => {
       const a = refGenome.dna[refGene.start + 2 + k], b = genome.dna[gene.start + 2 + k];
-      if (a !== b) out.push({ field: words(key), before: fieldValue(codec, codec.decode(a)), after: fieldValue(codec, codec.decode(b)) });
+      if (a !== b) out.push({ field: fieldWord(key), before: fieldValue(codec, codec.decode(a)), after: fieldValue(codec, codec.decode(b)) });
     });
     return out;
   }

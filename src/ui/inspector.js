@@ -460,6 +460,8 @@
     // gene start -> kind of change, for tagging the gene lists (against the parents if known).
     renderMutations(c) {
       const g = c.genome, hist = this.app.world.history, marked = new Map();
+      const varies = new Set(FOUNDER_VARIES.map(n => Evo.GENE_INDEX[n]));
+      let parentVaries = 0; // Changes from the parents in genes left out of the founder comparison
       const parents = [c.motherId, c.fatherId].filter(id => id !== null).map(id => ({ id, genome: this.genomes.get(id), rec: hist.find(h => h.id === id) }));
       const known = parents.filter(p => p.genome);
       const sections = [];
@@ -469,13 +471,21 @@
         const names = known.map(p => (p.rec ? esc(p.rec.name) : 'a parent')).join(' and ');
         const changes = T.geneChanges(g, known.map(p => p.genome));
         for (const ch of changes) if (ch.gene) marked.set(ch.gene.start, ch.kind);
+        parentVaries = changes.filter(ch => ch.gene && varies.has(ch.gene.type)).length;
         sections.push(this.changeList(c, changes, `Compared with its parents, ${names}`,
           'Exactly as inherited: every gene is one of its parents\' genes, mixed by recombination.'));
       } else sections.push('<p class="note">Its parents lived before you started watching, so their genes are not known.</p>');
       const founders = T.geneChanges(g, [T.founderGenome(g.sexChrom)], FOUNDER_VARIES);
-      if (!marked.size) for (const ch of founders) if (ch.gene) marked.set(ch.gene.start, ch.kind);
-      sections.push(this.changeList(c, founders, 'Compared with the first creatures',
-        'The same genes as the founders (only looks and voice, which every founder gets its own of, can differ).'));
+      const tagged = marked.size;
+      if (!tagged) for (const ch of founders) if (ch.gene) marked.set(ch.gene.start, ch.kind);
+      // Children of founders: the two lists would say the same thing (but for looks and voice)
+      const fromParents = marked.size - parentVaries;
+      const same = tagged && founders.length === fromParents && founders.every(ch => ch.gene && marked.get(ch.gene.start) === ch.kind);
+      if (same) sections.push('<p class="note">Its parents were founders, so these are also its differences from the first creatures.</p>');
+      else {
+        sections.push(this.changeList(c, founders, 'Compared with the first creatures',
+          'The same genes as the founders (only looks and voice, which every founder gets its own of, can differ).'));
+      }
       $('mutationList').innerHTML = sections.join('');
       return marked;
     }
