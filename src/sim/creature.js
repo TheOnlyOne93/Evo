@@ -97,6 +97,8 @@
       this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
       this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it
+      this.familiar = new Float32Array(FEATURE_KEYS.length); // How used it is to each look (vision feature)
+      this.novelty = 0;                // How new the thing in front of it looks (0..1)
 
       this.loci = new Float32Array(BODY_LOCI.length);
       this.drive = new Float32Array(this.brain.N);
@@ -165,7 +167,7 @@
       L[LOCUS.touchingFriend] = s.touchingFriend;
       L[LOCUS.company] = this.company;
       L[LOCUS.crowding] = this.crowding;
-      L[LOCUS.novelty] = brain.novelty;
+      L[LOCUS.novelty] = this.noticeNovelty(world);
       L[LOCUS.falling] = !this.onGround && this.vy > 2 ? Math.min(1, this.vy / 6) : 0;
       L[LOCUS.inWater] = this.inWater ? 1 : 0;
       L[LOCUS.held] = this.held ? 1 : 0;
@@ -180,6 +182,37 @@
       L[LOCUS.starving] = c.get('glucose') < 0.01 && c.get('glycogen') < 0.01 ? 1 : 0;
       const feelings = brain.lobes.feelings;
       for (let k = 0; k < N_LIMBIC; k++) L[LOCUS.limbic0 + k] = Math.min(1, brain.rate[feelings[k]] * 5);
+    }
+
+    // Novelty comes from things: the thing at the mouth, or else the nearest item within 60 px, is
+    // new in as far as its look is unfamiliar. Looking at it makes the look familiar (habituation);
+    // familiarity fades slowly, so things become interesting again.
+    noticeNovelty(world) {
+      const fam = this.familiar, T = this.traits;
+      for (let f = 0; f < fam.length; f++) fam[f] *= 0.9999;
+      const t = this.thingAtMouth(world);
+      let look = null;
+      if (t) look = t.kind === 'item' ? world.lookOf(t.item) : world.lookOfCreature(t.creature);
+      else {
+        let best = 60;
+        for (const item of world.items) {
+          if (item.held) continue;
+          const d = Math.hypot(item.x - this.x, item.y - this.y);
+          if (d < best) { best = d; look = world.lookOf(item); }
+        }
+      }
+      let nov = 0;
+      if (look) {
+        const h = T.habituationRate * 20;
+        for (let f = 0; f < fam.length; f++) {
+          const v = look[FEATURE_KEYS[f]];
+          if (!v) continue;
+          nov += v * (1 - fam[f]);
+          fam[f] += h * v * (1 - fam[f]);
+        }
+      }
+      this.novelty = clamp01(nov * T.noveltyGain / 8);
+      return this.novelty;
     }
 
     // ---------- Physiology ----------

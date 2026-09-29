@@ -114,3 +114,18 @@ test('drives: founder instincts name real cells, and none knows the mimic', (Evo
   const eats = traits.instincts.filter(i => i.motor === Evo.MOTORS.findIndex(m => m.key === 'eat') && lobeOf(i.lobeB) === 'near');
   assert.deepStrictEqual(eats.map(i => Evo.VISION_FEATURES[i.indexB].key).sort(), ['creature', 'green', 'green', 'red', 'yellow']);
 });
+
+test('drives: novelty comes from new-looking things near the creature and habituates', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  world.items = []; world.creatures = [c];
+  assert.strictEqual(c.noticeNovelty(world), 0, 'nothing near: nothing new');
+  const fruit = world.spawnItem('fruit', c.x + 30, c.y);
+  const first = c.noticeNovelty(world);
+  assert.ok(first > 0.9, `a first fruit is new (${first})`);
+  for (let t = 0; t < 150; t++) c.noticeNovelty(world);
+  assert.ok(c.noticeNovelty(world) < 0.2, `…and becomes familiar (${c.noticeNovelty(world)})`);
+  fruit.x = c.x + 200;
+  world.spawnItem('dew', c.x - 30, c.y);
+  assert.ok(c.noticeNovelty(world) > 0.6, 'a blue dew drop is new again');
+});
