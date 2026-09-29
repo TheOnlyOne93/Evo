@@ -16,8 +16,9 @@ brain is wired, and what a creature is born "knowing". Nothing is labelled good 
 | *Creatures* | SynapseCore |
 |---|---|
 | Biochemistry: 256 chemicals, reactions, emitters, receptors, half-lives | The same four gene kinds (plus initial concentrations), acting on 64 chemical slots (`src/sim/biochem.js`) |
-| Drives are chemicals (hunger, pain, loneliness…) | Same. Emitter genes turn body states into drive chemicals; receptor genes let the brain feel them |
-| Reward and punishment chemicals teach the brain | Same, but reward comes from **drive-reduction reactions** (`Hunger + gut sugar → Reward`), so eating only rewards a hungry creature, and punishment from acute harm (pain, nausea, fear) |
+| Drives are chemicals (hunger, pain, loneliness…) | Same. Emitter genes turn body states into drive chemicals; receptor genes let the brain feel each one in its own Drives cell |
+| Stimulus genes: an event releases chemicals | Same: *stimulus* genes say what being patted, slapped, nuzzled, shoved, eating, falling asleep… releases |
+| Reward and punishment chemicals teach the brain | Same, but reward comes from **drive-reduction reactions** at the moment of relief (`Hunger + sweet taste → Reward`), so eating only rewards a hungry creature, and punishment from acute harm (pain, nausea, fear, a bitter taste) |
 | Lobes with fixed roles (attention, decision) | Spatial lobes of spiking neurons; roles emerge from genetic axon guidance and learning |
 | Instincts, processed while asleep | Instinct genes are replayed as **dreams**: the sleeping brain is driven with the gene's inputs and action, then its chemical, so the ordinary learning rule wires the association |
 | Life stages; genes switch on at a stage | Every gene carries a switch-on stage (baby → senile). Sex hormones start at adolescence, ageing at old age, new brain tracts can grow mid-life |
@@ -54,7 +55,7 @@ decoded value is clamped, so a broken gene makes a bad creature, never a broken 
 Gene kinds: appearance, morphology, eyes, nose, membrane, plasticity, reinforcement sensitivity,
 muscle, life history, voice, curiosity, anatomy, region duplication, axon guidance, pacemaker,
 neurochemistry, **reaction, emitter, receptor, half-life, initial concentration, instinct**,
-insulation, reproduction. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
+insulation, reproduction, **stimulus**. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
 expresses traits, and describes itself in plain words for the UI.
 
 Genes that switch on at a later stage join the traits then: the biochemistry is reconfigured, new
@@ -76,7 +77,11 @@ free for mutation to use.
   reading is above (or below) a threshold.
 * **Receptor** reads a chemical and pushes on a *locus*: muscle strength, sleep pressure, health
   damage, healing, fertility, growth, scent release, arousal, or a current into a specific neuron
-  of the Needs or Feelings lobe.
+  of the Drives or Feelings lobe.
+* **Stimulus** names an event (`Evo.STIMULI`: ate, drank, patted, slapped, nuzzled, was nuzzled,
+  shoved, was shoved, called, heard a call, grabbed, dropped, bumped, fell, woke, fell asleep, mated,
+  played) and releases (or removes) up to two chemicals when it happens. The world raises each
+  event where it physically happens (`creature.stimulate(key, strength)`).
 * **Half-life** and **initial concentration** genes.
 
 The founder genome builds a working metabolism with these genes: digestion (gut sugar, starch,
@@ -84,13 +89,26 @@ protein, fat → blood), insulin and glucagon storing and releasing glycogen and
 fatigue (adenosine), a day-driven sleep hormone, growth hormone in youth, sex hormone from
 adolescence, and ageing in old age.
 
-**Drives** (chemicals): pain, hunger, protein hunger, fat hunger, thirst, tiredness, sleepiness,
-cold, heat, loneliness, crowding, fear, anger, boredom, sex drive, nausea.
+**Drives** (chemicals, `Evo.DRIVES`): pain, hunger, protein hunger, fat hunger, thirst, tiredness,
+sleepiness, cold, heat, loneliness, crowding, fear, anger, boredom, sex drive, nausea. Each has its
+own cell in the brain's Drives lobe (`Evo.driveCell(key)`; the founder's receptor genes wire one
+drive to one cell). Drive cells sit at addresses of their own, apart from the muscles, so what a drive
+makes the creature do is up to guidance genes: the founder has a few weak innate priors, each a
+guidance gene windowed on one drive cell (pain and fear → run, sleepiness, tiredness and nausea →
+rest, loneliness → call, hunger → eat, thirst → drink, anger → grab, boredom, crowding, hunger and
+thirst → walk), and the rest is learned.
+
+**Novelty** comes from things: a creature keeps a familiarity per vision feature, and the thing at its
+mouth (or the nearest item within 60 px) is novel in as far as its look is unfamiliar. Looking makes
+it familiar; familiarity fades slowly.
 
 **Reinforcement.** Each drive has a matching *relief* signal released by the sense or act that
-satisfies it (gut contents, the taste of water, warmth flowing in, company, rest, sleep, novelty,
-mating). A reaction `Drive + Relief → Reward` turns relief into reward *in proportion to how much
-drive there was*. Punishment is released by emitters reading pain, nausea and fear.
+satisfies it: the taste of food (sweet or savoury), the taste of water, warmth flowing in, company,
+rest, dozing off, novelty, mating. A reaction `Drive + Relief → Reward` turns relief into reward *in
+proportion to how much drive there was*, at the moment of relief: eating rewards while the food is
+tasted, falling asleep rewards once (not all night). A full gut still sates hunger, quietly, without
+reward. Punishment is released by emitters reading pain, nausea, fear and a bitter taste, and by
+stimulus genes (a slap).
 
 ---
 
@@ -112,7 +130,8 @@ two hemifields: things to the left and things to the right); y = front (senses) 
 | Hearing | 2 ears × 2 pitches |
 | Touch | contact left/right, mouth left/right, lips (water), back (pat/hit), feet, pain, gentle touch, falling, in water |
 | Taste | sweet, starchy, savoury, fatty, bitter, water |
-| Needs | 18 cells (`N_NEEDS`), each driven by whichever chemicals receptor genes attach to it; cells 0–8 share an address with the muscle of the same index, the rest are general |
+| Up close | one cell per vision feature: the look of whatever is at the mouth |
+| Drives | 18 cells (`N_NEEDS`), each driven by whichever chemicals receptor genes attach to it; the founder feels drive k in cell k (`Evo.driveCell`), 2 spare |
 | Feelings | reward cell, punishment cell and 6 general cells (emitter genes can read these) |
 | Thinking, Side lobes, Central lobe, Brainstem | general-purpose cells |
 | Movement | walk left, walk right, jump, eat, grab/drop, rest, call, run, drink |
