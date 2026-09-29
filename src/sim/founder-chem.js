@@ -53,7 +53,7 @@
     emitter('limbic2', 'fear', 0.35, 0.01),
     emitter('limbic2', 'adrenaline', 0.35, 0.01),
     emitter('chem:fear', 'adrenaline', 0.2, 0.01),
-    emitter('novelty', 'boredom', 0.04, 0.0052, INVERT),
+    emitter('novelty', 'boredom', 0.04, 0.0032, INVERT),
     emitter('chem:toxin', 'nausea', 0.04, 0.01),
     emitter('gutFullness', 'nausea', 0.8, 0.004),
     halfLife('hunger', 1500), halfLife('proteinHunger', 2000), halfLife('fatHunger', 2000), halfLife('thirst', 1200),
