@@ -11,15 +11,15 @@
   }
 
   // Where the creature is looking: toward the strongest thing its eyes report (pupilX: -1 left,
-  // +1 right, in world terms; pupilY: -1 up). Sight cells: [left low, left high, right low, right high] × features.
+  // +1 right, in world terms; pupilY: -1 up). The sight reading is in the brain's sight-cell order.
   function gaze(c) {
     const sight = c.senses && c.senses.sight;
     if (!sight) return [0, 0];
-    const nf = Evo.VISION_FEATURES.length;
     let best = 0, k = -1;
     for (let i = 0; i < sight.length; i++) if (sight[i] > best) { best = sight[i]; k = i; }
     if (k < 0 || best < 0.05) return [0, 0];
-    return [k < 2 * nf ? -1 : 1, (k % (2 * nf)) >= nf ? -0.8 : 0.2];
+    const cell = Evo.BRAIN_BODY_PLAN.sightCell(k);
+    return [cell.side === 'L' ? -1 : 1, cell.band === 'high' ? -0.8 : 0.2];
   }
 
   Evo.poseOf = function poseOf(c, { focused = false, hovered = false } = {}) {

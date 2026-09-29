@@ -43,8 +43,7 @@
   const GENERAL = ['hunger', 'proteinHunger', 'fatHunger', 'thirst', 'coldness', 'hotness', 'boredom', 'sexDrive', 'crowdedness'];
   const need = key => (key in MOTOR ? MOTOR[key] : Evo.MOTORS.length + GENERAL.indexOf(key));
   const NEED = key => `need:${need(key)}`;
-  const sight = (side, band, feature) => (side === 'R' ? 2 : 0) * FEATURES.length + (band === 'high' ? FEATURES.length : 0) + FEATURES.indexOf(feature);
-  const smell = (side, odour) => (side === 'R' ? 10 : 0) + ODOURS.indexOf(odour);
+  const { sightIndex: sight, smellIndex: smell } = Evo.BRAIN_BODY_PLAN;
   const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));
 
   Evo.FOUNDER_GENOME = [

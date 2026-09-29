@@ -42,6 +42,21 @@
   const SIDES = ['L', 'R'];
   const BANDS = ['low', 'high'];
   const HEARING = [['L', 'low'], ['L', 'high'], ['R', 'low'], ['R', 'high']];
+  const NF = VISION_FEATURES.length, NO = SCENTS.length;
+  const FEATURE_INDEX = Object.fromEntries(VISION_FEATURES.map((f, i) => [f.key, i]));
+  const ODOUR_INDEX = Object.fromEntries(SCENTS.map((s, i) => [s.key, i]));
+  const SIGHT_CELLS = SIDES.length * BANDS.length * NF, SMELL_CELLS = SIDES.length * NO;
+  // Where a cell sits within its sensory lobe. Sight: [left low, left high, right low, right high]
+  // × features; smell: [left antenna, right antenna] × odours; hearing: HEARING order. side is
+  // 'L' | 'R', band 'low' | 'high', feature and odour a key or an index.
+  const sideIndex = side => (side === 'R' ? 1 : 0);
+  const sightIndex = (side, band, feature) =>
+    (sideIndex(side) * BANDS.length + (band === 'high' ? 1 : 0)) * NF + (typeof feature === 'number' ? feature : FEATURE_INDEX[feature]);
+  const smellIndex = (side, odour) => sideIndex(side) * NO + (typeof odour === 'number' ? odour : ODOUR_INDEX[odour]);
+  const hearingIndex = (side, pitch) => sideIndex(side) * 2 + (pitch === 'high' ? 1 : 0);
+  // …and back: what the sight / smell cell at index k within its lobe reports
+  const sightCell = k => ({ side: SIDES[Math.floor(k / (BANDS.length * NF))], band: BANDS[Math.floor(k / NF) % BANDS.length], feature: VISION_FEATURES[k % NF].key });
+  const smellCell = k => ({ side: SIDES[Math.floor(k / NO)], odour: SCENTS[k % NO].key });
   // Touch cells. A receptor tag that matches a muscle's address lets topographic guidance wire
   // it to that muscle (the mouth cells to Eat, the pain cell to Run).
   const TOUCH = [
@@ -110,20 +125,23 @@
       };
       const sideX = s => (s === 'L' ? 0.1 : 0.9);
 
-      // Sight: two eyes' fields (left, right) × low/high × features; a map across the front
-      SIDES.forEach((side, s) => BANDS.forEach((band, b) => VISION_FEATURES.forEach((f, fi) => {
-        const x = s ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045;
-        add('sight', `see_${side}_${band}_${f.key}`, `See ${f.key} ${side} ${band}`,
-          [sideX(side), (fi + 0.5) / VISION_FEATURES.length, 0.2 + b * 0.04], [x, 0.05 + b * 0.05],
-          { kind: 'sight', side, band, feature: f.key });
-      })));
-      // Smell: one bulb per antenna, each on its own side
-      SIDES.forEach((side, s) => SCENTS.forEach((sc, o) => {
-        const x = s ? 0.60 + (o % 5) * 0.05 : 0.40 - (o % 5) * 0.05;
-        add('smell', `smell_${side}_${sc.key}`, `Smell ${sc.key} ${side}`,
-          [sideX(side), (o + 0.5) / SCENTS.length, 0.4], [x, 0.16 + Math.floor(o / 5) * 0.04],
-          { kind: 'smell', side, odour: sc.key });
-      }));
+      // Sight: two eyes' fields (left, right) × low/high × features; a map across the front.
+      // Cells are added in sightIndex order.
+      for (let k = 0; k < SIGHT_CELLS; k++) {
+        const { side, band, feature } = sightCell(k), fi = FEATURE_INDEX[feature], b = band === 'high' ? 1 : 0;
+        const x = side === 'R' ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045;
+        add('sight', `see_${side}_${band}_${feature}`, `See ${feature} ${side} ${band}`,
+          [sideX(side), (fi + 0.5) / NF, 0.2 + b * 0.04], [x, 0.05 + b * 0.05],
+          { kind: 'sight', side, band, feature });
+      }
+      // Smell: one bulb per antenna, each on its own side (in smellIndex order)
+      for (let k = 0; k < SMELL_CELLS; k++) {
+        const { side, odour } = smellCell(k), o = ODOUR_INDEX[odour];
+        const x = side === 'R' ? 0.60 + (o % 5) * 0.05 : 0.40 - (o % 5) * 0.05;
+        add('smell', `smell_${side}_${odour}`, `Smell ${odour} ${side}`,
+          [sideX(side), (o + 0.5) / NO, 0.4], [x, 0.16 + Math.floor(o / 5) * 0.04],
+          { kind: 'smell', side, odour });
+      }
       HEARING.forEach(([side, pitch], k) => add('hearing', `hear_${side}_${pitch}`, `Hear ${pitch} ${side}`,
         [sideX(side), pitch === 'low' ? 0.35 : 0.65, 0.3], [side === 'L' ? 0.08 : 0.92, 0.26 + (k % 2) * 0.04],
         { kind: 'hearing', side, pitch }));
@@ -633,6 +651,9 @@
 
   Object.assign(Evo, {
     Brain, BRAIN: { MAX_DELAY, SYNAPTIC_GAIN, WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, CHEM_CHANNELS },
-    BRAIN_BODY_PLAN: { TOUCH, TASTES, HEARING, NEED_TAGS, FEELING_TAGS }
+    BRAIN_BODY_PLAN: {
+      TOUCH, TASTES, HEARING, NEED_TAGS, FEELING_TAGS, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
+      sightIndex, smellIndex, hearingIndex, sightCell, smellCell
+    }
   });
 })(globalThis.Evo);

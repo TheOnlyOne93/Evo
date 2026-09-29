@@ -7,17 +7,23 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, VISION_FEATURES, ITEM_TYPES, MOTORS, N_NEEDS, N_LIMBIC } = Evo;
+  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, ITEM_TYPES, MOTORS, N_NEEDS, N_LIMBIC } = Evo;
 
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
   const NEURAL_GAIN = 30;           // mV per unit of sense or receptor signal
   const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
-  const FEATURE_INDEX = Object.fromEntries(VISION_FEATURES.map((f, i) => [f.key, i]));
-  const NF = VISION_FEATURES.length;  // Sight cells: [left low, left high, right low, right high] × features
+  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
+  // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
+  const SIGHT_CELL = {};
+  for (const side of ['L', 'R']) {
+    SIGHT_CELL[side] = {};
+    for (const band of ['low', 'high']) SIGHT_CELL[side][band] = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, sightIndex(side, band, f.key)]));
+  }
+  const LEFT = [SIGHT_CELL.L], RIGHT = [SIGHT_CELL.R], BOTH_SIDES = [SIGHT_CELL.L, SIGHT_CELL.R];
   // Per-tick scales for the physiological receptor targets (chem.effect(target) × scale)
   const SCALE = { damage: 0.001, healing: 0.0002, growth: 0.00003, scentSex: 0.02, scentAlarm: 0.05 };
 
@@ -93,7 +99,7 @@
       this.loci = new Float32Array(BODY_LOCI.length);
       this.drive = new Float32Array(this.brain.N);
       this.senses = null;              // The last sensory reading (for the UI)
-      this.visionBuffer = new Float32Array(4 * NF); // Sight cell signals, reused each tick
+      this.visionBuffer = new Float32Array(SIGHT_CELLS); // Sight cell signals (sightIndex order), reused each tick
     }
 
     // ---------- Geometry ----------
@@ -323,12 +329,12 @@
         const dist = Math.hypot(dx, dy);
         if (dist > range || dist < 1) return;
         const intensity = Math.log1p(Math.min(1, radius / Math.max(8, dist)) / LOOK_K) / lookNorm * see;
-        const band = dy < -dist * 0.35 ? NF : 0;
-        const sides = Math.abs(dx) < 3 ? [0, 2 * NF] : [dx < 0 ? 0 : 2 * NF];
+        const band = dy < -dist * 0.35 ? 'high' : 'low';
+        const sides = Math.abs(dx) < 3 ? BOTH_SIDES : dx < 0 ? LEFT : RIGHT;
         for (const f in features) {
           const v = intensity * features[f] / sides.length;
           for (const side of sides) {
-            const k = side + band + FEATURE_INDEX[f];
+            const k = side[band][f];
             if (v > sight[k]) sight[k] = v;
           }
         }
@@ -348,7 +354,7 @@
       if (pond) look(pond.x, pond.y, 30, { blue: 1 });
       const sightGain = NEURAL_GAIN * 1.4 * T.opticGain * gainScale;
       const sightIdx = brain.lobes.sight;
-      for (let k = 0; k < 4 * NF; k++) drive[sightIdx[k]] = sight[k] * sightGain;
+      for (let k = 0; k < SIGHT_CELLS; k++) drive[sightIdx[k]] = sight[k] * sightGain;
 
       // Smell: odour at each antenna tip (one reaching left, one right). Receptors respond
       // logarithmically (Weber-Fechner): faint traces register, stronger ones still read as stronger.
@@ -360,8 +366,8 @@
         const l = Math.min(1, world.sampleScent(ex - T.noseReach, ey, o));
         const r = Math.min(1, world.sampleScent(ex + T.noseReach, ey, o));
         scentsL.push(l); scentsR.push(r);
-        drive[smellIdx[o]] = Math.log1p(l / RECEPTOR_K) / norm * smellGain;
-        drive[smellIdx[ODOUR_COUNT + o]] = Math.log1p(r / RECEPTOR_K) / norm * smellGain;
+        drive[smellIdx[smellIndex('L', o)]] = Math.log1p(l / RECEPTOR_K) / norm * smellGain;
+        drive[smellIdx[smellIndex('R', o)]] = Math.log1p(r / RECEPTOR_K) / norm * smellGain;
       }
 
       // Hearing: calls made in the last tick, louder when near, on the side they came from
@@ -371,7 +377,7 @@
         if (snd.age > 1 || snd.sourceId === this.id) continue;
         const dx = snd.x - this.x;
         const v = snd.loudness / (1 + Math.abs(dx) / 200 + Math.abs(snd.y - this.y) / 400);
-        const k = (dx < 0 ? 0 : 2) + (snd.pitch < 0.5 ? 0 : 1);
+        const k = hearingIndex(dx < 0 ? 'L' : 'R', snd.pitch < 0.5 ? 'low' : 'high');
         hear[k] = Math.max(hear[k], v);
         heard = Math.max(heard, v);
       }

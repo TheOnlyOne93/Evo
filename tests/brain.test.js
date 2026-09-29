@@ -101,3 +101,28 @@ test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert)
   }
   assert.ok(after > before, `cortex spikes: ${before} quiet, ${after} seeing`);
 });
+
+test('brain: the body plan index helpers match the sensory neurons', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const P = Evo.BRAIN_BODY_PLAN;
+  assert.strictEqual(brain.lobes.sight.length, P.SIGHT_CELLS);
+  assert.strictEqual(brain.lobes.smell.length, P.SMELL_CELLS);
+  for (const side of P.SIDES) {
+    for (const band of P.BANDS) {
+      for (const f of Evo.VISION_FEATURES) {
+        const k = P.sightIndex(side, band, f.key);
+        assert.deepStrictEqual(brain.neurons[brain.lobes.sight[k]].meta, { kind: 'sight', side, band, feature: f.key });
+        assert.deepStrictEqual(P.sightCell(k), { side, band, feature: f.key });
+      }
+    }
+    for (const s of Evo.SCENTS) {
+      const k = P.smellIndex(side, s.key);
+      assert.deepStrictEqual(brain.neurons[brain.lobes.smell[k]].meta, { kind: 'smell', side, odour: s.key });
+      assert.deepStrictEqual(P.smellCell(k), { side, odour: s.key });
+    }
+    for (const pitch of ['low', 'high']) {
+      const m = brain.neurons[brain.lobes.hearing[P.hearingIndex(side, pitch)]].meta;
+      assert.ok(m.side === side && m.pitch === pitch);
+    }
+  }
+});
