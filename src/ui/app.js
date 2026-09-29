@@ -61,6 +61,14 @@
 
     const clock = app.frameClock = new Evo.FrameClock();
     let last = null, cardAt = 0, statusAt = 0, labAt = 0;
+    // One tick plus everything that watches each tick; the loop and single-step both use it
+    const tick = () => { world.step(); inspector.sample(world); };
+    app.stepOnce = () => {
+      tick();
+      app.refreshCard();
+      app.refreshStatus();
+      app.refreshStrip();
+    };
     function loop(now) {
       const t = now / 1000;
       // The first frame has no previous timestamp; hidden-tab gaps are capped by the clock
@@ -69,8 +77,7 @@
       let ran = 0;
       const start = performance.now();
       while (ran < ticks) {
-        world.step();
-        inspector.sample(world);
+        tick();
         ran++;
         if (performance.now() - start > FRAME_BUDGET_MS) break;
       }

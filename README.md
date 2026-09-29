@@ -20,7 +20,7 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
   each toolbar group (Food, More, Add) opens from one button.
 * **Inside view**: the followed creature's body chemistry, brain, genes and family, and the world.
 * Keys: arrows / WASD pan, `+` `−` zoom, `0` reset zoom, `F` follow, `Tab` next creature,
-  `Space` pause, `1`–`4` speed, `Esc` back to the hand.
+  `Space` pause, `.` step one tick while paused, `1`–`4` speed, `Esc` back to the hand.
 
 ## Tests and tools
 
