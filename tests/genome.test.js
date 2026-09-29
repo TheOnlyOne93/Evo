@@ -119,7 +119,7 @@ test('genome: duplicated genes average their values (co-dominance)', (Evo, asser
 
 test('genome: axon guidance strength decodes symmetrically around byte 120', (Evo, assert) => {
   const strength = sign => {
-    const spec = { gene: 'Axon guidance', source: { lobe: 'touch', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.5, radius: 0.5, sign, reach: 0.5, conduction: 0.5 };
+    const spec = { gene: 'Axon guidance', source: { lobe: 'touch', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.5, radius: 0.5, sign, reach: 0.5, conduction: 0.5, sx: 0, sy: 0, sr: 0 };
     return new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop().axonGuidance[0].weightSign;
   };
   assert.ok(Math.abs(strength(121) - 0.21) < 1e-9, 'just above 120: weakly excitatory');
@@ -127,6 +127,28 @@ test('genome: axon guidance strength decodes symmetrically around byte 120', (Ev
   assert.ok(Math.abs(strength(100) + 0.4) < 1e-9);
   assert.ok(Math.abs(strength(180) - 0.8) < 1e-9);
   assert.strictEqual(strength(255), 1); assert.strictEqual(strength(0), -1);
+});
+
+test('genome: a windowed guidance gene grows synapses only from the cells in its window', (Evo, assert) => {
+  const sourcesOf = window => {
+    const spec = { gene: 'Axon guidance', source: { lobe: 'needs', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.9,
+      radius: 1, sign: 200, reach: 1, conduction: 0.5, sx: 0, sy: 0, sr: 0, ...window };
+    const traits = new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop();
+    const rules = traits.axonGuidance;
+    traits.axonGuidance = [];
+    const brain = new Evo.Brain(traits);
+    const before = brain.S;
+    brain.growTracts(rules);
+    return { brain, from: new Set(Array.from(brain.sSrc.subarray(before, brain.S))) };
+  };
+  const { brain } = sourcesOf({});
+  const k = 10, cell = brain.lobes.needs[k];
+  const [tx, ty] = brain.neurons[cell].tag;
+  const open = sourcesOf({});
+  assert.ok(open.from.size > 1, 'without a window many need cells send axons');
+  const windowed = sourcesOf({ sx: tx, sy: ty, sr: (0.05 - 0.02) / 0.5 });
+  assert.ok(windowed.from.size > 0, 'the windowed cell grew synapses');
+  assert.deepStrictEqual([...windowed.from], [cell], 'only the cell in the window');
 });
 
 test('genome: every kind of gene describes itself in plain words', (Evo, assert) => {

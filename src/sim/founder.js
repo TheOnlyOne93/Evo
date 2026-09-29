@@ -18,12 +18,14 @@
   const initial = (chem, amount) => ({ gene: 'Initial concentration', chem, amount });
   // Axon guidance: a source lobe's axons seek a receptor chemistry. With relX / relY the target is
   // relative to each source cell's own tag (0.5 = "the same as mine"): a topographic projection.
-  const guide = (lobe, [tx, ty, tz], { radius, weight, reach = 1.4, conduction = 0.3, relX = false, relY = false, mirrorX = false }) => ({
+  // from: [x, y, r] limits the source to cells whose tag is within r of (x, y).
+  const guide = (lobe, [tx, ty, tz], { radius, weight, reach = 1.4, conduction = 0.3, relX = false, relY = false, mirrorX = false, from = null }) => ({
     gene: 'Axon guidance', source: { lobe, relX, relY, mirrorX }, tx, ty, tz,
     radius: (radius - 0.04) / 0.76,
     sign: weight > 0 ? 120 + Math.max(1, (weight - 0.2) * 100) : 120 - (-weight - 0.2) * 100,
     reach: (reach - 0.15) / 1.35,
-    conduction: (conduction - 0.08) / 0.5
+    conduction: (conduction - 0.08) / 0.5,
+    sx: from ? from[0] : 0, sy: from ? from[1] : 0, sr: from ? (from[2] - 0.02) / 0.5 : 0
   });
   // A topographic tract from one sense channel (its cells' tag y) to the walk muscles (tag y 0.5)
   // on the same side, or with crossed = true, the opposite side

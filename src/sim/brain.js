@@ -386,10 +386,11 @@
         const parentId = LOBE_ORDER[src.lobe];
         // Duplicated regions inherit their parent's developmental program
         const lobes = [parentId, ...(this.duplicatesOf[parentId] || [])];
-        const r = rule.affinityRadius;
+        const r = rule.affinityRadius, win = rule.srcWindow;
         for (const lobe of lobes) {
           for (const si of this.lobes[lobe]) {
             const s = neurons[si];
+            if (win && Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) > win.r) continue;
             const tx = src.relX ? (src.mirrorX ? 1 - s.tag[0] : s.tag[0]) + rule.target[0] - 0.5 : rule.target[0];
             const ty = src.relY ? s.tag[1] + rule.target[1] - 0.5 : rule.target[1];
             const tz = rule.target[2];

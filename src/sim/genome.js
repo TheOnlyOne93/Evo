@@ -121,10 +121,12 @@
       },
       describe: (v, x, w) => ({ group: 'brain', text: `A copy of the ${w.lobe(v.source).toLowerCase()} region` }),
       birthOnly: true },
-    { name: 'Axon guidance', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction')],
+    { name: 'Axon guidance', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction'), u('sx'), u('sy'), u('sr')],
       express(v, d) {
         d.add('axonGuidance', {
           source: v.source,
+          // Only source cells whose tag lies within r of (x, y) send axons (sr = 0: every cell does)
+          srcWindow: v.sr === 0 ? null : { x: v.sx, y: v.sy, r: 0.02 + v.sr * 0.5 },
           target: [v.tx, v.ty, v.tz],        // Receptor chemistry sought (x/y relative to the source's own tag if relX/relY)
           affinityRadius: 0.04 + v.radius * 0.76,
           // Sign and strength: bytes above 120 are excitatory, below inhibitory, stronger the
@@ -137,7 +139,7 @@
       describe(v, x, w) {
         const src = x.source, map = src.relX || src.relY ? (src.mirrorX ? ', crossed map' : ', mapped') : '';
         const [tx, ty, tz] = x.target.map(t => w.num(t));
-        return { group: 'brain', text: `${w.lobe(src.lobe)} axons seek (${tx}, ${ty}, ${tz})${map}, ${x.weightSign > 0 ? 'exciting' : 'inhibiting'}` };
+        return { group: 'brain', text: `${w.lobe(src.lobe)} axons seek (${tx}, ${ty}, ${tz})${map}, ${x.weightSign > 0 ? 'exciting' : 'inhibiting'}${x.srcWindow ? ', from a window of cells' : ''}` };
       } },
     { name: 'Pacemaker', fields: [['lobe', CODEC.lobe], u('bias')],
       express(v, d) { d.add('pacemakers', { lobeIdx: v.lobe, bias: v.bias * 3.0 }); },
