@@ -16,7 +16,7 @@
 
   // ---------- Terrain: a height field with a pond ----------
   class Terrain {
-    constructor(width, height, layout) {
+    constructor(width, layout) {
       this.step = 8;
       const n = Math.ceil(width / this.step) + 1;
       this.heights = new Float32Array(n);
@@ -113,7 +113,7 @@
       const jitter = f => (f + Evo.randRange(-0.015, 0.015)) * W;
       const big = jitter(0.58), small = jitter(0.06);
       const layout = { hill: jitter(0.31), ponds: [[big, big + 420, 80], [small, small + 170, 45]] };
-      this.terrain = new Terrain(W, this.height, layout);
+      this.terrain = new Terrain(W, layout);
       const t = this.terrain;
       const at = x => ({ x, y: t.groundY(x) });
       let id = 0;
