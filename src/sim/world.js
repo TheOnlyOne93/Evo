@@ -86,7 +86,7 @@
       this.history = [];     // Everyone who has lived here: { id, name, sex, generation, born, died, cause, motherId, fatherId }
       this.seedBank = [];    // Genomes of creatures that mated: wanderers and re-founders come from here
       this.stats = { hatched: 0, eggsLaid: 0, matings: 0, meals: 0, poisonings: 0, wanderers: 0, refoundings: 0, deaths: {} };
-      this.hand = { x: 0, y: 0, holding: null };
+      this.hand = { holding: null };   // What the player's hand carries: { creature } or { item }
       this.edge = 150;       // Creatures and items stay this far from the world's ends (the cliffs are scenery)
 
       this.buildLandscape();
@@ -678,8 +678,6 @@
     }
 
     moveHand(x, y) {
-      this.hand.x = clamp(x, 0, this.width);
-      this.hand.y = clamp(y, 0, this.height);
       const h = this.hand.holding;
       if (!h) return;
       if (h.creature) { h.creature.x = clamp(x, this.edge, this.width - this.edge); h.creature.y = y + h.creature.size * HOLD_GRIP; }
