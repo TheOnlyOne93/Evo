@@ -179,11 +179,31 @@ section.block > h3 { font-size: 16px; }
 .empty { font-size: 13px; color: var(--muted); padding: 10px 0; }
 
 /* Brain */
+.mind { background: var(--panel-raised); border-radius: var(--r-md); padding: 8px 12px; }
+.mind-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(41,68,74,0.5); }
+.mind-row:last-child { border-bottom: 0; }
+.mind-k { color: var(--faint); font-size: 12.5px; }
+.mind-v { min-width: 0; }
+.mind-v b { color: var(--accent); }
+.mind-row.dreaming .mind-v b { color: var(--copy); }
+.mind-row.alert .mind-k, .mind-row.alert .mind-v b { color: var(--stress); }
+.mind-meter { display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: center; }
+.brain-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: -8px; }
+.seg-group { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.brain-tools > .seg-btn { border: 1px solid var(--line); margin-left: auto; }
+.seg-btn { height: 30px; padding: 0 11px; border-radius: 8px; font-size: 13px; color: var(--muted); }
+.seg-btn[aria-pressed="true"] { background: var(--panel-raised); color: var(--text); font-weight: 700; }
+.seg-btn:hover { color: var(--text); }
 .brain-frame { position: relative; height: 330px; border-radius: var(--r-md); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
 #brainCanvas, #scopeCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.legend i.ring { background: none; border: 2px solid; width: 11px; height: 11px; vertical-align: -1px; }
+.legend i.line { width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; }
+#deck-brain:not(.anatomy) .anatomy-only { display: none; }
+.role { margin: 0; font-size: 13px; color: var(--muted); }
 .neuron-card { background: var(--panel-raised); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
+#neuronDetail, #regionDetail { display: grid; gap: 10px; }
 .neuron-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .neuron-name { font-weight: 700; font-size: 15px; }
 .neuron-lobe { font-size: 12.5px; color: var(--muted); }
@@ -193,17 +213,21 @@ section.block > h3 { font-size: 16px; }
 .btn { height: 38px; padding: 0 14px; border-radius: 10px; font-size: 13.5px; font-weight: 700; background: var(--panel); border: 1px solid var(--line); }
 .btn:hover { border-color: var(--muted); }
 .btn.primary { background: var(--accent); color: #0b2a22; border-color: var(--accent); }
-.links { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; }
-.link { display: grid; grid-template-columns: 22px 1fr 64px 34px; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 2px; border-bottom: 1px solid rgba(41,68,74,0.5); }
-.link .dir { color: var(--faint); text-align: center; }
+.links { display: grid; gap: 10px; }
+.link-list { display: grid; gap: 1px; }
+.link-list h4 { margin: 0 0 3px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.link-list .note { padding-top: 3px; }
+.link { display: grid; grid-template-columns: 1fr 64px 26px; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 4px; border-bottom: 1px solid rgba(41,68,74,0.5); text-align: left; width: 100%; border-radius: 6px; }
+.link:hover { background: rgba(255,255,255,0.04); }
+.link.active { background: rgba(253,230,138,0.08); }
 .link .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .link .delay { color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
 .strength { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
 .strength span { position: absolute; top: 0; bottom: 0; }
 
 .learned { display: grid; gap: 6px; }
-.learn-row { display: grid; grid-template-columns: 1fr 120px 88px; align-items: center; gap: 10px; font-size: 13px; }
-.learn-row .verdict { font-size: 12.5px; text-align: right; color: var(--muted); }
+.learn-row { display: grid; grid-template-columns: 1fr 110px 96px; align-items: center; gap: 10px; font-size: 13px; }
+.learn-row .verdict { font-size: 12.5px; text-align: right; color: var(--muted); white-space: nowrap; }
 .centered-track { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
 .centered-track::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--faint); }
 .centered-track span { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
@@ -277,7 +301,13 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 @media (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
 .compact .tab-text { display: none; }
 .compact .tab { font-size: 17px; }
-@media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, 1fr); } .learn-row { grid-template-columns: 1fr 90px 76px; } }
+@media (max-width: 420px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); } .learn-row { grid-template-columns: 1fr 70px 92px; }
+  .gene { grid-template-columns: 96px 1fr; } .gene-tags { grid-column: 2; justify-content: flex-start; } .gene.bare { grid-template-columns: 1fr; } .gene.bare .gene-tags { grid-column: 1; }
+  .mut { grid-template-columns: auto 1fr; } .mut-text, .mut-fields { grid-column: 1 / -1; }
+  .mind-row { grid-template-columns: 78px 1fr; } .mind-meter { grid-template-columns: 50px 1fr; }
+  .traits { grid-template-columns: 1fr; }
+}
 
 /* Toast: short messages over the map */
 #toast { left: 50%; top: 58px; transform: translateX(-50%); padding: 8px 14px; font-size: 13.5px; z-index: 30; max-width: calc(100% - 20px); }

@@ -111,24 +111,38 @@
         <div class="deck hidden" id="deck-brain" role="tabpanel">
           <div class="deck-intro needs-creature">
             <h2>Brain</h2>
-            <p>Senses at the top, muscles at the bottom, the world's left on the left. Tap a neuron to see what it connects to.</p>
+            <p id="brainCounts"></p>
           </div>
-          <div class="brain-frame needs-creature"><canvas id="brainCanvas" aria-label="Brain map"></canvas></div>
+          <section class="mind needs-creature" aria-label="What its brain is doing now"><div id="mindRows"></div></section>
+          <div class="brain-tools needs-creature">
+            <div class="seg-group" role="group" aria-label="Brain layout">
+              <button class="seg-btn" data-brain-mode="regions" aria-pressed="true">Regions</button>
+              <button class="seg-btn" data-brain-mode="anatomy" aria-pressed="false">Anatomy</button>
+            </div>
+            <button class="seg-btn" id="wiringBtn" aria-pressed="false">All wiring</button>
+          </div>
+          <div class="brain-frame needs-creature"><canvas id="brainCanvas" aria-label="Brain map. Tap a cell or a region to look inside."></canvas></div>
           <div class="legend needs-creature">
-            <span><i style="background:var(--pulse)"></i>signals travelling</span>
-            <span><i style="background:var(--joy)"></i>reward chemical</span>
-            <span><i style="background:var(--stress)"></i>stress chemical</span>
-            <span id="brainCounts"></span>
+            <span><i class="ring" style="border-color:var(--accent)"></i>looking at</span>
+            <span><i class="ring" style="border-color:var(--energy)"></i>doing</span>
+            <span><i style="background:var(--pulse)"></i>signal travelling</span>
+            <span><i class="line" style="background:var(--water)"></i>excites</span>
+            <span><i class="line" style="background:var(--stress)"></i>holds back</span>
+            <span class="anatomy-only"><i style="background:var(--joy)"></i>reward signal</span>
+            <span class="anatomy-only"><i style="background:var(--stress)"></i>stress signal</span>
           </div>
           <div class="neuron-card needs-creature">
-            <div class="empty" id="neuronEmpty">No neuron selected. Tap one in the brain above.</div>
+            <div class="empty" id="neuronEmpty">Tap a cell or a region in the brain above to look inside it.</div>
+            <div id="regionDetail" class="hidden">
+              <div class="neuron-head"><span class="neuron-name" id="regionName"></span><span class="neuron-lobe" id="regionSize"></span></div>
+              <p class="role" id="regionAbout"></p>
+              <div class="facts" id="regionFacts"></div>
+              <div class="row-btns"><button class="btn" id="clearRegionBtn">Deselect</button></div>
+            </div>
             <div id="neuronDetail" class="hidden">
               <div class="neuron-head"><span class="neuron-name" id="neuronName"></span><span class="neuron-lobe" id="neuronLobe"></span></div>
-              <div class="facts">
-                <span>Firing <b id="neuronRate">0%</b> of the time</span>
-                <span>Charge <b id="neuronV">0</b></span>
-                <span><b id="neuronLinkCount">0</b> connections</span>
-              </div>
+              <p class="role" id="neuronRole"></p>
+              <div class="facts" id="neuronFacts"></div>
               <div class="row-btns">
                 <button class="btn primary" id="stimulateBtn">Stimulate</button>
                 <button class="btn" id="clearNeuronBtn">Deselect</button>
@@ -138,16 +152,17 @@
           </div>
           <section class="block needs-creature">
             <h3 id="scopeTitle">Charge</h3>
+            <p class="note">Its membrane charge over the last two seconds. It fires when the line reaches the dashed threshold.</p>
             <div class="scope-frame"><canvas id="scopeCanvas" aria-label="Membrane potential"></canvas></div>
           </section>
           <section class="block needs-creature">
             <h3>Muscles</h3>
-            <p class="note">How often each muscle's neuron fires. The busiest one is what it is doing.</p>
+            <p class="note">How often each muscle's cell fires. The muscles compete: the winner is what it has decided to do.</p>
             <div class="bars two-col" id="barsMuscles"></div>
           </section>
           <section class="block needs-creature">
             <h3>What it has learned</h3>
-            <p class="note">What sights and smells have come to mean to it, learned in life. Everything starts out meaning nothing.</p>
+            <p class="note">What sights and smells have come to predict, learned in life. Everything starts out meaning nothing.</p>
             <div class="learned" id="learnedList"></div>
           </section>
         </div>

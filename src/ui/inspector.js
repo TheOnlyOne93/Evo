@@ -1,6 +1,7 @@
 // The inside view: what is going on inside the followed creature (body chemistry, brain, genes,
-// family) and in the world as a whole. Each deck renders from the simulation on demand; the app
-// calls update() a few times a second for the visible deck, and every frame for the brain map.
+// family) and in the world as a whole. Each deck renders from the simulation on demand: the app
+// calls update() a few times a second for the visible deck, frame() every frame (the brain map and
+// charge trace) and sample() every simulation tick (history, and what the brain is up to).
 (function (Evo) {
   'use strict';
   const { clamp } = Evo.util;
@@ -16,6 +17,11 @@
   // Drives drawn in the history chart
   const HISTORY = ['hunger', 'thirst', 'tiredness', 'sleepiness', 'loneliness', 'boredom', 'coldness', 'fear', 'reward', 'punishment'];
   const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time at 1×
+  const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
+  const RECENT = 30;         // Ticks within which a connection counts as just used
+
+  const FEATURE_WORD = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, f.word]));
+  const SIDE_WORD = { L: 'left', R: 'right' };
 
   class Inspector {
     constructor(app) {
@@ -26,6 +32,7 @@
       this.genesFor = null;
       this.history = null;
       this.population = [];
+      this.mind = null;         // What the followed creature's brain is up to (see sample)
       this.chart = $('historyCanvas');
       this.chartCtx = this.chart.getContext('2d');
       this.popChart = $('popCanvas');
@@ -33,11 +40,27 @@
 
       $('brainCanvas').addEventListener('pointerdown', e => {
         const r = e.currentTarget.getBoundingClientRect();
-        this.brainView.probeAt(e.clientX - r.left, e.clientY - r.top);
-        this.renderNeuron();
+        this.brainView.tapAt(e.clientX - r.left, e.clientY - r.top);
+        this.renderProbe();
       });
       $('stimulateBtn').addEventListener('click', () => this.stimulate());
-      $('clearNeuronBtn').addEventListener('click', () => { this.brainView.probed = -1; this.renderNeuron(); });
+      $('clearNeuronBtn').addEventListener('click', () => { this.brainView.probed = -1; this.renderProbe(); });
+      $('clearRegionBtn').addEventListener('click', () => { this.brainView.region = null; this.renderProbe(); });
+      document.querySelectorAll('[data-brain-mode]').forEach(btn => btn.addEventListener('click', () => {
+        this.brainView.setMode(btn.dataset.brainMode);
+        document.querySelectorAll('[data-brain-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+        $('deck-brain').classList.toggle('anatomy', btn.dataset.brainMode === 'anatomy');
+      }));
+      $('wiringBtn').addEventListener('click', e => {
+        this.brainView.allWiring = !this.brainView.allWiring;
+        e.currentTarget.setAttribute('aria-pressed', String(this.brainView.allWiring));
+      });
+      $('neuronLinks').addEventListener('click', e => {
+        const el = e.target.closest('[data-neuron]');
+        if (!el) return;
+        this.brainView.probed = Number(el.dataset.neuron);
+        this.renderProbe();
+      });
       // Links to other creatures anywhere in the panel
       $('labInner').addEventListener('click', e => {
         const el = e.target.closest('[data-creature]');
@@ -65,21 +88,42 @@
       this.brainView.setBrain(c ? c.brain : null);
       this.genesFor = null;
       this.history = c ? { id: c.id, data: HISTORY.map(() => new Float32Array(HISTORY_LEN)), n: 0 } : null;
+      this.mind = c ? { error: [0, 0], winner: -1, since: 0, idle: 0 } : null;
       this.update(true);
     }
 
-    // Every tick: sample the drive history and the population
+    // Every tick: sample the drive history, what the brain is up to, and the population
     sample(world) {
-      const c = this.app.focus;
-      if (c && this.history && world.clock.tick % HISTORY_EVERY === 0) {
+      const c = this.app.focus, tick = world.clock.tick;
+      if (c && this.history && tick % HISTORY_EVERY === 0) {
         const h = this.history, k = h.n % HISTORY_LEN;
         HISTORY.forEach((key, i) => { h.data[i][k] = c.chem.get(key); });
         h.n++;
       }
-      if (world.clock.tick % 600 === 0) {
+      if (c && this.mind) this.sampleMind(c.brain, tick);
+      if (tick % 600 === 0) {
         this.population.push(world.creatures.length);
         if (this.population.length > 400) this.population.shift();
       }
+    }
+
+    // Prediction errors are single-tick blips: keep each channel's latest big one, fading. And which
+    // muscle is winning: the busiest cell of the Movement region, held until another takes over.
+    sampleMind(b, tick) {
+      const m = this.mind;
+      for (let ch = 0; ch < 2; ch++) {
+        const d = b.delta[ch], faded = m.error[ch] * ERROR_FADE;
+        m.error[ch] = Math.abs(d) > Math.abs(faded) ? d : faded;
+      }
+      const g = b.dynamics.find(x => x.lobe === 'motor');
+      let best = -1, most = g ? 0.5 : 0.02;
+      if (g) { for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = g.cells[k]; } }
+      else for (const i of b.lobes.motor) if (b.rate[i] > most) { most = b.rate[i]; best = i; }
+      if (best >= 0) {
+        m.idle = 0;
+        if (best !== m.winner) { m.winner = best; m.since = tick; }
+      } else if (++m.idle > 60) m.winner = -1;
+      m.tick = tick;
     }
 
     update(force = false) {
@@ -90,7 +134,7 @@
       if (this.deck === 'world') return this.renderWorld();
       if (!c) return;
       if (this.deck === 'body') this.renderBody(c);
-      else if (this.deck === 'brain') { this.renderLearned(c); this.renderMuscles(c); this.renderNeuron(); this.renderBrainCounts(c); }
+      else if (this.deck === 'brain') { this.renderMind(c); this.renderLearned(c); this.renderMuscles(c); this.renderProbe(); this.renderBrainCounts(c); }
       else if (this.deck === 'genes') { if (force || this.genesFor !== c || this.genesStage !== c.stage) this.renderGenes(c); }
       else if (this.deck === 'family') this.renderFamily(c);
     }
@@ -101,10 +145,17 @@
       if (!c || this.deck !== 'brain') return;
       this.brainView.setBrain(c.brain);
       this.brainView.render();
-      const b = c.brain, i = this.brainView.probed;
-      if (i >= 0 && i < b.N) this.scope.push(b.vShow[i]);
-      else this.scope.push(b.vShow[b.lobes.motor[0]]);
-      this.scope.render(i >= 0 && i < b.N ? b.thr[i] : b.thr[b.lobes.motor[0]]);
+      const b = c.brain, i = this.scopeCell(b);
+      this.scope.push(b.vShow[i]);
+      this.scope.render(b.thr[i]);
+    }
+
+    // The neuron the charge trace follows: the tapped one, else the winning muscle
+    scopeCell(b) {
+      const i = this.brainView.probed;
+      if (i >= 0 && i < b.N) return i;
+      const w = this.mind ? this.mind.winner : -1;
+      return w >= 0 ? w : b.lobes.motor[0];
     }
 
     // ---------- Body ----------
@@ -160,39 +211,144 @@
     // ---------- Brain ----------
     renderBrainCounts(c) {
       const b = c.brain;
-      $('brainCounts').textContent = `${b.N} neurons, ${b.S} synapses (${b.sproutedCount} grown and ${b.prunedCount} pruned in life)`;
+      $('brainCounts').textContent = `${b.N} neurons and ${b.S} connections, grown from its genes. ` +
+        `${b.sproutedCount} connections grown and ${b.prunedCount} pruned in its life.`;
     }
 
-    renderNeuron() {
-      const c = this.app.focus, i = this.brainView.probed;
-      const b = c && c.brain;
-      const show = !!(b && i >= 0 && i < b.N);
-      $('neuronEmpty').classList.toggle('hidden', show);
-      $('neuronDetail').classList.toggle('hidden', !show);
-      if (!show) return;
-      const n = b.neurons[i], t = T;
-      $('neuronName').textContent = t.neuronName(b, n);
-      $('neuronLobe').textContent = t.lobeName(n);
-      $('neuronRate').textContent = `${Math.round(b.rate[i] * 100)}%`;
-      $('neuronV').textContent = b.vShow[i] > 0 ? 'firing' : `${Math.round(b.vShow[i] - Evo.BRAIN.V_REST)} of ${Math.round(b.thr[i] - Evo.BRAIN.V_REST)} mV`;
-      const links = [];
-      for (let s = 0; s < b.S; s++) {
-        if (b.sSrc[s] === i) links.push({ dir: '→', other: b.sDst[s], s });
-        else if (b.sDst[s] === i) links.push({ dir: '←', other: b.sSrc[s], s });
+    // The attention region's cell for what it is attending to, or -1
+    attendedCell(b, att) {
+      const lobe = (b.duplicatesOf.sight || [])[0];
+      if (!att || !lobe) return -1;
+      const i = b.lobes[lobe].find(k => { const m = b.neurons[k].meta; return m.side === att.side && m.band === att.band && m.feature === att.feature; });
+      return i === undefined ? -1 : i;
+    }
+
+    // A readout of what the brain is doing right now, like a lab instrument panel
+    renderMind(c) {
+      const b = c.brain, m = this.mind, rows = [];
+      const row = (k, v, cls = '') => rows.push(`<div class="mind-row${cls}"><span class="mind-k">${k}</span><span class="mind-v">${v}</span></div>`);
+      const tick = this.app.world.clock.tick;
+
+      // Attention
+      const att = b.attended(), hasAttention = (b.duplicatesOf.sight || []).some(l => T.isAttention(b, l));
+      row('Looking at', !hasAttention ? '<span class="muted">nothing: it has no attention region (a gene is missing)</span>'
+        : c.asleep ? '<span class="muted">nothing (asleep)</span>'
+          : att ? `<b>${esc(FEATURE_WORD[att.feature])}</b> on the ${SIDE_WORD[att.side]}${att.band === 'high' ? ', up high' : ''}`
+            : '<span class="muted">nothing in particular</span>');
+
+      // Decision
+      const w = m.winner;
+      const doing = w >= 0 ? `<b>${esc(T.MOTOR_WORDS[b.neurons[w].meta.key] || T.neuronName(b, b.neurons[w]))}</b>, for ${T.seconds(tick - m.since)}` : '<span class="muted">nothing yet</span>';
+      row('Decided to', `${doing} <span class="muted">· body: ${esc((T.ACTION_WORDS[c.action] || c.action).toLowerCase())}</span>`);
+
+      // Prediction errors: how things turned out against what it expected
+      const surprise = (ch, label, good, bad) => {
+        const e = m.error[ch], v = clamp(e, -1, 1), width = Math.abs(v) * 50;
+        const color = (ch === 0) === (e >= 0) ? 'var(--joy)' : 'var(--stress)';
+        const style = v >= 0 ? `left:50%;width:${width}%;background:${color}` : `left:${50 - width}%;width:${width}%;background:${color}`;
+        const verdict = e > 0.1 ? good : e < -0.1 ? bad : 'as expected';
+        const expects = T.level(b.value[ch], 0, 1.6, ['expects nothing much', 'expects a little', 'expects some', 'expects a lot']);
+        rows.push(`<div class="mind-row"><span class="mind-k">${label}</span><span class="mind-v mind-meter"><span class="centered-track" title="Prediction error ${T.signed(e)}"><span style="${style}"></span></span>` +
+          `<span>${verdict} <span class="muted">· ${expects}</span></span></span></div>`);
+      };
+      surprise(0, 'Reward', 'better than expected', 'less than expected');
+      surprise(1, 'Punishment', 'worse than expected', 'not as bad as feared');
+
+      // Working memory: thinking cells that keep going
+      const cortex = b.lobes.cortex || [];
+      let on = 0, left = 0;
+      for (const i of cortex) if (b.rate[i] > 0.04) { on++; if (b.neurons[i].pos[0] < 0.5) left++; }
+      const side = on < 2 ? '' : left > on * 0.65 ? ', mostly the left side' : left < on * 0.35 ? ', mostly the right side' : ', both sides';
+      row('Thinking', on ? `${on} of ${cortex.length} cells busy${side}` : '<span class="muted">quiet</span>');
+
+      // Sleep and dreams
+      let sleep;
+      if (!c.asleep) sleep = `awake <span class="muted">· ${b.episodes.length} surprising ${b.episodes.length === 1 ? 'moment' : 'moments'} saved to dream about</span>`;
+      else if (!b.dream) sleep = 'asleep, not dreaming';
+      else if (b.dream.instinct) {
+        const inst = b.dream.instinct, text = Evo.GENES[Evo.GENE_INDEX.Instinct].describe(inst, inst, T.geneWords(b)).text.replace(/^Dreams: /, '');
+        sleep = `<b>dreaming</b> an instinct: ${esc(text)}`;
+      } else {
+        const ep = b.dream.episode, cue = ep.inputs.length ? T.neuronName(b, b.neurons[ep.inputs[0]]).toLowerCase() : 'nothing much';
+        const act = ep.motor >= 0 ? `, ${T.MOTOR_WORDS[b.neurons[ep.motor].meta.key].toLowerCase()}` : '';
+        sleep = `<b>reliving</b> a ${ep.value > 0 ? 'good' : 'bad'} moment: ${esc(cue)}${esc(act)}`;
       }
-      $('neuronLinkCount').textContent = links.length;
-      links.sort((x, y) => Math.abs(b.sW[y.s]) - Math.abs(b.sW[x.s]));
-      $('neuronLinks').innerHTML = links.length
-        ? '<p class="note">Strongest first. Blue excites, rose holds back; a green dot marks a connection grown in life. Last column: travel time.</p>' +
-          links.slice(0, 40).map(({ dir, other, s }) => {
-            const w = b.sW[s], width = Math.min(1, Math.abs(w) / Evo.BRAIN.WEIGHT_MAX) * 100;
-            const name = t.neuronName(b, b.neurons[other]);
-            const grown = b.sFlags[s] & Evo.BRAIN.SPROUTED ? '<i class="grown" title="grown in life"></i>' : '';
-            return `<div class="link"><span class="dir">${dir}</span><span class="who" title="${esc(name)}">${grown}${esc(name)}</span>` +
-              `<div class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></div><span class="delay">${b.sDelay[s]}t</span></div>`;
-          }).join('')
+      row('Sleep', sleep, c.asleep && b.dream ? ' dreaming' : '');
+
+      // The last thing that happened to it
+      const ls = c.lastStimulus;
+      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.seconds(c.ageTicks - ls.tick)} ago</span>` : '<span class="muted">nothing yet</span>');
+      if (b.seizures || b.brake) row('Seizures', `${b.brake ? '<b>brake on now</b> · ' : ''}the brake has come on ${b.seizures} ${b.seizures === 1 ? 'time' : 'times'}`, ' alert');
+      $('mindRows').innerHTML = rows.join('');
+      this.brainView.marks.attended = this.attendedCell(b, att);
+      this.brainView.marks.winner = w;
+    }
+
+    // The tapped neuron or region
+    renderProbe() {
+      const c = this.app.focus, b = c && c.brain, view = this.brainView;
+      const neuron = !!(b && view.probed >= 0 && view.probed < b.N), region = !!(b && !neuron && view.region && b.lobes[view.region]);
+      $('neuronEmpty').classList.toggle('hidden', neuron || region);
+      $('neuronDetail').classList.toggle('hidden', !neuron);
+      $('regionDetail').classList.toggle('hidden', !region);
+      const scoped = b ? b.neurons[this.scopeCell(b)] : null;
+      $('scopeTitle').textContent = scoped ? `Charge: ${T.neuronName(b, scoped).toLowerCase()}` : 'Charge';
+      if (neuron) this.renderNeuron(b, view.probed);
+      else if (region) this.renderRegion(b, view.region);
+    }
+
+    renderRegion(b, lobe) {
+      const cells = b.lobes[lobe];
+      let busy = 0, firing = 0;
+      for (const i of cells) { if (b.rate[i] > 0.04) busy++; if (b.hist[i] & 0xF) firing++; }
+      $('regionName').textContent = T.regionName(b, lobe);
+      $('regionSize').textContent = `${cells.length} cells`;
+      $('regionAbout').textContent = T.regionAbout(b, lobe);
+      const dyn = b.dynamics.find(d => d.lobe === lobe);
+      const facts = [`<span><b>${busy}</b> busy</span>`, `<span><b>${firing}</b> firing now</span>`];
+      if (dyn) {
+        facts.push(`<span>Cells compete <b>${T.level(dyn.competition, 0, 8, ['weakly', 'moderately', 'strongly'])}</b></span>`,
+          `<span>and keep firing <b>${T.level(dyn.persistence, 0, 4, ['briefly', 'for a while', 'for long'])}</b></span>`);
+      }
+      $('regionFacts').innerHTML = facts.join('');
+    }
+
+    renderNeuron(b, i) {
+      const n = b.neurons[i], now = b.tickCount;
+      $('neuronName').textContent = T.neuronName(b, n);
+      $('neuronLobe').textContent = T.lobeName(n, b);
+      $('neuronRole').textContent = T.neuronRole(b, n);
+      const h = b.hist[i], last = h ? 31 - Math.clz32(h & -h) : -1;
+      const ins = [], outs = [];
+      for (let s = 0; s < b.S; s++) {
+        if (b.sSrc[s] === i) outs.push(s);
+        else if (b.sDst[s] === i) ins.push(s);
+      }
+      $('neuronFacts').innerHTML = [
+        `<span>Fires <b>${Math.round(b.rate[i] * 100)}%</b> of the time</span>`,
+        `<span>Last fired <b>${last < 0 ? 'over half a second ago' : last === 0 ? 'just now' : `${last} ticks ago`}</b></span>`,
+        `<span>Charge <b>${b.vShow[i] > 0 ? 'firing' : `${Math.max(0, Math.round(b.thr[i] - b.vShow[i]))} mV below firing`}</b></span>`,
+        `<span><b>${ins.length}</b> in, <b>${outs.length}</b> out</span>`
+      ].join('');
+      const list = (title, syns, otherEnd) => {
+        if (!syns.length) return '';
+        syns.sort((x, y) => Math.abs(b.sW[y]) - Math.abs(b.sW[x]));
+        const rows = syns.slice(0, 8).map(s => {
+          const w = b.sW[s], width = Math.sqrt(Math.min(1, Math.abs(w) / Evo.BRAIN.WEIGHT_MAX)) * 100, other = otherEnd(s); // Most are weak: a square root spreads them out
+          const name = T.neuronName(b, b.neurons[other]);
+          const grown = b.sFlags[s] & Evo.BRAIN.SPROUTED ? '<i class="grown" title="grown in life"></i>' : '';
+          const active = now - b.sActive[s] < RECENT ? ' active' : '';
+          return `<button class="link${active}" data-neuron="${other}" title="${esc(name)}"><span class="who">${grown}${esc(name)}</span>` +
+            `<span class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></span><span class="delay">${b.sDelay[s]}t</span></button>`;
+        }).join('');
+        const more = syns.length > 8 ? `<p class="note">and ${syns.length - 8} weaker</p>` : '';
+        return `<div class="link-list"><h4>${title}</h4>${rows}${more}</div>`;
+      };
+      const predicts = b.modulator[i] >= 0;
+      const html = list(predicts ? 'Predicts from' : 'Listens to', ins, s => b.sSrc[s]) + list('Sends to', outs, s => b.sDst[s]);
+      $('neuronLinks').innerHTML = html
+        ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: travel time in ticks.</p>${html}`
         : '<p class="empty">No connections yet.</p>';
-      $('scopeTitle').textContent = `Charge: ${t.neuronName(b, n).toLowerCase()}`;
     }
 
     stimulate() {
@@ -224,10 +380,10 @@
     }
 
     renderMuscles(c) {
-      const b = c.brain;
+      const b = c.brain, w = this.mind ? this.mind.winner : -1;
       $('barsMuscles').innerHTML = Evo.MOTORS.map((m, k) => {
         const i = b.lobes.motor[k];
-        return bar(m.word, Math.min(1, b.rate[i] * 8), b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', `${Math.round(b.rate[i] * 100)}%`);
+        return bar(i === w ? `${m.word} ◂` : m.word, Math.min(1, b.rate[i] * 8), i === w ? 'var(--energy)' : b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', `${Math.round(b.rate[i] * 100)}%`);
       }).join('');
     }
 
