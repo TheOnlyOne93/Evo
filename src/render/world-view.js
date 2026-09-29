@@ -1,9 +1,9 @@
 // WorldView: the camera, the sprite cache and the frame. Each frame it draws, back to front, the
 // sky and parallax scenery (sky.js), terrain tiles and plants, rocks and platforms (painters/*,
 // via Evo.Paint), items (item-art.js), creatures (Evo.CreatureArt), ponds (water.js) and weather
-// (weather.js), then day/night light, glows and the overlays: scent, senses, calls and the
-// player's hand (hand-art.js). Reads the world through the contract in DESIGN.md §6 and never
-// changes it.
+// (weather.js), then day/night light, glows and the overlays: scent, senses, calls, creature cues
+// (cues.js: thought bubbles, reactions, name tags, attention) and the player's hand (hand-art.js).
+// Reads the world through the contract in DESIGN.md §6 and never changes it.
 //
 // Static art (terrain tiles, plants, rocks, platforms) is painted once into offscreen sprites at a
 // resolution matched to the zoom, per season, and blitted each frame. Only water, items,
@@ -81,6 +81,7 @@
         fly: glowSprite([220, 255, 120], 32), egg: glowSprite([255, 220, 150], 64),
       };
       this.weather = new Evo.Weather();
+      this.cues = new Evo.CreatureCues();
       this.setWorld(world);
       this.resize();
     }
@@ -540,6 +541,7 @@
       if (this.options.showScent) this._drawScent(g);
       if (this.options.showSenses) this._drawSenses(g, t);
       this._drawSounds(g, t);
+      this.cues.draw(g, this, t);
       this._drawHand(g, t);
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalAlpha = 1;
