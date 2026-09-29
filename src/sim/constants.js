@@ -172,6 +172,14 @@
     { key: 'drink', word: 'Drink',      tag: [0.50, 0.12], pos: [0.50, 0.87] }
   ];
 
+  // ---- Neurochemicals: chemicals diffusing through the brain tissue (volume transmission), in
+  // channel order. Neurochemistry genes pick one by index. base: default spread when no gene sets it.
+  const NEUROCHEMS = [
+    { key: 'DA', word: 'Reward', base: 0.5 },   // Dopamine-like reward chemical
+    { key: 'ST', word: 'Stress', base: 0.5 },   // Stress chemical
+    { key: 'NO', word: 'NO', base: 0.15 }       // Nitric-oxide-like gas: active neighbours share credit
+  ];
+
   const LIMITS = {
     MAX_POPULATION: 16,   // Performance ceiling; food and weather normally limit population first
     MAX_FOOD: 70,         // How much growing food the world holds at once
@@ -185,7 +193,7 @@
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
     BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
-    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS,
+    LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, NEUROCHEMS,
     LIMITS
   });
 })(globalThis.Evo);

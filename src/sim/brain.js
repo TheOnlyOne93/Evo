@@ -12,7 +12,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, mean } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, MOTORS, N_NEEDS, N_LIMBIC, LIMITS } = Evo;
+  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -22,10 +22,10 @@
   const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags
   const ELIG_MAX = 2.0;              // Largest eligibility trace a synapse can hold
 
-  // Volume transmission: chemicals diffusing through the brain tissue. DA = dopamine-like reward,
-  // ST = stress chemical, NO = nitric-oxide-like gas that lets active neighbours share credit.
-  const CHEM_CHANNELS = ['DA', 'ST', 'NO'];
-  const BCHEM = { DA: 0, ST: 1, NO: 2 };
+  // Volume transmission: chemicals diffusing through the brain tissue (Evo.NEUROCHEMS: DA reward,
+  // ST stress, NO a gas that lets active neighbours share credit), one grid per channel.
+  const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
+  const BCHEM = Object.fromEntries(CHEM_CHANNELS.map((k, i) => [k, i]));
   const CHEM_SIZE = 20;
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
@@ -556,7 +556,7 @@
           if ((hist[m] >>> sDelay[s]) & 1) { const c = cell[sDst[s]]; grid[c] = Math.min(4, grid[c] + 0.7 / n); }
         }
       }
-      for (let ch = 0; ch < 3; ch++) Evo.diffuse(chem[ch], this.chemScratch, CHEM_SIZE, CHEM_SIZE, this.chemRate[ch], this.chemKeep[ch], 0.0005);
+      for (let ch = 0; ch < CHEM_CHANNELS.length; ch++) Evo.diffuse(chem[ch], this.chemScratch, CHEM_SIZE, CHEM_SIZE, this.chemRate[ch], this.chemKeep[ch], 0.0005);
     }
 
     learn() {

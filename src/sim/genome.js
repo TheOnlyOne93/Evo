@@ -10,7 +10,7 @@
 (function (Evo) {
   'use strict';
   const { mean, clamp } = Evo.util;
-  const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS } = Evo;
+  const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS, NEUROCHEMS } = Evo;
 
   const PROMOTER = 0xA5;
   const TYPE_SLOTS = 32;
@@ -122,7 +122,7 @@
     { name: 'Pacemaker', fields: [['lobe', CODEC.lobe], u('bias')],
       express(v, d) { d.add('pacemakers', { lobeIdx: v.lobe, bias: v.bias * 3.0 }); } },
     { name: 'Neurochemistry', fields: [['chem', CODEC.raw], u('spread')],
-      express(v, d) { d.neurochem(['DA', 'ST', 'NO'][v.chem % 3], v.spread); } },
+      express(v, d) { d.neurochem(NEUROCHEMS[v.chem % NEUROCHEMS.length].key, v.spread); } },
     { name: 'Reaction', fields: [['a', CODEC.chem], ['b', CODEC.chem], ['c', CODEC.chem], ['d', CODEC.chem], ['rate', CODEC.rate], ['yieldC', CODEC.yield], ['yieldD', CODEC.yield]],
       express(v, d) { if (v.a) d.add('reactions', v); } },
     { name: 'Emitter', fields: [['locus', CODEC.locus], ['chem', CODEC.chem], u('threshold'), ['gain', CODEC.emit], ['flags', CODEC.raw]],
@@ -160,7 +160,7 @@
       eggInvestment: 0.35, incubationTicks: 5400,
       axonGuidance: [], pacemakers: [], duplications: [],
       reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [],
-      neurochem: { DA: 0.5, ST: 0.5, NO: 0.15 },
+      neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}
     };
   }

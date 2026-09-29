@@ -125,7 +125,7 @@
       case 'Region duplication': return { name, group: 'brain', text: `A copy of the ${lobe(v.source).toLowerCase()} region` };
       case 'Pacemaker': return { name, group: 'brain', text: `${lobe(v.lobe)} cells fire on their own (${pct(v.bias)})` };
       case 'Anatomy': return { name, group: 'brain', text: `${lobe(v.region)} region: ${pct(0.5 + v.count * 1.1)} cells, ${pct(0.6 + v.size * 0.9)} size` };
-      case 'Neurochemistry': return { name, group: 'brain', text: `${['Reward', 'Stress', 'NO'][v.chem % 3]} chemical spreads ${pct(v.spread)}` };
+      case 'Neurochemistry': return { name, group: 'brain', text: `${Evo.NEUROCHEMS[v.chem % Evo.NEUROCHEMS.length].word} chemical spreads ${pct(v.spread)}` };
       case 'Membrane': return { name, group: 'brain', text: `Neurons fire at ${num(-58 + v.threshold * 10, 0)} mV` };
       case 'Plasticity': return { name, group: 'brain', text: `Learns at ${pct(v.rate)}, remembers ${pct(v.memory)}` };
       case 'Reinforcement': return { name, group: 'brain', text: `Feels reward ${pct(v.joy)}, stress ${pct(v.stress)}` };
