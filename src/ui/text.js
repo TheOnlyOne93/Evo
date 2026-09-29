@@ -30,6 +30,7 @@
     switch (m.kind) {
       case 'sight': return `Sees ${FEATURE_WORDS[m.feature]} to the ${SIDE[m.side]}${m.band === 'high' ? ', up high' : ''}`;
       case 'smell': return `Smells ${ODOUR_WORDS[m.odour]} (${SIDE[m.side]} antenna)`;
+      case 'near': return `Sees ${FEATURE_WORDS[m.feature]} up close`;
       case 'hearing': return `Hears a ${m.pitch} call on the ${SIDE[m.side]}`;
       case 'motor': return `${MOTOR_WORDS[m.key]} muscle`;
       case 'cell': return `${LOBE_INFO[n.lobe].cell} ${m.index + 1}`;

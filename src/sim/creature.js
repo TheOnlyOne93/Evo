@@ -18,6 +18,7 @@
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
+  const FEATURE_KEYS = Evo.VISION_FEATURES.map(f => f.key);
   // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
   const SIGHT_CELL = {};
   for (const side of ['L', 'R']) {
@@ -418,6 +419,9 @@
         drive[brain.lobes.touch[k]] = touch[t.key] * NEURAL_GAIN * g;
       });
       Evo.BRAIN_BODY_PLAN.TASTES.forEach((t, k) => { drive[brain.lobes.taste[k]] = this.taste[t.key] * NEURAL_GAIN; });
+      // Up close: how the thing at the mouth looks (Up close cells are in vision feature order)
+      const near = !mouthItem ? null : mouthItem.kind === 'item' ? world.lookOf(mouthItem.item) : world.lookOfCreature(mouthItem.creature);
+      brain.lobes.near.forEach((i, k) => { drive[i] = near ? (near[FEATURE_KEYS[k]] || 0) * NEURAL_GAIN * gainScale : 0; });
 
       // Needs and Feelings cells: driven by whichever chemicals receptor genes attached to them
       const fx = this.chem.effects;

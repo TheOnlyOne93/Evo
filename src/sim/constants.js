@@ -159,6 +159,7 @@
     { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true },
     { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true },
     { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true },
+    { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true },
     { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true },
     { key: 'feelings', word: 'Feelings',     color: '#10b981' },
     { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },

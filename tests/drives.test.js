@@ -86,3 +86,16 @@ test('drives: eating rewards at once, in proportion to hunger; bitter punishes',
   const mimic = taste(Evo, 'mimic', 0.7);
   assert.ok(mimic.punishment > mimic.reward, `mimic: punishment ${mimic.punishment} vs reward ${mimic.reward}`);
 });
+
+test('drives: the Up close cells report the look of what is at the mouth', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  world.items = []; world.creatures = [c];
+  Object.assign(c, { facing: 1, asleep: false });
+  const near = () => { c.sense(world); return Object.fromEntries(c.brain.lobes.near.map((i, k) => [Evo.VISION_FEATURES[k].key, c.drive[i]])); };
+  assert.ok(Object.values(near()).every(v => v === 0), 'nothing at the mouth');
+  world.spawnItem('mimic', c.mouthX + 2, c.y);
+  const d = near(), N = Evo.CREATURE.NEURAL_GAIN;
+  assert.ok(Math.abs(d.red - 0.9 * N) < 1e-6 && Math.abs(d.violet - 0.25 * N) < 1e-6, JSON.stringify(d));
+  for (const k in d) if (k !== 'red' && k !== 'violet') assert.strictEqual(d[k], 0, k);
+});

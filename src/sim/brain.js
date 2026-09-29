@@ -141,6 +141,8 @@
         { kind: 'hearing', side, pitch }));
       TOUCH.forEach(t => add('touch', `touch_${t.key}`, t.word, [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }));
       TASTES.forEach((t, k) => add('taste', `taste_${t.key}`, t.word, [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }));
+      // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
+      VISION_FEATURES.forEach((f, fi) => add('near', `near_${f.key}`, `Up close: ${f.key}`, [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
       for (let k = 0; k < N_NEEDS; k++) {
         add('needs', `need_${k}`, `Needs cell ${k + 1}`, [...DRIVE_CELL_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
       }
