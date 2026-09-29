@@ -193,8 +193,7 @@
 
     // The item under a screen point (CSS px), or null
     itemAt(sx, sy) {
-      const items = this.world && this.world.items;
-      if (!items) return null;
+      if (!this.world) return null;
       const p = this.screenToWorld(sx, sy);
       return this._itemAtWorld(p.x, p.y, 10 / this.cam.zoom);
     }
@@ -777,11 +776,10 @@
 
     _itemAtWorld(x, y, pad) {
       const items = this.world.items;
-      if (!items) return null;
       let best = null, bestD = Infinity;
       for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
-        const r = Math.max((it.radius || 5) * 1.5, pad * 1.4) + pad;
+        const r = Math.max(it.radius * 1.5, pad * 1.4) + pad;
         const d = Math.hypot(x - it.x, y - Evo.ItemArt.centerY(it));
         if (d < r && d < bestD) { bestD = d; best = it; }
       }
@@ -798,13 +796,13 @@
     }
 
     _drawShadows(g) {
-      const items = this.world.items || [], cs = this.world.creatures || [];
+      const items = this.world.items, cs = this.world.creatures || [];
       g.fillStyle = 'rgba(28,20,36,0.2)';
       g.beginPath();
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         if (it.held || it.x < this.vx0 - 20 || it.x > this.vx1 + 20) continue;
-        const r = it.radius || 5;
+        const r = it.radius;
         const sy = this.world.surfaceBelow(it.x, it.y - 1);
         const gap = sy - it.y;
         if (gap > 70 || gap < -r * 2 || this._floatDepth(it) >= 0) continue;
@@ -830,14 +828,13 @@
 
     _drawItems(g, t, held) {
       const items = this.world.items;
-      if (!items) return;
       const art = Evo.ItemArt, m = 30;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         if (!!it.held !== held) continue;
         if (it.x < this.vx0 - m || it.x > this.vx1 + m || it.y < this.vy0 - m || it.y > this.vy1 + m) continue;
         if (it === this.hoveredItem) {
-          const r = (it.radius || 5) * 1.9 + 1.5 * Math.sin(t * 5);
+          const r = it.radius * 1.9 + 1.5 * Math.sin(t * 5);
           g.strokeStyle = 'rgba(255,255,255,0.8)';
           g.lineWidth = 1.4;
           g.beginPath(); g.arc(it.x, art.centerY(it), r, 0, TAU); g.stroke();
@@ -846,7 +843,7 @@
         }
         // Things floating on a pond sit half in the water and bob
         const float = held ? -1 : this._floatDepth(it);
-        art.draw(g, it, t, float >= 0 ? (it.radius || 5) * 0.55 + Math.sin(t * 1.7 + (it.id | 0)) * 0.9 : 0);
+        art.draw(g, it, t, float >= 0 ? it.radius * 0.55 + Math.sin(t * 1.7 + (it.id | 0)) * 0.9 : 0);
       }
     }
 
@@ -958,16 +955,16 @@
         g.drawImage(gl.warm, f.x - w * 0.95, f.y - h * 1.45, w * 1.9, h * 1.9);
       }
       // Lures glow softly, more at night; eggs about to hatch too
-      const items = this.world.items || [];
+      const items = this.world.items;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         if (it.x < this.vx0 - 40 || it.x > this.vx1 + 40) continue;
         if (it.type === 'lure') {
-          const r = (it.radius || 5) * 5, cy = Evo.ItemArt.centerY(it);
+          const r = it.radius * 5, cy = Evo.ItemArt.centerY(it);
           g.globalAlpha = (0.12 + 0.4 * night) * (0.8 + 0.2 * Math.sin(t * 2.4 + i));
           g.drawImage(gl.lure, it.x - r, cy - r * 1.1, r * 2, r * 2);
         } else if (it.type === 'egg' && it.progress > 0.8) {
-          const r = (it.radius || 8) * 3, cy = Evo.ItemArt.centerY(it);
+          const r = it.radius * 3, cy = Evo.ItemArt.centerY(it);
           g.globalAlpha = (it.progress - 0.8) * 1.4 * (0.6 + 0.4 * Math.sin(t * 3 + i));
           g.drawImage(gl.egg, it.x - r, cy - r, r * 2, r * 2);
         }
@@ -1053,15 +1050,13 @@
     // Calls rise as little music notes and fade
     _drawSounds(g, t) {
       const ss = this.world.sounds;
-      if (!ss || !ss.length) return;
       for (let i = 0; i < ss.length; i++) {
         const s = ss[i];
-        const life = s.life || SOUND_LIFE;
-        const a = (s.age || 0) / life;
+        const a = s.age / SOUND_LIFE;
         if (a < 0 || a >= 1 || s.x < this.vx0 - 40 || s.x > this.vx1 + 40) continue;
-        const loud = clamp01(s.loudness === undefined ? 0.6 : s.loudness);
+        const loud = clamp01(s.loudness);
         const alpha = Math.min(1, a * 8) * Math.pow(1 - a, 1.2);
-        const high = (s.pitch || 0) >= 0.5;
+        const high = s.pitch >= 0.5;
         const size = 0.8 + loud * 0.5;
         const x = s.x + Math.sin(a * 6 + (s.sourceId | 0)) * 5;
         const y = s.y - 6 - a * 42;
