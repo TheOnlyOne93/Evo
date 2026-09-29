@@ -44,26 +44,31 @@ module.exports = ({ Evo, lab, trial }) => {
     };
   });
 
-  // Microseconds of brain (tick + morphogenesis) and senses per creature-tick in a full world
+  // Microseconds of brain (tick + morphogenesis) and senses per creature-tick, and milliseconds per
+  // world tick, in a full world
   const cost = cached(seed => {
     Evo.seed(seed);
     const world = new Evo.World();
+    // A full world: 16 creatures (the population ceiling)
+    while (world.creatures.length < Evo.LIMITS.MAX_POPULATION) world.addAdult(Evo.chance(0.5) ? 'FEMALE' : 'MALE');
+    world.maybeWanderer = () => {};
     const B = Evo.Brain.prototype, C = Evo.Creature.prototype;
     const { tick, runMorphogenesis } = B, { sense } = C;
-    let brainNs = 0n, senseNs = 0n, creatureTicks = 0;
+    let brainNs = 0n, senseNs = 0n, creatureTicks = 0, t0 = 0n, worldMs = 0;
     const timed = (fn, add) => function (...a) { const t0 = process.hrtime.bigint(); const r = fn.apply(this, a); add(process.hrtime.bigint() - t0); return r; };
     B.tick = timed(tick, d => { brainNs += d; creatureTicks++; });
     B.runMorphogenesis = timed(runMorphogenesis, d => { brainNs += d; });
     C.sense = timed(sense, d => { senseNs += d; });
     try {
       for (let t = 0; t < 900; t++) {
-        if (t === 300) { brainNs = 0n; senseNs = 0n; creatureTicks = 0; }
+        if (t === 300) { brainNs = 0n; senseNs = 0n; creatureTicks = 0; t0 = process.hrtime.bigint(); }
         world.step();
       }
+      worldMs = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
     } finally {
       Object.assign(B, { tick, runMorphogenesis }); C.sense = sense;
     }
-    return { brain: Number(brainNs) / 1000 / creatureTicks, senses: Number(senseNs) / 1000 / creatureTicks };
+    return { brain: Number(brainNs) / 1000 / creatureTicks, senses: Number(senseNs) / 1000 / creatureTicks, worldMs };
   });
 
   // Two things in view, one on each side: does the creature go for the one its need is about?
@@ -96,7 +101,8 @@ module.exports = ({ Evo, lab, trial }) => {
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,
-      'cost: senses us per creature-tick': seed => cost(seed).senses
+      'cost: senses us per creature-tick': seed => cost(seed).senses,
+      'cost: ms per world tick (16 creatures)': seed => cost(seed).worldMs
     }
   };
 };

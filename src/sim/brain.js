@@ -34,6 +34,7 @@
   const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
   const VALUE_RATE = 0.03;           // Step size of value (TD) learning
   const RATE_ALPHA = 0.012;          // Firing-rate smoothing per tick
+  const SEIZURE_SHARE = 0.25, SEIZURE_TICKS = 3, SEIZURE_BRAKE = 10; // See tick()
   const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
@@ -108,6 +109,9 @@
       this.sproutedCount = 0;
       this.prunedCount = 0;
       this.spikesThisTick = 0;
+      this.seizures = 0;      // Times the seizure brake has come on
+      this.overdrive = 0;     // Consecutive ticks with too many neurons firing
+      this.brake = 0;         // mV held back from every central neuron this tick
       this.novelty = 0;
       // The outcome each modulatory channel predicts (0 reward, 1 punishment); the creature sets it
       // before each tick from whatever receptor genes drive the first two feelings cells
@@ -606,7 +610,7 @@
       const slot = now % SLOTS;
       const N = this.N;
       const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator, lateral } = this;
-      const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire;
+      const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire, brake = this.brake;
 
       // 1. Every neuron integrates what arrived this tick. With conduction delays there is no
       // hand-ordered pipeline: where and how far activity travels comes from the wiring itself.
@@ -623,7 +627,7 @@
           v[i] = V_RESET;
           vShow[i] = V_RESET;
         } else {
-          I += (Evo.random() - 0.5) * noise + (isSensory[i] ? 0 : arousal);
+          I += (Evo.random() - 0.5) * noise + (isSensory[i] ? 0 : arousal - brake);
           const nv = V_REST + (v[i] - V_REST) * tau[i] + I + bias[i] - adapt[i];
           if (nv >= thr[i] && canFire) {
             fired = 1;
@@ -650,6 +654,11 @@
       }
       this.spikesThisTick = spikes;
       this.applyDynamics();
+      // Seizure brake: when more than a quarter of the brain fires for three ticks running (runaway
+      // recurrent excitation, e.g. in working memory), every central neuron is held back next tick
+      this.overdrive = this.spikesThisTick > SEIZURE_SHARE * N ? this.overdrive + 1 : 0;
+      this.brake = this.overdrive >= SEIZURE_TICKS ? SEIZURE_BRAKE : 0;
+      if (this.overdrive === SEIZURE_TICKS) this.seizures++;
 
       // Novelty: senses habituate to what they keep reporting, so a spike from a usually quiet
       // neuron is surprising. The body reads the lack of surprise as boredom.
