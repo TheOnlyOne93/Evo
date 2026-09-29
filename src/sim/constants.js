@@ -123,7 +123,7 @@
   // ---- Stimuli: things that happen to (or are done by) a creature. Stimulus genes decide which
   // chemicals each one releases, as in Creatures. word: "When it ..." ----
   const STIMULUS_LIST = [
-    ['ate', 'eats'], ['drank', 'drinks'], ['patted', 'is patted'], ['slapped', 'is slapped'], ['nuzzled', 'nuzzles another'],
+    ['ate', 'eats'], ['drank', 'drinks'], ['patted', 'is tickled'], ['slapped', 'is slapped'], ['nuzzled', 'nuzzles another'],
     ['wasNuzzled', 'is nuzzled'], ['shoved', 'shoves another'], ['wasShoved', 'is shoved'], ['called', 'calls'],
     ['heardCall', 'hears a call'], ['grabbed', 'picks something up'], ['dropped', 'drops something'], ['bumped', 'bumps into something'],
     ['fell', 'lands hard'], ['woke', 'wakes up'], ['fellAsleep', 'falls asleep'], ['mated', 'mates'], ['played', 'plays'], ['pricked', 'is pricked by thorns']

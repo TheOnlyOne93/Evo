@@ -20,7 +20,7 @@
   };
   // A stimulus (Evo.STIMULI) that has just happened
   const STIMULUS_PAST = {
-    ate: 'ate', drank: 'drank', patted: 'was patted', slapped: 'was slapped', nuzzled: 'nuzzled another', wasNuzzled: 'was nuzzled',
+    ate: 'ate', drank: 'drank', patted: 'was tickled', slapped: 'was slapped', nuzzled: 'nuzzled another', wasNuzzled: 'was nuzzled',
     shoved: 'shoved another', wasShoved: 'was shoved', called: 'called', heardCall: 'heard a call', grabbed: 'picked something up',
     dropped: 'dropped something', bumped: 'bumped into something', fell: 'landed hard', woke: 'woke up', fellAsleep: 'fell asleep',
     mated: 'mated', played: 'played', pricked: 'was pricked by thorns'
