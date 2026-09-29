@@ -3,7 +3,7 @@
 // page; it announces what happens on world.events.
 (function (Evo) {
   'use strict';
-  const { clamp, clamp01, minBy } = Evo.util;
+  const { clamp, clamp01 } = Evo.util;
   const { SCENTS, ITEM_TYPES, SEASONS, DAY_TICKS, SEASON_DAYS, LIMITS, STAGE, CREATURE } = Evo;
 
   const WORLD_W = 3600, WORLD_H = 900;
@@ -694,10 +694,6 @@
 
     // ---------- Queries ----------
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
-    nearestCreature(x, y, maxDist = Infinity) {
-      const c = minBy(this.creatures, k => Math.hypot(k.x - x, k.y - k.size * 0.4 - y));
-      return c && Math.hypot(c.x - x, c.y - c.size * 0.4 - y) <= maxDist ? c : null;
-    }
   }
 
   Object.assign(Evo, { World, Terrain, WORLD: { WIDTH: WORLD_W, HEIGHT: WORLD_H, SCENT_CELL, HOLD_GRIP, SOUND_LIFE } });

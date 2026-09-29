@@ -648,11 +648,6 @@
         sW[s] = softBounded(sW[s], eta * elig * sig, sFlags[s] & INHIBITORY);
       }
     }
-
-    // ---------- Read-outs ----------
-    spiked(i) { return (this.hist[i] & 1) === 1; }
-    lobe(key) { return this.lobes[key]; }
-    motor(key) { return this.hist[this.lobes.motor[MOTORS.findIndex(m => m.key === key)]] & 1; }
   }
 
   Object.assign(Evo, {
