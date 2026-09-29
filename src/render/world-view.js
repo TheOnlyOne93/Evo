@@ -1,6 +1,9 @@
-// The side-view world: sky and parallax scenery (sky.js), terrain, the pond, plants and rocks,
-// items (item-art.js), creatures (Evo.CreatureArt), weather, day/night light, overlays and the
-// player's hand. Reads the world through the contract in DESIGN.md §6 and never changes it.
+// WorldView: the camera, the sprite cache and the frame. Each frame it draws, back to front, the
+// sky and parallax scenery (sky.js), terrain tiles and plants, rocks and platforms (painters/*,
+// via Evo.Paint), items (item-art.js), creatures (Evo.CreatureArt), ponds (water.js) and weather
+// (weather.js), then day/night light, glows and the overlays: scent, senses, calls and the
+// player's hand (hand-art.js). Reads the world through the contract in DESIGN.md §6 and never
+// changes it.
 //
 // Static art (terrain tiles, plants, rocks, platforms) is painted once into offscreen sprites at a
 // resolution matched to the zoom, per season, and blitted each frame. Only water, items,
