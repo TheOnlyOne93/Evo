@@ -285,11 +285,12 @@
         return;
       }
 
-      // Scents the body releases (receptor genes decide how much)
+      // Scents the body releases (receptor genes decide how much). Queued, like the egg below:
+      // they reach the world once every body has run
       const sex = Math.max(0, c.effect('scentSex')) * SCALE.scentSex;
-      if (sex > 0) world.depositScent(this.x, this.y - this.size * 0.3, this.sex === 'FEMALE' ? Evo.SCENT.muskF : Evo.SCENT.muskM, sex);
+      if (sex > 0) world.queueScent(this.x, this.y - this.size * 0.3, this.sex === 'FEMALE' ? Evo.SCENT.muskF : Evo.SCENT.muskM, sex);
       const alarm = Math.max(0, c.effect('scentAlarm')) * SCALE.scentAlarm;
-      if (alarm > 0) world.depositScent(this.x, this.y - this.size * 0.3, Evo.SCENT.alarm, alarm);
+      if (alarm > 0) world.queueScent(this.x, this.y - this.size * 0.3, Evo.SCENT.alarm, alarm);
 
       // Pregnancy: the mother builds the egg from her own reserves over the gestation
       if (this.pregnancy) {
@@ -302,7 +303,7 @@
         }
         p.progress += share;
         if (p.progress >= 1 && this.onGround) {
-          world.layEgg(this, p);
+          world.queueEgg(this, p);
           this.pregnancy = null;
         }
       }
@@ -399,17 +400,20 @@
         drive[smellIdx[smellIndex('R', o)]] = Math.log1p(r / RECEPTOR_K) / norm * smellGain;
       }
 
-      // Hearing: calls made in the last tick, louder when near, on the side they came from
+      // Hearing: another's call, louder when near, on the side it came from. A call is made in the
+      // act phase and ages at the end of the tick, so every listener hears it for two ticks (ages 1
+      // and 2; a hearing cell still refractory from the first can't miss it), and the heardCall
+      // stimulus fires once, at age 1. A caller doesn't hear itself.
       let heard = 0, heardNew = 0;
       const hear = [0, 0, 0, 0];
       for (const snd of world.sounds) {
-        if (snd.age > 1 || snd.sourceId === this.id) continue;
+        if (snd.age < 1 || snd.age > 2 || snd.sourceId === this.id) continue;
         const dx = snd.x - this.x;
         const v = snd.loudness / (1 + Math.abs(dx) / 200 + Math.abs(snd.y - this.y) / 400);
         const k = hearingIndex(dx < 0 ? 'L' : 'R', snd.pitch < 0.5 ? 'low' : 'high');
         hear[k] = Math.max(hear[k], v);
         heard = Math.max(heard, v);
-        if (snd.age === 1) heardNew = Math.max(heardNew, v); // Every listener meets each call once at age 1
+        if (snd.age === 1) heardNew = Math.max(heardNew, v);
       }
       this.stim.heardCall = Math.max(this.stim.heardCall * 0.9, heard);
       if (heardNew > 0) this.stimulate('heardCall', heardNew);
@@ -475,10 +479,14 @@
 
     // ---------- One tick ----------
     // A tick runs in phases: body (chemistry and health), mind (senses and brain), act (muscles),
-    // settle (movement). A creature that dies in its body phase skips the rest
+    // settle (movement). World.step runs each phase for every creature before the next phase;
+    // step() runs one creature through all of them on its own (for tests and tools), applying the
+    // world writes its body queued straight away. A creature that dies in its body phase skips the
+    // rest (World.step removes it; here the caller does)
     step(world) {
       if (this.dead) return;
       this.body(world);
+      world.applyQueuedWrites();
       if (this.dead) return;
       this.mind(world);
       this.act(world);
@@ -518,7 +526,18 @@
 
     settle(world) {
       this.move(world);
+      this.carryInMouth();
       this.decayStimuli();
+    }
+
+    // A carried item hangs from the mouth, wherever the body has just moved
+    carryInMouth() {
+      const item = this.carrying;
+      if (!item) return;
+      item.x = this.mouthX + this.facing * item.radius * 0.5;
+      item.y = this.mouthY + item.radius;
+      item.vx = this.vx;
+      item.vy = 0;
     }
 
     // ---------- Muscles ----------
@@ -702,7 +721,7 @@
       this.dead = true;
       this.asleep = false;
       this.causeOfDeath = cause;
-      if (this.carrying) world.dropCarried(this);
+      // What it carried is let go when the world takes the body away (World.handleDeath)
       world.events.emit('death', { creature: this, cause });
     }
 

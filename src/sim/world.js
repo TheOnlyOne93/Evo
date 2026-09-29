@@ -87,6 +87,10 @@
       this.seedBank = [];    // Genomes of creatures that mated: wanderers and re-founders come from here
       this.stats = { hatched: 0, eggsLaid: 0, matings: 0, meals: 0, poisonings: 0, wanderers: 0, refoundings: 0, deaths: {} };
       this.hand = { holding: null };   // What the player's hand carries: { creature } or { item }
+      // World writes the bodies make while they run (scent they give off, eggs laid), applied once
+      // every body has run, so all bodies read the same world (see step)
+      this.pendingScent = [];          // { x, y, channel, amount }
+      this.pendingEggs = [];           // { mother, pregnancy }
       this.edge = 150;       // Creatures and items stay this far from the world's ends (the cliffs are scenery)
 
       this.buildLandscape();
@@ -196,6 +200,11 @@
     depositScent(x, y, channel, amount) {
       const g = this.scent.channels[channel], i = this.scentIndex(x, y);
       if (!this.scentSolid[i]) g[i] = Math.min(2.5, g[i] + amount);
+    }
+
+    // Scent a body gives off: it lands when the bodies' writes are applied
+    queueScent(x, y, channel, amount) {
+      this.pendingScent.push({ x, y, channel, amount });
     }
 
     // Bilinear sample; a cell's centre is at (k + 0.5) * cell
@@ -432,6 +441,19 @@
       }
     }
 
+    // A mother ready to lay: the egg appears when the bodies' writes are applied
+    queueEgg(mother, pregnancy) {
+      this.pendingEggs.push({ mother, pregnancy });
+    }
+
+    // Apply the queued writes in the order the bodies made them (egg laying draws random numbers)
+    applyQueuedWrites() {
+      for (const s of this.pendingScent) this.depositScent(s.x, s.y, s.channel, s.amount);
+      for (const e of this.pendingEggs) this.layEgg(e.mother, e.pregnancy);
+      this.pendingScent.length = 0;
+      this.pendingEggs.length = 0;
+    }
+
     layEgg(mother, pregnancy) {
       const traits = pregnancy.genome.develop();
       this.spawnItem('egg', mother.x - mother.facing * mother.size * 0.4, mother.y, {
@@ -515,7 +537,9 @@
       }
     }
 
+    // Take a dead creature out of the world: it lets go of what it carried and leaves carrion
     handleDeath(c) {
+      if (c.carrying) this.dropCarried(c);
       this.creatures.splice(this.creatures.indexOf(c), 1);
       this.stats.deaths[c.causeOfDeath] = (this.stats.deaths[c.causeOfDeath] || 0) + 1;
       const rec = this.history.find(h => h.id === c.id);
@@ -588,11 +612,8 @@
       for (const item of this.items) {
         const def = ITEM_TYPES[item.type];
         item.age++;
-        if (item.held) {
-          const holder = item.held === 'hand' ? null : this.creatureById(item.held);
-          if (holder) { item.x = holder.mouthX + holder.facing * item.radius * 0.5; item.y = holder.mouthY + item.radius; item.vx = holder.vx; item.vy = 0; }
-          continue;
-        }
+        // A held item moves with its holder: the hand (moveHand), or a carrier's mouth (Creature.settle)
+        if (item.held) continue;
         // Little animals move by themselves
         if (def.crawls && item.onGround) {
           if (Evo.chance(0.03)) item.vx += (Evo.random() - 0.5) * def.crawls;
@@ -693,17 +714,21 @@
     }
 
     // ---------- One tick ----------
-    // A tick runs in this order:
+    // A tick runs in phases. Each creature phase runs for every creature before the next phase
+    // starts, so what a creature senses and how soon others feel its actions never depend on its
+    // place in the array:
     //   time         the clock advances
-    //   environment  food grows, items fall and drift, scent diffuses
+    //   environment  food grows, items fall and drift (eggs hatch), scent diffuses
     //   contact      creatures jostle each other and prick against spiky things
-    //   each creature in turn, all of its phases before the next creature starts:
-    //     body       age and stage, chemistry, physiology, sleep (it may die here)
-    //     mind       senses, dreams, the brain's tick
-    //     act        muscles, mouth and hands
-    //     settle     movement, then stimuli fade
-    //     (a creature that died goes to handleDeath straight away)
+    //   body         age and stage, chemistry, physiology, sleep (a creature may die here); scent
+    //                a body gives off and eggs it lays are queued, not written
+    //   body commit  the queued scent and eggs land, in creature order; the dead leave carrion
+    //   mind         senses, dreams, the brain's tick: everyone reads the same settled world
+    //   act          muscles, mouth and hands: eating, grabbing, shoving, nuzzling, calling
+    //   settle       movement (a carried item follows its carrier's mouth), then stimuli fade
     //   ecology      mating, sounds age, wanderers arrive, an empty world is founded again
+    // Only physiology kills, so no creature dies after the body commit. A call made in act is
+    // heard by everyone in the next two ticks' mind (see Creature.sense).
     step() {
       this.clock.tick++;
       this.updateClock();
@@ -712,10 +737,14 @@
       this.stepScent();
       this.socialContact();
       this.prickCreatures();
-      for (const c of [...this.creatures]) {
-        c.step(this);
-        if (c.dead) this.handleDeath(c);
-      }
+      const all = [...this.creatures];
+      for (const c of all) c.body(this);
+      this.applyQueuedWrites();
+      for (const c of all) if (c.dead) this.handleDeath(c);
+      const living = all.filter(c => !c.dead);
+      for (const c of living) c.mind(this);
+      for (const c of living) c.act(this);
+      for (const c of living) c.settle(this);
       this.tryMating();
       for (const s of this.sounds) s.age++;
       this.sounds = this.sounds.filter(s => s.age < SOUND_LIFE);

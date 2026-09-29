@@ -99,6 +99,8 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
   mother.pregnancy.progress = 1;
   mother.onGround = true;
   mother.physiology(world);
+  assert.ok(!world.items.some(i => i.type === 'egg'), 'the egg waits until every body has run');
+  world.applyQueuedWrites();
   const egg = world.items.find(i => i.type === 'egg');
   assert.ok(egg && !mother.pregnancy, 'the egg is laid');
   assert.ok(egg.reserves.water > 0, 'the egg carries her reserves');
@@ -205,4 +207,75 @@ test('world: a life-history gene that switches on later changes the lifespan wit
   assert.strictEqual(c.stage, Evo.STAGE.ADULT, 'it grew up and stayed grown up');
   assert.ok(c.lifespan > before, 'the later gene lengthened its life');
   assert.strictEqual(c.lifespan, c.traits.lifespanTicks);
+});
+
+// Two adults side by side in a world of their own; swap puts the second one first in the array.
+// Long timers keep them from calling, grabbing or jumping by themselves.
+function pair(Evo, swap) {
+  Evo.seed(1);
+  const world = emptyWorld(Evo);
+  const a = world.addAdult('FEMALE', { x: 1600 }), b = world.addAdult('MALE', { x: 1620 });
+  if (swap) world.creatures.reverse();
+  for (const c of [a, b]) c.callTimer = c.grabCooldown = c.jumpCooldown = 1e6;
+  return { world, a, b };
+}
+
+// Run fn(world) at the end of c's act phase in the next tick
+function onNextAct(world, c, fn) {
+  const tick = world.clock.tick + 1, act = c.act;
+  c.act = w => { act.call(c, w); if (w.clock.tick === tick) fn(w); };
+}
+
+test('world: two creatures hear each other\'s calls for two ticks each, whatever their order', (Evo, assert) => {
+  for (const swap of [false, true]) {
+    const { world, a, b } = pair(Evo, swap);
+    for (const c of [a, b]) onNextAct(world, c, w => w.makeSound(c));
+    const heard = { a: 0, b: 0 };
+    for (let t = 0; t < 6; t++) {
+      world.step();
+      for (const [k, c] of Object.entries({ a, b })) if (c.senses.hear.some(v => v > 0)) heard[k]++;
+    }
+    assert.deepStrictEqual(heard, { a: 2, b: 2 }, swap ? 'swapped' : 'in order');
+  }
+});
+
+test('world: a nuzzle and a shove reach their targets in the tick they happen, whatever the order', (Evo, assert) => {
+  const felt = [false, true].map(swap => {
+    const { world, a, b } = pair(Evo, swap);
+    onNextAct(world, a, () => world.nuzzle(a, b));
+    onNextAct(world, b, () => world.shove(b, a));
+    world.step();
+    return { gentle: b.stim.gentle, flinch: a.stim.flinch, vy: a.vy, airborne: !a.onGround };
+  });
+  assert.deepStrictEqual(felt[0], felt[1]);
+  assert.ok(felt[0].gentle < 0.5 && felt[0].flinch < 1, 'felt, then faded once, in the same tick');
+  assert.ok(felt[0].vy < 0 && felt[0].airborne, 'the shoved one is already off the ground');
+});
+
+test('world: a carried item sits at its carrier\'s mouth after the carrier moves', (Evo, assert) => {
+  const { world, a } = pair(Evo, false);
+  const ball = world.spawnItem('ball', a.mouthX, undefined, { hue: 0 });
+  world.pickUpItem(a, ball);
+  const x0 = a.x;
+  a.vx = 2;
+  world.step();
+  assert.ok(a.x !== x0, 'the carrier moved');
+  assert.strictEqual(ball.x, a.mouthX + a.facing * ball.radius * 0.5);
+  assert.strictEqual(ball.y, a.mouthY + ball.radius);
+});
+
+test('world: scent a body gives off reaches every creature\'s nose in the same tick, whatever the order', (Evo, assert) => {
+  const alarm = Evo.SCENT.alarm;
+  for (const swap of [false, true]) {
+    const { world, a, b } = pair(Evo, swap);
+    b.x = a.x; b.facing = a.facing;
+    // Only a gives off alarm scent
+    for (const c of [a, b]) {
+      const effect = c.chem.effect.bind(c.chem);
+      c.chem.effect = k => (k === 'scentAlarm' ? (c === a ? 1 : 0) : effect(k));
+    }
+    assert.strictEqual(Math.max(...world.scent.channels[alarm]), 0);
+    world.step();
+    for (const c of [a, b]) assert.ok(Math.max(c.senses.scentsL[alarm], c.senses.scentsR[alarm]) > 0, `${c === a ? 'a' : 'b'} smells it${swap ? ' (swapped)' : ''}`);
+  }
 });
