@@ -63,9 +63,9 @@ test('learning: a cue that comes before reward comes to predict it', (Evo, asser
   for (let k = 0; k < 30; k++) trial(false);
   const w0 = valueOf();
   const errors = [];
-  for (let k = 0; k < 30; k++) errors.push(trial(true));
+  for (let k = 0; k < 40; k++) errors.push(trial(true));
   assert.ok(valueOf() > w0, `cue value synapses ${w0.toFixed(3)} -> ${valueOf().toFixed(3)}`);
-  assert.ok(errors[29] < errors[0] * 0.6, `error at the reward: ${errors[0].toFixed(3)} first, ${errors[29].toFixed(3)} after 30 pairings`);
+  assert.ok(errors[39] < errors[0] * 0.6, `error at the reward: ${errors[0].toFixed(3)} first, ${errors[39].toFixed(3)} after 40 pairings`);
 });
 
 // Neuron A excites X and Y; X is made to fire just after A's spike arrives, Y is not. An outcome

@@ -308,7 +308,7 @@
         if (!lobe || !this.lobes[lobe]) continue;
         const cells = Int32Array.from(this.lobes[lobe]);
         for (const i of cells) this.adaptKeep[i] = g.adaptKeep;
-        groups.set(lobe, { cells, competition: g.competition, persistence: g.persistence, keep: g.keep,
+        groups.set(lobe, { lobe, cells, competition: g.competition, persistence: g.persistence, keep: g.keep,
           activity: new Float32Array(cells.length), drive: new Float32Array(cells.length), fired: new Int32Array(cells.length) });
       }
       this.dynamics = [...groups.values()];
@@ -354,6 +354,19 @@
         }
         for (let k = 0; k < cells.length; k++) lateral[cells[k]] = drive[k] - competition * (pool - activity[k]);
       }
+    }
+
+    // What the sight copy is attending to: { side, band, feature } of its most active cell, or null
+    // when it has no Lobe dynamics or nothing there is active
+    attended() {
+      const copy = (this.duplicatesOf.sight || [])[0];
+      const g = copy && this.dynamics.find(d => d.lobe === copy);
+      if (!g) return null;
+      let best = -1, most = 0.5;
+      for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = k; }
+      if (best < 0) return null;
+      const { side, band, feature } = this.neurons[g.cells[best]].meta;
+      return { side, band, feature };
     }
 
     applyPacemakers(pacemakers) {

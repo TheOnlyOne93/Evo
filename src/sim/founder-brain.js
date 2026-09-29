@@ -1,17 +1,23 @@
 // The founder genome: brain wiring genes (see founder.js).
 (function (Evo) {
   'use strict';
-  const { approach, guide, prior, FEATURES, ODOURS } = Evo.founderKit;
+  const { approach, guide, prior, need, FEATURES, ODOURS } = Evo.founderKit;
+  // A drive's own cell in the Needs lobe, as a source window for a guidance gene
+  const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[need(key)], 0.05];
+  // Top-down attention: a drive's cell biases the sight copy's cells for one feature (either side)
+  const attend = (drive, feature) => [0.1, 0.9].map(x =>
+    guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, 0.22], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
 
   Evo.founderBrain = [
     // ---------- Brain wiring ----------
     // Orienting. A sight cell's tag says which side (x) and which colour (y) it sees; the walk
     // muscles sit at y = 0.5. Each of these genes carries one colour's cells to walking toward
-    // (or, crossed, away from) the side they see it on. Food colours pull hardest.
-    ...['red', 'yellow', 'green'].map(f => approach('sight', FEATURES, f, f === 'red' ? 0.6 : 0.5)),
-    approach('sight', FEATURES, 'blue', 0.3),
-    approach('sight', FEATURES, 'pink', 0.3),
-    approach('sight', FEATURES, 'creature', 0.25),                    // Company
+    // (or, crossed, away from) the side they see it on. Food colours pull hardest. The sight copy
+    // inherits these genes: what it attends to pulls on top.
+    ...['red', 'yellow', 'green'].map(f => approach('sight', FEATURES, f, f === 'red' ? 0.42 : 0.35)),
+    approach('sight', FEATURES, 'blue', 0.21),
+    approach('sight', FEATURES, 'pink', 0.21),
+    approach('sight', FEATURES, 'creature', 0.21),                    // Company
     approach('sight', FEATURES, 'violet', 0.5, true),                   // Thorny violet: walk away
     // Every smell draws the creature toward the side it is stronger on; bitter and alarm push away
     guide('smell', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.3, relX: true }),
@@ -51,6 +57,14 @@
     { gene: 'Region duplication', source: 'sight', depth: 0.69, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Orienting map
     // Action selection: the muscles compete, the most strongly driven one wins and keeps going
     // until it tires or something much more pressing comes up
-    { gene: 'Lobe dynamics', lobe: 'motor', copy: 0, competition: 0.2, persistence: 0.3, tau: 0.3, fatigue: 0.9 },
+    { gene: 'Lobe dynamics', lobe: 'motor', copy: 0, competition: 0.2, persistence: 0.2, tau: 0.3, fatigue: 0.9 },
+    // Attention: the sight copy's cells compete, so it settles on one thing at a time, and what
+    // the creature needs biases which: hunger toward food colours, thirst toward water, loneliness
+    // toward other creatures, desire toward the pink of a mate
+    { gene: 'Lobe dynamics', lobe: 'sight', copy: 1, competition: 1.0, persistence: 0.3, tau: 0.2, fatigue: 0.9 },
+    ...['red', 'yellow', 'green'].flatMap(f => attend('hunger', f)),
+    ...attend('thirst', 'blue'),
+    ...attend('loneliness', 'creature'),
+    ...attend('sexDrive', 'pink'),
   ];
 })(globalThis.Evo);

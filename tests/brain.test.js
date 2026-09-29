@@ -181,3 +181,32 @@ test('brain: of two muscles driven almost equally, one wins and keeps going; a d
     assert.ok(takeover !== null && takeover <= 20, `seed ${seed}: took over after ${takeover} ticks`);
   }
 });
+
+// Red on the left and blue on the right, equally bright: which does the sight copy attend to?
+function attentionWinner(Evo, seed, drive) {
+  Evo.seed(seed);
+  const brain = founderBrain(Evo), P = Evo.BRAIN_BODY_PLAN;
+  const input = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  const cell = Evo.founderKit.need(drive);
+  const count = {};
+  for (let t = 0; t < 400; t++) {
+    input[brain.lobes.sight[P.sightIndex('L', 'low', 'red')]] = 15;
+    input[brain.lobes.sight[P.sightIndex('R', 'low', 'blue')]] = 15;
+    input[brain.lobes.needs[cell]] = 0.6 * 30;
+    brain.tick(input, opts);
+    const a = t >= 100 && brain.attended();
+    if (a) count[a.feature] = (count[a.feature] || 0) + 1;
+  }
+  return (count.red || 0) > (count.blue || 0) ? 'red' : 'blue';
+}
+
+test('brain: attention goes to what the creature needs', (Evo, assert) => {
+  const seeds = 10;
+  let red = 0, blue = 0;
+  for (let seed = 1; seed <= seeds; seed++) {
+    if (attentionWinner(Evo, seed, 'hunger') === 'red') red++;
+    if (attentionWinner(Evo, seed, 'thirst') === 'blue') blue++;
+  }
+  assert.ok(red >= seeds * 0.6, `hungry: red wins in ${red} of ${seeds}`);
+  assert.ok(blue >= seeds * 0.7, `thirsty: blue wins in ${blue} of ${seeds}`);
+});

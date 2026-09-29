@@ -2,7 +2,7 @@
 // they measure how the brain behaves (run with --report).
 'use strict';
 
-module.exports = ({ Evo, lab }) => {
+module.exports = ({ Evo, lab, trial }) => {
   const cached = fn => { const memo = new Map(); return seed => { if (!memo.has(seed)) memo.set(seed, fn(seed)); return memo.get(seed); }; };
 
   // A creature with several moderate drives, things to look at and no reward or punishment: which
@@ -66,8 +66,31 @@ module.exports = ({ Evo, lab }) => {
     return { brain: Number(brainNs) / 1000 / creatureTicks, senses: Number(senseNs) / 1000 / creatureTicks };
   });
 
+  // Two things in view, one on each side: does the creature go for the one its need is about?
+  const choice = {
+    'hungry, fruit left + dew right -> eats the fruit first': seed => {
+      const s = lab(seed);
+      s.hold = { hunger: 0.7 };
+      const fruit = s.world.spawnItem('fruit', s.c.x - 120), dew = s.world.spawnItem('dew', s.c.x + 120);
+      const gone = item => !s.world.items.includes(item);
+      const at = trial(s, 1800, () => gone(fruit) || gone(dew));
+      return at !== null && gone(fruit) ? at : null;
+    },
+    'thirsty, fruit left + pond right -> reaches water': seed => {
+      const s = lab(seed);
+      const p = s.world.terrain.ponds[0];
+      Object.assign(s.c, { x: p.x0 - 150, facing: 1 });
+      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.world.spawnItem('fruit', s.c.x - 150);
+      s.hold = { thirst: 0.7 };
+      let drank = false;
+      s.world.events.on('drink', () => { drank = true; });
+      return trial(s, 1800, () => drank);
+    }
+  };
+
   return {
-    scenarios: {},
+    scenarios: { ...choice },
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
