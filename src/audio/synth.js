@@ -6,8 +6,6 @@
     constructor() {
       this.ctx = null;
       this.enabled = false; // Off until the player turns it on
-      this.lastSpikeTime = 0;
-      this.spikeThrottleMs = 75;
     }
 
     init() {
@@ -50,17 +48,9 @@
       }
     }
 
-    chirpSpike() {
-      const now = performance.now();
-      if (now - this.lastSpikeTime < this.spikeThrottleMs) return;
-      this.lastSpikeTime = now;
-      this.playTone(840 + Math.random() * 220, 0.02, 'triangle', 0.012);
-    }
-
     chomp() { this.playNotes([[0, 600, 0.035, 'sine', 0.05], [30, 380, 0.045, 'triangle', 0.06]]); }
     hatchChime() { this.playNotes([[0, 523.25, 0.08, 'sine', 0.05], [60, 659.25, 0.09, 'sine', 0.06], [120, 783.99, 0.12, 'sine', 0.07]]); }
     deathTone() { this.playNotes([[0, 200, 0.14, 'sawtooth', 0.04], [90, 130, 0.20, 'sawtooth', 0.05]]); }
-    sweetChime() { this.playNotes([[0, 587.33, 0.08, 'sine', 0.05], [40, 783.99, 0.06, 'sine', 0.04]]); }
     sip() { this.playNotes([[0, 493.88, 0.05, 'sine', 0.03], [45, 987.77, 0.06, 'sine', 0.03]]); }
     hazardAlarm() { this.playNotes([[0, 170, 0.14, 'sawtooth', 0.07], [60, 110, 0.18, 'sawtooth', 0.08]]); }
     purr() { this.playNotes([[0, 150, 0.12, 'triangle', 0.05], [70, 175, 0.12, 'triangle', 0.04]]); }
