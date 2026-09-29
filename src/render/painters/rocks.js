@@ -8,6 +8,57 @@
   const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
   const { SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
+  // ---- Pieces shared by the grub log and the log platform
+
+  // A log's body lying from x0 to x1 between top and bottom, rounded at both ends (end radius rx),
+  // lit from above: tone = [highlight mix, mid stop, shade scale, outline scale, outline width]
+  function logBody(g, x0, x1, top, bottom, rx, gradBottom, bark, tone) {
+    const [lit, mid, dark, edge, edgeW] = tone;
+    const yM = (top + bottom) / 2, ry = (bottom - top) / 2;
+    const bg = g.createLinearGradient(0, top, 0, gradBottom);
+    bg.addColorStop(0, rgb(mix(bark, [255, 230, 190], lit)));
+    bg.addColorStop(mid, rgb(bark));
+    bg.addColorStop(1, rgb(scale(bark, dark)));
+    g.fillStyle = bg;
+    g.beginPath();
+    g.moveTo(x0, top);
+    g.lineTo(x1, top);
+    g.ellipse(x1, yM, rx, ry, 0, -Math.PI / 2, Math.PI / 2);
+    g.lineTo(x0, bottom);
+    g.ellipse(x0, yM, rx, ry, 0, Math.PI / 2, Math.PI * 1.5);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = rgba(scale(bark, edge), 0.9);
+    g.lineWidth = edgeW;
+    g.stroke();
+  }
+
+  // A sawn end: pale wood with growth rings, each ring [rx, ry]
+  function cutEnd(g, x, y, rx, ry, rings) {
+    g.fillStyle = '#d6b082';
+    g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(150,108,70,0.8)';
+    for (const [a, b] of rings) { g.beginPath(); g.ellipse(x, y, a, b, 0, 0, TAU); g.stroke(); }
+  }
+
+  // Moss cushions along a top edge from x0 to x1: spaced gap + R() * gapR, radius r + R() * rR
+  function mossDots(g, R, x0, x1, y, gap, gapR, r, rR) {
+    g.beginPath();
+    for (let x = x0; x < x1; x += gap + R() * gapR) circle(g, x, y, r + R() * rR);
+    g.fill();
+  }
+
+  // A lumpy cap of snow: its foot at y = base from xa to xb, its wavy top near y = top from x0 to x1
+  function snowCap(g, xa, xb, base, x0, x1, top, step, freq, amp) {
+    g.fillStyle = SNOW.body;
+    g.beginPath();
+    g.moveTo(xa, base);
+    for (let x = x0; x <= x1; x += step) g.lineTo(x, top - Math.sin(x * freq) * amp);
+    g.lineTo(xb, base);
+    g.closePath();
+    g.fill();
+  }
+
   function paintLog(g, f, si, rec) {
     const R = rng(4000 + (f.id | 0) * 7);
     const L = f.length || 110, d = rec.data.d;
@@ -17,22 +68,7 @@
       const ry = p.gap + 5;
       paintStone(g, p.x, p.gap + 3, Math.max(10, ry * 0.8 + 5), ry, ROCK_TONES[(f.id | 0) % 3], si);
     }
-    const bg = g.createLinearGradient(0, yT, 0, 3);
-    bg.addColorStop(0, rgb(mix(bark, [255, 230, 190], 0.25)));
-    bg.addColorStop(0.5, rgb(bark));
-    bg.addColorStop(1, rgb(scale(bark, 0.55)));
-    g.fillStyle = bg;
-    g.beginPath();
-    g.moveTo(x0, yT);
-    g.lineTo(x1, yT);
-    g.ellipse(x1, yM, d * 0.26, d / 2, 0, -Math.PI / 2, Math.PI / 2);
-    g.lineTo(x0, 3);
-    g.ellipse(x0, yM, d * 0.26, d / 2, 0, Math.PI / 2, Math.PI * 1.5);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = rgba(scale(bark, 0.45), 0.9);
-    g.lineWidth = 1.2;
-    g.stroke();
+    logBody(g, x0, x1, yT, 3, d * 0.26, 3, bark, [0.25, 0.5, 0.55, 0.45, 1.2]);
     // Bark furrows
     g.strokeStyle = rgba(scale(bark, 0.5), 0.7);
     g.lineWidth = 1;
@@ -60,25 +96,14 @@
     g.fillStyle = hg;
     g.beginPath(); g.ellipse(x0 + 1, yM, d * 0.18, d * 0.38, 0, 0, TAU); g.fill();
     // The cut end with rings
-    g.fillStyle = '#d6b082';
-    g.beginPath(); g.ellipse(x1, yM, d * 0.26, d / 2 - 1, 0, 0, TAU); g.fill();
-    g.strokeStyle = 'rgba(150,108,70,0.8)';
     g.lineWidth = 0.9;
-    for (let k = 1; k <= 3; k++) { g.beginPath(); g.ellipse(x1, yM, d * 0.26 * k / 4, (d / 2 - 1) * k / 4, 0, 0, TAU); g.stroke(); }
+    cutEnd(g, x1, yM, d * 0.26, d / 2 - 1, [1, 2, 3].map(k => [d * 0.26 * k / 4, (d / 2 - 1) * k / 4]));
     // Moss, fungi or snow on top
     if (si === WINTER) {
-      g.fillStyle = SNOW.body;
-      g.beginPath();
-      g.moveTo(x0 - 2, yT + 3);
-      for (let x = x0; x <= x1 + 1; x += 6) g.lineTo(x, yT - 2.5 - Math.sin(x * 0.3) * 1.2);
-      g.lineTo(x1 + 3, yT + 3);
-      g.closePath();
-      g.fill();
+      snowCap(g, x0 - 2, x1 + 3, yT + 3, x0, x1 + 1, yT - 2.5, 6, 0.3, 1.2);
     } else {
       g.fillStyle = MOSS.log[si];
-      g.beginPath();
-      for (let x = x0 + 6; x < x1 - 4; x += 5 + R() * 6) circle(g, x, yT + 1, 2 + R() * 2.8);
-      g.fill();
+      mossDots(g, R, x0 + 6, x1 - 4, yT + 1, 5, 6, 2, 2.8);
       const caps = si === AUTUMN ? 4 : 2;
       for (let k = 0; k < caps; k++) {
         const fx = x0 + L * (0.2 + R() * 0.6), fy = yM + (R() - 0.2) * d * 0.3;
@@ -205,22 +230,7 @@
     const R = rng(8000 + Math.round(p.x0));
     const L = p.x1 - p.x0, d = 18;
     const bark = [112, 80, 54];
-    const bg = g.createLinearGradient(0, -1, 0, d);
-    bg.addColorStop(0, rgb(mix(bark, [255, 230, 190], 0.28)));
-    bg.addColorStop(0.45, rgb(bark));
-    bg.addColorStop(1, rgb(scale(bark, 0.5)));
-    g.fillStyle = bg;
-    g.beginPath();
-    g.moveTo(0, -1);
-    g.lineTo(L, -1);
-    g.ellipse(L, d / 2 - 1, d * 0.25, d / 2, 0, -Math.PI / 2, Math.PI / 2);
-    g.lineTo(0, d - 1);
-    g.ellipse(0, d / 2 - 1, d * 0.25, d / 2, 0, Math.PI / 2, Math.PI * 1.5);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = rgba(scale(bark, 0.4), 0.9);
-    g.lineWidth = 1.1;
-    g.stroke();
+    logBody(g, 0, L, -1, d - 1, d * 0.25, d, bark, [0.28, 0.45, 0.5, 0.4, 1.1]);
     g.strokeStyle = rgba(scale(bark, 0.5), 0.6);
     g.lineWidth = 0.9;
     g.beginPath();
@@ -229,20 +239,12 @@
       while (x < L - 8) { const len = 12 + R() * 24; g.moveTo(x, k * d / 4); g.lineTo(Math.min(L - 5, x + len), k * d / 4 + (R() - 0.5) * 2); x += len + 8; }
     }
     g.stroke();
-    for (const ex of [0, L]) {
-      g.fillStyle = '#d6b082';
-      g.beginPath(); g.ellipse(ex, d / 2 - 1, d * 0.25, d / 2 - 1, 0, 0, TAU); g.fill();
-      g.strokeStyle = 'rgba(150,108,70,0.8)';
-      g.beginPath(); g.ellipse(ex, d / 2 - 1, d * 0.12, d / 4, 0, 0, TAU); g.stroke();
-    }
+    for (const ex of [0, L]) cutEnd(g, ex, d / 2 - 1, d * 0.25, d / 2 - 1, [[d * 0.12, d / 4]]);
     if (si === WINTER) {
-      g.fillStyle = SNOW.body;
-      g.beginPath(); g.moveTo(-2, 1); for (let x = 0; x <= L; x += 5) g.lineTo(x, -3.5 - Math.sin(x * 0.4) * 1); g.lineTo(L + 2, 1); g.closePath(); g.fill();
+      snowCap(g, -2, L + 2, 1, 0, L, -3.5, 5, 0.4, 1);
     } else {
       g.fillStyle = MOSS.ledge[si];
-      g.beginPath();
-      for (let x = 6; x < L - 4; x += 7 + R() * 9) circle(g, x, -0.5, 1.5 + R() * 2);
-      g.fill();
+      mossDots(g, R, 6, L - 4, -0.5, 7, 9, 1.5, 2);
       if (si <= SUMMER) { // A sprout
         const sx = L * 0.62;
         g.strokeStyle = '#5a9a40';
@@ -324,8 +326,7 @@
     g.stroke(body);
     const gp = GROUND[si];
     if (si === WINTER) {
-      g.fillStyle = SNOW.body;
-      g.beginPath(); g.moveTo(-5, 1); for (let x = -4; x <= L + 4; x += 5) g.lineTo(x, -4.5 - Math.sin(x * 0.3) * 1); g.lineTo(L + 5, 1); g.closePath(); g.fill();
+      snowCap(g, -5, L + 5, 1, -4, L + 4, -4.5, 5, 0.3, 1);
     } else {
       g.fillStyle = rgb(gp.grass);
       g.fillRect(-2, -2.5, L + 4, 3);
