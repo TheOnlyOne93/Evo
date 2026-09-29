@@ -193,3 +193,16 @@ test('world: food grows back on the plants', (Evo, assert) => {
   const kinds = new Set(world.items.map(i => i.type));
   for (const k of ['fruit', 'grain']) assert.ok(kinds.has(k), `${k} grew`);
 });
+
+test('world: a life-history gene that switches on later changes the lifespan without undoing the stage', (Evo, assert) => {
+  const world = emptyWorld(Evo);
+  const genes = [...Evo.FOUNDER_GENOME, { gene: 'Life history', stage: Evo.STAGE.ADULT, lifespan: 1, gestation: 0.4 }];
+  const genome = Evo.Genome.founder('X', genes);
+  const before = genome.develop(Evo.STAGE.YOUTH).lifespanTicks;
+  const c = world.addCreature(genome, world.width / 2, { ageTicks: Math.ceil(before * Evo.STAGES[Evo.STAGE.YOUTH].until) - 2, growth: 1 });
+  assert.strictEqual(c.stage, Evo.STAGE.YOUTH);
+  for (let t = 0; t < 10; t++) c.step(world);
+  assert.strictEqual(c.stage, Evo.STAGE.ADULT, 'it grew up and stayed grown up');
+  assert.ok(c.lifespan > before, 'the later gene lengthened its life');
+  assert.strictEqual(c.lifespan, c.traits.lifespanTicks);
+});

@@ -54,7 +54,6 @@
       this.stage = STAGE.BABY;
 
       this.traits = genome.develop(this.stage);
-      this.lifespan = this.traits.lifespanTicks;
       this.stage = this.stageForAge();
       if (this.stage !== STAGE.BABY) this.traits = genome.develop(this.stage);
 
@@ -113,6 +112,8 @@
     get sex() { return this.traits.sex; }
     get isMature() { return this.stage >= STAGE.ADOLESCENT; } // Adolescent or older: sexually mature
     get fertile() { return !this.dead && !this.asleep && this.stage >= STAGE.ADOLESCENT && this.stage <= STAGE.OLD && this.chem.effect('fertility') > 1; }
+    // Read from the current traits, so a life-history gene that switches on later in life counts
+    get lifespan() { return this.traits.lifespanTicks; }
     get lying() { return this.dead || this.asleep || this.restTimer > 30; }
 
     stageForAge() {
@@ -441,8 +442,10 @@
     step(world) {
       if (this.dead) return;
       this.ageTicks++;
+      // Stages only move forward: a later gene that lengthens the lifespan must not send the
+      // creature back to an earlier stage (which would switch that gene off again)
       const stage = this.stageForAge();
-      if (stage !== this.stage) this.enterStage(stage, world);
+      if (stage > this.stage) this.enterStage(stage, world);
 
       this.readLoci(world);
       this.chem.step(this.loci);
