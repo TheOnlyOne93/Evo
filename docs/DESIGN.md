@@ -53,7 +53,15 @@ decoded value is clamped, so a broken gene makes a bad creature, never a broken 
 
 Gene kinds: appearance, morphology, eyes, nose, membrane, plasticity, reinforcement sensitivity,
 muscle, life history, voice, curiosity, anatomy, region duplication, axon guidance, pacemaker,
-neurochemistry, **reaction, emitter, receptor, half-life, initial concentration, instinct**.
+neurochemistry, **reaction, emitter, receptor, half-life, initial concentration, instinct**,
+insulation, reproduction. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
+expresses traits, and describes itself in plain words for the UI.
+
+Genes that switch on at a later stage join the traits then: the biochemistry is reconfigured, new
+axon guidance tracts and pacemakers grow, and a later life-history gene changes the lifespan (life
+stages only move forward). The brain's layout and cell properties are built once, at birth, so
+later copies of **anatomy, region duplication, membrane and neurochemistry** genes have no effect
+(the genome view says so).
 
 ---
 
@@ -99,15 +107,22 @@ two hemifields: things to the left and things to the right); y = front (senses) 
 
 | Lobe | Neurons |
 |---|---|
-| Sight | 2 sides × 2 heights (low, high) × 7 features (red, yellow, green, blue, violet, pink, motion) |
+| Sight | 2 sides × 2 heights (low, high) × 8 features (red, yellow, green, blue, violet, pink, creature, motion) |
 | Smell | 2 antennae × 10 odours |
 | Hearing | 2 ears × 2 pitches |
-| Touch | contact left/right, mouth left/right, back (pat/hit), feet, pain, gentle touch, falling, in water |
+| Touch | contact left/right, mouth left/right, lips (water), back (pat/hit), feet, pain, gentle touch, falling, in water |
 | Taste | sweet, starchy, savoury, fatty, bitter, water |
-| Needs | 16 cells, each driven by whichever chemicals receptor genes attach to it |
+| Needs | 18 cells (`N_NEEDS`), each driven by whichever chemicals receptor genes attach to it; cells 0–8 share an address with the muscle of the same index, the rest are general |
 | Feelings | reward cell, punishment cell and 6 general cells (emitter genes can read these) |
 | Thinking, Side lobes, Central lobe, Brainstem | general-purpose cells |
-| Movement | walk left, walk right, jump, eat, grab/drop, rest, call, run |
+| Movement | walk left, walk right, jump, eat, grab/drop, rest, call, run, drink |
+
+The sensory layouts are defined once, in `Evo.BRAIN_BODY_PLAN`: `sightIndex(side, band, feature)`,
+`smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and
+`sightCell(k)` / `smellCell(k)` decode it (the body's senses, founder instincts and the pose use
+them). The volume-transmission chemicals (DA reward, ST stress, NO) are listed in `Evo.NEUROCHEMS`.
+`brain.inject(neuron, mV, delayTicks)` delivers an input that arrives after a delay (the inspector's
+"stimulate").
 
 Neuron state lives in typed arrays (struct-of-arrays) for speed; `brain.neurons[i]` holds each
 neuron's identity (id, lobe, position, receptor tag, meta) for the UI.
@@ -129,12 +144,12 @@ world.terrain = {
 }
 world.platforms = [{ x0, x1, y, kind }]            // one-way surfaces: 'log' | 'rock'
 world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
-  //  'tree'      { height, canopy, species: 'fruit' | 'mimic', fruiting: 0..1 }
+  //  'tree'      { height, canopy, species: 'fruit' | 'mimic', yields: item type, fruiting: 0..1 }
   //  'grass'     { width, height, seeding: 0..1 }       grain grows here
   //  'log'       { length }                             grubs live here
   //  'rock'      { w, h, warm: 0..1 }                   the sun-warmed rock
   //  'reeds'     { width }
-  //  'thornbush' { radius }                             hurts on contact
+  //  'thornbush' { radius }                             looks violet; founders learn to keep away
 world.items = [{ id, type, x, y, vx, vy, radius, rot, age, held, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
   //  egg: { hue, accentHue, progress: 0..1 }   ball: { hue }
@@ -144,11 +159,18 @@ world.clock = { tick, day, phase, light, sunElevation }
 world.season = { key, index, progress }   // key: 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER'
 world.temperatureAt(x, y)            // 0..1 (0 freezing, 0.5 mild, 1 hot)
 world.scent = { cols, rows, cell, channels }   // Float32Array per channel; channel list in Evo.SCENTS
-world.sounds = [{ x, y, pitch, loudness, age, sourceId }]   // calls, for drawing notes
+world.sounds = [{ x, y, pitch, loudness, age, sourceId }]   // calls, for drawing notes; kept Evo.WORLD.SOUND_LIFE ticks
+world.setTime(day, phase)            // jump the clock (tools, tests, UI)
 ```
 
+Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs
+with its feet `HOLD_GRIP × size` below the hand), `Evo.WORLD.SOUND_LIFE`, and
+`Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
+
 Creatures (`src/sim/creature.js`): `x` = centre, `y` = feet on the ground, `facing` ±1, `vx`, `vy`,
-`onGround`, `id`, `name`, `sex`, `stage`, `genome`, `chem` (biochemistry), `brain`, `body`.
+`onGround`, `id`, `name`, `sex`, `stage`, `genome`, `chem` (biochemistry), `brain`, `traits`,
+`action` ('idle' | 'walking' | 'running' | 'jumping' | 'eating' | 'drinking' | 'resting' | 'calling' |
+'sleeping' | 'held'), `lifespan` (ticks, from the current traits), `isMature` (adolescent or older).
 
 ---
 
@@ -160,6 +182,7 @@ The creature artist draws only from the pose, never from simulation internals.
 ```js
 pose = {
   id, x, y,                 // world coords; y = where the feet touch the ground
+  groundY,                  // optional: ground surface below the creature (for a shadow while airborne)
   facing,                   // 1 = facing right, -1 = facing left
   size,                     // body length in px (≈18 for a newborn, ≈44 for a large adult)
   stage,                    // 1 baby, 2 child, 3 adolescent, 4 youth, 5 adult, 6 old, 7 senile
@@ -172,7 +195,7 @@ pose = {
   motion: {
     vx,                     // px per tick, signed
     airborne,               // true while jumping or falling
-    walkPhase,              // radians; advances with distance walked
+    walkPhase,              // radians; advances with distance walked (Evo.CREATURE.WALK_PHASE_PER_PX)
     lying                   // 0..1 (1 = lying down: resting or asleep)
   },
   face: {
@@ -184,7 +207,7 @@ pose = {
     blush                   // 0..1 (pleasure, e.g. being patted)
   },
   state: {
-    asleep, held, dead, eating,
+    asleep, held, dead, eating,   // eating: the mouth is at work (eating or drinking)
     calling,                // 0..1 (show a call)
     flinch,                 // 0..1 (just hurt)
     fear, anger, sick, cold, hot, wet, pregnant,   // 0..1
@@ -234,4 +257,4 @@ Performance: 60 fps with 16 creatures and 80 items on a mid-range laptop. Cache 
 * **Slap**: an impact on its back (painful; wakes a sleeper).
 * **Drop items**: food, toys, lures.
 
-Keyboard: arrow keys / A–D pan, +/− zoom, F follow, Space pause.
+Keyboard: arrow keys / WASD pan, +/− zoom, F follow, Space pause.
