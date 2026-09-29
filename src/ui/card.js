@@ -109,7 +109,7 @@
       if (!c || !Evo.CreatureArt) return;
       try {
         ctx.save();
-        Evo.CreatureArt.drawPortrait(ctx, Evo.poseOf(c), w, h, t);
+        Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), w, h, t);
         ctx.restore();
       } catch (e) { ctx.restore(); }
     };

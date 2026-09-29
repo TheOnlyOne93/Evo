@@ -751,6 +751,13 @@
       }
     }
 
+    // This frame's pose of a creature, for the card and the strip (so its eased values advance once
+    // per frame); creatures off screen get a fresh one
+    poseFor(c) {
+      const i = this.world.creatures.indexOf(c);
+      return (i >= 0 && this.poses[i]) || Evo.poseOf(c, { world: this.world });
+    }
+
     _safePose(c) {
       try { return Evo.poseOf(c, { world: this.world }); } catch (err) { this._artFailed(err); return null; }
     }

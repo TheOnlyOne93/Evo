@@ -29,7 +29,7 @@
         const cv = b.firstChild, ctx = cv.getContext('2d');
         ctx.setTransform(2, 0, 0, 2, 0, 0);
         ctx.clearRect(0, 0, 34, 34);
-        try { ctx.save(); Evo.CreatureArt.drawPortrait(ctx, Evo.poseOf(c), 34, 34, performance.now() / 1000, 'face'); ctx.restore(); } catch (e) { ctx.restore(); }
+        try { ctx.save(); Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), 34, 34, performance.now() / 1000, 'face'); ctx.restore(); } catch (e) { ctx.restore(); }
       });
     };
     strip.addEventListener('click', e => {
