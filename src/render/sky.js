@@ -498,9 +498,9 @@
 
     // Compute the light palette for this frame from the clock and season
     update(world, t) {
-      const clock = world.clock || {};
-      const e = typeof clock.sunElevation === 'number' ? clock.sunElevation : Math.sin(((clock.phase || 0.5) - 0.25) * TAU);
-      const morning = (clock.phase || 0) < 0.5;
+      const clock = world.clock;
+      const e = clock.sunElevation;
+      const morning = clock.phase < 0.5;
       const ss = seasonState(world.season, this.ss);
       const pal = this.pal;
       evalStops(pal, ss.cur, morning, e);
@@ -517,7 +517,7 @@
       pal.day = smooth(0.02, 0.3, e);
       pal.twilight = clamp01(1 - pal.night - pal.day);
       pal.stars = smooth(-0.03, -0.24, e);
-      pal.moonPhase = (((clock.day || 0) + (clock.phase || 0)) / 8 + 0.42) % 1;
+      pal.moonPhase = ((clock.day + clock.phase) / 8 + 0.42) % 1;
       pal.topCss = rgb(pal.top);
       pal.midCss = rgb(pal.mid);
       pal.horCss = rgb(pal.hor);
@@ -655,7 +655,7 @@
       g.globalAlpha = 1;
 
       // Moon: opposite the sun, with its phase
-      const th = ((v.world.clock && v.world.clock.phase) || 0.5) - 0.25;
+      const th = v.world.clock.phase - 0.25;
       const mr = 13 * sc;
       const mx = w / 2 + Math.cos(th * TAU) * w * 0.42;
       const my = hy + pal.elevation * arc * 0.92;
