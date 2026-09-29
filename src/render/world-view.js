@@ -7,9 +7,7 @@
 // creatures, particles and overlays are drawn as paths every frame.
 (function (Evo) {
   'use strict';
-  const TAU = Math.PI * 2;
-  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-  const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const { TAU, clamp, clamp01 } = Evo.util;
   const { rng, makeCanvas, rgb, rgba, mix, scale, smooth } = Evo.Sky.util;
 
   const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;

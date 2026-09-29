@@ -5,7 +5,7 @@
 // its body is drawn above that point.
 (function (Evo) {
   'use strict';
-  const TAU = Math.PI * 2;
+  const { TAU } = Evo.util;
 
   // Used when a token is missing (e.g. a page without styles/app.css)
   const FALLBACK = {

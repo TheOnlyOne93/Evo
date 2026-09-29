@@ -6,12 +6,10 @@
 // the body, then scaled by pose.size and mirrored by pose.facing.
 (function (Evo) {
   'use strict';
-  const TAU = Math.PI * 2;
+  const { TAU } = Evo.util;
   const PI = Math.PI;
-  const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
-  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-  const lerp = (a, b, u) => a + (b - a) * u;
-  const smooth = u => u * u * (3 - 2 * u);
+  const { clamp01, clamp, lerp } = Evo.util;
+  const smooth = u => Evo.util.smoothstep(0, 1, u);
   const num = (v, d) => (typeof v === 'number' && v === v ? v : d);
   const EMPTY = {};
 

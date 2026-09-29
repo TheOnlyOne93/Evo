@@ -3,9 +3,7 @@
 // palette the WorldView uses to tint the scene. Reads world.clock and world.season only.
 (function (Evo) {
   'use strict';
-  const TAU = Math.PI * 2;
-  const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
-  const smooth = (a, b, v) => { const x = clamp01((v - a) / (b - a)); return x * x * (3 - 2 * x); };
+  const { TAU, clamp01, smoothstep: smooth } = Evo.util;
   const SEASON_KEYS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
 
   // Scenery uses its own seeded streams (Evo.util.mulberry32), never Evo.random: drawing must not

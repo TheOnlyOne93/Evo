@@ -8,6 +8,8 @@
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
   const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
   const lerp = (a, b, t) => a + (b - a) * t;
+  // Hermite ease of v between edges a and b
+  const smoothstep = (a, b, v) => { const x = clamp01((v - a) / (b - a)); return x * x * (3 - 2 * x); };
   const mean = arr => (arr.length ? arr.reduce((a, v) => a + v, 0) / arr.length : 0);
   const TAU = Math.PI * 2;
   // Wrap an angle into [-PI, PI)
@@ -82,6 +84,6 @@
     emit(type, payload) { const h = this.handlers[type]; if (h) for (const fn of h) fn(payload); }
   }
 
-  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU, mulberry32, hash2 };
+  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU, smoothstep, mulberry32, hash2 };
   Evo.EventBus = EventBus;
 })(globalThis);

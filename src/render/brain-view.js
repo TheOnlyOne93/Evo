@@ -5,7 +5,7 @@
 (function (Evo) {
   'use strict';
   const { LOBE_INFO } = Evo;
-  const TAU = Math.PI * 2;
+  const { TAU } = Evo.util;
 
   // Regions labelled on the map (the rest are identified by tapping a neuron)
   const LABELLED = ['sight', 'smell', 'touch', 'needs', 'feelings', 'cortex', 'side', 'central', 'motor', 'stem'];
