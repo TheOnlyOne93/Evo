@@ -659,7 +659,7 @@
       const mr = 13 * sc;
       const mx = w / 2 + Math.cos(th * TAU) * w * 0.42;
       const my = hy + pal.elevation * arc * 0.92;
-      if (pal.elevation > -0.95 && my < hy + mr * 2) {
+      if (my < hy + mr * 2) {
         const key = Math.round(pal.moonPhase * 48) + mr * 1000 + dpr * 1e6;
         if (key !== this.moonKey) { this.moonKey = key; this.moonSprite = paintMoon(Math.round(pal.moonPhase * 48) / 48, mr, dpr); }
         const ms = this.moonSprite.width / dpr;
