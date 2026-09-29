@@ -126,3 +126,14 @@ test('brain: the body plan index helpers match the sensory neurons', (Evo, asser
     }
   }
 });
+
+test('brain: an injected input arrives after its delay', (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const i = brain.lobes.cortex[0], drive = new Float32Array(brain.N);
+  const opts = { noise: 0, arousal: 0, canFire: false };
+  for (let t = 0; t < 30; t++) brain.tick(drive, opts);
+  brain.inject(i, 15, 3);
+  const v = [];
+  for (let t = 0; t < 4; t++) { brain.tick(drive, opts); v.push(brain.v[i]); }
+  assert.ok(v[2] > v[1] + 10, `the input lands on the third tick: ${v.map(x => x.toFixed(1))}`);
+});

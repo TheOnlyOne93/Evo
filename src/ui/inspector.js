@@ -198,8 +198,7 @@
     stimulate() {
       const c = this.app.focus, i = this.brainView.probed;
       if (!c || i < 0) return;
-      const b = c.brain, slots = Evo.BRAIN.MAX_DELAY + 1;
-      for (let k = 1; k <= 6; k += 2) b.inbox[i * slots + (b.tickCount + k) % slots] += 40;
+      for (let k = 1; k <= 6; k += 2) c.brain.inject(i, 40, k);
     }
 
     // What each sight and smell has come to predict, from the cue synapses onto the reward and

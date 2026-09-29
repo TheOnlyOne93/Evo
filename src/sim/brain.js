@@ -554,6 +554,12 @@
       return spikes;
     }
 
+    // Deliver mV of input to neuron i, arriving delayTicks ticks from now (1 = on the next tick)
+    inject(i, mV, delayTicks = 1) {
+      const d = clamp(Math.round(delayTicks), 1, MAX_DELAY);
+      this.inbox[i * SLOTS + (this.tickCount + d) % SLOTS] += mV;
+    }
+
     // Every firing neuron puffs a little NO gas where it sits. The reward and stress cells release
     // their chemical at the ends of their axons, once each spike has arrived (bit `delay` of the
     // firing history), so WHERE learning happens depends on where those axons grew: a broad
