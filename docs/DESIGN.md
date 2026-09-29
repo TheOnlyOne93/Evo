@@ -269,14 +269,17 @@ pose = {
     pupilX, pupilY,         // -1..1: where it is looking
     mouthOpen,              // 0..1
     smile,                  // -1 (miserable) .. 1 (delighted)
-    earDroop,               // 0..1 (tired, sad, ill)
-    blush                   // 0..1 (pleasure, e.g. being patted)
+    earDroop,               // 0..1 (tired, sad, lonely, ill)
+    blush,                  // 0..1 (pleasure, e.g. being patted)
+    happy,                  // 0..1 (just patted: happy eyes, wagging tail)
+    worry,                  // 0..1 (worried brows: in pain, lonely, bored)
+    yawn, lick              // 0..1 (brief gestures: sleepy or tired; hungry or thirsty)
   },
   state: {
     asleep, held, dead, eating,   // eating: the mouth is at work (eating or drinking)
     calling,                // 0..1 (show a call)
     flinch,                 // 0..1 (just hurt)
-    fear, anger, sick, cold, hot, wet, pregnant,   // 0..1
+    fear, anger, pain, sick, cold, hot, wet, pregnant,   // 0..1
     inHeat                  // boolean: crest/colour display of a fertile adult
   },
   focused, hovered          // UI highlight

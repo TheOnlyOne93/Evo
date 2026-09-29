@@ -136,7 +136,7 @@
     hx: 0, hy: 0, hAng: 0, R: 10,
     earLen: 10, earW: 6, earN: 0, earF: 0, crest: 0, crestKind: 0, crestSway: 0,
     eR: 3, closed: 0, eyeMode: 0, px: 0, py: 0, pupil: 0.45, lidTilt: 0,
-    smile: 0, mouthOpen: 0, tongue: 0, fang: 0, wavy: 0, blush: 0, browAnger: 0, browWorry: 0,
+    smile: 0, mouthOpen: 0, tongue: 0, lick: 0, yawn: 0, fang: 0, wavy: 0, blush: 0, browAnger: 0, browWorry: 0,
     pattern: 0, patternScale: 0.5
   };
 
@@ -163,6 +163,8 @@
     const sick = clamp01(num(S.sick, 0)), cold = clamp01(num(S.cold, 0)) * live, hot = clamp01(num(S.hot, 0)) * live;
     const wet = clamp01(num(S.wet, 0)), preg = clamp01(num(S.pregnant, 0));
     const flinch = clamp01(num(S.flinch, 0)) * live, calling = asleep ? 0 : clamp01(num(S.calling, 0)) * live;
+    const awake = asleep ? 0 : live, pain = clamp01(num(S.pain, 0)) * awake;
+    const joy = clamp01(num(F.happy, 0)) * awake, yawn = clamp01(num(F.yawn, 0)) * awake;
     const eat = S.eating && !dead && !held && !asleep ? 1 : 0;
     const air = M.airborne && !held && !dead ? 1 : 0;
     const lying = dead ? 1 : held || air ? 0 : clamp01(num(M.lying, asleep ? 1 : 0));
@@ -251,7 +253,7 @@
 
     // Tail: a chain of puffs from the rump
     const smile = clamp(num(F.smile, 0), -1, 1);
-    const happy = clamp01(smile - 0.2) * live * (1 - lying);
+    const happy = clamp01(Math.max(smile - 0.2, joy)) * live * (1 - lying);
     let up = 0.78 - 0.12 * move - 0.45 * run - 0.4 * Math.max(0, -smile) + 0.2 * anger - 0.3 * sick - 0.25 * ag - 0.3 * cold - 0.3 * wet;
     let curl = 1.5 - 0.9 * run + 0.2 * anger - 0.3 * cold - 0.4 * wet;
     up = lerp(up, dead ? 0.02 : 0.1, lying); curl = lerp(curl, dead ? 0.15 : 1.1, lying);
@@ -279,7 +281,7 @@
     let hx = bx + ca * (rxF * 0.72) - sa * (-ryT * 0.5 - R * 0.55);
     let hy = by + sa * (rxF * 0.72) + ca * (-ryT * 0.5 - R * 0.55);
     let hAng = Math.sin(t * 0.6 * tempo + ph0 * 2) * 0.035 * live + 0.08 * senile + 0.05 * sick;
-    hy -= 2.4 * calling; hAng -= 0.42 * calling;
+    hy -= 2.4 * calling; hAng -= 0.42 * calling + 0.3 * yawn;
     hx -= 2 * flinch + 1.2 * fear; hy += 1.2 * flinch + 1.6 * fear; hAng -= 0.2 * flinch;
     if (eat) {
       const chew = Math.sin(t * 9);
@@ -316,15 +318,16 @@
     // Eyes
     const blinkT = (t * tempo + e.blinkO) % e.blinkP;
     const blink = blinkT < 0.17 ? Math.sin(blinkT / 0.17 * PI) : 0;
-    let closed = Math.max(num(F.eyesClosed, 0), blink, asleep ? 1 : 0, sick * 0.42, senile * 0.3, ag * 0.12, anger * 0.22);
+    let closed = Math.max(num(F.eyesClosed, 0), blink, asleep ? 1 : 0, sick * 0.42, senile * 0.3, ag * 0.12, anger * 0.22, pain * 0.4);
     closed *= 1 - 0.8 * fear;
     r.closed = clamp01(closed);
-    r.eyeMode = dead ? 4 : flinch > 0.45 ? 3 : r.closed > 0.86 ? (smile > 0.35 && !asleep ? 2 : 1) : 0;
+    // X when dead, squeezed shut when hurt, happy arcs when patted (or delighted with eyes closed)
+    r.eyeMode = dead ? 4 : flinch > 0.45 ? 3 : joy > 0.4 ? 2 : r.closed > 0.86 ? (smile > 0.35 && !asleep ? 2 : 1) : 0;
     r.eR = R * (0.26 + 0.13 * eyeGene) * lerp(1.14, 1, g) * (1 + 0.12 * fear);
     r.px = clamp(num(F.pupilX, 0), -1, 1) * facing;
     r.py = clamp(num(F.pupilY, 0), -1, 1);
     r.pupil = 0.5 + 0.06 * baby - 0.24 * fear;
-    r.lidTilt = anger * 0.5 - 0.25 * Math.max(fear, sick * 0.5);
+    r.lidTilt = anger * 0.5 - 0.25 * Math.max(fear, sick * 0.5, pain);
 
     // Mouth and face
     r.smile = clamp(smile - 0.4 * sick - 0.3 * fear - 0.5 * anger - 0.3 * cold, -1, 1);
@@ -336,7 +339,9 @@
     r.wavy = sick > 0.45 && r.mouthOpen < 0.1 ? 1 : 0;
     r.blush = clamp01(Math.max(num(F.blush, 0), hot * 0.7, 0.28 * baby, cold * 0.4)) * live;
     r.browAnger = anger;
-    r.browWorry = Math.max(fear, sick * 0.5, Math.max(0, -smile) * 0.6);
+    r.browWorry = Math.max(fear, sick * 0.5, Math.max(0, -smile) * 0.6, clamp01(num(F.worry, 0)) * awake);
+    r.lick = clamp01(num(F.lick, 0)) * awake;
+    r.yawn = yawn;
 
     // Whole-body effects
     r.offX = -2.2 * flinch + Math.sin(t * 53) * 0.35 * fear + Math.sin(t * 61 + 1) * 0.4 * cold;
@@ -931,7 +936,7 @@
     const cx = R * 0.98, cy = R * 0.44, wn = R * 0.26, wf = R * 0.11, cornerY = cy - s * R * 0.1;
     ctx.strokeStyle = pal.line; ctx.lineWidth = ol;
     if (o > 0.06) {
-      const h = R * (0.08 + 0.34 * o);
+      const h = R * (0.08 + 0.34 * o) * (1 + 0.7 * r.yawn);   // a yawn opens wide
       openMouthPath(ctx, cx, cy, cornerY, wn, wf, h, R);
       ctx.fillStyle = pal.mouth; ctx.fill();
       ctx.save(); ctx.clip();
@@ -965,6 +970,14 @@
         ctx.quadraticCurveTo(cx + wf * 0.5, cy + dip * 0.8, cx + wf, cornerY);
       }
       ctx.stroke();
+      if (r.lick > 0.05) {
+        // Licking its lips: the tip of the tongue slides out under the nose
+        const l = 0.5 + r.lick;
+        ctx.beginPath();
+        ctx.ellipse(cx + wf * 0.2 + R * 0.04 * r.lick, cy + R * 0.06, R * 0.1 * l, R * 0.08 * l, 0.5, 0, TAU);
+        ctx.fillStyle = pal.tongue; ctx.fill();
+        ctx.lineWidth = ol * 0.8; ctx.stroke();
+      }
     }
     if (r.fang > 0 && o > 0.06) {
       ctx.beginPath();
@@ -1217,6 +1230,7 @@
     still.motion.lying = S.dead ? 1 : num(M.lying, S.asleep ? 1 : 0);
     const f = still.face;
     f.eyesClosed = F.eyesClosed; f.mouthOpen = F.mouthOpen; f.smile = F.smile; f.earDroop = F.earDroop; f.blush = F.blush;
+    f.happy = F.happy; f.worry = F.worry; f.yawn = F.yawn; f.lick = F.lick;
     // Mostly look at the viewer, with the occasional glance at what it was watching (pupilX is in
     // world terms, and the card always faces right)
     const glance = Math.sin(t * 0.37 + phase) > 0.55 ? 0.6 : 0;

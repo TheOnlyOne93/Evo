@@ -155,7 +155,7 @@
 
   // 2. States
   const STATE_LIST = ['asleep', 'held', 'dead', 'eating', 'calling', 'flinch', 'fear', 'anger', 'sick',
-    'cold', 'hot', 'wet', 'pregnant', 'inHeat', 'lying', 'happy', 'sad', 'looking'];
+    'cold', 'hot', 'wet', 'pregnant', 'inHeat', 'lying', 'happy', 'sad', 'looking', 'patted', 'pain', 'worried', 'yawn', 'lick'];
   scene('states', s => {
     STATE_LIST.forEach((name, i) => {
       const p = makePose(5, i % 2 ? 'MALE' : 'FEMALE');
@@ -171,11 +171,16 @@
       else if (name === 'pregnant') { S.pregnant = 1; p.sex = 'FEMALE'; }
       else if (name === 'happy') { F.smile = 1; F.blush = 0.9; F.eyesClosed = 0.95; }
       else if (name === 'sad') { F.smile = -0.9; F.earDroop = 0.8; }
+      else if (name === 'patted') { F.happy = 1; F.blush = 1; F.smile = 0.6; }
+      else if (name === 'pain') { S.pain = 0.8; F.smile = -0.8; F.worry = 0.8; }
+      else if (name === 'worried') { F.worry = 1; F.earDroop = 0.5; }
+      else if (name === 'yawn') { F.yawn = 1; F.mouthOpen = 1; F.eyesClosed = 1; }
+      else if (name === 'lick') F.lick = 1;
       else if (name !== 'looking' && name !== 'flinch') S[name] = 1;
       s.poses.push(p);
     });
   }, (s, t) => {
-    const { ctx, w, h } = s, per = 9, cw = w / per, rh = h / 2, z = 2;
+    const { ctx, w, h } = s, per = 12, cw = w / per, rh = h / 2, z = 2;
     s.poses.forEach((p, i) => {
       const col = i % per, row = i / per | 0, gy = row * rh + rh - 30;
       dayBackdrop(ctx, col * cw, row * rh, cw, rh, gy);
