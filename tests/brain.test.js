@@ -182,6 +182,16 @@ test('brain: of two muscles driven almost equally, one wins and keeps going; a d
   }
 });
 
+test('brain: decided() names the muscle that is winning, and nothing when all are quiet', (Evo, assert) => {
+  Evo.seed(1);
+  const brain = founderBrain(Evo), drive = new Float32Array(brain.N), opts = { noise: 0, arousal: 0, canFire: true };
+  for (let t = 0; t < 100; t++) brain.tick(drive, opts);
+  assert.strictEqual(brain.decided(), -1, 'quiet');
+  const eat = Evo.MOTORS.findIndex(m => m.key === 'eat');
+  for (let t = 0; t < 40; t++) { drive[brain.lobes.motor[eat]] = 6; brain.tick(drive, opts); }
+  assert.strictEqual(brain.decided(), eat);
+});
+
 // Red on the left and blue on the right, equally bright: which does the sight copy attend to?
 function attentionWinner(Evo, seed, drive) {
   Evo.seed(seed);

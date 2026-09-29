@@ -375,6 +375,17 @@
       return { side, band, feature };
     }
 
+    // What it has decided to do: the index (into Evo.MOTORS) of the muscle whose cell is winning the
+    // Movement region's competition (its Lobe dynamics gene), or -1. Without that gene, the busiest
+    // muscle cell.
+    decided() {
+      const g = this.dynamics.find(d => d.lobe === 'motor');
+      let best = -1, most = g ? 0.5 : 0.02;
+      if (g) { for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = k; } }
+      else this.lobes.motor.forEach((i, k) => { if (this.rate[i] > most) { most = this.rate[i]; best = k; } });
+      return best;
+    }
+
     applyPacemakers(pacemakers) {
       for (const pm of pacemakers) {
         for (const i of this.lobes[LOBE_ORDER[pm.lobeIdx]]) {

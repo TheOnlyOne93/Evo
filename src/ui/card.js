@@ -6,19 +6,8 @@
   const H = Evo.uiHelpers;
 
   const EVENT_SHOWN_S = 120;   // An event stays on the card this long (simulated seconds)
-  // What an idle creature is about to do, by its busiest muscle (keys are Evo.MOTORS)
+  // What an idle creature is about to do, by the muscle it has decided on (keys are Evo.MOTORS)
   const ABOUT_TO = { eat: 'Trying to eat', grab: 'Reaching for', drink: 'About to drink', call: 'About to call', rest: 'Settling down' };
-
-  // The muscle whose neuron has fired most lately (its current decision), when one clearly leads
-  function decision(c) {
-    const { lobes, rate } = c.brain, m = lobes.motor;
-    let best = -1, most = 0.04, next = 0;
-    for (let k = 0; k < m.length; k++) {
-      const r = rate[m[k]];
-      if (r > most) { next = most; most = r; best = k; } else if (r > next) next = r;
-    }
-    return best >= 0 && most > next * 1.3 ? Evo.MOTORS[best].key : null;
-  }
 
   // Why it might be doing it: its strongest need, or else how it feels
   function reason(c) {
@@ -40,7 +29,7 @@
       if (what) verb += (Math.sign(a.x - c.x) === c.facing ? ' to ' : ' away from ') + what;
     } else if (c.action === 'eating' && a && a.kind === 'item') verb = `Eating ${what}`;
     else if (c.action === 'idle') {
-      const d = decision(c);
+      const k = c.brain.decided(), d = k >= 0 ? Evo.MOTORS[k].key : null;
       if (ABOUT_TO[d]) verb = ABOUT_TO[d] + (what && (d === 'eat' || d === 'grab') ? ` ${what}` : '');
       else if (what) verb = `Watching ${what}`;
     }

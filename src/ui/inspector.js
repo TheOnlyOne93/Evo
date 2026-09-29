@@ -132,17 +132,14 @@
     }
 
     // Prediction errors are single-tick blips: keep each channel's latest big one, fading. And which
-    // muscle is winning: the busiest cell of the Movement region, held until another takes over.
+    // muscle cell is winning (brain.decided()), held until another takes over.
     sampleMind(b, tick) {
       const m = this.mind;
       for (let ch = 0; ch < 2; ch++) {
         const d = b.delta[ch], faded = m.error[ch] * ERROR_FADE;
         m.error[ch] = Math.abs(d) > Math.abs(faded) ? d : faded;
       }
-      const g = b.dynamics.find(x => x.lobe === 'motor');
-      let best = -1, most = g ? 0.5 : 0.02;
-      if (g) { for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = g.cells[k]; } }
-      else for (const i of b.lobes.motor) if (b.rate[i] > most) { most = b.rate[i]; best = i; }
+      const k = b.decided(), best = k >= 0 ? b.lobes.motor[k] : -1;
       if (best >= 0) {
         m.idle = 0;
         if (best !== m.winner) { m.winner = best; m.since = tick; }
