@@ -193,8 +193,9 @@
   const DRIVE_CELL_TAGS = Array.from({ length: N_NEEDS }, (_, k) => [(k % 6 + 0.5) / 6, (Math.floor(k / 6) + 0.5) / 3]);
   const driveCell = key => DRIVES.indexOf(key);
 
-  // ---- Neurochemicals: chemicals diffusing through the brain tissue (volume transmission), in
-  // channel order. Neurochemistry genes pick one by index. base: default spread when no gene sets it.
+  // ---- Neurochemicals: the brain's modulatory channels, in channel order. Neurochemistry genes pick
+  // one by index and set how far its learning signal spreads around the modulator cell's axon
+  // terminals (see Brain.buildLearningFields). base: the spread when no gene sets it.
   const NEUROCHEMS = [
     { key: 'DA', word: 'Reward', base: 0.5 },   // Dopamine-like reward chemical
     { key: 'ST', word: 'Stress', base: 0.5 },   // Stress chemical

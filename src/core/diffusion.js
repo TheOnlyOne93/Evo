@@ -1,4 +1,4 @@
-// Shared diffusion step for every chemical field (scent in the world, transmitters in the brain).
+// The diffusion step for scent in the world's air (one grid per odour channel).
 (function (Evo) {
   'use strict';
 
