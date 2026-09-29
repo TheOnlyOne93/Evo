@@ -41,6 +41,15 @@
       $('statTime').textContent = Evo.text.timeOfDay(clock.phase);
       $('timeIcon').textContent = clock.light > 0.5 ? '☀' : clock.light > 0.2 ? '◐' : '☾';
       $('statSeason').textContent = world.seasonInfo.word;
+      app.refreshSpeed();
+    };
+
+    // Shown only while the computer can't keep up: "8× (running 5×)"
+    app.refreshSpeed = () => {
+      const running = Math.round(app.frameClock.achievedSpeed() * 10) / 10;
+      const short = !app.paused && running < app.speed * 0.9;
+      $('statSpeedChip').classList.toggle('hidden', !short);
+      if (short) $('statSpeed').textContent = `${app.speed}× (running ${running}×)`;
     };
 
     app.skipSeason = () => {

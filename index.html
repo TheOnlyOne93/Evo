@@ -17,6 +17,7 @@
       <span class="chip" title="Season"><b id="statSeason">Spring</b></span>
       <span class="chip" title="Creatures alive"><b id="statPop">0</b> living</span>
       <span class="chip" title="The latest generation alive">gen <b id="statGen">1</b></span>
+      <span class="chip hidden" id="statSpeedChip" title="The computer can't keep up with the chosen speed"><b id="statSpeed">8×</b></span>
     </div>
     <button id="soundBtn" class="icon-btn" aria-label="Turn sound on" title="Sound on or off">🔇</button>
   </header>
@@ -222,6 +223,7 @@
   <!-- Plain scripts, in dependency order (no build step: the page opens straight from disk).
        Scripts marked data-headless don't touch the page; tests/run.js loads them, in this order, into Node. -->
   <script src="src/core/evo.js" data-headless></script>
+  <script src="src/core/clock.js" data-headless></script>
   <script src="src/core/diffusion.js" data-headless></script>
   <script src="src/sim/constants.js" data-headless></script>
   <script src="src/sim/genome.js" data-headless></script>

@@ -6,6 +6,10 @@
   const $ = id => document.getElementById(id);
 
   const FRAME_BUDGET_MS = 11;   // Simulation time allowed per frame; the speed drops rather than the frame rate
+  // Panel refreshes, in wall time (these were every 10 / 20 / 15 frames at 60 fps)
+  const CARD_EVERY_MS = 1000 * 10 / 60;
+  const STATUS_EVERY_MS = 1000 * 20 / 60;
+  const LAB_EVERY_MS = 1000 * 15 / 60;
 
   function bootApp() {
     const canvas = $('worldCanvas');
@@ -55,27 +59,31 @@
       onDrop: app.dropTool
     });
 
-    let frame = 0;
+    const clock = app.frameClock = new Evo.FrameClock();
+    let last = null, cardAt = 0, statusAt = 0, labAt = 0;
     function loop(now) {
-      frame++;
       const t = now / 1000;
-      if (!app.paused) {
-        const start = performance.now();
-        for (let s = 0; s < app.speed; s++) {
-          world.step();
-          inspector.sample(world);
-          if (performance.now() - start > FRAME_BUDGET_MS) break;
-        }
+      // The first frame has no previous timestamp; hidden-tab gaps are capped by the clock
+      const ticks = clock.advance(last === null ? 0 : now - last, app.speed, app.paused);
+      last = now;
+      let ran = 0;
+      const start = performance.now();
+      while (ran < ticks) {
+        world.step();
+        inspector.sample(world);
+        ran++;
+        if (performance.now() - start > FRAME_BUDGET_MS) break;
       }
+      clock.report(ran);
       refocus();
       view.options.focused = app.focus;
       view.options.hand = hand.handState();
       view.render(t);
       app.drawPortrait(t);
       if (app.labVisible()) inspector.frame();
-      if (frame % 10 === 0) app.refreshCard();
-      if (frame % 20 === 0) { app.refreshStatus(); app.refreshStrip(); }
-      if (frame % 15 === 0 && app.labVisible()) inspector.update();
+      if (now - cardAt >= CARD_EVERY_MS) { cardAt = now; app.refreshCard(); }
+      if (now - statusAt >= STATUS_EVERY_MS) { statusAt = now; app.refreshStatus(); app.refreshStrip(); }
+      if (now - labAt >= LAB_EVERY_MS && app.labVisible()) { labAt = now; inspector.update(); }
       requestAnimationFrame(loop);
     }
     refocus();
