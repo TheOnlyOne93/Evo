@@ -220,7 +220,7 @@
       hue: 30, accentHue: 45, pattern: 0, patternScale: 0.5, earSize: 0.5, tailLength: 0.5, eyeSize: 0.5, plumpness: 0.5,
       adultSize: F ? 40 : 38, legLength: 0.5, mouthReach: 8, crest: 0.5,
       visionRange: 300, opticGain: 1.0, nightVision: 0.3, noseReach: 26, scentGain: 1.0,
-      baseThreshold: -52, tauLeak: 0.82, refractoryTicks: 2, membraneNoise: 0.35,
+      baseThreshold: -52, tauLeak: 0.82, refractoryTicks: 2,
       learningRate: 0.038, traceDecay: 0.982, sproutingThreshold: 6, pruningRate: 0.035,
       joyGain: 1.45, stressGain: 1.85,
       walkSpeed: 1.3, jumpPower: 5, runBoost: 1.5,
@@ -259,7 +259,7 @@
       this.mutationCount = 0; // Mutation events along the longest parental line since the founders
     }
 
-    // Founder genes (Evo.FOUNDER_GENOME, see founder.js).separated by a few junk bytes, then junk
+    // Founder genes (Evo.FOUNDER_GENOME, see founder.js), separated by a few junk bytes, then junk
     // padding. The chromosome is sized to hold every founder gene.
     static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
       const bytes = [];
@@ -386,9 +386,10 @@
 
     // Build the traits of a creature at a life stage: every gene whose switch-on stage has been
     // reached (stages 0 and 1 are both "from birth"). Genes marked birthOnly (anatomy, region
-    // duplication, membrane, neurochemistry) still appear in later traits, but the brain only reads
-    // them when it is built, so a copy that switches on after birth has no effect. Each list entry records the gene it came
-    // from (`gene`: its start offset), so callers can tell which ones are new at a later stage.
+    // duplication, membrane, neurochemistry, lobe dynamics) still appear in later traits, but the
+    // brain only reads them when it is built, so a copy that switches on after birth has no effect.
+    // Each list entry records the gene it came from (`gene`: its start offset, and its `stage`), so
+    // callers can tell which ones are new at a later stage.
     develop(stage = 1) {
       const sex = this.sexChrom === 'Y' ? 'MALE' : 'FEMALE';
       const F = sex === 'FEMALE';
@@ -400,7 +401,7 @@
       for (const gene of this.findGenes()) {
         if (gene.stage > Math.max(1, stage)) continue;
         GENES[gene.type].express(this.decode(gene), {
-          F, traits,
+          F,
           set: (name, v) => push(acc, name, v),
           add: (list, entry) => traits[list].push({ ...entry, gene: gene.start, stage: gene.stage }),
           neurochem: (name, v) => push(chemAcc, name, v),
