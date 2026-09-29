@@ -47,9 +47,17 @@ if (process.argv[2] === '--child') {
 const days = Number(process.argv[2] || 2), seeds = Number(process.argv[3] || 3), first = Number(process.argv[4] || 1);
 const runs = Array.from({ length: seeds }, (_, i) => new Promise(resolve => {
   const child = fork(__filename, ['--child', days, first + i]);
-  child.on('message', resolve);
+  let got = false;
+  child.on('message', r => { got = true; resolve(r); });
+  child.on('exit', code => {
+    if (got) return;
+    console.error(`seed ${first + i} failed (child exited ${code} without a result)`);
+    process.exitCode = 1;
+    resolve(null);
+  });
 }));
-Promise.all(runs).then(results => {
+Promise.all(runs).then(all => {
+  const results = all.filter(Boolean);
   const f = v => v.toFixed(2);
   for (const r of results) {
     const perDay = k => ((r.counts[k] || 0) / r.creatureDays).toFixed(1);

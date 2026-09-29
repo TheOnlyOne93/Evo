@@ -15,8 +15,13 @@ for (const file of fs.readdirSync(__dirname).filter(f => f.endsWith('.test.js'))
 }
 
 const filter = process.argv[2] || '';
+const selected = tests.filter(t => t.name.includes(filter));
+if (!selected.length) {
+  console.log(`no tests match '${filter}'`);
+  process.exit(1);
+}
 let passed = 0, failed = 0;
-for (const t of tests.filter(t => t.name.includes(filter))) {
+for (const t of selected) {
   Evo.seed(12345);
   const start = Date.now();
   try {

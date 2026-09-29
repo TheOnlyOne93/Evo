@@ -1,6 +1,6 @@
 // Behaviour bench: one creature in a controlled situation, many trials, and how often (and how
 // fast) it does the sensible thing. Drives are held at fixed levels during a trial.
-//   node tools/behave.js [trials=12] [filter] [--report]
+//   node tools/behave.js [trials=12] [filter] [--report]   (in any order)
 // Scenarios live in tools/scenarios/*.js. Each file exports ({ Evo, lab, session, trial, avoids }) =>
 // ({ scenarios, reports }): scenarios map a name to seed => tick it passed (null = fail); reports map a
 // name to seed => number and are averaged and printed only with --report (they never gate anything).
@@ -72,7 +72,8 @@ for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
 
 const args = process.argv.slice(2);
 const showReport = args.includes('--report');
-const [trialsArg, filter = ''] = args.filter(a => a !== '--report');
+const trialsArg = args.find(a => /^\d+$/.test(a));
+const filter = args.find(a => !a.startsWith('-') && a !== trialsArg) || '';
 const trials = Number(trialsArg || 12);
 for (const [name, scenario] of Object.entries(SCENARIOS)) {
   if (!name.includes(filter)) continue;
