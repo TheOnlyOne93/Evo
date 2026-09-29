@@ -1,20 +1,24 @@
-// Playback controls (pause, speed, scent, sound) and the tool tray (hand tools, things to drop, arrivals).
+// Playback controls (pause, speed, scent, sound) and the tool tray, in groups: hand tools, food,
+// toys and other things to drop, and new arrivals.
 (function (Evo) {
   'use strict';
   const $ = id => document.getElementById(id);
   const H = Evo.uiHelpers;
 
-  // Tools in the toolbar: the hand's three uses, then things to drop into the world
+  // The tool tray, in groups: the hand's three uses, food, other things to drop, and arrivals
   const HAND_TOOLS = [
-    { key: 'grab', word: 'Hand', hint: 'Tap a creature to follow it; drag creatures, eggs and items to carry or throw them' },
-    { key: 'pat', word: 'Tickle', hint: 'A gentle touch: most creatures find it pleasant' },
-    { key: 'slap', word: 'Slap', hint: 'It hurts: a creature learns to stop doing what it was doing' }
+    { key: 'grab', word: 'Hand', hint: 'Hand: tap a creature to follow it; drag creatures, eggs and items to carry or throw them (Esc)' },
+    { key: 'pat', word: 'Tickle', hint: 'Tickle: a gentle touch that most creatures enjoy. Rewards what it was doing' },
+    { key: 'slap', word: 'Slap', hint: 'Slap: it hurts. Punishes what it was doing, so it learns to stop' }
   ];
-  const DROP_TOOLS = ['fruit', 'grain', 'dew', 'grub', 'bug', 'mimic', 'lure', 'ball', 'egg', 'thorn'];
+  const DROP_GROUPS = [
+    { key: 'food', word: 'Food', tools: ['fruit', 'grain', 'dew', 'grub', 'bug', 'mimic'] },
+    { key: 'more', word: 'Toys & more', short: 'More', tools: ['ball', 'lure', 'egg', 'thorn'] }
+  ];
   const DROP_HINTS = {
-    fruit: 'Sugar', grain: 'Starch and a little protein', dew: 'Water', grub: 'Protein and fat that stays put',
-    bug: 'Protein that runs away', mimic: 'Looks and smells like fruit, but it is poisonous', lure: 'Female scent: attracts males',
-    ball: 'A toy', egg: 'A new founder egg', thorn: 'A thorn bush: it hurts'
+    fruit: 'Fruit: sugar', grain: 'Grain: starch and a little protein', dew: 'Dew: water', grub: 'Grub: protein and fat that stays put',
+    bug: 'Bug: protein that runs away', mimic: 'Mimic: looks and smells like fruit, but it is poisonous', lure: 'Lure: female scent that attracts males',
+    ball: 'Ball: a toy to play with', egg: 'Egg: a new founder egg', thorn: 'Thorns: a thorn bush that pricks'
   };
   const HAND_ICONS = { grab: '✋', pat: '🪶', slap: '💥' };
   const SPEEDS = [1, 2, 4, 8];
@@ -49,19 +53,30 @@
   function setupTools(app) {
     const { world } = app;
     const canvas = $('worldCanvas');
-    const toolbar = $('toolTray');
+    const tray = $('toolTray');
+    const toolWord = k => {
+      const w = k === 'thorn' ? 'thorns' : (Evo.ITEM_TYPES[k] || { word: k }).word.split(' ')[0];
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    };
     const toolButton = (key, label, hint, icon) =>
       `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H.esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;
-    toolbar.innerHTML =
-      HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('') +
-      '<span class="divider"></span>' +
-      DROP_TOOLS.map(k => toolButton(k, k === 'thorn' ? 'Thorns' : Evo.text.titleCase((Evo.ITEM_TYPES[k] || { word: k }).word.split(' ')[0]), DROP_HINTS[k],
-        `<canvas class="tool-art" data-art="${k}" width="44" height="44"></canvas>`)).join('') +
-      '<span class="divider"></span>' +
-      `<button class="tool" id="addFemaleBtn" title="A grown female arrives"><span class="tool-icon" style="color:var(--female)">♀</span><span class="tool-text">Add</span></button>` +
-      `<button class="tool" id="addMaleBtn" title="A grown male arrives"><span class="tool-icon" style="color:var(--male)">♂</span><span class="tool-text">Add</span></button>`;
+    const art = k => `<canvas class="tool-art" data-art="${k}" width="44" height="44"></canvas>`;
+    // A group: a caption and its buttons. On narrow screens the caption becomes a button that opens
+    // the group's buttons in a flyout above the tray.
+    const group = (key, word, short, icon, items) =>
+      `<div class="tool-group" role="group" aria-label="${H.esc(word)}" data-group="${key}">` +
+      `<span class="group-label" aria-hidden="true">${H.esc(word)}</span>` +
+      (icon ? `<button class="tool group-toggle" aria-expanded="false" title="${H.esc(word)}">${icon}<span class="tool-text">${H.esc(short)}</span></button>` : '') +
+      `<div class="group-items">${items}</div></div>`;
+    tray.innerHTML =
+      group('hand', 'Hand', '', '', HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('')) +
+      DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art toggle-art" width="44" height="44"></canvas>`,
+        g.tools.map(k => toolButton(k, toolWord(k), DROP_HINTS[k], art(k))).join(''))).join('') +
+      group('add', 'Add a creature', 'Add', '<span class="tool-icon">＋</span>',
+        '<button class="tool" id="addFemaleBtn" title="Add a grown female"><span class="tool-icon" style="color:var(--female)">♀</span><span class="tool-text">Female</span></button>' +
+        '<button class="tool" id="addMaleBtn" title="Add a grown male"><span class="tool-icon" style="color:var(--male)">♂</span><span class="tool-text">Male</span></button>');
     // Item icons drawn with the same art as the world
-    toolbar.querySelectorAll('canvas[data-art]').forEach(cv => {
+    tray.querySelectorAll('canvas[data-art]').forEach(cv => {
       const ctx = cv.getContext('2d'), k = cv.dataset.art;
       ctx.scale(2, 2);
       if (k === 'thorn') {
@@ -71,15 +86,45 @@
         try { Evo.ItemArt.drawIcon(ctx, k, 11, 11, 20, 0); } catch (e) { /* An icon is decoration */ }
       }
     });
-    const toolBtns = toolbar.querySelectorAll('[data-tool]');
+    // A group's toggle shows the icon of its chosen tool, or else its first
+    const groups = [...tray.querySelectorAll('.tool-group')];
+    const syncToggle = g => {
+      const toggle = g.querySelector('.group-toggle'), cv = toggle && toggle.querySelector('canvas');
+      if (!toggle) return;
+      const chosen = g.querySelector('.group-items [aria-pressed="true"]');
+      toggle.setAttribute('aria-pressed', String(!!chosen));
+      if (!cv) return;
+      const src = (chosen || g.querySelector('.group-items [data-tool]')).querySelector('canvas');
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      if (src) ctx.drawImage(src, 0, 0);
+    };
+    const closeGroups = except => groups.forEach(g => {
+      if (g === except) return;
+      g.classList.remove('open');
+      const t = g.querySelector('.group-toggle');
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+    tray.querySelectorAll('.group-toggle').forEach(t => t.addEventListener('click', () => {
+      const g = t.closest('.tool-group'), open = !g.classList.contains('open');
+      closeGroups(g);
+      g.classList.toggle('open', open);
+      t.setAttribute('aria-expanded', String(open));
+    }));
+    document.addEventListener('pointerdown', e => { if (!e.target.closest('.tool-group')) closeGroups(); });
+
+    const toolBtns = tray.querySelectorAll('[data-tool]');
     app.setTool = key => {
       app.tool = key;
       toolBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === key)));
       canvas.dataset.tool = key;
+      groups.forEach(syncToggle);
+      closeGroups();
     };
     toolBtns.forEach(b => b.addEventListener('click', () => app.setTool(b.dataset.tool)));
     app.setTool('grab');
     const addAdult = sex => {
+      closeGroups();
       const x = app.focus ? app.focus.x + Evo.randRange(-120, 120) : null;
       const c = world.addAdult(sex, { x });
       if (!c) return app.toast('The world is full.');

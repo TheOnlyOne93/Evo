@@ -106,11 +106,11 @@ button.log-line:hover { border-color: var(--muted); }
 .seg { min-width: 38px; height: 34px; padding: 0 9px; border-radius: 9px; font-size: 13px; color: var(--muted); }
 .seg[aria-pressed="true"] { background: var(--panel-raised); color: var(--text); font-weight: 700; }
 .seg:hover { color: var(--text); }
-.divider { width: 1px; height: 20px; background: var(--line); margin: 0 3px; }
+.divider { width: 1px; height: 20px; background: var(--line); margin: 0 3px; flex: 0 0 auto; }
 
 /* Toolbar */
 #toolbar { left: 50%; bottom: 10px; transform: translateX(-50%); max-width: calc(100% - 20px); padding: 5px; }
-#toolTray { display: flex; align-items: center; gap: 3px; overflow-x: auto; scrollbar-width: none; }
+#toolTray { display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; scrollbar-width: none; }
 #toolTray::-webkit-scrollbar { display: none; }
 .tool { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 54px; height: 52px;
   border-radius: 11px; font-size: 11.5px; color: var(--muted); border: 1px solid transparent; }
@@ -119,7 +119,23 @@ button.log-line:hover { border-color: var(--muted); }
 .tool-icon { font-size: 19px; line-height: 24px; height: 24px; }
 .tool-art { width: 22px; height: 22px; }
 .tool-text { white-space: nowrap; }
-.divider { width: 1px; height: 28px; background: var(--line); margin: 0 3px; flex: 0 0 auto; }
+/* Tool groups: a caption over each group; on narrow screens a group (other than the hand) folds
+   into one button that opens its tools in a flyout above the tray */
+.tool-group { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 0 0 auto; }
+.tool-group + .tool-group { border-left: 1px solid var(--line); padding-left: 4px; margin-left: 1px; }
+.group-label { font-size: 10px; line-height: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+.group-items { display: flex; gap: 3px; }
+.group-toggle { display: none; }
+.compact #toolTray { overflow: visible; justify-content: center; }
+.compact #toolbar { width: calc(100% - 20px); }
+.compact .group-label { display: none; }
+.compact .group-toggle { display: flex; }
+.compact .tool-group[data-group="hand"] .group-items { display: flex; }
+.compact .tool-group:not([data-group="hand"]) .group-items { display: none; position: absolute; left: 0; right: 0; bottom: calc(100% + 6px);
+  flex-wrap: wrap; justify-content: center; padding: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.compact .tool-group.open .group-items { display: flex; }
+.compact .tool-group.open .group-toggle { background: var(--panel); color: var(--text); }
 
 #labOpenBtn { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 12;
   padding: 14px 8px; border-radius: 12px 0 0 12px; background: var(--panel); border: 1px solid var(--line); border-right: 0;
@@ -256,7 +272,7 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .compact .status .chip:nth-child(n+3) { display: none; }
 .compact #creatureCard { top: 58px; }
 .compact #strip { display: none; }
-.compact .tool { width: 48px; }
+.compact .tool { width: 50px; }
 .compact .bars.two-col { grid-template-columns: 1fr; }
 @media (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
 .compact .tab-text { display: none; }

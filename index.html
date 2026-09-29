@@ -13,12 +13,12 @@
   <header class="topbar">
     <div class="wordmark">Synapse<span>Core</span></div>
     <div class="status" aria-live="polite">
-      <span class="chip"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:00</span></span>
-      <span class="chip"><b id="statSeason">Spring</b></span>
-      <span class="chip"><b id="statPop">0</b> living</span>
-      <span class="chip">gen <b id="statGen">1</b></span>
+      <span class="chip" title="Day and time of day"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:00</span></span>
+      <span class="chip" title="Season"><b id="statSeason">Spring</b></span>
+      <span class="chip" title="Creatures alive"><b id="statPop">0</b> living</span>
+      <span class="chip" title="The latest generation alive">gen <b id="statGen">1</b></span>
     </div>
-    <button id="soundBtn" class="icon-btn" aria-label="Turn sound on" title="Sound">🔇</button>
+    <button id="soundBtn" class="icon-btn" aria-label="Turn sound on" title="Sound on or off">🔇</button>
   </header>
 
   <div id="stage">
@@ -49,18 +49,18 @@
       <div id="strip" class="float" aria-label="Everyone in the world"></div>
 
       <div id="playback" class="float" role="group" aria-label="Playback">
-        <button class="seg" id="pauseBtn" aria-label="Pause" aria-pressed="false">❚❚</button>
-        <button class="seg" data-speed="1" aria-pressed="true">1×</button>
-        <button class="seg" data-speed="2" aria-pressed="false">2×</button>
-        <button class="seg" data-speed="4" aria-pressed="false">4×</button>
-        <button class="seg" data-speed="8" aria-pressed="false">8×</button>
+        <button class="seg" id="pauseBtn" aria-label="Pause" aria-pressed="false" title="Pause or resume (Space)">❚❚</button>
+        <button class="seg" data-speed="1" aria-pressed="true" title="Normal speed (1)">1×</button>
+        <button class="seg" data-speed="2" aria-pressed="false" title="Twice as fast (2)">2×</button>
+        <button class="seg" data-speed="4" aria-pressed="false" title="Four times as fast (3)">4×</button>
+        <button class="seg" data-speed="8" aria-pressed="false" title="Eight times as fast (4)">8×</button>
         <span class="divider"></span>
         <button class="seg" id="scentBtn" aria-pressed="false" title="Show the scents in the air">Scent</button>
       </div>
 
       <div id="log" aria-live="polite"></div>
 
-      <div id="toolbar" class="float" role="toolbar" aria-label="Hand and things to drop">
+      <div id="toolbar" class="float" role="toolbar" aria-label="Hand, food, toys and new creatures">
         <div id="toolTray"></div>
       </div>
 
