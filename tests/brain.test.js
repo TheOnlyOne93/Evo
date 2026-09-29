@@ -6,9 +6,15 @@ const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).d
 function checkWiring(brain, assert) {
   assert.strictEqual(brain.keys.size, brain.S);
   brain.rebuildAdjacency();
-  assert.strictEqual(brain.outStart[brain.N], brain.S);
+  // Synapses onto a modulator cell carry a prediction (value), not current
+  const onto = s => brain.modulator[brain.sDst[s]];
+  let delivering = 0, value = 0;
+  for (let s = 0; s < brain.S; s++) if (onto(s) < 0) delivering++; else if (brain.modulator[brain.sSrc[s]] < 0) value++;
+  assert.strictEqual(brain.outStart[brain.N], delivering);
+  assert.strictEqual(brain.valueIn.reduce((n, l) => n + l.length, 0), value);
+  brain.valueIn.forEach((list, c) => { for (const s of list) assert.strictEqual(onto(s), c); });
   for (let i = 0; i < brain.N; i++) {
-    for (const s of brain.outgoing(i)) assert.strictEqual(brain.sSrc[s], i);
+    for (const s of brain.outgoing(i)) assert.ok(brain.sSrc[s] === i && onto(s) < 0);
   }
   for (let s = 0; s < brain.S; s++) assert.ok(brain.hasSynapse(brain.sSrc[s], brain.sDst[s]));
 }
@@ -36,9 +42,9 @@ test('brain: weights stay inside their limits under relentless reward and punish
   const drive = new Float32Array(brain.N);
   for (let t = 0; t < 1500; t++) {
     for (let i = 0; i < brain.N; i++) drive[i] = brain.isSensory[i] ? 25 * Evo.random() : 0;
-    brain.outcome[0] = t < 750 ? 1 : 0; brain.outcome[1] = t < 750 ? 0 : 1;
-    brain.lDA.fill(0);
-    brain.chem[0].fill(t < 750 ? 3 : 0); brain.chem[1].fill(t < 750 ? 0 : 3);
+    // Outcomes that keep coming, in pulses, so they never become fully expected
+    const pulse = t % 40 < 10 ? 1 : 0;
+    brain.outcome[0] = t < 750 ? pulse : 0; brain.outcome[1] = t < 750 ? 0 : pulse;
     brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
     if (t % 80 === 0) brain.runMorphogenesis();
   }

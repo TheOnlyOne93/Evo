@@ -508,8 +508,10 @@
       this.sense(world);
       if (this.asleep) this.dreamStep();
       const brain = this.brain;
-      brain.outcome[0] = this.chem.get('reward');
-      brain.outcome[1] = this.chem.get('punishment');
+      // What the brain learns from is whatever receptor genes make its reward and punishment cells feel
+      const fx = this.chem.effects;
+      brain.outcome[0] = fx[TARGET['limbic:0']];
+      brain.outcome[1] = fx[TARGET['limbic:1']];
       brain.tick(this.drive, {
         noise: 0.35 + this.chem.get('toxin') * 12,
         arousal: this.chem.effect('arousal'),

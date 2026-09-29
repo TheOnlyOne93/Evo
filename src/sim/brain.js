@@ -1,5 +1,5 @@
 // A recurrent spiking brain: leaky integrate-and-fire neurons with physical axons (conduction
-// delays), grown from the genome and shaped by three-factor learning.
+// delays), grown from the genome and shaped by three-factor learning driven by reward prediction errors.
 //
 // Brain coordinates: x runs from the creature's left (0) to its right (1) *in the world* (the side
 // view has two hemifields: what is to the left and what is to the right); y runs from the front
@@ -19,14 +19,19 @@
   const SYNAPTIC_GAIN = 20.0;        // mV delivered per unit of synaptic weight
   const WEIGHT_MIN = -1.8, WEIGHT_MAX = 2.0;
   const V_REST = -70, V_RESET = -72;
-  const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags
+  const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags. CUE: a sight or smell value synapse (what the UI lists as learned)
   const ELIG_MAX = 2.0;              // Largest eligibility trace a synapse can hold
 
-  // Volume transmission: chemicals diffusing through the brain tissue (Evo.NEUROCHEMS: DA reward,
-  // ST stress, NO a gas that lets active neighbours share credit), one grid per channel.
+  // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 stress (ST). The third, NO, once let
+  // active neighbours share credit; it is retired, and a Neurochemistry gene that picks it does nothing.
+  // brain.chem holds one CHEM_SIZE² image per channel, for display only: the learning signal where
+  // each neuron sits (reward, stress; the NO image stays empty).
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
-  const BCHEM = Object.fromEntries(CHEM_CHANNELS.map((k, i) => [k, i]));
   const CHEM_SIZE = 20;
+  const N_MOD = 2;                   // Reward and stress
+  const GAMMA = 0.98;                // Temporal-difference discount per tick
+  const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
+  const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
@@ -36,6 +41,11 @@
     const room = dw > 0 ? (hi - w) : (w - lo);
     const nw = w + dw * room / (hi - lo);
     return nw < lo ? lo : nw > hi ? hi : nw;
+  }
+
+  function hardBounded(w, dw, inhibitory) {
+    const nw = w + dw;
+    return inhibitory ? (nw < WEIGHT_MIN ? WEIGHT_MIN : nw > 0 ? 0 : nw) : (nw < 0 ? 0 : nw > WEIGHT_MAX ? WEIGHT_MAX : nw);
   }
 
   // ---- The body plan's fixed neurons ----
@@ -96,9 +106,12 @@
       this.prunedCount = 0;
       this.spikesThisTick = 0;
       this.novelty = 0;
-      // The outcome each modulatory channel predicts (reward for DA, punishment for ST); the creature
-      // sets it from its biochemistry before each tick
-      this.outcome = new Float32Array(2);
+      // The outcome each modulatory channel predicts (0 reward, 1 punishment); the creature sets it
+      // before each tick from whatever receptor genes drive the first two feelings cells
+      this.outcome = new Float32Array(N_MOD);
+      this.outcomeMean = new Float32Array(N_MOD); // The expected outcome: only a rise above it counts
+      this.value = new Float32Array(N_MOD);       // What the value synapses currently predict
+      this.delta = new Float32Array(N_MOD);       // Prediction error this tick
       this.grownGenes = new Set(); // Guidance genes that have already grown their tracts
       this.buildNeurons();
       this.allocate();
@@ -214,8 +227,8 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
-      this.habit = f32(); this.tol = f32(); this.lDA = f32(); this.lST = f32(); this.lNO = f32(); this.signal = f32();
-      this.cueDrive = f32(); this.prediction = f32(); this.tdError = f32();
+      this.habit = f32(); this.signal = f32();
+      this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
       this.hist = new Uint32Array(N);
       this.isSensory = new Uint8Array(N); this.homeo = new Uint8Array(N); this.fast = new Uint8Array(N);
@@ -225,20 +238,19 @@
       // Synapses
       this.S = 0;
       this.sSrc = new Int32Array(S); this.sDst = new Int32Array(S); this.sW = new Float32Array(S);
-      this.sDelay = new Uint8Array(S); this.sElig = new Float32Array(S); this.sCue = new Float32Array(S);
+      this.sDelay = new Uint8Array(S); this.sElig = new Float32Array(S); this.sCue = new Float32Array(S); this.sX = new Float32Array(S);
       this.sIdle = new Uint16Array(S); this.sBorn = new Int32Array(S); this.sFlags = new Uint8Array(S);
       this.keys = new Set();
       this.adjacencyDirty = true;
-      // Chemistry
+      // Display images of the learning signal, and each modulator's learning field
       this.chem = CHEM_CHANNELS.map(() => new Float32Array(CHEM_SIZE * CHEM_SIZE));
-      this.chemScratch = new Float32Array(CHEM_SIZE * CHEM_SIZE);
+      this.field = Array.from({ length: N_MOD }, () => new Float32Array(N).fill(1));
+      this.fieldKey = new Array(N_MOD).fill('');
+      this.valueIn = Array.from({ length: N_MOD }, () => new Int32Array(0));
     }
 
     initNeurons() {
       const T = this.traits;
-      const nc = T.neurochem;
-      this.chemRate = CHEM_CHANNELS.map(c => 0.10 + 0.14 * nc[c]);
-      this.chemKeep = CHEM_CHANNELS.map(c => 1.0 - (0.20 - 0.18 * nc[c]));
       this.senseIndices = [];
       for (const n of this.neurons) {
         const i = n.index;
@@ -246,6 +258,7 @@
         this.isSensory[i] = sensory ? 1 : 0;
         this.v[i] = V_REST; this.vShow[i] = V_REST;
         this.rate[i] = 0.12; this.targetRate[i] = 0.12;
+        this.posX[i] = n.pos[0]; this.posY[i] = n.pos[1];
         this.cell[i] = clamp(Math.floor(n.pos[1] * CHEM_SIZE), 0, CHEM_SIZE - 1) * CHEM_SIZE + clamp(Math.floor(n.pos[0] * CHEM_SIZE), 0, CHEM_SIZE - 1);
         this.adaptKeep[i] = 0.95;
         if (sensory) {
@@ -271,14 +284,11 @@
         }
         this.thrBase[i] = this.thr[i];
       }
-      // Modulatory cells: the first two feelings cells release reward / stress chemical at their
-      // axon terminals. They fire phasically, so they don't tune toward tonic firing, and like real
-      // dopamine cells they adapt quickly and fire mainly at increases.
-      const [rewardCell, punishCell] = this.lobes.feelings;
-      this.modulator[rewardCell] = BCHEM.DA;
-      this.modulator[punishCell] = BCHEM.ST;
-      for (const i of [rewardCell, punishCell]) { this.homeo[i] = 0; this.adaptInc[i] = 0.8; }
-      this.modulatorCells = [rewardCell, punishCell];
+      // Modulatory cells: the first two feelings cells signal reward / punishment prediction errors.
+      // They fire only on a positive error (better than expected for reward, worse for punishment),
+      // so they don't tune toward tonic firing, and like real dopamine cells they adapt quickly.
+      this.modulatorCells = this.lobes.feelings.slice(0, N_MOD);
+      this.modulatorCells.forEach((i, c) => { this.modulator[i] = c; this.homeo[i] = 0; this.adaptInc[i] = 0.8; });
 
       // Pacemaker genes give a whole lobe a steady depolarizing current (spontaneous activity),
       // and raise the lobe's homeostatic set point so homeostasis doesn't simply cancel it
@@ -302,7 +312,7 @@
       const s = this.S++;
       this.sSrc[s] = src; this.sDst[s] = dst; this.sW[s] = weight;
       this.sDelay[s] = clamp(1 + Math.round(Math.hypot(a[0] - b[0], a[1] - b[1]) / conduction), 1, MAX_DELAY);
-      this.sElig[s] = 0; this.sCue[s] = 0; this.sIdle[s] = 0; this.sBorn[s] = this.tickCount;
+      this.sElig[s] = 0; this.sCue[s] = 0; this.sX[s] = 0; this.sIdle[s] = 0; this.sBorn[s] = this.tickCount;
       const lobe = this.neurons[src].lobe;
       this.sFlags[s] = (sprouted ? SPROUTED : 0) | (weight < 0 ? INHIBITORY : 0) | (this.modulator[dst] >= 0 && (lobe === 'sight' || lobe === 'smell') ? CUE : 0);
       this.keys.add(key);
@@ -318,29 +328,60 @@
       const last = --this.S;
       if (s !== last) {
         this.sSrc[s] = this.sSrc[last]; this.sDst[s] = this.sDst[last]; this.sW[s] = this.sW[last];
-        this.sDelay[s] = this.sDelay[last]; this.sElig[s] = this.sElig[last]; this.sCue[s] = this.sCue[last];
+        this.sDelay[s] = this.sDelay[last]; this.sElig[s] = this.sElig[last]; this.sCue[s] = this.sCue[last]; this.sX[s] = this.sX[last];
         this.sIdle[s] = this.sIdle[last]; this.sBorn[s] = this.sBorn[last]; this.sFlags[s] = this.sFlags[last];
       }
       this.adjacencyDirty = true;
     }
 
-    // Outgoing synapses per neuron (compressed rows), and the list of cue synapses
+    // Outgoing synapses per neuron (compressed rows) that deliver current, and each modulator's value
+    // synapses. Every synapse onto a modulator cell is a value synapse: it carries a prediction, not
+    // current (a modulator's own spikes predict nothing, so synapses between modulators are silent).
     rebuildAdjacency() {
-      const N = this.N, S = this.S;
+      const { N, S, sSrc, sDst, modulator } = this;
       const start = new Int32Array(N + 1);
-      for (let s = 0; s < S; s++) start[this.sSrc[s] + 1]++;
+      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0) start[sSrc[s] + 1]++;
       for (let i = 0; i < N; i++) start[i + 1] += start[i];
       const fill = start.slice(0, N);
-      const list = new Int32Array(S);
-      const cues = [];
+      const list = new Int32Array(start[N]);
+      const value = Array.from({ length: N_MOD }, () => []);
       for (let s = 0; s < S; s++) {
-        list[fill[this.sSrc[s]]++] = s;
-        if (this.sFlags[s] & CUE) cues.push(s);
+        const m = modulator[sDst[s]];
+        if (m < 0) list[fill[sSrc[s]]++] = s;
+        else if (modulator[sSrc[s]] < 0) value[m].push(s);
       }
       this.outStart = start;
       this.outList = list;
-      this.cueList = Int32Array.from(cues);
+      this.valueIn = value.map(v => Int32Array.from(v));
       this.adjacencyDirty = false;
+      this.buildLearningFields();
+    }
+
+    // Where each modulator's signal reaches: a Gaussian around each of its axon terminals (and a
+    // little around the cell itself), normalised to a peak of 1. So where learning happens depends on
+    // where its axons grew: a focused projection teaches a small area, a broad one a large area. The
+    // Neurochemistry gene sets how far the signal spreads from a terminal. No terminals: everywhere.
+    buildLearningFields() {
+      const { N, posX, posY, sDst, outStart, outList } = this;
+      this.modulatorCells.forEach((m, c) => {
+        const a = outStart[m], b = outStart[m + 1], n = b - a;
+        const terminals = Array.from(outList.subarray(a, b), s => sDst[s]);
+        const key = terminals.join(',');
+        if (key === this.fieldKey[c]) return;
+        this.fieldKey[c] = key;
+        const F = this.field[c];
+        if (!n) { F.fill(1); return; }
+        const sigma = 0.05 + 0.2 * this.traits.neurochem[CHEM_CHANNELS[c]], k = 1 / (2 * sigma * sigma);
+        let max = 0;
+        for (let i = 0; i < N; i++) {
+          const x = posX[i], y = posY[i];
+          let f = 0.3 * Math.exp(-((x - posX[m]) ** 2 + (y - posY[m]) ** 2) * k);
+          for (const t of terminals) f += 0.7 / n * Math.exp(-((x - posX[t]) ** 2 + (y - posY[t]) ** 2) * k);
+          F[i] = f;
+          if (f > max) max = f;
+        }
+        for (let i = 0; i < N; i++) F[i] /= max;
+      });
     }
 
     outgoing(i) {
@@ -481,7 +522,7 @@
       const now = ++this.tickCount;
       const slot = now % SLOTS;
       const N = this.N;
-      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory } = this;
+      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator } = this;
       const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire;
 
       // 1. Every neuron integrates what arrived this tick. With conduction delays there is no
@@ -490,7 +531,8 @@
       const ALPHA = 0.012;
       for (let i = 0; i < N; i++) {
         const k = i * SLOTS + slot;
-        let I = inbox[k] + drive[i];
+        // A modulator cell is driven only by its prediction error (see learn), not by the body
+        let I = inbox[k] + (modulator[i] < 0 ? drive[i] : 0);
         inbox[k] = 0;
         adapt[i] *= adaptKeep[i];
         let fired = 0;
@@ -546,7 +588,6 @@
         }
       }
 
-      this.volumeTransmission();
       this.learn();
       return spikes;
     }
@@ -557,98 +598,78 @@
       this.inbox[i * SLOTS + (this.tickCount + d) % SLOTS] += mV;
     }
 
-    // Every firing neuron puffs a little NO gas where it sits. The reward and stress cells release
-    // their chemical at the ends of their axons, once each spike has arrived (bit `delay` of the
-    // firing history), so WHERE learning happens depends on where those axons grew: a broad
-    // projection spreads a fixed release thinly, a focused one teaches a small area strongly.
-    volumeTransmission() {
-      const { hist, cell, chem, sDst, sDelay, outStart, outList } = this;
-      const NO = chem[BCHEM.NO];
-      for (let i = 0; i < this.N; i++) {
-        if (hist[i] & 1) NO[cell[i]] = Math.min(4, NO[cell[i]] + 0.06);
-      }
-      for (const m of this.modulatorCells) {
-        const grid = chem[this.modulator[m]];
-        const n = outStart[m + 1] - outStart[m];
-        // Some release happens from the cell's own dendrites (as real dopamine cells do)
-        if (hist[m] & 1) grid[cell[m]] = Math.min(4, grid[cell[m]] + (n === 0 ? 1.0 : 0.3));
-        for (let k = outStart[m]; k < outStart[m + 1]; k++) {
-          const s = outList[k];
-          if ((hist[m] >>> sDelay[s]) & 1) { const c = cell[sDst[s]]; grid[c] = Math.min(4, grid[c] + 0.7 / n); }
-        }
-      }
-      for (let ch = 0; ch < CHEM_CHANNELS.length; ch++) Evo.diffuse(chem[ch], this.chemScratch, CHEM_SIZE, CHEM_SIZE, this.chemRate[ch], this.chemKeep[ch], 0.0005);
-    }
-
     learn() {
       const T = this.traits;
-      const { hist, v, cell, chem, lDA, lST, lNO, tol, signal, modulator, rate, sSrc, sDst, sW, sDelay, sElig, sCue, sIdle, sFlags, S } = this;
-      const DA = chem[BCHEM.DA], ST = chem[BCHEM.ST], NO = chem[BCHEM.NO];
+      const { hist, v, modulator, signal, field, sSrc, sDst, sW, sDelay, sElig, sCue, sX, sIdle, sFlags, S, N } = this;
 
-      // Each neuron reads the chemistry bathing it; receptors desensitize under sustained exposure
-      // (tolerance), which slows, though does not fully prevent, a brain rewarding itself.
-      // Three-factor learning signal: reward minus stress chemical, scaled by the sensitivity genes.
-      const CHEM_GAIN = 12.0;
-      for (let i = 0; i < this.N; i++) {
-        const c = cell[i];
-        lDA[i] = DA[c]; lST[i] = ST[c]; lNO[i] = NO[c];
-        tol[i] += ((lDA[i] + lST[i]) - tol[i]) * 0.003;
-        signal[i] = CHEM_GAIN * (lDA[i] * T.joyGain - lST[i] * T.stressGain) / (1.0 + 2.0 * tol[i]);
-      }
-
-      // Temporal-difference learning for cues. Each modulatory cell's prediction V is what its sensory
-      // cues are currently signalling; the error is outcome now + (discounted) new prediction - old
-      // prediction. So a smell that grows stronger on the way to food is good news in itself, a meal
-      // that was fully expected teaches little, and a cue that stops paying off fades.
-      const GAMMA = 0.98;
-      const cues = this.cueList;
-      for (const m of this.modulatorCells) {
-        let cue = 0;
-        for (let k = 0; k < cues.length; k++) {
-          const s = cues[k];
-          if (sDst[s] === m && ((hist[sSrc[s]] >>> sDelay[s]) & 1)) cue += sW[s];
+      // 1. Reward prediction errors. Each modulator channel's value V is what its value synapses
+      // currently predict; its outcome counts only as far as it rises above what has lately been
+      // usual (phasic, like a real dopamine response). The error is outcome + discounted new
+      // prediction - old prediction: a cue that reliably comes before food is good news in itself, a
+      // meal that was fully expected teaches little, and a cue that stops paying off fades.
+      const lambda = T.traceDecay;
+      for (let c = 0; c < N_MOD; c++) {
+        const O = this.outcome[c], mean = this.outcomeMean[c];
+        const r = O > mean ? O - mean : 0;
+        this.outcomeMean[c] += (O - mean) / OUTCOME_MEMORY;
+        const list = this.valueIn[c];
+        let V = 0;
+        for (let k = 0; k < list.length; k++) {
+          const s = list[k];
+          sX[s] = sX[s] * 0.7 + (((hist[sSrc[s]] >>> sDelay[s]) & 3) ? 0.3 : 0); // Input in the last two ticks (senses pulse every other tick), smoothed
+          V += sW[s] * sX[s];
         }
-        // Smooth like a membrane: sensory cells pulse every other tick, and an unsmoothed prediction
-        // would flicker, producing alternating errors that cancel out
-        this.cueDrive[m] = this.cueDrive[m] * 0.8 + cue * 0.2;
-        const V = clamp(this.cueDrive[m] * 2.0, 0, 1.5);
-        this.tdError[m] = this.outcome[modulator[m]] + GAMMA * V - this.prediction[m];
-        this.prediction[m] = V;
-      }
-      for (let k = 0; k < cues.length; k++) {
-        const s = cues[k];
-        sCue[s] = sCue[s] * T.traceDecay + ((hist[sSrc[s]] >>> sDelay[s]) & 1);
-        sW[s] = softBounded(sW[s], 0.004 * sCue[s] * this.tdError[sDst[s]], this.sFlags[s] & INHIBITORY);
+        if (V < 0) V = 0;
+        const d = clamp(r + GAMMA * V - this.value[c], -1, 1);
+        this.value[c] = V;
+        this.delta[c] = d;
+        // TD(λ): the error credits the inputs that made the previous prediction (their trace, before
+        // this tick's input joins it), so a cue's own onset doesn't reinforce itself
+        for (let k = 0; k < list.length; k++) {
+          const s = list[k];
+          // Plain (not soft-bounded) steps: TD needs increases and decreases to weigh the same
+          if (d !== 0 && sCue[s] > 1e-4) sW[s] = hardBounded(sW[s], 0.004 * d * sCue[s], sFlags[s] & INHIBITORY);
+          sCue[s] = sCue[s] * lambda + sX[s];
+        }
+        // A positive error makes the modulator cell fire (on the next tick)
+        if (d > 0) this.inject(this.modulatorCells[c], ERROR_DRIVE * d, 1);
       }
 
-      // Three-factor plasticity with LOCAL modulation. NO spillover lets synapses from recently
-      // active neighbours share in the credit. The modulatory cells' synapses never learn from the
-      // chemical they themselves cause (so a brain can't talk itself into reward): sensory cues onto
-      // them learn by TD error, above; their other inputs and their outputs stay as the genome built them.
-      const eta = T.learningRate * 0.05, decay = T.traceDecay, NO_SPILL = 0.5;
+      // 2. The learning signal at each neuron: each channel's error, weighted by that channel's
+      // learning field and the creature's sensitivity genes. Shown in the display images.
+      const dR = this.delta[0] * T.joyGain, dP = this.delta[1] * T.stressGain, FR = field[0], FP = field[1];
+      const [imgR, imgP, imgN] = this.chem, cell = this.cell;
+      for (let k = 0; k < imgR.length; k++) { imgR[k] *= 0.9; imgP[k] *= 0.9; imgN[k] *= 0.9; }
+      for (let i = 0; i < N; i++) {
+        const m = dR * FR[i] - dP * FP[i];
+        signal[i] = m;
+        if (m > 0) imgR[cell[i]] += m; else imgP[cell[i]] -= m;
+      }
+
+      // 3. Three-factor plasticity: Hebbian eligibility × the learning signal at the synapse's
+      // target. The modulatory cells' own inputs (value synapses, above) and outputs stay as the
+      // genome built them, so a brain can't talk itself into reward.
+      const eta = T.learningRate * 0.05, decay = T.traceDecay;
       for (let s = 0; s < S; s++) {
         const src = sSrc[s], dst = sDst[s];
-        const pre = (hist[src] >>> sDelay[s]) & 1;
-        const post = (hist[dst] & 1) ? 20 : Math.max(0, v[dst] + 70);
-        if (pre || post > 5) sIdle[s] = 0; else if (sIdle[s] < 65535) sIdle[s]++;
+        const arrived = (hist[src] >>> sDelay[s]) & 0xF, post = hist[dst] & 1;
+        if ((arrived & 1) || post) sIdle[s] = 0; else if (sIdle[s] < 65535) sIdle[s]++;
         let e = sElig[s];
-        if (pre && post > 4) e += Math.min(1.5, post * 0.08);
+        // Causal: only input that arrived in the few ticks before the target fired gets credit
+        if (post && arrived) e += 1;
         e *= decay;
         if (e > ELIG_MAX) e = ELIG_MAX; // Traces saturate: steady co-activity doesn't make a synapse hypersensitive
         sElig[s] = e < 0.0001 ? 0 : e;
         if (modulator[dst] >= 0 || modulator[src] >= 0) continue;
         const sig = signal[dst];
-        if (sig === 0) continue;
-        const r = rate[src] * 5;
-        const elig = sElig[s] + NO_SPILL * lNO[dst] * (r < 1 ? r : 1);
-        if (elig <= 0.0001) continue;
-        sW[s] = softBounded(sW[s], eta * elig * sig, sFlags[s] & INHIBITORY);
+        if (sig === 0 || e <= 0.0001) continue;
+        sW[s] = softBounded(sW[s], eta * e * sig, sFlags[s] & INHIBITORY);
       }
     }
   }
 
   Object.assign(Evo, {
-    Brain, BRAIN: { MAX_DELAY, SYNAPTIC_GAIN, WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, CHEM_CHANNELS },
+    Brain, BRAIN: { MAX_DELAY, SYNAPTIC_GAIN, WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, CHEM_CHANNELS, GAMMA },
     BRAIN_BODY_PLAN: {
       TOUCH, TASTES, HEARING, DRIVE_CELL_TAGS, FEELING_TAGS, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
