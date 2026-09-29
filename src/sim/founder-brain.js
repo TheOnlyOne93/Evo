@@ -1,7 +1,7 @@
 // The founder genome: brain wiring genes (see founder.js).
 (function (Evo) {
   'use strict';
-  const { approach, guide, FEATURES, ODOURS } = Evo.founderKit;
+  const { approach, guide, prior, FEATURES, ODOURS } = Evo.founderKit;
 
   Evo.founderBrain = [
     // ---------- Brain wiring ----------
@@ -18,10 +18,13 @@
     approach('smell', ODOURS, 'bitter', 0.6, true),
     approach('smell', ODOURS, 'alarm', 0.6, true),
     guide('hearing', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.35, relX: true }),
-    // Each need cell and touch cell excites the muscle that shares its address
-    // (tired -> rest, lonely -> call, afraid or hurt -> run, hungry or thirsty -> use the mouth,
-    // something at the mouth -> eat it)
-    guide('needs', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.8, relX: true, relY: true }),
+    // Innate priors: a few drive cells lean weakly on one muscle each; the rest is learned
+    prior('pain', 'run', 1.0), prior('fear', 'run', 1.0),
+    prior('sleepiness', 'rest', 1.0), prior('tiredness', 'rest', 0.7), prior('nausea', 'rest', 0.6),
+    prior('loneliness', 'call', 0.6), prior('hunger', 'eat', 0.4), prior('proteinHunger', 'eat', 0.3),
+    prior('thirst', 'drink', 0.5), prior('anger', 'grab', 0.6),
+    ...['boredom', 'crowdedness', 'hunger'].flatMap(d => [prior(d, 'walkL', 0.4), prior(d, 'walkR', 0.4)]),
+    // Each touch cell excites the muscle that shares its address (something at the mouth -> eat it)
     guide('touch', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
     // Bumping into something on one side makes the opposite leg push: turn away from walls
     guide('touch', [0.5, 0.5, 0.9], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
