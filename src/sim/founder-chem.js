@@ -85,6 +85,7 @@
     stimulus('wasShoved', 'anger', 0.1, 'fear', 0.05),
     stimulus('played', 'novelty', 0.15),
     stimulus('bumped', 'pain', 0.02),
+    stimulus('fellAsleep', 'sleepOnset', 0.3), halfLife('sleepOnset', 30),
 
     // ---------- Reinforcement: relief turns drive into reward; harm releases punishment ----------
     // Eating rewards when the food is tasted, in proportion to the hunger it meets…
@@ -98,7 +99,8 @@
     reaction('fatHunger', 'gutFat', null, 'gutFat', 0.01, 0, 1),
     reaction('thirst', 'drink', 'reward', null, 0.1, 0.8, 0),
     reaction('tiredness', 'restRelief', 'reward', null, 0.08, 0.5, 0),
-    reaction('sleepiness', 'sleepSignal', 'reward', 'sleepSignal', 0.002, 3, 1), // Sleep feels good, but night keeps it going
+    reaction('sleepiness', 'sleepOnset', 'reward', null, 0.1, 1, 0),   // Dozing off feels good (once, not all night)
+    reaction('sleepiness', 'sleepSignal', null, 'sleepSignal', 0.002, 0, 1), // Sleep eases sleepiness, but night keeps it going
     reaction('coldness', 'warmth', 'reward', null, 0.1, 0.6, 0),
     reaction('hotness', 'coolness', 'reward', null, 0.1, 0.6, 0),
     reaction('loneliness', 'company', 'reward', null, 0.1, 0.8, 0),

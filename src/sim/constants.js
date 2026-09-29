@@ -112,7 +112,8 @@
     [42, 'company', 'Company', 'relief', '--female'], [43, 'restRelief', 'Rest', 'relief', '--muted'],
     [44, 'sleepSignal', 'Sleep', 'relief', '--bored'], [45, 'novelty', 'Novelty', 'relief', '--accent'],
     [46, 'drink', 'Drinking', 'relief', '--water'], [47, 'mating', 'Mating', 'relief', '--female'],
-    [48, 'sweetTaste', 'Sweet taste', 'relief', '--fruit'], [49, 'savouryTaste', 'Savoury taste', 'relief', '--protein']
+    [48, 'sweetTaste', 'Sweet taste', 'relief', '--fruit'], [49, 'savouryTaste', 'Savoury taste', 'relief', '--protein'],
+    [50, 'sleepOnset', 'Dozing off', 'relief', '--bored']
   ];
   const CHEMICALS = CHEMICAL_LIST.map(([id, key, word, kind, token]) => ({ id, key, word, kind, token }));
   const CHEM = Object.fromEntries(CHEMICALS.map(c => [c.key, c.id]));

@@ -129,3 +129,21 @@ test('drives: novelty comes from new-looking things near the creature and habitu
   world.spawnItem('dew', c.x - 30, c.y);
   assert.ok(c.noticeNovelty(world) > 0.6, 'a blue dew drop is new again');
 });
+
+test('drives: falling asleep rewards a sleepy creature once, not all night', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  world.creatures = [c];
+  for (const k of Evo.DRIVES) c.chem.set(k, 0);
+  c.chem.set('reward', 0);
+  c.chem.set('sleepiness', 0.7);
+  c.fallAsleep(world);
+  let early = 0, late = 0;
+  for (let t = 0; t < 400; t++) {
+    c.chem.set('sleepiness', 0.7);
+    c.readLoci(world); c.chem.step(c.loci);
+    if (t < 30) early = Math.max(early, c.chem.get('reward')); else if (t >= 300) late = Math.max(late, c.chem.get('reward'));
+  }
+  assert.ok(early > 0.05, `dozing off rewards (${early})`);
+  assert.ok(late < 0.01, `staying asleep does not (${late})`);
+});
