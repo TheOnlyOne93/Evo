@@ -73,6 +73,9 @@
   const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENTS.findIndex(s => s.key === 'alarm') + 0.5) / SCENTS.length],
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
 
+  // The lookup-set key of the synapse src -> dst (neuron counts stay far below 4096)
+  const synapseKey = (src, dst) => src * 4096 + dst;
+
   const ring = (cx, cy, r, i, n) => [cx + r * Math.cos(i * 2 * Math.PI / n), cy + r * Math.sin(i * 2 * Math.PI / n)];
   const mirror = (x, right) => (right ? 1.0 - x : x);
 
@@ -279,7 +282,7 @@
 
     // ---------- Synapses: the only way they are made or removed ----------
     addSynapse(src, dst, weight, { sprouted = false, cap = LIMITS.SYNAPSE_CAP, conduction = 0.12 } = {}) {
-      const key = src * 4096 + dst;
+      const key = synapseKey(src, dst);
       if (this.keys.has(key) || this.S >= cap || src === dst) return -1;
       const a = this.neurons[src].pos, b = this.neurons[dst].pos;
       const s = this.S++;
@@ -293,9 +296,11 @@
       return s;
     }
 
+    hasSynapse(src, dst) { return this.keys.has(synapseKey(src, dst)); }
+
     // Remove synapse s by moving the last synapse into its place
     removeSynapse(s) {
-      this.keys.delete(this.sSrc[s] * 4096 + this.sDst[s]);
+      this.keys.delete(synapseKey(this.sSrc[s], this.sDst[s]));
       const last = --this.S;
       if (s !== last) {
         this.sSrc[s] = this.sSrc[last]; this.sDst[s] = this.sDst[last]; this.sW[s] = this.sW[last];
@@ -425,7 +430,7 @@
           const d = Math.hypot(src.pos[0] - dst.pos[0], src.pos[1] - dst.pos[1]);
           if (d > 0.3) continue;
           const depol = this.vShow[di] - V_REST;
-          if (depol <= T.sproutingThreshold || this.keys.has(si * 4096 + di)) continue;
+          if (depol <= T.sproutingThreshold || this.hasSynapse(si, di)) continue;
           const affinity = depol * (spiked ? 2.0 : 1.0) * Math.exp(-((d / 0.2) ** 2));
           if (affinity > bestAffinity) { bestAffinity = affinity; best = si; bestDst = di; }
         }

@@ -10,7 +10,7 @@ function checkWiring(brain, assert) {
   for (let i = 0; i < brain.N; i++) {
     for (const s of brain.outgoing(i)) assert.strictEqual(brain.sSrc[s], i);
   }
-  for (let s = 0; s < brain.S; s++) assert.ok(brain.keys.has(brain.sSrc[s] * 4096 + brain.sDst[s]));
+  for (let s = 0; s < brain.S; s++) assert.ok(brain.hasSynapse(brain.sSrc[s], brain.sDst[s]));
 }
 
 test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, assert) => {
@@ -19,7 +19,7 @@ test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, asser
   for (let i = 0; i < 60; i++) brain.removeSynapse(Evo.randInt(brain.S));
   checkWiring(brain, assert);
   const a = brain.lobes.touch[0], b = brain.lobes.cortex[3];
-  if (brain.keys.has(a * 4096 + b)) brain.removeSynapse(brain.incoming(b).find(s => brain.sSrc[s] === a));
+  if (brain.hasSynapse(a, b)) brain.removeSynapse(brain.incoming(b).find(s => brain.sSrc[s] === a));
   assert.ok(brain.addSynapse(a, b, 0.2) >= 0);
   assert.strictEqual(brain.addSynapse(a, b, 0.2), -1, 'no duplicate synapses');
   assert.strictEqual(brain.addSynapse(b, b, 0.2), -1, 'no self-synapses');
@@ -69,7 +69,6 @@ test('brain: founders grow the movement copy and the sight copy', (Evo, assert) 
 });
 
 test('brain: founders are born with their reflex arcs', (Evo, assert) => {
-  const has = (brain, from, to) => brain.keys.has(from * 4096 + to);
   const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
   const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);
   const arcs = { needEat: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, needRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
@@ -77,13 +76,13 @@ test('brain: founders are born with their reflex arcs', (Evo, assert) => {
   for (let i = 0; i < trials; i++) {
     const b = founderBrain(Evo, i % 2 ? 'X' : 'Y');
     const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)];
-    if (has(b, b.lobes.needs[motor('eat')], M('eat'))) arcs.needEat++;
-    if (has(b, T('mouthL'), M('eat'))) arcs.mouthEatL++;
-    if (has(b, T('mouthR'), M('eat'))) arcs.mouthEatR++;
-    if (has(b, T('lips'), M('drink'))) arcs.lipsDrink++;
-    if (has(b, b.lobes.needs[motor('rest')], M('rest'))) arcs.needRest++;
-    if (has(b, T('contactL'), M('walkR'))) arcs.bumpTurnL++;
-    if (has(b, T('contactR'), M('walkL'))) arcs.bumpTurnR++;
+    if (b.hasSynapse(b.lobes.needs[motor('eat')], M('eat'))) arcs.needEat++;
+    if (b.hasSynapse(T('mouthL'), M('eat'))) arcs.mouthEatL++;
+    if (b.hasSynapse(T('mouthR'), M('eat'))) arcs.mouthEatR++;
+    if (b.hasSynapse(T('lips'), M('drink'))) arcs.lipsDrink++;
+    if (b.hasSynapse(b.lobes.needs[motor('rest')], M('rest'))) arcs.needRest++;
+    if (b.hasSynapse(T('contactL'), M('walkR'))) arcs.bumpTurnL++;
+    if (b.hasSynapse(T('contactR'), M('walkL'))) arcs.bumpTurnR++;
   }
   // Development is stochastic: most founders are born with each arc, and learning covers the rest
   for (const [arc, n] of Object.entries(arcs)) assert.ok(n >= trials * 0.6, `${arc}: ${n}/${trials}`);
