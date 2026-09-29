@@ -126,7 +126,7 @@
     ['ate', 'eats'], ['drank', 'drinks'], ['patted', 'is patted'], ['slapped', 'is slapped'], ['nuzzled', 'nuzzles another'],
     ['wasNuzzled', 'is nuzzled'], ['shoved', 'shoves another'], ['wasShoved', 'is shoved'], ['called', 'calls'],
     ['heardCall', 'hears a call'], ['grabbed', 'picks something up'], ['dropped', 'drops something'], ['bumped', 'bumps into something'],
-    ['fell', 'lands hard'], ['woke', 'wakes up'], ['fellAsleep', 'falls asleep'], ['mated', 'mates'], ['played', 'plays']
+    ['fell', 'lands hard'], ['woke', 'wakes up'], ['fellAsleep', 'falls asleep'], ['mated', 'mates'], ['played', 'plays'], ['pricked', 'is pricked by thorns']
   ];
   const STIMULI = STIMULUS_LIST.map(([key]) => key);
   const STIMULUS = Object.fromEntries(STIMULI.map((k, i) => [k, i]));

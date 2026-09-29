@@ -85,7 +85,7 @@
 
       // What the muscles are doing
       this.mouthTimer = 0; this.drinkTimer = 0; this.runTimer = 0; this.restTimer = 0; this.callTimer = 0; this.jumpCooldown = 0;
-      this.grabCooldown = 0; this.mateCooldown = 0; this.bumpCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
+      this.grabCooldown = 0; this.mateCooldown = 0; this.bumpCooldown = 0; this.prickCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
       this.muscle = new Float32Array(MOTORS.length); // Muscle activation: spike trains smoothed into force
       this.asleep = false;
       this.dream = null;               // The instinct currently being replayed in a dream

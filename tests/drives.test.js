@@ -62,6 +62,26 @@ test('drives: the world raises stimuli where they physically happen', (Evo, asse
   assert.deepStrictEqual(seen, ['a:patted', 'a:slapped', 'a:nuzzled', 'b:wasNuzzled', 'b:shoved', 'a:wasShoved', 'a:called', 'a:grabbed', 'a:played', 'a:dropped']);
 });
 
+test('drives: walking through a thornbush pricks, and the founder feels it as pain', (Evo, assert) => {
+  const world = new Evo.World();
+  world.creatures.length = 1;
+  const c = world.creatures[0], bush = world.features.find(f => f.kind === 'thornbush');
+  let pricks = 0;
+  const stimulate = c.stimulate;
+  c.stimulate = function (key, s) { if (key === 'pricked') pricks++; return stimulate.call(this, key, s); };
+  c.asleep = false;
+  Object.assign(c, { x: bush.x, y: bush.y, vx: 1 });
+  c.chem.set('pain', 0);
+  world.prickCreatures();
+  assert.strictEqual(pricks, 1, 'pricked on contact');
+  assert.ok(c.chem.get('pain') > 0.1, `pain ${c.chem.get('pain').toFixed(3)}`);
+  world.prickCreatures();
+  assert.strictEqual(pricks, 1, 'not again until the cooldown ends');
+  c.prickCooldown = 0; c.vx = 0;
+  world.prickCreatures();
+  assert.strictEqual(pricks, 1, 'standing still in it does not prick');
+});
+
 // One founder, alone, eats an item of this type with hunger h; returns the reward peak within 10
 // ticks and the summed reward and punishment over 30 ticks
 function taste(Evo, type, h) {

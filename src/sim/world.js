@@ -570,6 +570,17 @@
       this.spawnItem('ball', this.width * 0.45, undefined, { hue: 200 });
     }
 
+    // A creature pushing through a thornbush is pricked (at most every 30 ticks); what that feels
+    // like is up to its stimulus genes
+    prickCreatures() {
+      for (const c of this.creatures) {
+        if (c.prickCooldown > 0) { c.prickCooldown--; continue; }
+        if (c.held || c.asleep || Math.abs(c.vx) < 0.2) continue;
+        const bush = this.features.find(f => f.kind === 'thornbush' && Math.abs(c.x - f.x) < f.radius && c.y > f.y - f.radius * 1.2);
+        if (bush) { c.prickCooldown = 30; c.stimulate('pricked'); }
+      }
+    }
+
     // ---------- Item physics ----------
     moveItems() {
       const hatching = [];
@@ -690,6 +701,7 @@
       this.moveItems();
       this.stepScent();
       this.socialContact();
+      this.prickCreatures();
       for (const c of [...this.creatures]) {
         c.step(this);
         if (c.dead) this.handleDeath(c);

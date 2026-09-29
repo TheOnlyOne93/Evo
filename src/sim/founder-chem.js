@@ -85,6 +85,7 @@
     stimulus('wasShoved', 'anger', 0.1, 'fear', 0.05),
     stimulus('played', 'novelty', 0.15),
     stimulus('bumped', 'pain', 0.02),
+    stimulus('pricked', 'pain', 0.15, 'fear', 0.03),
     stimulus('fellAsleep', 'sleepOnset', 0.3), halfLife('sleepOnset', 30),
 
     // ---------- Reinforcement: relief turns drive into reward; harm releases punishment ----------

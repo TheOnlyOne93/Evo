@@ -80,7 +80,7 @@ free for mutation to use.
   of the Drives or Feelings lobe.
 * **Stimulus** names an event (`Evo.STIMULI`: ate, drank, patted, slapped, nuzzled, was nuzzled,
   shoved, was shoved, called, heard a call, grabbed, dropped, bumped, fell, woke, fell asleep, mated,
-  played) and releases (or removes) up to two chemicals when it happens. The world raises each
+  played, pricked by thorns) and releases (or removes) up to two chemicals when it happens. The world raises each
   event where it physically happens (`creature.stimulate(key, strength)`).
 * **Half-life** and **initial concentration** genes.
 
@@ -210,7 +210,7 @@ world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
   //  'log'       { length }                             grubs live here
   //  'rock'      { w, h, warm: 0..1 }                   the sun-warmed rock
   //  'reeds'     { width }
-  //  'thornbush' { radius }                             looks violet; founders learn to keep away
+  //  'thornbush' { radius }                             looks violet; moving through it pricks ('pricked' stimulus)
 world.items = [{ id, type, x, y, vx, vy, radius, rot, age, held, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
   //  egg: { hue, accentHue, progress: 0..1 }   ball: { hue }
