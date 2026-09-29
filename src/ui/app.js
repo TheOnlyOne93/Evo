@@ -62,7 +62,12 @@
     const clock = app.frameClock = new Evo.FrameClock();
     let last = null, cardAt = 0, statusAt = 0, labAt = 0;
     // One tick plus everything that watches each tick; the loop and single-step both use it
-    const tick = () => { world.step(); inspector.sample(world); };
+    const tick = () => {
+      world.step();
+      inspector.sample(world);
+      view.cues.track(world, performance.now() / 1000);
+      inspector.scopeTick();
+    };
     app.stepOnce = () => {
       tick();
       app.refreshCard();
@@ -82,6 +87,7 @@
         if (performance.now() - start > FRAME_BUDGET_MS) break;
       }
       clock.report(ran);
+      inspector.brainView.ticksRun = Math.max(1, ran);   // the brain map lights what fired in any of them
       refocus();
       view.options.focused = app.focus;
       view.options.hand = hand.handState();

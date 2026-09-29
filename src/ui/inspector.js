@@ -168,8 +168,18 @@
       this.brainView.render();
       const b = c.brain, i = this.scopeCell(b);
       if (i !== this.scopeFor) { this.scope.clear(); this.scopeFor = i; } // Don't join one cell's trace to another's
-      this.scope.push(b.vShow[i]);
       this.scope.render(b.thr[i]);
+    }
+
+    // Every tick while the brain deck shows: one charge sample, so the trace is the last 120 ticks at
+    // any speed and stands still while paused. (Ticks run with the deck closed leave a gap; the scope
+    // is only ever looked at with it open, and it is cleared on the way in below.)
+    scopeTick() {
+      const c = this.app.focus;
+      if (!c || this.deck !== 'brain' || !this.app.labVisible()) { this.scopeOpen = false; return; }
+      const b = c.brain, i = this.scopeCell(b);
+      if (i !== this.scopeFor || !this.scopeOpen) { this.scope.clear(); this.scopeFor = i; this.scopeOpen = true; }
+      this.scope.push(b.vShow[i]);
     }
 
     // The neuron the charge trace follows: the tapped one, else the winning muscle

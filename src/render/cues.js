@@ -50,22 +50,24 @@
 
     rec(c) {
       let r = this.recs.get(c);
-      if (!r) this.recs.set(c, r = { last: c.lastStimulus, fx: [], log: [], dreamUntil: 0, dreamIcon: '' });
+      if (!r) this.recs.set(c, r = { seen: c.stimCount || 0, fx: [], log: [], dreamUntil: 0, dreamIcon: '' });
       return r;
     }
 
     // Recent events for the card, newest first: [{ key, tick, n }] (tick: world clock)
     recent(c) { return this.rec(c).log; }
 
-    // Note new stimuli and dreams (called every frame, for every creature)
+    // Note new stimuli and dreams: called every tick (t: seconds, real time) so none is missed at speed;
+    // drawing calls it too, which is harmless
     track(world, t) {
       const cs = world.creatures;
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
         if (!c.chem) continue;   // a stand-in creature (dev labs)
-        const r = this.rec(c), s = c.lastStimulus;
-        if (s && s !== r.last) {
-          r.last = s;
+        const r = this.rec(c), ring = c.recentStimuli;
+        // Entries of the ring not seen yet (entry j has sequence number stimCount - length + j + 1)
+        for (let j = Math.max(0, ring.length - (c.stimCount - r.seen)); j < ring.length; j++) {
+          const s = ring[j];
           const prev = r.fx[r.fx.length - 1];
           if ((HEARTS[s.key] || BURSTS[s.key]) && !(prev && prev.key === s.key && t - prev.t0 < 0.4)) {
             r.fx.push({ key: s.key, t0: t });
@@ -77,6 +79,7 @@
             else { r.log.unshift({ key: s.key, tick, n: 1 }); if (r.log.length > 3) r.log.pop(); }
           }
         }
+        r.seen = c.stimCount;
         const d = c.brain && c.brain.dream;
         if (c.asleep && d) {
           r.dreamUntil = t + DREAM_HOLD;

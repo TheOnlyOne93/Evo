@@ -35,6 +35,7 @@
       this.brain = null;
       this.mode = 'regions';  // 'regions' | 'anatomy'
       this.allWiring = false; // Draw every connection, not just recently used ones
+      this.ticksRun = 1;      // Ticks run since the last frame: a neuron is lit if it fired in any of them
       this.probed = -1;       // Index of the neuron being inspected, or -1
       this.region = null;     // Region (lobe id) being inspected, or null
       this.marks = { attended: -1, winner: -1 }; // Cells to point out: what it looks at, what it does
@@ -352,8 +353,10 @@
 
       // Neurons: region colour, white when firing, bigger when busy; outside a picked region, dimmed
       const base = this.cellR, region = this.region;
+      // Lit if it fired in any tick since the last frame (bit 0 of hist is this tick)
+      const firedMask = (1 << Math.min(Math.max(1, this.ticksRun), 31)) - 1;
       for (let i = 0; i < b.N; i++) {
-        const fired = hist[i] & 1;
+        const fired = hist[i] & firedMask;
         const r = fired ? base * 1.9 : base + Math.min(base * 0.9, b.rate[i] * 6);
         ctx.fillStyle = fired ? '#ffffff' : this.colors[i];
         ctx.globalAlpha = (fired ? 1 : 0.5 + Math.min(0.5, b.rate[i] * 4)) * (region && b.neurons[i].lobe !== region ? 0.3 : 1);

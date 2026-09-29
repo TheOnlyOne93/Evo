@@ -83,6 +83,8 @@
       this.timesMated = 0;
       this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it (the card shows it)
       this.meals = 0;
+      this.recentStimuli = [];         // the last 8 { key, strength, tick } (oldest first), for the observers; nothing in the sim reads it
+      this.stimCount = 0;              // how many stimuli there have ever been (numbers the ring's entries)
 
       // What the muscles are doing
       this.mouthTimer = 0; this.drinkTimer = 0; this.runTimer = 0; this.restTimer = 0; this.callTimer = 0; this.jumpCooldown = 0;
@@ -144,6 +146,9 @@
     // genes release their chemicals
     stimulate(key, s = 1) {
       this.lastStimulus = { key, strength: s, tick: this.ageTicks };
+      this.recentStimuli.push(this.lastStimulus);
+      if (this.recentStimuli.length > 8) this.recentStimuli.shift();
+      this.stimCount++;
       this.chem.stimulate(STIMULUS[key], s);
     }
 
