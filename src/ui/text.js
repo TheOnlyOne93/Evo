@@ -117,6 +117,8 @@
     const d = def.describe
       ? def.describe(genome.decode(gene), x, geneWords(brain))
       : { group: 'body', text: Object.entries(x).slice(0, 4).map(([k, v]) => `${words(k)} ${typeof v === 'number' ? num(v, Math.abs(v) >= 10 ? 0 : 2) : v}`).join(', ') };
+    // The brain is built once, at birth: a brain-building gene that switches on later does nothing
+    if (def.birthOnly && gene.stage > 1) d.text += ' (only works from birth, so this late copy has no effect)';
     return { name: def.name, ...d };
   }
   const stageName = stage => STAGES[stage].word;

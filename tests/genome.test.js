@@ -143,3 +143,11 @@ test('genome: every kind of gene describes itself in plain words', (Evo, assert)
   }
   assert.strictEqual(seen.size, Evo.GENES.length, 'every gene kind was seen');
 });
+
+test('genome: a brain-building gene that switches on after birth says it has no effect', (Evo, assert) => {
+  const g = Evo.Genome.founder('X', [{ gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 },
+    { gene: 'Region duplication', stage: 0, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 }]);
+  const [late, early] = g.findGenes().map(gene => Evo.text.describeGene(g, gene).text);
+  assert.ok(/no effect/.test(late), late);
+  assert.ok(!/no effect/.test(early), early);
+});

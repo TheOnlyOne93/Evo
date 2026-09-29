@@ -353,7 +353,9 @@
     }
 
     // Build the traits of a creature at a life stage: every gene whose switch-on stage has been
-    // reached (stages 0 and 1 are both "from birth"). Each list entry records the gene it came
+    // reached (stages 0 and 1 are both "from birth"). Genes marked birthOnly (anatomy, region
+    // duplication, membrane, neurochemistry) still appear in later traits, but the brain only reads
+    // them when it is built, so a copy that switches on after birth has no effect. Each list entry records the gene it came
     // from (`gene`: its start offset), so callers can tell which ones are new at a later stage.
     develop(stage = 1) {
       const sex = this.sexChrom === 'Y' ? 'MALE' : 'FEMALE';
