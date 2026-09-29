@@ -66,5 +66,8 @@
     ...attend('thirst', 'blue'),
     ...attend('loneliness', 'creature'),
     ...attend('sexDrive', 'pink'),
+    // Working memory: thinking cells that fire keep themselves going for a while, so what was
+    // just seen or felt outlasts it (until they tire or a rival takes over)
+    { gene: 'Lobe dynamics', lobe: 'cortex', copy: 0, competition: 0.1, persistence: 0.6, tau: 0.7, fatigue: 0.8 },
   ];
 })(globalThis.Evo);

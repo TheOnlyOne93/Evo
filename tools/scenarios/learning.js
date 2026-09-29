@@ -94,10 +94,28 @@ module.exports = ({ Evo, lab, trial }) => {
     }
   };
 
+  // Object permanence: a hungry creature sees fruit on its left for 60 ticks, then the fruit is
+  // taken away. How much more of the next 120 ticks does it spend walking left than a creature that
+  // never saw it?
+  const walkingLeft = (seed, show) => {
+    const s = lab(seed);
+    s.hold = { hunger: 0.7 };
+    const fruit = show ? s.world.spawnItem('fruit', s.c.x - 150) : null;
+    let left = 0;
+    for (let t = 0; t < 180; t++) {
+      for (const k in s.hold) s.c.chem.set(k, s.hold[k]);
+      if (t === 60 && fruit) s.world.items.length = 0;
+      s.world.step();
+      if (t >= 60 && s.c.vx < -0.25) left++;
+    }
+    return left / 120;
+  };
+
   return {
     scenarios: { ...choice },
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
+      'memory: walks left after fruit there vanishes (share above control)': seed => walkingLeft(seed, true) - walkingLeft(seed, false),
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,
