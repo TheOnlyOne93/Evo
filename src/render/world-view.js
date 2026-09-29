@@ -992,15 +992,13 @@
     // The scent field as a soft low-resolution image (cells under the ground are left clear)
     _drawScent(g) {
       const sc = this.world.scent;
-      if (!sc || !sc.channels || !sc.channels.length) return;
       let S = this.scent;
       if (!S || S.cols !== sc.cols || S.rows !== sc.rows || S.cell !== sc.cell || S.nch !== sc.channels.length) {
         const canvas = makeCanvas(sc.cols, sc.rows);
         const cg = canvas.getContext('2d');
         const colors = [];
         for (let ch = 0; ch < sc.channels.length; ch++) {
-          const def = Evo.SCENTS && Evo.SCENTS[ch];
-          colors.push(Evo.theme.rgb(def.token));
+          colors.push(Evo.theme.rgb(Evo.SCENTS[ch].token));
         }
         const air = new Uint8Array(sc.cols * sc.rows);
         for (let j = 0; j < sc.rows; j++) {
