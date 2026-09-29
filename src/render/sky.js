@@ -4,8 +4,7 @@
 (function (Evo) {
   'use strict';
   const { TAU, clamp01, smoothstep: smooth } = Evo.util;
-  const SEASON_KEYS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
-  const { WINTER } = Evo.SEASON;
+  const { WINTER } = Evo.SEASON, SEASON_COUNT = Evo.SEASON_COUNT;
 
   // Scenery uses its own seeded streams (Evo.util.mulberry32), never Evo.random: drawing must not
   // consume the simulation's random numbers.
@@ -23,17 +22,10 @@
 
   // Which season, and how far the fade into the next one has got (the last tenth of a season)
   function seasonState(season, out) {
-    let i = 0, progress = 0;
-    if (season) {
-      const k = SEASON_KEYS.indexOf(season.key);
-      i = k >= 0 ? k : (season.index | 0);
-      progress = season.progress || 0;
-    }
-    i = ((i % 4) + 4) % 4;
-    out.cur = i;
-    out.next = (i + 1) % 4;
-    out.blend = smooth(0.9, 1, progress);
-    out.prefetch = progress > 0.8;
+    out.cur = season.index;
+    out.next = (season.index + 1) % SEASON_COUNT;
+    out.blend = smooth(0.9, 1, season.progress);
+    out.prefetch = season.progress > 0.8;
     return out;
   }
 
@@ -63,7 +55,7 @@
   ];
   const STOP_E = [-1, -0.3, -0.13, -0.01, 0.12, 0.34, 1];
   // STOPS[season][0 morning | 1 evening] = keyframes at STOP_E
-  const STOPS = [0, 1, 2, 3].map(si => [0, 1].map(m => {
+  const STOPS = Evo.SEASONS.map((_, si) => [0, 1].map(m => {
     const tw = TWILIGHT[m];
     return [NIGHT[si], NIGHT[si], tw[0], tw[1], tw[2], DAY[si], DAY[si]];
   }));
@@ -547,7 +539,7 @@
     horizonY(v) { return this.layerBaseY(v, LAYERS[0]) - 20 * this.layerScale(v, LAYERS[0].f); }
 
     _layerSprite(li, si, force) {
-      const key = li * 4 + si;
+      const key = li * SEASON_COUNT + si;
       let sp = this.layerSprites.get(key);
       if (sp && sp.res === this.layerRes) return sp;
       if (!force && this.builtThisFrame) return sp || null;
@@ -571,7 +563,7 @@
       // Drop sprites of seasons no longer needed
       if (this.layerSprites.size > 6) {
         for (const key of [...this.layerSprites.keys()]) {
-          const si = key % 4;
+          const si = key % SEASON_COUNT;
           if (si !== ss.cur && si !== ss.next) this.layerSprites.delete(key);
         }
       }
@@ -756,7 +748,6 @@
 
   Evo.Sky = Sky;
   Evo.Sky.seasonState = seasonState;
-  Evo.Sky.SEASON_KEYS = SEASON_KEYS;
   Evo.Sky.LAYERS = LAYERS;
   // Shared by the renderers (not part of the simulation)
   Evo.Sky.util = { rng, makeCanvas, mixInto, rgb, rgba, mix, scale, smooth, clamp01 };
