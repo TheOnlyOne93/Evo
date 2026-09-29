@@ -163,6 +163,12 @@
       }
     }
 
+    // Jump the clock to a day and time of day (phase 0 = midnight, 0.5 = noon)
+    setTime(day, phase) {
+      this.clock.tick = Math.round((day + phase - this.startPhase) * DAY_TICKS);
+      this.updateClock();
+    }
+
     get seasonInfo() { return SEASONS[this.season.index]; }
 
     // Air temperature (0 freezing .. 1 hot): the season, the sun, shade, water, and the warm rock

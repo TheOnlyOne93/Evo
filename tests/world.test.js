@@ -49,13 +49,10 @@ test('world: the clock runs day and night, and the seasons turn in order', (Evo,
   const world = emptyWorld(Evo);
   const seen = [];
   world.events.on('season', e => seen.push(e.season.key));
-  const { DAY_TICKS, SEASON_DAYS } = Evo;
-  for (let day = 0; day <= SEASON_DAYS * 4; day++) {
-    world.clock.tick = Math.round((day - world.startPhase) * DAY_TICKS);  // Midnight
-    world.updateClock();
+  for (let day = 0; day <= Evo.SEASON_DAYS * 4; day++) {
+    world.setTime(day, 0);    // Midnight
     assert.ok(world.clock.light < 0.2, 'dark at midnight');
-    world.clock.tick += DAY_TICKS / 2;                                      // Noon
-    world.updateClock();
+    world.setTime(day, 0.5);  // Noon
     assert.ok(world.clock.light > 0.9, 'light at noon');
   }
   assert.deepStrictEqual(seen, ['SUMMER', 'AUTUMN', 'WINTER', 'SPRING']);
@@ -66,8 +63,7 @@ test('world: it is colder in winter, at night, and in the water', (Evo, assert) 
   const pond = world.terrain.ponds[0];
   const open = world.width * 0.45;
   const at = (day, phase, x, y) => {
-    world.clock.tick = Math.round((day + phase - world.startPhase) * Evo.DAY_TICKS);
-    world.updateClock();
+    world.setTime(day, phase);
     return world.temperatureAt(x, y === undefined ? world.terrain.groundY(x) - 10 : y);
   };
   const summerNoon = at(2 * Evo.SEASON_DAYS - 1, 0.5, open), summerNight = at(2 * Evo.SEASON_DAYS - 1, 0, open);
