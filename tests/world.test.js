@@ -155,7 +155,7 @@ test('world: a death leaves carrion and a record, and an empty world is re-found
   world.creatures = [];
   world.items = world.items.filter(i => i.type !== 'egg');
   world.step();
-  assert.strictEqual(world.creatures.length, 6, 'founders return');
+  assert.strictEqual(world.creatures.length, 2, 'a founding pair returns');
   assert.strictEqual(world.stats.refoundings, 1);
 });
 
