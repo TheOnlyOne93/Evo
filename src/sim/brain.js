@@ -117,7 +117,6 @@
       this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, t }
       this.episodes = [];     // Up to EPISODES recent surprises: { inputs, motor, value, tick }
       this.replayOutcome = new Float32Array(N_MOD); // Outcome a replayed episode adds this tick
-      this.novelty = 0;
       // The outcome each modulatory channel predicts (0 reward, 1 punishment); the creature sets it
       // before each tick from whatever receptor genes drive the first two feelings cells
       this.outcome = new Float32Array(N_MOD);
@@ -240,7 +239,7 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
-      this.habit = f32(); this.lateral = f32(); this.vFired = f32();
+      this.lateral = f32(); this.vFired = f32();
       this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
       this.hist = new Uint32Array(N);
@@ -265,7 +264,6 @@
 
     initNeurons() {
       const T = this.traits;
-      this.senseIndices = [];
       for (const n of this.neurons) {
         const i = n.index;
         const sensory = SENSORY_LOBES.includes(n.lobe);
@@ -281,7 +279,6 @@
           this.fast[i] = 1;
           // Receptors adapt slowly to a constant stimulus, so what is unchanging fades and what is new stands out
           if (n.lobe !== 'needs') { this.adaptInc[i] = 0.12; this.adaptKeep[i] = 0.996; }
-          if (n.lobe !== 'needs') this.senseIndices.push(i);
         } else {
           // The genome's membrane gene applies to every central neuron
           this.thr[i] = T.baseThreshold;
@@ -610,7 +607,6 @@
     // opts: { noise, arousal, canFire }. Returns the number of spikes.
     tick(drive, opts) {
       if (this.adjacencyDirty) this.rebuildAdjacency();
-      const T = this.traits;
       const now = ++this.tickCount;
       const slot = now % SLOTS;
       const N = this.N;
@@ -666,17 +662,6 @@
       this.overdrive = this.spikesThisTick > SEIZURE_SHARE * N ? this.overdrive + 1 : 0;
       this.brake = this.overdrive >= SEIZURE_TICKS ? SEIZURE_BRAKE : 0;
       if (this.overdrive === SEIZURE_TICKS) this.seizures++;
-
-      // Novelty: senses habituate to what they keep reporting, so a spike from a usually quiet
-      // neuron is surprising. The body reads the lack of surprise as boredom.
-      let surprise = 0;
-      const habRate = T.habituationRate;
-      for (const i of this.senseIndices) {
-        const fired = hist[i] & 1;
-        if (fired) surprise += Math.max(0, 1.0 - this.habit[i] * 5.0);
-        this.habit[i] += (fired - this.habit[i]) * habRate;
-      }
-      this.novelty = Math.min(1.0, (surprise / this.senseIndices.length) * T.noveltyGain);
 
       // 2. New spikes depart along their axons
       const { sDst, sW, sDelay, sActive, outStart, outList } = this;
