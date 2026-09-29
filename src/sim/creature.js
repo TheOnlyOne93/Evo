@@ -14,6 +14,7 @@
   const NEURAL_GAIN = 30;           // mV per unit of sense or receptor signal
   const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
+  const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
@@ -617,7 +618,7 @@
         if (this.vy > 0) this.vy = 0;
         this.onGround = true;
       }
-      if (Math.abs(this.vx) > 0.05 && this.onGround) this.walkPhase += Math.abs(this.vx) * 0.35;
+      if (Math.abs(this.vx) > 0.05 && this.onGround) this.walkPhase += Math.abs(this.vx) * WALK_PHASE_PER_PX;
     }
 
     decayStimuli() {
@@ -659,5 +660,5 @@
   // What a mother puts into an egg (and a hatchling starts with), in chemical units
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
 
-  Object.assign(Evo, { Creature, makeName, CREATURE: { GRAVITY, STEP_HEIGHT, NEURAL_GAIN } });
+  Object.assign(Evo, { Creature, makeName, CREATURE: { GRAVITY, STEP_HEIGHT, NEURAL_GAIN, WALK_PHASE_PER_PX } });
 })(globalThis.Evo);

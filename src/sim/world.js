@@ -11,6 +11,8 @@
   const SCENT_EVERY = 3;            // Scent spreads slowly, so it diffuses every third tick (at triple rate)
   const GRAVITY = CREATURE.GRAVITY;
   const WANDER_INTERVAL = 1800;
+  const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
+  const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
 
   // ---------- Terrain: a height field with a pond ----------
   class Terrain {
@@ -659,7 +661,7 @@
       this.hand.y = clamp(y, 0, this.height);
       const h = this.hand.holding;
       if (!h) return;
-      if (h.creature) { h.creature.x = clamp(x, this.edge, this.width - this.edge); h.creature.y = y + h.creature.size * 0.7; }
+      if (h.creature) { h.creature.x = clamp(x, this.edge, this.width - this.edge); h.creature.y = y + h.creature.size * HOLD_GRIP; }
       if (h.item) { h.item.x = x; h.item.y = y + h.item.radius; }
     }
 
@@ -685,7 +687,7 @@
       }
       this.tryMating();
       for (const s of this.sounds) s.age++;
-      this.sounds = this.sounds.filter(s => s.age < 90);
+      this.sounds = this.sounds.filter(s => s.age < SOUND_LIFE);
       if (this.clock.tick % WANDER_INTERVAL === 0) this.maybeWanderer();
       if (this.creatures.length === 0 && !this.items.some(i => i.type === 'egg')) this.found();
     }
@@ -698,5 +700,5 @@
     }
   }
 
-  Object.assign(Evo, { World, Terrain, WORLD: { WIDTH: WORLD_W, HEIGHT: WORLD_H, SCENT_CELL } });
+  Object.assign(Evo, { World, Terrain, WORLD: { WIDTH: WORLD_W, HEIGHT: WORLD_H, SCENT_CELL, HOLD_GRIP, SOUND_LIFE } });
 })(globalThis.Evo);
