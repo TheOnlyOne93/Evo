@@ -56,7 +56,7 @@
     const tray = $('toolTray');
     const toolWord = k => {
       const w = k === 'thorn' ? 'thorns' : (Evo.ITEM_TYPES[k] || { word: k }).word.split(' ')[0];
-      return w.charAt(0).toUpperCase() + w.slice(1);
+      return Evo.text.capitalize(w);
     };
     const toolButton = (key, label, hint, icon) =>
       `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H.esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;

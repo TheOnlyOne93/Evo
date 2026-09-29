@@ -249,7 +249,7 @@
       const reading = w.locus(v.locus), out = w.chem(v.chem).toLowerCase(), invert = v.flags & 1, digital = v.flags & 2;
       if (Evo.BODY_LOCI[v.locus.body] === 'always') return `Always makes ${out}, ${speedWord(v.gain * 60)}`;
       const when = invert ? ` below ${percent(v.threshold)}` : v.threshold > 0.005 ? ` above ${percent(v.threshold)}` : '';
-      return `${reading.charAt(0).toUpperCase()}${reading.slice(1)}${when} → makes ${out}${digital ? ' (all or nothing)' : `, ${speedWord(v.gain * 60)}`}`;
+      return `${capitalize(reading)}${when} → makes ${out}${digital ? ' (all or nothing)' : `, ${speedWord(v.gain * 60)}`}`;
     },
     Receptor(v, x, w) {
       const invert = v.flags & 1, negative = v.flags & 4;
@@ -267,7 +267,7 @@
       }
       const lhs = ins.map(c => w.chem(c).toLowerCase()).join(' + ');
       const text = `${lhs || 'nothing'} → ${side(outs) || 'nothing'}, ${rateWord(v.rate)}`;
-      return text.charAt(0).toUpperCase() + text.slice(1);
+      return capitalize(text);
     },
     'Lobe dynamics'(v, x, w, brain) {
       const parent = Evo.LOBE_ORDER[x.lobeIdx];
@@ -280,7 +280,7 @@
       const reach = guidanceReach(brain, x);
       if (!reach) return null;
       const map = x.source.relX || x.source.relY ? (x.source.mirrorX ? ', each cell to the opposite side' : ', each cell to its match') : '';
-      return `${reach.from.charAt(0).toUpperCase()}${reach.from.slice(1)} → ${reach.to}: ${x.weightSign > 0 ? 'excites' : 'inhibits'}${map}`;
+      return `${capitalize(reach.from)} → ${reach.to}: ${x.weightSign > 0 ? 'excites' : 'inhibits'}${map}`;
     }
   };
 
@@ -423,10 +423,10 @@
     const minutes = Math.floor(phase * 24 * 60);
     return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
   };
-  const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
+  const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
 
   Evo.text = {
-    lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, titleCase,
+    lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, capitalize,
     describeGene, geneWords, seconds, signed, level,
     geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, STIMULUS_PAST
