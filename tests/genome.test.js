@@ -77,6 +77,8 @@ test('genome: gene loss after a duplication removes a whole gene', (Evo, assert)
   const after = child.findGenes();
   assert.strictEqual(after.length, before.length, 'one gene gained, one whole gene lost');
   const bytes = (g, dna) => Array.from(dna.slice(g.start, g.end)).join(',');
+  assert.notStrictEqual(Array.from(child.dna).join(','), Array.from(parent.dna).join(','), 'the child differs from the parent');
+  assert.strictEqual(bytes(after[0], child.dna), bytes(before[target], parent.dna), 'the duplicate sits at the front');
   const parentGenes = new Set(before.map(g => bytes(g, parent.dna)));
   for (const g of after) assert.ok(parentGenes.has(bytes(g, child.dna)), 'no garbled gene');
 });

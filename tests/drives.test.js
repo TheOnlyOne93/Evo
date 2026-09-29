@@ -14,12 +14,20 @@ test('drives: every drive has exactly one receptor into its own Drives cell, and
   assert.strictEqual(new Set(cells).size, cells.length, 'no two receptors share a Drives cell');
 });
 
-test('drives: Drives cells have their own addresses, apart from every muscle', (Evo, assert) => {
+test('drives: Drives cells have distinct addresses', (Evo, assert) => {
   const tags = Evo.DRIVE_CELL_TAGS;
   assert.strictEqual(tags.length, Evo.N_NEEDS);
   for (let a = 0; a < tags.length; a++) {
     for (let b = a + 1; b < tags.length; b++) assert.ok(Math.hypot(tags[a][0] - tags[b][0], tags[a][1] - tags[b][1]) > 0.15);
   }
+});
+
+test('drives: Drives cells and muscle cells differ in the z part of their tags', (Evo, assert) => {
+  const brain = new Evo.Brain(founderTraits(Evo));
+  const zs = lobe => brain.lobes[lobe].map(i => brain.neurons[i].tag[2]);
+  assert.ok(zs('needs').length > 0 && zs('motor').length > 0);
+  assert.ok(zs('needs').every(z => z === 0.8), 'Drives cells sit at z 0.8');
+  assert.ok(zs('motor').every(z => z === 0.9), 'muscle cells sit at z 0.9');
 });
 
 test('drives: a stimulus releases exactly amount x strength of each chemical, clamped to 0..1', (Evo, assert) => {

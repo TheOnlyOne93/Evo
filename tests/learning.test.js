@@ -107,7 +107,7 @@ test('learning: punishment weakens the synapse that made its target fire, not it
 });
 
 test('learning: a brain tick stays within its time budget', (Evo, assert) => {
-  // In a living world (16 creatures must run at 60 frames a second)
+  // In a default World (2 founders); the game must run many creatures at 60 frames a second
   const world = new Evo.World();
   const B = Evo.Brain.prototype, { tick, runMorphogenesis } = B;
   let ns = 0n, ticks = 0;
@@ -132,10 +132,9 @@ test('learning: flat-out input and relentless reward neither run away nor break 
   let spikes = 0;
   for (let t = 0; t < 3000; t++) {
     brain.outcome[0] = t % 50 < 25 ? 1 : 0;
-    const n = brain.tick(drive, { noise: 2, arousal: 3, canFire: true });
+    brain.tick(drive, { noise: 2, arousal: 3, canFire: true });
     if (t >= 1000) spikes += brain.spikesThisTick;
     if (brain.tickCount % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
-    assert.ok(n >= 0);
   }
   const share = spikes / 2000 / brain.N;
   assert.ok(share < 0.3, `${Math.round(share * 100)}% of neurons fire each tick`);

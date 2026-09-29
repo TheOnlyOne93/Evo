@@ -617,7 +617,7 @@
 
     // ---------- One tick ----------
     // drive: Float32Array (one per neuron) of external current: senses, needs, dreams.
-    // opts: { noise, arousal, canFire, asleep }. Returns the number of spikes.
+    // opts: { noise, arousal, canFire, asleep }. Returns the number of spikes (after held-back ones are removed).
     tick(drive, opts) {
       if (this.adjacencyDirty) this.rebuildAdjacency();
       const now = ++this.tickCount;
@@ -688,7 +688,7 @@
       }
 
       this.learn();
-      return spikes;
+      return this.spikesThisTick;
     }
 
     // A surprise worth dreaming about (value: + good, - bad): the senses active just then and the

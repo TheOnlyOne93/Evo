@@ -24,11 +24,11 @@ test('render: poseOf returns the documented pose fields with valid types and ran
 
   num(pose.motion, 'vx'); bool(pose.motion, 'airborne'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying');
 
-  ['eyesClosed', 'mouthOpen', 'earDroop', 'blush'].forEach(k => unit(pose.face, k));
+  ['eyesClosed', 'mouthOpen', 'earDroop', 'blush', 'happy', 'worry', 'yawn', 'lick'].forEach(k => unit(pose.face, k));
   ['pupilX', 'pupilY', 'smile'].forEach(k => { num(pose.face, k); assert.ok(pose.face[k] >= -1 && pose.face[k] <= 1, k + ' in -1..1'); });
 
   ['asleep', 'held', 'dead', 'eating', 'inHeat'].forEach(k => bool(pose.state, k));
-  ['calling', 'flinch', 'fear', 'anger', 'sick', 'cold', 'hot', 'wet', 'pregnant'].forEach(k => unit(pose.state, k));
+  ['calling', 'flinch', 'fear', 'anger', 'pain', 'sick', 'cold', 'hot', 'wet', 'pregnant'].forEach(k => unit(pose.state, k));
 
   assert.strictEqual(typeof pose.focused, 'boolean');
   assert.strictEqual(typeof pose.hovered, 'boolean');
