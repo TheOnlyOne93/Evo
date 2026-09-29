@@ -28,6 +28,8 @@
     guide('touch', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
     // Bumping into something on one side makes the opposite leg push: turn away from walls
     guide('touch', [0.5, 0.5, 0.9], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
+    // What is up close (its look) informs thinking; whether to eat it is learned (instincts)
+    guide('near', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     // Tastes inform thinking (what was just eaten), not the jaws directly
     guide('taste', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
     // Sights and smells reach the reward and punishment cells weakly; these cue synapses learn
