@@ -281,13 +281,18 @@
       return n;
     }
 
+    // Take an item out of the mouth of the creature carrying it (if one is)
+    detachFromCarrier(item) {
+      if (!item.held || item.held === 'hand') return;
+      const c = this.creatureById(item.held);
+      if (c && c.carrying === item) c.carrying = null;
+      item.held = null;
+    }
+
     removeItem(item) {
       const i = this.items.indexOf(item);
       if (i >= 0) this.items.splice(i, 1);
-      if (item.held && item.held !== 'hand') {
-        const c = this.creatures.find(k => k.id === item.held);
-        if (c && c.carrying === item) c.carrying = null;
-      }
+      this.detachFromCarrier(item);
       if (this.hand.holding && this.hand.holding.item === item) this.hand.holding = null;
     }
 
@@ -308,10 +313,10 @@
     dropCarried(creature) {
       const item = creature.carrying;
       if (!item) return;
-      item.held = null;
+      this.detachFromCarrier(item);
+      creature.carrying = null;
       item.vx = creature.vx + creature.facing * 0.6;
       item.vy = -0.5;
-      creature.carrying = null;
     }
 
     // ---------- Sound ----------
@@ -558,7 +563,7 @@
         const def = ITEM_TYPES[item.type];
         item.age++;
         if (item.held) {
-          const holder = item.held === 'hand' ? null : this.creatures.find(c => c.id === item.held);
+          const holder = item.held === 'hand' ? null : this.creatureById(item.held);
           if (holder) { item.x = holder.mouthX + holder.facing * item.radius * 0.5; item.y = holder.mouthY + item.radius; item.vx = holder.vx; item.vy = 0; }
           continue;
         }
@@ -637,10 +642,7 @@
         if (holding.creature.carrying) this.dropCarried(holding.creature);
       }
       if (holding.item) {
-        if (holding.item.held && holding.item.held !== 'hand') {
-          const c = this.creatures.find(k => k.id === holding.item.held);
-          if (c) c.carrying = null;
-        }
+        this.detachFromCarrier(holding.item);
         holding.item.held = 'hand';
       }
       this.hand.holding = holding;
