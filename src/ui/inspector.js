@@ -7,7 +7,7 @@
   const { clamp } = Evo.util;
   const T = Evo.text;
   const $ = id => document.getElementById(id);
-  const { esc, bar, percentOf, sexColor, sexGlyph, chemToken, chemColor, VISION_BY_KEY, SCENT_BY_KEY } = Evo.uiHelpers;
+  const { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor, VISION_BY_KEY, SCENT_BY_KEY } = Evo.uiHelpers;
   const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
@@ -357,11 +357,10 @@
         if (!syns.length) return '';
         syns.sort((x, y) => Math.abs(b.sW[y]) - Math.abs(b.sW[x]));
         const rows = syns.slice(0, 8).map(s => {
-          const w = b.sW[s], width = Math.sqrt(Math.min(1, Math.abs(w) / Evo.BRAIN.WEIGHT_MAX)) * 100, other = otherEnd(s); // Most are weak: a square root spreads them out
+          const w = b.sW[s], width = Math.round(Math.sqrt(Math.min(1, Math.abs(w) / Evo.BRAIN.WEIGHT_MAX)) * 100), other = otherEnd(s); // Most are weak: a square root spreads them out
           const name = T.neuronName(b, b.neurons[other]);
           const grown = b.sFlags[s] & Evo.BRAIN.SPROUTED ? '<i class="grown" title="grown in life"></i>' : '';
-          const active = now - b.sActive[s] < RECENT ? ' active' : '';
-          return `<button class="link${active}" data-neuron="${other}" title="${esc(name)}"><span class="who">${grown}${esc(name)}</span>` +
+          return `<button class="link" data-neuron="${other}" data-syn="${s}" title="${esc(name)}"><span class="who">${grown}${esc(name)}</span>` +
             `<span class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></span><span class="delay">${b.sDelay[s]}t</span></button>`;
         }).join('');
         const more = syns.length > 8 ? `<p class="note">and ${syns.length - 8} weaker</p>` : '';
@@ -369,9 +368,12 @@
       };
       const predicts = b.modulator[i] >= 0;
       const html = list(predicts ? 'Predicts from' : 'Listens to', ins, s => b.sSrc[s]) + list('Sends to', outs, s => b.sDst[s]);
-      $('neuronLinks').innerHTML = html
+      const links = $('neuronLinks');
+      setHtml(links, html
         ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: travel time in ticks.</p>${html}`
-        : '<p class="empty">No connections yet.</p>';
+        : '<p class="empty">No connections yet.</p>');
+      // The glow changes every refresh: set it in place, so the buttons stay put under a finger
+      for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActive[+el.dataset.syn] < RECENT);
     }
 
     stimulate() {
@@ -559,13 +561,13 @@
           `<span>${esc(h.name)} <span class="meta">gen ${h.generation}</span></span><span class="meta">${esc(fate)}</span></button>`;
       };
       const mother = rec(c.motherId), father = rec(c.fatherId);
-      $('familyParents').innerHTML = c.motherId === null
+      setHtml($('familyParents'), c.motherId === null
         ? `<p class="note">${c.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
-        : person(mother) + person(father);
+        : person(mother) + person(father));
       const siblings = c.motherId === null ? [] : hist.filter(h => h.id !== c.id && h.motherId === c.motherId && h.fatherId === c.fatherId);
-      $('familySiblings').innerHTML = siblings.map(person).join('') || '<p class="note">None.</p>';
+      setHtml($('familySiblings'), siblings.map(person).join('') || '<p class="note">None.</p>');
       const children = hist.filter(h => h.motherId === c.id || h.fatherId === c.id);
-      $('familyChildren').innerHTML = children.map(person).join('') || `<p class="note">None yet.${c.pregnancy ? ' One is on the way.' : ''}</p>`;
+      setHtml($('familyChildren'), children.map(person).join('') || `<p class="note">None yet.${c.pregnancy ? ' One is on the way.' : ''}</p>`);
       const grand = children.flatMap(ch => hist.filter(h => h.motherId === ch.id || h.fatherId === ch.id));
       $('familyLine').textContent = `Generation ${c.generation}. ${children.length} ${children.length === 1 ? 'child' : 'children'}, ${grand.length} ${grand.length === 1 ? 'grandchild' : 'grandchildren'}. Mated ${c.timesMated} ${c.timesMated === 1 ? 'time' : 'times'}.`;
     }
@@ -582,13 +584,13 @@
       const causes = Object.entries(st.deaths).filter(([, v]) => v).map(([k, v]) => `${v} ${T.DEATH_WORDS[k] || k}`);
       $('deathBreakdown').textContent = (causes.length ? `Of the dead: ${causes.join(', ')}.` : 'No deaths yet.') + (st.refoundings ? ` Re-founded ${st.refoundings} times from proven breeders.` : '');
       const list = [...world.creatures].sort((a, b) => b.generation - a.generation || b.ageTicks - a.ageTicks);
-      $('roster').innerHTML = list.map(c => {
+      setHtml($('roster'), list.map(c => {
         const need = c.topDrives(1)[0];
         return `<button class="member" data-creature="${c.id}" aria-current="${c === this.app.focus}">` +
           `<span class="sex-glyph" style="color:${sexColor(c.sex)}">${sexGlyph(c.sex)}</span>` +
           `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(T.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
           `<span class="meta">${need && need[1] > 0.2 ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
-      }).join('') || '<p class="empty">Nobody lives here now.</p>';
+      }).join('') || '<p class="empty">Nobody lives here now.</p>');
       this.renderPopulation();
     }
 

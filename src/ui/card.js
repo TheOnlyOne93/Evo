@@ -55,8 +55,6 @@
     };
     $('followBtn').addEventListener('click', app.toggleFollow);
 
-    // Only touch the page when the text changes (the card refreshes several times a second)
-    const setHtml = (el, html) => { if (el.innerHTML !== html) el.innerHTML = html; };
     const chip = (cls, icon, text, title = text) =>
       `<span class="${cls}" title="${H.esc(title)}"><span aria-hidden="true">${icon}</span>${H.esc(text)}</span>`;
 
@@ -66,7 +64,7 @@
       if (!c) {
         $('cardSex').textContent = ''; $('cardName').textContent = 'Nobody';
         $('cardSub').textContent = 'Tap a creature to follow it';
-        $('cardDoing').textContent = ''; $('cardNeeds').innerHTML = ''; $('cardEvents').innerHTML = '';
+        $('cardDoing').textContent = ''; H.setHtml($('cardNeeds'), ''); H.setHtml($('cardEvents'), '');
         return;
       }
       const t = Evo.text;
@@ -79,11 +77,11 @@
       $('cardSub').textContent = `${Evo.STAGES[c.stage].word} · gen ${c.generation} · ${t.clock(c.ageTicks)} old`;
       $('cardDoing').textContent = doing(c, world);
       const needs = c.dead ? [] : Evo.needsOf(c, 3);
-      setHtml($('cardNeeds'), needs.length
+      H.setHtml($('cardNeeds'), needs.length
         ? needs.map(n => chip(n.level > 0.6 ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percentOf(n.level)}%`)).join('')
         : c.dead ? '' : chip('need calm', '🙂', 'No pressing needs'));
       const now = world.clock.tick, recent = view.cues.recent(c).filter(e => now - e.tick < EVENT_SHOWN_S * Evo.TICKS_PER_SECOND);
-      setHtml($('cardEvents'), recent.map(e => {
+      H.setHtml($('cardEvents'), recent.map(e => {
         const look = Evo.EVENT_LOOK[e.key], ago = t.seconds(now - e.tick);
         return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago === 'under a second' ? 'just now' : ago + ' ago'}`);
       }).join(''));
