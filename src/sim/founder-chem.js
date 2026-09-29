@@ -1,7 +1,7 @@
 // The founder genome: metabolism, drives, receptors and instincts (see founder.js).
 (function (Evo) {
   'use strict';
-  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
+  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
 
   Evo.founderChem = [
     // ---------- Metabolism ----------
@@ -150,20 +150,22 @@
 
     // ---------- Instincts: replayed in dreams whenever the creature sleeps (switched on from birth,
     // so they matter most in early life, before experience has wired the brain) ----------
-    instinct('needs', need('tiredness'), 'needs', none, MOTOR.rest, 'reward', 0.5),                          // Tired: rest
-    instinct('needs', need('hunger'), 'touch', TOUCH.mouthL, MOTOR.eat, 'reward', 0.5),      // Hungry, food at mouth: eat
-    instinct('needs', need('hunger'), 'touch', TOUCH.mouthR, MOTOR.eat, 'reward', 0.5),
-    instinct('needs', need('thirst'), 'touch', TOUCH.lips, MOTOR.drink, 'reward', 0.5),      // Thirsty, water at lips: drink
-    instinct('needs', need('loneliness'), 'needs', none, MOTOR.call, 'reward', 0.3),                           // Lonely: call
-    instinct('sight', sight('L', 'low', 'red'), 'needs', need('hunger'), MOTOR.walkL, 'reward', 0.4), // Hungry, sees red: go to it
-    instinct('sight', sight('R', 'low', 'red'), 'needs', need('hunger'), MOTOR.walkR, 'reward', 0.4),
-    instinct('sight', sight('L', 'low', 'blue'), 'needs', need('thirst'), MOTOR.walkL, 'reward', 0.4), // Thirsty, sees water: go to it
-    instinct('sight', sight('R', 'low', 'blue'), 'needs', need('thirst'), MOTOR.walkR, 'reward', 0.4),
+    // Drives met with the right thing up close: eat it, drink it, nuzzle it
+    ...['red', 'yellow', 'green'].map(f => instinct('needs', need('hunger'), 'near', FEATURES.indexOf(f), MOTOR.eat, 'reward', 0.5)),
+    instinct('needs', need('proteinHunger'), 'near', FEATURES.indexOf('green'), MOTOR.eat, 'reward', 0.4),
+    instinct('needs', need('thirst'), 'touch', TOUCH.lips, MOTOR.drink, 'reward', 0.5),
+    instinct('needs', need('loneliness'), 'near', FEATURES.indexOf('creature'), MOTOR.eat, 'reward', 0.3),
+    // Drives on their own
+    instinct('needs', need('sleepiness'), 'needs', none, MOTOR.rest, 'reward', 0.5),
+    instinct('needs', need('tiredness'), 'needs', none, MOTOR.rest, 'reward', 0.4),
+    instinct('needs', need('loneliness'), 'needs', none, MOTOR.call, 'reward', 0.3),
+    instinct('needs', need('pain'), 'needs', none, MOTOR.run, 'reward', 0.3),
+    instinct('needs', need('fear'), 'needs', none, MOTOR.run, 'reward', 0.3),
+    // Places and smells to keep away from
     instinct('sight', sight('L', 'low', 'violet'), 'needs', none, MOTOR.walkL, 'punishment', 0.5), // Don't walk into violet
     instinct('sight', sight('R', 'low', 'violet'), 'needs', none, MOTOR.walkR, 'punishment', 0.5),
     instinct('smell', smell('L', 'alarm'), 'needs', none, MOTOR.walkR, 'reward', 0.3),       // Alarm scent: move away
-    instinct('smell', smell('R', 'alarm'), 'needs', none, MOTOR.walkL, 'reward', 0.3),
-    instinct('touch', TOUCH.pain, 'needs', none, MOTOR.run, 'reward', 0.3)                   // Hurt: run
+    instinct('smell', smell('R', 'alarm'), 'needs', none, MOTOR.walkL, 'reward', 0.3)
   ];
 
   Evo.FOUNDER_GENOME = [...Evo.founderBody, ...Evo.founderBrain, ...Evo.founderChem];

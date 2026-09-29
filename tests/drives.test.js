@@ -99,3 +99,18 @@ test('drives: the Up close cells report the look of what is at the mouth', (Evo,
   assert.ok(Math.abs(d.red - 0.9 * N) < 1e-6 && Math.abs(d.violet - 0.25 * N) < 1e-6, JSON.stringify(d));
   for (const k in d) if (k !== 'red' && k !== 'violet') assert.strictEqual(d[k], 0, k);
 });
+
+test('drives: founder instincts name real cells, and none knows the mimic', (Evo, assert) => {
+  const traits = Evo.Genome.founder('X').develop();
+  const brain = new Evo.Brain(traits);
+  const lobeOf = i => Evo.LOBE_ORDER[i];
+  for (const inst of traits.instincts) {
+    assert.ok(inst.indexA < brain.lobes[lobeOf(inst.lobeA)].length, `input A of ${JSON.stringify(inst)}`);
+    assert.ok(inst.indexB === 255 || inst.indexB < brain.lobes[lobeOf(inst.lobeB)].length, `input B of ${JSON.stringify(inst)}`);
+    const violetUpClose = [[inst.lobeA, inst.indexA], [inst.lobeB, inst.indexB]]
+      .some(([l, i]) => lobeOf(l) === 'near' && Evo.VISION_FEATURES[i] && Evo.VISION_FEATURES[i].key === 'violet');
+    assert.ok(!violetUpClose, 'no instinct about violet things up close');
+  }
+  const eats = traits.instincts.filter(i => i.motor === Evo.MOTORS.findIndex(m => m.key === 'eat') && lobeOf(i.lobeB) === 'near');
+  assert.deepStrictEqual(eats.map(i => Evo.VISION_FEATURES[i.indexB].key).sort(), ['creature', 'green', 'green', 'red', 'yellow']);
+});
