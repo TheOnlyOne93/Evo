@@ -332,22 +332,6 @@
       }
     }
 
-    // Ground height at x
-    surf(x) { return this.info.surf(x); }
-
-    // The first walkable surface at or below (x, y): ground or a platform
-    _surfaceBelow(x, y) {
-      let s = this.info.surf(x);
-      const ps = this.world.platforms;
-      if (ps) {
-        for (let i = 0; i < ps.length; i++) {
-          const p = ps[i];
-          if (x >= p.x0 && x <= p.x1 && p.y >= y - 6 && p.y < s) s = p.y;
-        }
-      }
-      return s;
-    }
-
     // ---- Sprite cache: rec.sp[season * NL + level] ----
     _sprite(rec, si, force) {
       const base = si * NL, li = this.levelIdx;
@@ -743,7 +727,7 @@
         const vis = c.x > this.vx0 - 90 && c.x < this.vx1 + 90 && c.y > this.vy0 - 90 && c.y < this.vy1 + 140;
         const pose = poses[i] = vis && useArt ? this._safePose(c) : null;
         // Where the ground is, so a jumping creature's shadow stays on it (an optional pose field)
-        if (pose && pose.groundY === undefined) pose.groundY = this._surfaceBelow(c.x, c.y - 1);
+        if (pose && pose.groundY === undefined) pose.groundY = this.world.surfaceBelow(c.x, c.y - 1);
       }
       // Hover under the hand
       this.hoveredCreature = null;
@@ -824,7 +808,7 @@
         const it = items[i];
         if (it.held || it.x < this.vx0 - 20 || it.x > this.vx1 + 20) continue;
         const r = it.radius || 5;
-        const sy = this._surfaceBelow(it.x, it.y - 1);
+        const sy = this.world.surfaceBelow(it.x, it.y - 1);
         const gap = sy - it.y;
         if (gap > 70 || gap < -r * 2 || this._floatDepth(it) >= 0) continue;
         const k = 1 - clamp01(gap / 70);
@@ -836,7 +820,7 @@
         const c = cs[i];
         if (c.x < this.vx0 - 60 || c.x > this.vx1 + 60 || c.held || (this.artGround && this.poses[i])) continue;
         const size = (this.poses[i] && this.poses[i].size) || c.size || 30;
-        const sy = this._surfaceBelow(c.x, c.y);
+        const sy = this.world.surfaceBelow(c.x, c.y);
         const gap = sy - c.y;
         if (gap > 120 || gap < -20) continue;
         const k = 1 - clamp01(gap / 120);
@@ -907,7 +891,7 @@
     // A glowing ring on the ground under the focused creature: back half behind it, front half in front
     _drawFocusRing(g, c, pose, t, back) {
       const size = (pose && pose.size) || c.size || 30;
-      const sy = this._surfaceBelow(c.x, c.y - 2);
+      const sy = this.world.surfaceBelow(c.x, c.y - 2);
       const rx = size * 0.55 + 6, ry = rx * 0.28;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3);
       g.lineWidth = 2;

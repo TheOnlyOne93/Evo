@@ -138,7 +138,7 @@
           P.x[i] += P.vx[i] * dt;
           P.y[i] += P.vy[i] * dt;
           if (FALLS[kind]) {
-            const gy = v._surfaceBelow(P.x[i], P.y[i] - 2);
+            const gy = v.world.surfaceBelow(P.x[i], P.y[i] - 2);
             if (P.y[i] >= gy - 1) {
               const wl = v.info.waterAt(P.x[i]);
               if (kind === SNOW || (wl !== null && gy > wl)) dead = true; // snow melts in; leaves sink
