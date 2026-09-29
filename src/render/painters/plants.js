@@ -80,12 +80,10 @@
 
   function paintTree(g, f, si, rec) {
     const s = rec.data, mimic = f.species === 'mimic';
-    const { H, cr, cy, trunkTop } = s;
+    const { cr, cy, trunkTop } = s;
     const R = rng(2000 + (f.id | 0) * 13 + si);
     const bark = mimic ? [104, 78, 80] : [124, 86, 56];
     const barkDark = scale(bark, 0.62), barkLight = mix(bark, [255, 232, 200], 0.22);
-    // Ground tuft ring at the base
-    const gp = GROUND[si];
     // Trunk with flared roots
     const tw = Math.max(9, cr * 0.2);
     const tg = g.createLinearGradient(-tw, 0, tw, 0);
@@ -226,7 +224,7 @@
       g.fill();
     }
     // Tufts where the trunk meets the ground
-    g.strokeStyle = gp.tufts[0];
+    g.strokeStyle = GROUND[si].tufts[0];
     g.lineWidth = 1.1;
     g.beginPath();
     for (let k = 0; k < 9; k++) {
