@@ -191,7 +191,25 @@
         const parts = [[v.chem1, v.amount1], [v.chem2, v.amount2]].filter(([c, a]) => c && a)
           .map(([c, a]) => `${a > 0 ? '+' : '−'}${w.percent(Math.abs(a))} ${w.chem(c).toLowerCase()}`);
         return { group: 'chemistry', text: `When it ${STIMULUS_WORDS[STIMULI[x.event]]}: ${parts.join(', ') || 'nothing'}` };
-      } }
+      } },
+    // How a region's cells work together: they compete (each is held back by the others' recent
+    // firing), and a cell that fires keeps itself going for a while, until it tires. copy 0 is the
+    // region itself, k its k-th duplicate.
+    { name: 'Lobe dynamics', fields: [['lobe', CODEC.lobe], ['copy', CODEC.raw], u('competition'), u('persistence'), u('tau'), u('fatigue')],
+      express(v, d) {
+        d.add('lobeDynamics', {
+          lobeIdx: v.lobe, copy: v.copy % 4,
+          competition: 8 * v.competition,          // mV of inhibition per unit of the others' activity
+          persistence: 4 * v.persistence,          // mV of self-sustaining current added per spike (up to 3 spikes' worth)
+          keep: 1 - 1 / (5 + 200 * v.tau),         // How long that current lasts (per tick)
+          adaptKeep: 0.95 + 0.049 * v.fatigue      // How slowly the cells recover from tiring
+        });
+      },
+      describe(v, x, w) {
+        const region = `${w.lobe(x.lobeIdx)}${x.copy ? ` (copy ${x.copy})` : ''}`;
+        return { group: 'brain', text: `${region} cells compete (${w.num(x.competition, 1)} mV) and keep going once started (${w.num(x.persistence, 1)} mV, lasting ~${w.num(1 / (1 - x.keep), 0)} ticks)` };
+      },
+      birthOnly: true }
   ];
   GENES.forEach(g => { g.payload = g.fields.length; });
   const GENE_INDEX = Object.fromEntries(GENES.map((g, i) => [g.name, i]));
@@ -211,7 +229,7 @@
       habituationRate: 0.0015, noveltyGain: 8,
       insulation: 0.6, bodyHeat: 0.5,
       eggInvestment: 0.35, incubationTicks: 5400,
-      axonGuidance: [], pacemakers: [], duplications: [],
+      axonGuidance: [], pacemakers: [], duplications: [], lobeDynamics: [],
       reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [], stimuli: [],
       neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}

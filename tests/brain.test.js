@@ -143,3 +143,41 @@ test('brain: an injected input arrives after its delay', (Evo, assert) => {
   for (let t = 0; t < 4; t++) { brain.tick(drive, opts); v.push(brain.v[i]); }
   assert.ok(v[2] > v[1] + 10, `the input lands on the third tick: ${v.map(x => x.toFixed(1))}`);
 });
+
+// Two muscles driven almost equally, near threshold (as the senses and needs usually drive them)
+function twoMuscles(Evo, seed) {
+  Evo.seed(seed);
+  const brain = founderBrain(Evo);
+  const [L, R] = brain.lobes.motor, drive = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  for (let t = 0; t < 100; t++) brain.tick(drive, opts);
+  const fired = i => brain.hist[i] & 1;
+  let active = 0, both = 0, winner = -1, held = 0;
+  for (let t = 0; t < 400; t++) {
+    drive[L] = 2.1; drive[R] = 2.0;
+    brain.tick(drive, opts);
+    if (fired(L) || fired(R)) active++;
+    if (fired(L) && fired(R)) both++;
+    const w = fired(L) ? L : fired(R) ? R : -1;
+    if (w >= 0 && winner < 0) winner = w;
+    if (w >= 0 && w !== winner) break;
+    if (winner >= 0) held++;
+  }
+  // Now the loser's input doubles
+  const loser = winner === L ? R : L;
+  let takeover = null;
+  for (let t = 0; t < 60 && takeover === null; t++) {
+    drive[loser] = 4.0; drive[winner] = 2.0;
+    brain.tick(drive, opts);
+    if (fired(loser) && !fired(winner)) takeover = t;
+  }
+  return { coFiring: both / Math.max(1, active), held, takeover };
+}
+
+test('brain: of two muscles driven almost equally, one wins and keeps going; a doubled input takes over', (Evo, assert) => {
+  for (let seed = 1; seed <= 5; seed++) {
+    const { coFiring, held, takeover } = twoMuscles(Evo, seed);
+    assert.ok(coFiring < 0.1, `seed ${seed}: they fire together ${Math.round(coFiring * 100)}% of the time`);
+    assert.ok(held >= 40, `seed ${seed}: the winner held ${held} ticks`);
+    assert.ok(takeover !== null && takeover <= 20, `seed ${seed}: took over after ${takeover} ticks`);
+  }
+});

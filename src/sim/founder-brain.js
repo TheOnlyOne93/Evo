@@ -40,8 +40,6 @@
     // Feelings project broadly and fast: where the reward cell's axons end is where learning happens
     // (the chemical is released at the terminals; the synapses themselves are weak)
     guide('feelings', [0.5, 0.5, 0.65], { radius: 0.8, weight: 0.2, conduction: 0.5 }),
-    // Action selection: every muscle inhibits the others, so the most strongly driven action wins
-    guide('motor', [0.5, 0.5, 0.9], { radius: 0.7, weight: -0.4, conduction: 0.5 }),
     // Association: senses and needs into the thinking regions, and thinking regions to the muscles
     guide('needs', [0.5, 0.5, 0.55], { radius: 0.3, weight: 0.4, reach: 0.8 }),
     guide('sight', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
@@ -51,5 +49,8 @@
     { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
     { gene: 'Region duplication', source: 'motor', depth: 1.0, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Efference copy
     { gene: 'Region duplication', source: 'sight', depth: 0.69, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Orienting map
+    // Action selection: the muscles compete, the most strongly driven one wins and keeps going
+    // until it tires or something much more pressing comes up
+    { gene: 'Lobe dynamics', lobe: 'motor', copy: 0, competition: 0.2, persistence: 0.3, tau: 0.3, fatigue: 0.9 },
   ];
 })(globalThis.Evo);

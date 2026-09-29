@@ -32,10 +32,14 @@ module.exports = ({ Evo, lab }) => {
       if (n) last = t;
     }
     if (cur >= 0) bouts.push(last - first + 1);
+    // Half the time spent acting is in bouts at least this long (a stray twitch barely counts)
     bouts.sort((a, b) => a - b);
+    const total = bouts.reduce((n, b) => n + b, 0);
+    let bout = 0;
+    for (let k = 0, sum = 0; k < bouts.length && sum < total / 2; k++) { sum += bouts[k]; bout = bouts[k]; }
     return {
       multi: active ? multi / active : 0,
-      bout: bouts.length ? bouts[Math.floor(bouts.length / 2)] : 0,
+      bout,
       modRate: ticks ? modSpikes / (2 * ticks) : 0
     };
   });
@@ -67,7 +71,7 @@ module.exports = ({ Evo, lab }) => {
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
-      'decision: median action bout (ticks)': seed => busy(seed).bout,
+      'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,
       'cost: senses us per creature-tick': seed => cost(seed).senses
     }

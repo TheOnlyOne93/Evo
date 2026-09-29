@@ -33,6 +33,7 @@
   const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
   const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
   const VALUE_RATE = 0.03;           // Step size of value (TD) learning
+  const RATE_ALPHA = 0.012;          // Firing-rate smoothing per tick
   const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
@@ -230,7 +231,7 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
-      this.habit = f32();
+      this.habit = f32(); this.lateral = f32(); this.vFired = f32();
       this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
       this.hist = new Uint32Array(N);
@@ -277,7 +278,7 @@
           this.thr[i] = T.baseThreshold;
           this.tau[i] = n.lobe === 'motor' ? 0.85 : T.tauLeak;
           this.homeo[i] = 1;
-          this.adaptInc[i] = n.lobe === 'motor' ? 0.25 : 0.15;
+          this.adaptInc[i] = n.lobe === 'motor' ? 0.3 : 0.15; // A muscle that keeps working tires (Lobe dynamics set how slowly)
           // Muscles are mostly quiet unless driven: a low set point keeps them excitable (so the
           // creature fidgets, explores and babbles) without acting all the time
           if (n.lobe === 'motor') this.targetRate[i] = 0.004;
@@ -297,6 +298,62 @@
       // Pacemaker genes give a whole lobe a steady depolarizing current (spontaneous activity),
       // and raise the lobe's homeostatic set point so homeostasis doesn't simply cancel it
       this.applyPacemakers(T.pacemakers);
+
+      // Lobe dynamics genes: competition and self-sustaining activity within a region (see
+      // applyDynamics). Several genes for one region: the last one wins.
+      const groups = new Map();
+      for (const g of T.lobeDynamics) {
+        const parent = LOBE_ORDER[g.lobeIdx];
+        const lobe = g.copy ? (this.duplicatesOf[parent] || [])[g.copy - 1] : parent;
+        if (!lobe || !this.lobes[lobe]) continue;
+        const cells = Int32Array.from(this.lobes[lobe]);
+        for (const i of cells) this.adaptKeep[i] = g.adaptKeep;
+        groups.set(lobe, { cells, competition: g.competition, persistence: g.persistence, keep: g.keep,
+          activity: new Float32Array(cells.length), drive: new Float32Array(cells.length), fired: new Int32Array(cells.length) });
+      }
+      this.dynamics = [...groups.values()];
+    }
+
+    // Within a region with Lobe dynamics the cells compete: each cell's recent firing (activity)
+    // inhibits the others, and cells that cross threshold in the same tick are resolved at once, the
+    // strongest first, each later one held back by the competition current of those already firing
+    // (fast inhibition, which also stops rivals locking into step). Each spike adds a slowly fading
+    // self-sustaining current (persistence, up to 3 spikes' worth). So the most strongly driven cell wins, silences its
+    // rivals and keeps going until it tires (adaptation) or a clearly stronger input takes over:
+    // decisions persist and attention settles on one thing, from the region's own dynamics.
+    // Sets the current for the coming tick.
+    applyDynamics() {
+      const { hist, lateral, vFired, v, vShow, thr, rate, adapt, adaptInc, refr } = this;
+      for (const g of this.dynamics) {
+        const { cells, activity, drive, competition, persistence, keep, fired } = g, most = 3 * persistence;
+        let n = 0;
+        for (let k = 0; k < cells.length; k++) if (hist[cells[k]] & 1) fired[n++] = k;
+        if (n > 1) {
+          const order = Array.from(fired.subarray(0, n)).sort((a, b) => (vFired[cells[b]] - thr[cells[b]]) - (vFired[cells[a]] - thr[cells[a]]));
+          let winners = 0;
+          for (const k of order) {
+            const i = cells[k], held = vFired[i] - competition * winners;
+            if (held >= thr[i]) { winners++; continue; }
+            // Held back: undo the spike
+            hist[i] = (hist[i] & ~1) >>> 0;
+            this.spikesThisTick--;
+            rate[i] -= RATE_ALPHA;
+            adapt[i] -= adaptInc[i];
+            refr[i] = 0;
+            v[i] = held;
+            vShow[i] = held;
+          }
+        }
+        let pool = 0;
+        for (let k = 0; k < cells.length; k++) {
+          const f = hist[cells[k]] & 1;
+          activity[k] = activity[k] * 0.8 + f;
+          const p = drive[k] * keep + persistence * f;
+          drive[k] = p > most ? most : p;
+          pool += activity[k];
+        }
+        for (let k = 0; k < cells.length; k++) lateral[cells[k]] = drive[k] - competition * (pool - activity[k]);
+      }
     }
 
     applyPacemakers(pacemakers) {
@@ -535,17 +592,16 @@
       const now = ++this.tickCount;
       const slot = now % SLOTS;
       const N = this.N;
-      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator } = this;
+      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator, lateral } = this;
       const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire;
 
       // 1. Every neuron integrates what arrived this tick. With conduction delays there is no
       // hand-ordered pipeline: where and how far activity travels comes from the wiring itself.
       let spikes = 0;
-      const ALPHA = 0.012;
       for (let i = 0; i < N; i++) {
         const k = i * SLOTS + slot;
         // A modulator cell is driven only by its prediction error (see learn), not by the body
-        let I = inbox[k] + (modulator[i] < 0 ? drive[i] : 0);
+        let I = inbox[k] + (modulator[i] < 0 ? drive[i] : 0) + lateral[i];
         inbox[k] = 0;
         adapt[i] *= adaptKeep[i];
         let fired = 0;
@@ -559,6 +615,7 @@
           if (nv >= thr[i] && canFire) {
             fired = 1;
             spikes++;
+            this.vFired[i] = nv;
             vShow[i] = 25;
             v[i] = V_RESET;
             adapt[i] += adaptInc[i];
@@ -569,7 +626,7 @@
           }
         }
         hist[i] = ((hist[i] << 1) | fired) >>> 0;
-        rate[i] += ALPHA * (fired - rate[i]);
+        rate[i] += RATE_ALPHA * (fired - rate[i]);
         // Intrinsic homeostatic plasticity: overactive neurons get harder to fire, silent ones easier
         if (homeo[i]) {
           let t = thr[i] + 0.03 * (rate[i] - targetRate[i]);
@@ -579,6 +636,7 @@
         }
       }
       this.spikesThisTick = spikes;
+      this.applyDynamics();
 
       // Novelty: senses habituate to what they keep reporting, so a spike from a usually quiet
       // neuron is surprising. The body reads the lack of surprise as boredom.
