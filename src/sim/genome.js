@@ -10,7 +10,7 @@
 (function (Evo) {
   'use strict';
   const { mean, clamp } = Evo.util;
-  const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS, NEUROCHEMS } = Evo;
+  const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS, NEUROCHEMS, STIMULI, STIMULUS_WORDS } = Evo;
 
   const PROMOTER = 0xA5;
   const TYPE_SLOTS = 32;
@@ -39,6 +39,8 @@
     emit: { decode: b => (b / 255) ** 2 * 0.05, encode: v => byte(Math.sqrt(v / 0.05) * 255) },
     // Receptor gain, 0..4
     gain: { decode: b => b / 64, encode: v => byte(v * 64) },
+    // A signed amount, -0.5..0.5 (128 = zero)
+    signed: { decode: b => (b - 128) / 256, encode: v => byte(v * 256 + 128) },
     // Half-life in ticks: 2^(b/16) (1 tick .. ~16 minutes); 255 = never decays
     halfLife: { decode: b => (b === 255 ? Infinity : Math.pow(2, b / 16)), encode: t => (t === Infinity ? 255 : byte(Math.log2(t) * 16)) }
   };
@@ -181,7 +183,15 @@
       express(v, d) { d.set('insulation', 0.3 + v.insulation * 0.6); d.set('bodyHeat', v.bodyHeat); } },
     { name: 'Reproduction', fields: [u('investment'), u('incubation')],
       express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); },
-      describe: (v, x, w) => ({ group: 'body', text: `Puts ${w.percent(x.eggInvestment)} into each egg, which hatches in about ${w.seconds(x.incubationTicks)}` }) }
+      describe: (v, x, w) => ({ group: 'body', text: `Puts ${w.percent(x.eggInvestment)} into each egg, which hatches in about ${w.seconds(x.incubationTicks)}` }) },
+    // What a stimulus (Evo.STIMULI) releases: up to two chemicals, each by a signed amount
+    { name: 'Stimulus', fields: [['event', CODEC.raw], ['chem1', CODEC.chem], ['amount1', CODEC.signed], ['chem2', CODEC.chem], ['amount2', CODEC.signed]],
+      express(v, d) { d.add('stimuli', { event: v.event % STIMULI.length, chem1: v.chem1, amount1: v.amount1, chem2: v.chem2, amount2: v.amount2 }); },
+      describe(v, x, w) {
+        const parts = [[v.chem1, v.amount1], [v.chem2, v.amount2]].filter(([c, a]) => c && a)
+          .map(([c, a]) => `${a > 0 ? '+' : '−'}${w.percent(Math.abs(a))} ${w.chem(c).toLowerCase()}`);
+        return { group: 'chemistry', text: `When it ${STIMULUS_WORDS[STIMULI[x.event]]}: ${parts.join(', ') || 'nothing'}` };
+      } }
   ];
   GENES.forEach(g => { g.payload = g.fields.length; });
   const GENE_INDEX = Object.fromEntries(GENES.map((g, i) => [g.name, i]));
@@ -202,7 +212,7 @@
       insulation: 0.6, bodyHeat: 0.5,
       eggInvestment: 0.35, incubationTicks: 5400,
       axonGuidance: [], pacemakers: [], duplications: [],
-      reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [],
+      reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [], stimuli: [],
       neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}
     };

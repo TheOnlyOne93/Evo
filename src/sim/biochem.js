@@ -1,9 +1,10 @@
-// Genetic biochemistry, after Creatures: chemicals in 64 slots, and four kinds of gene acting on
-// them. Each tick: emitters release chemicals from body readings, reactions convert chemicals,
-// chemicals decay by their half-lives, and receptors push on the body and brain.
+// Genetic biochemistry, after Creatures: chemicals in 64 slots, and the genes acting on them. Each
+// tick: emitters release chemicals from body readings, reactions convert chemicals, chemicals decay
+// by their half-lives, and receptors push on the body and brain. Between ticks, stimulus genes
+// release chemicals when something happens to the creature (stimulate).
 (function (Evo) {
   'use strict';
-  const { N_CHEM, TARGETS, TARGET, CHEM_BY_ID } = Evo;
+  const { N_CHEM, TARGETS, TARGET, CHEM_BY_ID, STIMULI } = Evo;
 
   // What a death by damage from each chemical is called (anything else: 'illness')
   const DAMAGE_CAUSE = { toxin: 'poison', ageing: 'old age' };
@@ -17,6 +18,7 @@
       this.reactions = [];
       this.emitters = [];
       this.receptors = [];
+      this.stimuli = STIMULI.map(() => []);      // Stimulus genes, by event index
     }
 
     // Install the genes of the current life stage. Concentrations carry over.
@@ -24,6 +26,8 @@
       this.reactions = traits.reactions;
       this.emitters = traits.emitters;
       this.receptors = traits.receptors;
+      this.stimuli = STIMULI.map(() => []);
+      for (const g of traits.stimuli || []) this.stimuli[g.event].push(g);
       this.keep.fill(1);
       for (const chem in traits.halfLives) {
         const hl = traits.halfLives[chem];
@@ -39,6 +43,16 @@
     get(key) { return this.c[Evo.CHEM[key]]; }
     set(key, v) { this.c[Evo.CHEM[key]] = Math.max(0, Math.min(1, v)); }
     add(key, amount) { const i = Evo.CHEM[key]; this.c[i] = Math.max(0, Math.min(1, this.c[i] + amount)); }
+
+    // Something happened (event: an index into Evo.STIMULI) with strength s: each stimulus gene for
+    // it releases its chemicals (a negative amount removes some)
+    stimulate(event, s = 1) {
+      const c = this.c;
+      for (const g of this.stimuli[event]) {
+        if (g.chem1) c[g.chem1] = Math.max(0, Math.min(1, c[g.chem1] + g.amount1 * s));
+        if (g.chem2) c[g.chem2] = Math.max(0, Math.min(1, c[g.chem2] + g.amount2 * s));
+      }
+    }
 
     // loci: Float32Array of body readings (see Evo.BODY_LOCI)
     step(loci) {

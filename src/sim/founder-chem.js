@@ -1,7 +1,7 @@
 // The founder genome: metabolism, drives, receptors and instincts (see founder.js).
 (function (Evo) {
   'use strict';
-  const { reaction, emitter, receptor, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
+  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
 
   Evo.founderChem = [
     // ---------- Metabolism ----------
@@ -73,6 +73,15 @@
     emitter('mated', 'mating', 0, 0.05),
     halfLife('warmth', 60), halfLife('coolness', 60), halfLife('company', 60), halfLife('endorphin', 200),
     halfLife('novelty', 30), halfLife('restRelief', 30), halfLife('sleepSignal', 60), halfLife('drink', 20), halfLife('mating', 120),
+    // ---------- Stimuli: what happens to the creature releases chemicals directly ----------
+    stimulus('patted', 'reward', 0.2, 'company', 0.1),
+    stimulus('slapped', 'punishment', 0.25, 'fear', 0.05),
+    stimulus('wasNuzzled', 'company', 0.08),
+    stimulus('nuzzled', 'company', 0.05),
+    stimulus('wasShoved', 'anger', 0.1, 'fear', 0.05),
+    stimulus('played', 'novelty', 0.15),
+    stimulus('bumped', 'pain', 0.02),
+
     // ---------- Reinforcement: relief turns drive into reward; harm releases punishment ----------
     reaction('hunger', 'gutSugar', 'reward', 'gutSugar', 0.06, 0.8, 1),
     reaction('hunger', 'gutStarch', 'reward', 'gutStarch', 0.04, 0.8, 1),

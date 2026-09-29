@@ -118,6 +118,18 @@
   const CHEM_BY_ID = Object.fromEntries(CHEMICALS.map(c => [c.id, c]));
   const DRIVES = CHEMICALS.filter(c => c.kind === 'drive').map(c => c.key);
 
+  // ---- Stimuli: things that happen to (or are done by) a creature. Stimulus genes decide which
+  // chemicals each one releases, as in Creatures. word: "When it ..." ----
+  const STIMULUS_LIST = [
+    ['ate', 'eats'], ['drank', 'drinks'], ['patted', 'is patted'], ['slapped', 'is slapped'], ['nuzzled', 'nuzzles another'],
+    ['wasNuzzled', 'is nuzzled'], ['shoved', 'shoves another'], ['wasShoved', 'is shoved'], ['called', 'calls'],
+    ['heardCall', 'hears a call'], ['grabbed', 'picks something up'], ['dropped', 'drops something'], ['bumped', 'bumps into something'],
+    ['fell', 'lands hard'], ['woke', 'wakes up'], ['fellAsleep', 'falls asleep'], ['mated', 'mates'], ['played', 'plays']
+  ];
+  const STIMULI = STIMULUS_LIST.map(([key]) => key);
+  const STIMULUS = Object.fromEntries(STIMULI.map((k, i) => [k, i]));
+  const STIMULUS_WORDS = Object.fromEntries(STIMULUS_LIST);
+
   // ---- Body loci: what emitter genes can read (all 0..1). Codes 128+ read a chemical instead. ----
   const BODY_LOCI = [
     'none', 'always', 'bodyTemp', 'heatGain', 'heatLoss', 'darkness', 'exertion', 'awake', 'asleep',
@@ -198,7 +210,7 @@
     TICKS_PER_SECOND, DAY_TICKS, SEASON_DAYS, STAGES, STAGE,
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
-    BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
+    STIMULI, STIMULUS, STIMULUS_WORDS, BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
     LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, driveCell, NEUROCHEMS,
     LIMITS
   });

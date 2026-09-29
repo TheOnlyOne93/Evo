@@ -8,6 +8,7 @@ function tolerance(codec, Evo, v) {
   if (codec === C.rate) return v * 0.05;
   if (codec === C.emit) return Math.max(v * 0.2, 2e-6);
   if (codec === C.halfLife) return v * 0.03;
+  if (codec === C.signed) return 0.5 / 256 + 1e-9;
   return 0.5;
 }
 

@@ -315,6 +315,8 @@
       if (item.held) return;
       item.held = creature.id;
       creature.carrying = item;
+      creature.stimulate('grabbed');
+      if (item.type === 'ball') creature.stimulate('played');
       this.events.emit('grab', { creature, item });
     }
 
@@ -325,6 +327,7 @@
       creature.carrying = null;
       item.vx = creature.vx + creature.facing * 0.6;
       item.vy = -0.5;
+      creature.stimulate('dropped');
     }
 
     // ---------- Sound ----------
@@ -332,6 +335,7 @@
       const T = creature.traits;
       const baby = creature.stage <= STAGE.CHILD;
       this.sounds.push({ x: creature.headX, y: creature.headY, pitch: Math.min(1, T.voicePitch + (baby ? 0.3 : 0)), loudness: T.voiceLoudness, age: 0, sourceId: creature.id });
+      creature.stimulate('called');
       this.events.emit('call', { creature });
     }
 
@@ -415,6 +419,7 @@
           f.pregnancy = { genome: Evo.Genome.recombine(f.genome, m.genome), fatherId: m.id, generation: Math.max(f.generation, m.generation) + 1,
             parents: [f, m], progress: 0, reserves: Object.fromEntries(Object.keys(Evo.EGG_CONTENTS).map(k => [k, 0])) };
           f.stim.mated = 1; m.stim.mated = 1;
+          f.stimulate('mated'); m.stimulate('mated');
           f.mateCooldown = m.mateCooldown = 1800;
           f.timesMated++; m.timesMated++;
           m.chem.add('protein', -0.04);
@@ -469,6 +474,7 @@
       to.stim.gentle = Math.max(to.stim.gentle, 0.5);
       to.stim.touchingFriend = 1;
       from.stim.touchingFriend = 1;
+      from.stimulate('nuzzled'); to.stimulate('wasNuzzled');
       this.events.emit('nuzzle', { from, to });
     }
 
@@ -479,6 +485,7 @@
       to.vx += from.facing * 2.5;
       to.vy = Math.min(to.vy, -1.5);
       to.onGround = false;
+      from.stimulate('shoved'); to.stimulate('wasShoved');
       this.events.emit('shove', { from, to });
     }
 
@@ -632,12 +639,14 @@
     // ---------- The player's hand ----------
     pat(c) {
       c.stim.gentle = 1; c.stim.back = Math.max(c.stim.back, 0.6);
+      c.stimulate('patted');
       this.events.emit('pat', { creature: c });
     }
 
     slap(c) {
       c.stim.impact = 1; c.stim.back = 1; c.stim.flinch = 1;
       c.injury = Math.min(1, c.injury + 0.01);
+      c.stimulate('slapped');
       this.events.emit('slap', { creature: c });
     }
 

@@ -7,7 +7,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, ITEM_TYPES, MOTORS, N_NEEDS, N_LIMBIC } = Evo;
+  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, ITEM_TYPES, MOTORS, N_NEEDS, N_LIMBIC, STIMULUS } = Evo;
 
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
@@ -84,7 +84,7 @@
 
       // What the muscles are doing
       this.mouthTimer = 0; this.drinkTimer = 0; this.runTimer = 0; this.restTimer = 0; this.callTimer = 0; this.jumpCooldown = 0;
-      this.grabCooldown = 0; this.mateCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
+      this.grabCooldown = 0; this.mateCooldown = 0; this.bumpCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
       this.muscle = new Float32Array(MOTORS.length); // Muscle activation: spike trains smoothed into force
       this.asleep = false;
       this.dream = null;               // The instinct currently being replayed in a dream
@@ -95,6 +95,7 @@
       this.taste = { sweet: 0, starch: 0, savory: 0, fat: 0, bitter: 0, water: 0 };
       this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
+      this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it
 
       this.loci = new Float32Array(BODY_LOCI.length);
       this.drive = new Float32Array(this.brain.N);
@@ -135,6 +136,13 @@
       const seen = new Set(before.pacemakers.map(p => p.gene));
       this.brain.applyPacemakers(this.traits.pacemakers.filter(p => !seen.has(p.gene)));
       world.events.emit('stage', { creature: this, stage });
+    }
+
+    // Something happened to the creature or it did something (a key of Evo.STIMULI): its stimulus
+    // genes release their chemicals
+    stimulate(key, s = 1) {
+      this.lastStimulus = { key, strength: s, tick: this.ageTicks };
+      this.chem.stimulate(STIMULUS[key], s);
     }
 
     // ---------- Body loci: what emitter genes read ----------
@@ -274,12 +282,14 @@
     fallAsleep(world) {
       this.asleep = true;
       this.dream = null;
+      this.stimulate('fellAsleep');
       world.events.emit('sleep', { creature: this });
     }
 
     wake(world) {
       this.asleep = false;
       this.dream = null;
+      this.stimulate('woke');
       world.events.emit('wake', { creature: this });
     }
 
@@ -373,7 +383,7 @@
       }
 
       // Hearing: calls made in the last tick, louder when near, on the side they came from
-      let heard = 0;
+      let heard = 0, heardNew = 0;
       const hear = [0, 0, 0, 0];
       for (const snd of world.sounds) {
         if (snd.age > 1 || snd.sourceId === this.id) continue;
@@ -382,8 +392,10 @@
         const k = hearingIndex(dx < 0 ? 'L' : 'R', snd.pitch < 0.5 ? 'low' : 'high');
         hear[k] = Math.max(hear[k], v);
         heard = Math.max(heard, v);
+        if (snd.age === 1) heardNew = Math.max(heardNew, v); // Every listener meets each call once at age 1
       }
       this.stim.heardCall = Math.max(this.stim.heardCall * 0.9, heard);
+      if (heardNew > 0) this.stimulate('heardCall', heardNew);
       brain.lobes.hearing.forEach((i, k) => { drive[i] = hear[k] * NEURAL_GAIN * gainScale; });
 
       // Touch
@@ -483,6 +495,7 @@
       if (this.callTimer > 0) this.callTimer--;
       if (this.runTimer > 0) this.runTimer--;
       if (this.restTimer > 0) this.restTimer--;
+      if (this.bumpCooldown > 0) this.bumpCooldown--;
       if (this.asleep || this.held) {
         this.exertion *= 0.95;
         this.muscle.fill(0);
@@ -526,6 +539,7 @@
       if (m[MOTOR_INDEX.drink] && this.waterAtMouth(world)) {
         this.drinkTimer = 12;
         this.ingest({ water: 0.05 });
+        this.stimulate('drank');
         world.events.emit('drink', { creature: this });
       }
       // Grab or drop an item; with another creature at the mouth, a shove
@@ -557,6 +571,7 @@
         const food = world.foodOf(t.item);
         if (food) {
           this.ingest(food);
+          this.stimulate('ate');
           world.consumeItem(this, t.item, food);
         }
       } else if (t.kind === 'creature') {
@@ -591,18 +606,22 @@
       const groundNext = world.surfaceBelow(nx, this.y - STEP_HEIGHT);
       if (this.onGround && groundNext < this.y - STEP_HEIGHT && groundNext < groundHere - 0.5) {
         this.vx = 0;
-        this.stim[this.facing > 0 ? 'contactR' : 'contactL'] = 1;
+        this.bump(this.facing > 0 ? 'contactR' : 'contactL');
       } else {
         this.x = nx;
       }
-      if (this.x <= world.edge + 0.5 || this.x >= world.width - world.edge - 0.5) this.stim[this.x < world.width / 2 ? 'contactL' : 'contactR'] = 1;
+      if (this.x <= world.edge + 0.5 || this.x >= world.width - world.edge - 0.5) this.bump(this.x < world.width / 2 ? 'contactL' : 'contactR');
 
       // Vertical: land on the ground or a platform (one-way, from above)
       const prevY = this.y;
       this.y += this.vy;
       const floor = world.surfaceBelow(this.x, prevY - 1);
       if (this.y >= floor) {
-        if (!this.onGround && this.vy > 7) this.stim.impact = Math.max(this.stim.impact, Math.min(1, (this.vy - 7) / 5)); // A hard landing hurts
+        if (!this.onGround && this.vy > 7) { // A hard landing hurts
+          const hard = Math.min(1, (this.vy - 7) / 5);
+          this.stim.impact = Math.max(this.stim.impact, hard);
+          this.stimulate('fell', hard);
+        }
         this.y = floor;
         this.vy = 0;
         this.onGround = true;
@@ -622,6 +641,12 @@
         this.onGround = true;
       }
       if (Math.abs(this.vx) > 0.05 && this.onGround) this.walkPhase += Math.abs(this.vx) * WALK_PHASE_PER_PX;
+    }
+
+    // Walking into a wall or ledge: felt on that side, and a 'bumped' stimulus at most every 30 ticks
+    bump(side) {
+      this.stim[side] = 1;
+      if (this.bumpCooldown === 0) { this.bumpCooldown = 30; this.stimulate('bumped'); }
     }
 
     decayStimuli() {
