@@ -86,9 +86,11 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
   overflow-x: auto; scrollbar-width: none; }
 #strip:empty { display: none; }
 #strip::-webkit-scrollbar { display: none; }
-.avatar { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; padding: 2px; background: #16292e;
+.avatar { position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; padding: 2px; background: #16292e;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ring) 45%, transparent); }
 .avatar canvas { width: 34px; height: 34px; display: block; border-radius: 50%; margin: 1px; }
+.avatar .badge { position: absolute; right: -2px; bottom: -2px; font-size: 12px; line-height: 1; pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
 .avatar[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 2px rgba(155, 227, 200, 0.35); }
 
 /* Event log */
