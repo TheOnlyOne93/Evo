@@ -3,17 +3,18 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const H = Evo.uiHelpers;
+  const AVATAR = 34; // the avatar canvas's CSS size (styles/app.css)
 
   Evo.setupStrip = function setupStrip(app) {
     const { world } = app;
     const strip = $('strip');
     let stripIds = '';
     app.refreshStrip = () => {
-      if (strip.offsetParent === null) return;
+      if (strip.children.length && strip.offsetParent === null) return; // hidden (an empty strip hides itself, so fill it first)
       const ids = world.creatures.map(c => c.id).join(',');
       if (ids !== stripIds) {
         stripIds = ids;
-        strip.innerHTML = world.creatures.map(c => `<button class="avatar" data-creature="${c.id}" style="--ring:${H.sexColor(c.sex)}"><canvas width="68" height="68"></canvas><span class="badge" aria-hidden="true"></span></button>`).join('');
+        strip.innerHTML = world.creatures.map(c => `<button class="avatar" data-creature="${c.id}" style="--ring:${H.sexColor(c.sex)}"><canvas></canvas><span class="badge" aria-hidden="true"></span></button>`).join('');
       }
       strip.querySelectorAll('.avatar').forEach(b => {
         const c = world.creatureById(Number(b.dataset.creature));
@@ -28,9 +29,11 @@
         if (b.title !== label) { b.title = label; b.setAttribute('aria-label', label); }
         if (!Evo.CreatureArt) return;
         const cv = b.firstChild, ctx = cv.getContext('2d');
-        ctx.setTransform(2, 0, 0, 2, 0, 0);
-        ctx.clearRect(0, 0, 34, 34);
-        try { ctx.save(); Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), 34, 34, performance.now() / 1000, 'face'); ctx.restore(); } catch (e) { ctx.restore(); }
+        const dpr = window.devicePixelRatio || 1;
+        if (cv.width !== Math.round(AVATAR * dpr)) Evo.fitCanvas(cv, ctx, AVATAR, AVATAR); // on creation and when the pixel ratio changes
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, AVATAR, AVATAR);
+        try { ctx.save(); Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), AVATAR, AVATAR, performance.now() / 1000, 'face'); ctx.restore(); } catch (e) { ctx.restore(); }
       });
     };
     strip.addEventListener('click', e => {

@@ -18,6 +18,7 @@
   const AGEING = [0, 0, 0, 0, 0, 0, 0.55, 1];        // greying, whiskers, droop, by stage
   const CREST = [1, 0.4, 0.5, 0.66, 0.84, 1, 1, 0.9];
   const TAIL_N = 9;
+  const MOUTH_OPEN = 0.06;                           // the mouth shows open (and a sick one stops looking wavy) above this
   // The simulation advances walkPhase by Evo.CREATURE.WALK_PHASE_PER_PX per px walked, whatever the size. The legs step
   // at a cadence (leg radians per walkPhase radian) that is quicker for the young and short-legged
   // and slower in a bounding run
@@ -27,6 +28,7 @@
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
 
+  const CACHE_MAX = 300;
   const cache = new Map();
 
   function hashId(id) {
@@ -39,8 +41,9 @@
 
   function entryFor(pose) {
     let e = cache.get(pose.id);
-    if (!e) {
-      if (cache.size > 300) cache.clear();
+    if (e) { cache.delete(pose.id); cache.set(pose.id, e); } // most recently drawn last
+    else {
+      if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value); // evict the longest undrawn
       const rnd = Evo.util.mulberry32(hashId(pose.id));
       e = {
         phase: rnd() * TAU, blinkP: 2.8 + rnd() * 2.6, blinkO: rnd() * 10,
@@ -336,7 +339,7 @@
     r.mouthOpen = dead ? 0.22 : clamp01(Math.max(num(F.mouthOpen, 0), calling * 0.85, pant, chewOpen, fear * 0.2));
     r.tongue = dead ? 0.6 : hot > 0.25 ? hot : 0;
     r.fang = anger > 0.35 ? anger : 0;
-    r.wavy = sick > 0.45 && r.mouthOpen < 0.1 ? 1 : 0;
+    r.wavy = sick > 0.45 && r.mouthOpen < MOUTH_OPEN ? 1 : 0;
     r.blush = clamp01(Math.max(num(F.blush, 0), hot * 0.7, 0.28 * baby, cold * 0.4)) * live;
     r.browAnger = anger;
     r.browWorry = Math.max(fear, sick * 0.5, Math.max(0, -smile) * 0.6, clamp01(num(F.worry, 0)) * awake);
@@ -935,7 +938,7 @@
     const R = r.R, s = r.smile, o = r.mouthOpen, ol = r.ol;
     const cx = R * 0.98, cy = R * 0.44, wn = R * 0.26, wf = R * 0.11, cornerY = cy - s * R * 0.1;
     ctx.strokeStyle = pal.line; ctx.lineWidth = ol;
-    if (o > 0.06) {
+    if (o > MOUTH_OPEN) {
       const h = R * (0.08 + 0.34 * o) * (1 + 0.7 * r.yawn);   // a yawn opens wide
       openMouthPath(ctx, cx, cy, cornerY, wn, wf, h, R);
       ctx.fillStyle = pal.mouth; ctx.fill();
@@ -979,7 +982,7 @@
         ctx.lineWidth = ol * 0.8; ctx.stroke();
       }
     }
-    if (r.fang > 0 && o > 0.06) {
+    if (r.fang > 0 && o > MOUTH_OPEN) {
       ctx.beginPath();
       ctx.moveTo(cx - wn * 0.5, cornerY + R * 0.02);
       ctx.lineTo(cx - wn * 0.38, cornerY + R * (0.1 + 0.08 * r.fang));

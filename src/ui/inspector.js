@@ -22,6 +22,8 @@
   const GENOME_MEMORY = 400; // Genomes remembered by creature id, so a child can be compared with its parents
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const RECENT = 30;         // Ticks within which a connection counts as just used
+  const COLD = 0.3, HOT = 0.7; // Body heat below or above these is cold or hot (the bar's colour and word)
+  const tempWord = t => t < COLD ? 'cold' : t > HOT ? 'hot' : 'fine';
 
   const FEATURE_WORD = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, f.word]));
   const SIDE_WORD = { L: 'left', R: 'right' };
@@ -200,11 +202,12 @@
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
 
       const temp = c.bodyTemp;
-      const tempColor = temp < 0.35 ? 'var(--water)' : temp > 0.65 ? 'var(--fruit)' : 'var(--accent)';
+      const word = tempWord(temp);
+      const tempColor = word === 'cold' ? 'var(--water)' : word === 'hot' ? 'var(--fruit)' : 'var(--accent)';
       $('barsVitals').innerHTML =
         bar('Health', c.health, 'var(--protein)') +
         bar('Injury', c.injury, 'var(--injury)') +
-        bar('Body heat', temp, tempColor, temp < 0.3 ? 'cold' : temp > 0.7 ? 'hot' : 'fine') +
+        bar('Body heat', temp, tempColor, word) +
         bar('Grown', c.growth, 'var(--grain)');
       const drives = Evo.DRIVES.map(k => [k, c.chem.get(k)]).sort((a, b) => b[1] - a[1]);
       $('barsDrives').innerHTML = drives.map(([k]) => chemBar(c, k)).join('');

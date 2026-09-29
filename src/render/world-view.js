@@ -512,6 +512,8 @@
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.globalAlpha = 1;
       g.globalCompositeOperation = 'source-over';
+      g.lineCap = 'butt';
+      g.lineJoin = 'miter';
       g.clearRect(0, 0, this.canvas.width, this.canvas.height);
       g.imageSmoothingEnabled = true;
 

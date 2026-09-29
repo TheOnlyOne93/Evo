@@ -4,6 +4,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const H = Evo.uiHelpers;
+  const ICON = 22; // a tool icon canvas's CSS size (styles/app.css)
 
   // The tool tray, in groups: the hand's three uses, food, other things to drop, and arrivals
   const HAND_TOOLS = [
@@ -60,7 +61,7 @@
     };
     const toolButton = (key, label, hint, icon) =>
       `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H.esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;
-    const art = k => `<canvas class="tool-art" data-art="${k}" width="44" height="44"></canvas>`;
+    const art = k => `<canvas class="tool-art" data-art="${k}"></canvas>`;
     // A group: a caption and its buttons. On narrow screens the caption becomes a button that opens
     // the group's buttons in a flyout above the tray.
     const group = (key, word, short, icon, items) =>
@@ -70,7 +71,7 @@
       `<div class="group-items">${items}</div></div>`;
     tray.innerHTML =
       group('hand', 'Hand', '', '', HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('')) +
-      DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art toggle-art" width="44" height="44"></canvas>`,
+      DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art toggle-art"></canvas>`,
         g.tools.map(k => toolButton(k, toolWord(k), DROP_HINTS[k], art(k))).join(''))).join('') +
       group('add', 'Add a creature', 'Add', '<span class="tool-icon">＋</span>',
         '<button class="tool" id="addFemaleBtn" title="Add a grown female"><span class="tool-icon" style="color:var(--female)">♀</span><span class="tool-text">Female</span></button>' +
@@ -78,7 +79,7 @@
     // Item icons drawn with the same art as the world
     tray.querySelectorAll('canvas[data-art]').forEach(cv => {
       const ctx = cv.getContext('2d'), k = cv.dataset.art;
-      ctx.scale(2, 2);
+      Evo.fitCanvas(cv, ctx, ICON, ICON);
       if (k === 'thorn') {
         ctx.strokeStyle = Evo.theme.color('--toxin'); ctx.lineWidth = 1.6; ctx.lineCap = 'round';
         for (let a = 0; a < 7; a++) { const r = a / 7 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(11, 13); ctx.lineTo(11 + Math.cos(r) * 8, 13 + Math.sin(r) * 7); ctx.stroke(); }
@@ -96,8 +97,8 @@
       if (!cv) return;
       const src = (chosen || g.querySelector('.group-items [data-tool]')).querySelector('canvas');
       const ctx = cv.getContext('2d');
-      ctx.clearRect(0, 0, cv.width, cv.height);
-      if (src) ctx.drawImage(src, 0, 0);
+      Evo.fitCanvas(cv, ctx, ICON, ICON); // also clears
+      if (src) ctx.drawImage(src, 0, 0, ICON, ICON);
     };
     const closeGroups = except => groups.forEach(g => {
       if (g === except) return;

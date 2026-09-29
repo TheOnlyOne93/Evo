@@ -53,6 +53,7 @@
       K([48, 58, 118], [206, 112, 124], [255, 150, 88], [236, 122, 80], 0.26, [255, 184, 150], [176, 96, 124], [255, 150, 84]),
       K([84, 128, 198], [232, 178, 156], [255, 198, 132], [255, 176, 110], 0.15, [255, 226, 200], [214, 150, 150], [255, 206, 140])],
   ];
+  const MOON_STEPS = 48; // phases the moon sprite is painted in
   const STOP_E = [-1, -0.3, -0.13, -0.01, 0.12, 0.34, 1];
   // STOPS[season][0 morning | 1 evening] = keyframes at STOP_E
   const STOPS = Evo.SEASONS.map((_, si) => [0, 1].map(m => {
@@ -660,8 +661,9 @@
       const mx = w / 2 + Math.cos(th * TAU) * w * 0.42;
       const my = hy + pal.elevation * arc * 0.92;
       if (my < hy + mr * 2) {
-        const key = Math.round(pal.moonPhase * 48) + mr * 1000 + dpr * 1e6;
-        if (key !== this.moonKey) { this.moonKey = key; this.moonSprite = paintMoon(Math.round(pal.moonPhase * 48) / 48, mr, dpr); }
+        const mrq = Math.round(mr * 2) / 2; // stepped so zooming doesn't repaint the moon every frame
+        const key = Math.round(pal.moonPhase * MOON_STEPS) + mrq * 1000 + dpr * 1e6;
+        if (key !== this.moonKey) { this.moonKey = key; this.moonSprite = paintMoon(Math.round(pal.moonPhase * MOON_STEPS) / MOON_STEPS, mrq, dpr); }
         const ms = this.moonSprite.width / dpr;
         g.globalAlpha = 0.35 + pal.night * 0.65;
         g.drawImage(this.moonSprite, mx - ms / 2, my - ms / 2, ms, ms);

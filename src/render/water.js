@@ -15,6 +15,8 @@
     return 0;
   }
 
+  const WAVE_AMP = 1.1; // surface ripple height in px, scaled down as the water freezes
+
   // The water surface's ripple at x
   function wave(x, t, amp) {
     return amp * (Math.sin(x * 0.045 + t * 1.6) + 0.6 * Math.sin(x * 0.11 - t * 2.3));
@@ -32,7 +34,7 @@
     const ponds = v.world.terrain.ponds;
     const pal = v.sky.pal;
     const ice = iceAmount(v.ss);
-    const amp = 1.1 * (1 - ice);
+    const amp = WAVE_AMP * (1 - ice);
     const wc = waterColors();
     const surf = v.info.surf, step = v.info.step;
     for (let pi = 0; pi < ponds.length; pi++) {
@@ -187,7 +189,7 @@
           const s = Math.sin(t * 2.6 + k * 1.9);
           if (s < 0.2) continue;
           g.globalAlpha = pal.day * (1 - ice * 2) * (s - 0.2) * 0.9;
-          const y = p.level + wave(x, t, 1.1) + 0.5;
+          const y = p.level + wave(x, t, WAVE_AMP * (1 - ice)) + 0.5;
           g.beginPath(); g.moveTo(x - 2.5, y); g.lineTo(x + 2.5, y); g.stroke();
         }
       }
