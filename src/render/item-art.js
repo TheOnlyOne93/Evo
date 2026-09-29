@@ -69,11 +69,7 @@
   }
 
   // Small stable per-item hash in [0, 1)
-  const hash = (id, k) => {
-    let x = Math.imul((id | 0) + k * 374761393, 668265263);
-    x = Math.imul(x ^ (x >>> 13), 1274126177);
-    return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
-  };
+  const hash = Evo.util.hash2;
 
   function fruitBody(g, r, c, mimic) {
     g.beginPath();

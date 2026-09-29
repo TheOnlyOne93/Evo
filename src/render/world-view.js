@@ -29,12 +29,7 @@
   const FRONT_PASSES = [[KIND.REEDS]];
   const SCENT_FALLBACK = ['#f0605d', '#e8a33d', '#3fc1d9', '#7bc96f', '#d9c38a', '#a77bf3', '#ec6fa8', '#6aa8f0', '#8f8a84', '#ffb86b'];
 
-  // Integer hash -> [0, 1), for stable per-place decoration
-  function hash2(a, b) {
-    let x = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263);
-    x = Math.imul(x ^ (x >>> 13), 1274126177);
-    return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
-  }
+  const { hash2 } = Evo.util;
 
   // ---------------------------------------------------------------------------------------------
   // Seasonal palettes for the ground and plants (index: 0 spring, 1 summer, 2 autumn, 3 winter)

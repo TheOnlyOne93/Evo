@@ -39,22 +39,11 @@
     return h >>> 0;
   }
 
-  function stream(seed) {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6D2B79F5) >>> 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
   function entryFor(pose) {
     let e = cache.get(pose.id);
     if (!e) {
       if (cache.size > 300) cache.clear();
-      const rnd = stream(hashId(pose.id));
+      const rnd = Evo.util.mulberry32(hashId(pose.id));
       e = {
         phase: rnd() * TAU, blinkP: 2.8 + rnd() * 2.6, blinkO: rnd() * 10,
         twitchP: 4 + rnd() * 3.5, twitchO: rnd() * 10,

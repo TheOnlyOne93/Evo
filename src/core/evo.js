@@ -62,6 +62,13 @@
     return arr;
   };
 
+  // Integer hash of two ints -> [0, 1), for stable per-place decoration
+  function hash2(a, b) {
+    let x = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263);
+    x = Math.imul(x ^ (x >>> 13), 1274126177);
+    return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+  }
+
   // Unique, increasing ids (never reused within a session)
   let lastId = 0;
   Evo.nextId = () => ++lastId;
@@ -75,6 +82,6 @@
     emit(type, payload) { const h = this.handlers[type]; if (h) for (const fn of h) fn(payload); }
   }
 
-  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU, mulberry32 };
+  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU, mulberry32, hash2 };
   Evo.EventBus = EventBus;
 })(globalThis);

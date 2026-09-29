@@ -31,16 +31,7 @@
   }
   const SCENT_OF = { fruit: 0, mimic: 3, grain: 1, dew: 2, grub: 4, bug: 5, lure: 6, carrion: 9 };
 
-  function rng(seed) {
-    let a = seed >>> 0;
-    return () => {
-      a = (a + 0x6D2B79F5) >>> 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
+  const rng = Evo.util.mulberry32;
 
   // The terrain recipe of src/sim/world.js: rolling sines, a hill for the warm rock, cliffs rising
   // at both ends and ponds filled to just below their lower rim
