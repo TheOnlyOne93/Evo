@@ -7,7 +7,10 @@
   const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   const MAX_PARTICLES = 360;
-  const LEAF_COLORS = ['#d8742e', '#c2452d', '#e2a93b', '#a8552a', '#f2c9dc', '#ffffff']; // falling leaves + petals
+  // Particle kinds (the pool's kind array)
+  const LEAF = 0, SNOW = 1, PETAL = 2, POLLEN = 3, FIREFLY = 4;
+  const FALLS = [true, true, true, false, false]; // by kind: drifts down and settles or melts on landing
+  const LEAF_COLORS = ['#d8742e', '#c2452d', '#e2a93b', '#a8552a', '#f2c9dc', '#ffffff']; // particle col: 0-3 leaves, 4-5 petals
 
   class Weather {
     constructor() {
@@ -33,11 +36,11 @@
       P.rot[i] = R() * TAU; P.vr[i] = (R() - 0.5) * 4; P.ph[i] = R() * TAU;
       P.vx[i] = 0; P.vy[i] = 0;
       switch (kind) {
-        case 0: P.size[i] = 2.4 + R() * 1.4; P.life[i] = 30; break;        // leaf
-        case 1: P.size[i] = 0.7 + R() * 1.6; P.life[i] = 60; break;        // snow
-        case 2: P.size[i] = 1.8 + R() * 0.9; P.life[i] = 25; break;        // petal
-        case 3: P.size[i] = 0.6 + R() * 0.7; P.life[i] = 6 + R() * 6; break; // pollen
-        case 4: P.size[i] = 1.2 + R() * 0.6; P.life[i] = 10 + R() * 12; break; // firefly
+        case LEAF: P.size[i] = 2.4 + R() * 1.4; P.life[i] = 30; break;
+        case SNOW: P.size[i] = 0.7 + R() * 1.6; P.life[i] = 60; break;
+        case PETAL: P.size[i] = 1.8 + R() * 0.9; P.life[i] = 25; break;
+        case POLLEN: P.size[i] = 0.6 + R() * 0.7; P.life[i] = 6 + R() * 6; break;
+        case FIREFLY: P.size[i] = 1.2 + R() * 0.6; P.life[i] = 10 + R() * 12; break;
       }
       return i;
     }
@@ -54,7 +57,7 @@
       if (fresh) { // drop the last season's weather at once
         for (let i = 0; i < P.n; i++) {
           const k = P.kind[i];
-          const keep = (k === 1 && si === WINTER) || (k === 0 && si === AUTUMN) || (k === 2 && si === SPRING) || ((k === 3 || k === 4) && si <= SUMMER);
+          const keep = (k === SNOW && si === WINTER) || (k === LEAF && si === AUTUMN) || (k === PETAL && si === SPRING) || ((k === POLLEN || k === FIREFLY) && si <= SUMMER);
           if (!keep) this.kill(i--);
         }
       }
@@ -63,14 +66,14 @@
       if (si === WINTER) { // snow: keep a density in view, heavier now and then
         const target = Math.round(area * (110 + 70 * Math.sin(t * 0.05)));
         let count = 0;
-        for (let i = 0; i < P.n; i++) if (P.kind[i] === 1) count++;
+        for (let i = 0; i < P.n; i++) if (P.kind[i] === SNOW) count++;
         let need = target - count;
         while (need-- > 0) {
-          const i = this.spawn(1, x0 - 60 + R() * (vw + 120), fresh ? y0 + R() * vh : y0 - 10 - R() * 40, 5);
+          const i = this.spawn(SNOW, x0 - 60 + R() * (vw + 120), fresh ? y0 + R() * vh : y0 - 10 - R() * 40, 5);
           if (i < 0) break;
         }
       } else if (si === AUTUMN || si === SPRING) { // leaves from the trees in autumn, petals in spring
-        const kind = si === AUTUMN ? 0 : 2;
+        const kind = si === AUTUMN ? LEAF : PETAL;
         this.spawnTimer += dt;
         const fs = v.world.features || [];
         if (this.spawnTimer > 0.12) {
@@ -85,21 +88,21 @@
               if (R() > (si === AUTUMN ? 0.26 : 0.1)) continue;
               const d = rec.data;
               const a = R() * TAU;
-              this.spawn(kind, f.x + Math.cos(a) * d.cr * 0.9, f.y + d.cy + Math.sin(a) * d.cr * 0.6, kind === 0 ? (R() * 4) | 0 : 4 + ((R() * 2) | 0));
+              this.spawn(kind, f.x + Math.cos(a) * d.cr * 0.9, f.y + d.cy + Math.sin(a) * d.cr * 0.6, kind === LEAF ? (R() * 4) | 0 : 4 + ((R() * 2) | 0));
             }
-            if (si === AUTUMN && R() < 0.35) this.spawn(0, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * 4) | 0);
+            if (si === AUTUMN && R() < 0.35) this.spawn(LEAF, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * 4) | 0);
           }
         }
       }
       if (si === SPRING || si === SUMMER) { // pollen motes by day, fireflies on summer nights
         let pollen = 0, flies = 0;
-        for (let i = 0; i < P.n; i++) { if (P.kind[i] === 3) pollen++; else if (P.kind[i] === 4) flies++; }
+        for (let i = 0; i < P.n; i++) { if (P.kind[i] === POLLEN) pollen++; else if (P.kind[i] === FIREFLY) flies++; }
         const wantPollen = Math.round(area * 18 * pal.day);
-        for (let k = pollen; k < wantPollen; k++) this.spawn(3, x0 + R() * vw, v.info.meanS - 20 - R() * 160, 0);
+        for (let k = pollen; k < wantPollen; k++) this.spawn(POLLEN, x0 + R() * vw, v.info.meanS - 20 - R() * 160, 0);
         const wantFlies = si === SUMMER ? Math.round(area * 26 * pal.night) : 0;
         for (let k = flies; k < wantFlies; k++) {
           const x = x0 + R() * vw;
-          this.spawn(4, x, v.info.surf(x) - 8 - R() * 70, 0);
+          this.spawn(FIREFLY, x, v.info.surf(x) - 8 - R() * 70, 0);
         }
       }
       // Motion
@@ -112,41 +115,41 @@
         } else {
           const ph = P.ph[i];
           switch (kind) {
-            case 0: case 2: {
-              const light = kind === 2 ? 0.7 : 1;
+            case LEAF: case PETAL: {
+              const light = kind === PETAL ? 0.7 : 1;
               P.vx[i] = wind * 22 * light + Math.sin(t * 2.1 + ph) * 16;
               P.vy[i] = (15 + Math.sin(t * 3.3 + ph) * 9) * light;
               P.rot[i] += P.vr[i] * dt * (1 + Math.sin(t * 2 + ph));
               break;
             }
-            case 1:
+            case SNOW:
               P.vx[i] = wind * 12 + Math.sin(t * 1.3 + ph) * 7;
               P.vy[i] = 20 + P.size[i] * 10;
               break;
-            case 3:
+            case POLLEN:
               P.vx[i] = wind * 7 + Math.sin(t * 0.7 + ph) * 5;
               P.vy[i] = Math.sin(t * 0.9 + ph * 2) * 4 - 1;
               break;
-            case 4:
+            case FIREFLY:
               P.vx[i] += (Math.sin(t * 1.1 + ph * 3) * 14 - P.vx[i]) * dt;
               P.vy[i] += (Math.cos(t * 0.8 + ph * 5) * 9 - P.vy[i]) * dt;
               break;
           }
           P.x[i] += P.vx[i] * dt;
           P.y[i] += P.vy[i] * dt;
-          if (kind <= 2) {
+          if (FALLS[kind]) {
             const gy = v._surfaceBelow(P.x[i], P.y[i] - 2);
             if (P.y[i] >= gy - 1) {
               const wl = v.info.waterAt(P.x[i]);
-              if (kind === 1 || (wl !== null && gy > wl)) dead = true; // snow melts in; leaves sink
+              if (kind === SNOW || (wl !== null && gy > wl)) dead = true; // snow melts in; leaves sink
               else { P.y[i] = gy - 1; P.rest[i] = 1; P.life[i] = 3 + R() * 4; }
             }
           }
           if (P.life[i] <= 0) dead = true;
         }
         if (P.x[i] < x0 - 150 || P.x[i] > x1 + 150 || P.y[i] > y1 + 60 || P.y[i] < y0 - 300) dead = true;
-        if (kind === 1 && si !== WINTER && R() < dt * 0.5) dead = true;
-        if (kind === 4 && pal.night < 0.2 && R() < dt) dead = true;
+        if (kind === SNOW && si !== WINTER && R() < dt * 0.5) dead = true;
+        if (kind === FIREFLY && pal.night < 0.2 && R() < dt) dead = true;
         if (dead) this.kill(i--);
       }
     }
@@ -166,7 +169,7 @@
         let any = false;
         for (let i = 0; i < P.n; i++) {
           const k = P.kind[i];
-          if ((k !== 0 && k !== 2) || P.col[i] !== c) continue;
+          if ((k !== LEAF && k !== PETAL) || P.col[i] !== c) continue;
           if (!any) { g.beginPath(); any = true; }
           const s = P.size[i];
           const flip = Math.abs(Math.cos(P.rot[i] * 0.7)) * 0.7 + 0.3; // tumbling
@@ -183,7 +186,7 @@
       for (let pass = 0; pass < 2; pass++) {
         let any = false;
         for (let i = 0; i < P.n; i++) {
-          if (P.kind[i] !== 1 || (P.size[i] > 1.4) !== !!pass) continue;
+          if (P.kind[i] !== SNOW || (P.size[i] > 1.4) !== !!pass) continue;
           if (!any) { g.beginPath(); any = true; }
           g.moveTo(P.x[i] + P.size[i], P.y[i]);
           g.arc(P.x[i], P.y[i], P.size[i], 0, TAU);
@@ -196,7 +199,7 @@
       // Pollen motes
       let any = false;
       for (let i = 0; i < P.n; i++) {
-        if (P.kind[i] !== 3) continue;
+        if (P.kind[i] !== POLLEN) continue;
         if (!any) { g.beginPath(); any = true; }
         g.moveTo(P.x[i] + P.size[i], P.y[i]);
         g.arc(P.x[i], P.y[i], P.size[i], 0, TAU);
@@ -209,7 +212,7 @@
     drawFireflies(g, sprite, night, t) {
     const P = this.p;
     for (let i = 0; i < P.n; i++) {
-      if (P.kind[i] !== 4) continue;
+      if (P.kind[i] !== FIREFLY) continue;
       const blink = Math.max(0, Math.sin(t * 2.2 + P.ph[i] * 3));
       const a = blink * blink * night * Math.min(1, P.life[i]);
       if (a < 0.02) continue;
