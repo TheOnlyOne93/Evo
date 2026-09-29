@@ -5,7 +5,7 @@
   const Art = Evo.CreatureArt;
   const TAU = Math.PI * 2;
   const SIZES = [0, 18, 23, 29, 35, 42, 42, 40];
-  const PHASE_PER_PX = 0.35;   // as the simulation advances walkPhase
+  const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;   // as the simulation advances walkPhase
   const STAGES = ['', 'Baby', 'Child', 'Adolescent', 'Youth', 'Adult', 'Old', 'Senile'];
 
   // URL options: ?seed=N picks the random looks, ?t=S freezes time at S seconds (for screenshots),

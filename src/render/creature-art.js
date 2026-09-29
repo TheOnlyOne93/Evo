@@ -18,12 +18,12 @@
   const AGEING = [0, 0, 0, 0, 0, 0, 0.55, 1];        // greying, whiskers, droop, by stage
   const CREST = [1, 0.4, 0.5, 0.66, 0.84, 1, 1, 0.9];
   const TAIL_N = 9;
-  // The simulation advances walkPhase by 0.35 rad per px walked, whatever the size. The legs step
+  // The simulation advances walkPhase by Evo.CREATURE.WALK_PHASE_PER_PX per px walked, whatever the size. The legs step
   // at a cadence (leg radians per walkPhase radian) that is quicker for the young and short-legged
   // and slower in a bounding run
-  const PHASE_PER_PX = 0.35;
+  const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;
   const CADENCE = [1, 2, 1.65, 1.35, 1.15, 1, 1, 1.05];
-  const GRIP_Y = -0.7 * UNITS;                        // held: the hand is 0.7 × size above (x, y)
+  const GRIP_Y = -Evo.WORLD.HOLD_GRIP * UNITS;        // held: the hand is HOLD_GRIP × size above (x, y)
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
 

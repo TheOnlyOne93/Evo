@@ -24,7 +24,7 @@
   const TILE = 256;                     // terrain tile size (world px)
   const SPRITE_BUDGET = 24e6;           // cached sprite pixels before old ones are dropped
   const BUILDS_PER_FRAME = 3;           // sprite upgrades per frame (missing ones are always built)
-  const SOUND_LIFE = 90;                // ticks a call stays visible (world.sounds[].age is in ticks)
+  const SOUND_LIFE = Evo.WORLD.SOUND_LIFE; // ticks a call stays visible (world.sounds[].age is in ticks)
   const KIND = { TILE: 0, TREE: 1, GRASS: 2, LOG: 3, ROCK: 4, REEDS: 5, THORN: 6, PLAT_LOG: 7, PLAT_ROCK: 8 };
   const FEATURE_KIND = { tree: KIND.TREE, grass: KIND.GRASS, log: KIND.LOG, rock: KIND.ROCK, reeds: KIND.REEDS, thornbush: KIND.THORN };
   // Back-to-front passes over world.features; reeds stand in front of the water
