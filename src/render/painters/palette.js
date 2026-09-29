@@ -5,7 +5,7 @@
   'use strict';
   const { TAU } = Evo.util;
 
-  // Seasonal palettes for the ground and plants (index: 0 spring, 1 summer, 2 autumn, 3 winter)
+  // Seasonal palettes for the ground and plants, indexed by Evo.SEASON (spring, summer, autumn, winter)
   const GROUND = [
     { grass: [118, 194, 82], dark: [70, 142, 56], light: [178, 226, 118], tufts: ['#6cbc4c', '#8fd162', '#58a444'], flowers: ['#fff7f0', '#ffd85e', '#f7a8c8', '#c9b8ff'] },
     { grass: [86, 166, 64], dark: [48, 114, 46], light: [146, 204, 92], tufts: ['#4f9f3e', '#6fb84e', '#3f8a36'], flowers: ['#ffe066', '#ffffff', '#8ab8ff', '#ff9f6b'] },

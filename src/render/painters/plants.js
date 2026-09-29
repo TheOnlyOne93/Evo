@@ -6,6 +6,7 @@
   const { TAU, clamp01 } = Evo.util;
   const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
   const { GROUND, SNOW, circle } = Evo.Paint;
+  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   const CANOPY = { // [base, dark, light] per season; autumn picks per clump
     fruit: [
@@ -118,8 +119,8 @@
     g.fillStyle = rgb(scale(bark, 0.35));
     g.beginPath(); g.ellipse(tw * 0.08, trunkTop * 0.42, tw * 0.13, tw * 0.2, 0, 0, TAU); g.fill();
     // Branches
-    const winter = si === 3;
-    const autumn = si === 2;
+    const winter = si === WINTER;
+    const autumn = si === AUTUMN;
     g.lineCap = 'round';
     for (const b of s.branches) {
       if (!winter && b.depth > 1) continue;
@@ -203,7 +204,7 @@
       }
       g.fill();
     }
-    if (si === 0) { // Blossom: small five-petalled flowers, thicker towards the sunny top
+    if (si === SPRING) { // Blossom: small five-petalled flowers, thicker towards the sunny top
       const bl = BLOSSOM[kind];
       for (let c = 0; c < 3; c++) {
         g.fillStyle = bl[c];
@@ -278,7 +279,7 @@
       }
       g.fill();
     }
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath(); g.ellipse(0, 2, s.w * 0.55, 6, 0, Math.PI, TAU); g.fill();
       g.fillStyle = SNOW.top;
@@ -322,11 +323,11 @@
       g.beginPath(); g.moveTo(st.x, 3); g.quadraticCurveTo(st.x, -st.h * 0.5, tx, -st.h - 7); g.stroke();
       // Cattail head
       const hx = st.x + (tx - st.x) * 0.85, hy = -st.h * 0.86;
-      g.fillStyle = si === 3 ? '#9a7a5c' : '#7a4a2a';
+      g.fillStyle = si === WINTER ? '#9a7a5c' : '#7a4a2a';
       g.beginPath(); g.ellipse(hx, hy, 2.6, 7.5, st.lean * 0.8, 0, TAU); g.fill();
       g.fillStyle = 'rgba(255,230,200,0.25)';
       g.beginPath(); g.ellipse(hx - 0.8, hy - 1.5, 0.9, 4.5, st.lean * 0.8, 0, TAU); g.fill();
-      if (si === 3) { g.fillStyle = SNOW.top; g.beginPath(); g.ellipse(hx, hy - 6.5, 2.4, 1.3, 0, 0, TAU); g.fill(); }
+      if (si === WINTER) { g.fillStyle = SNOW.top; g.beginPath(); g.ellipse(hx, hy - 6.5, 2.4, 1.3, 0, 0, TAU); g.fill(); }
     }
   }
 
@@ -335,7 +336,7 @@
   function paintThorn(g, f, si, rec) {
     const R = rng(7000 + (f.id | 0) * 23);
     const r = f.radius || 26;
-    const winter = si === 3, autumn = si === 2;
+    const winter = si === WINTER, autumn = si === AUTUMN;
     const leaf = autumn ? [[84, 30, 52], [134, 46, 70], [196, 96, 104]] : [[44, 38, 60], [74, 58, 96], [126, 102, 158]];
     const rx = r * 1.05, ry = r * 1.05;
     // Canes rise from the base, arch over and come down beside the mound
@@ -442,7 +443,7 @@
       g.lineWidth = 0.6;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(b) * L * 0.8, y + Math.sin(b) * L * 0.8); g.stroke();
     }
-    if (si < 2) { // a few pale violet flowers
+    if (si <= SUMMER) { // a few pale violet flowers
       g.fillStyle = '#eadbf8';
       g.beginPath();
       for (let k = 0; k < 4; k++) {

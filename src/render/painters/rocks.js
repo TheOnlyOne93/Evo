@@ -6,6 +6,7 @@
   const { TAU } = Evo.util;
   const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
   const { GROUND, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
+  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   function paintLog(g, f, si, rec) {
     const R = rng(4000 + (f.id | 0) * 7);
@@ -65,7 +66,7 @@
     g.lineWidth = 0.9;
     for (let k = 1; k <= 3; k++) { g.beginPath(); g.ellipse(x1, yM, d * 0.26 * k / 4, (d / 2 - 1) * k / 4, 0, 0, TAU); g.stroke(); }
     // Moss, fungi or snow on top
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath();
       g.moveTo(x0 - 2, yT + 3);
@@ -74,11 +75,11 @@
       g.closePath();
       g.fill();
     } else {
-      g.fillStyle = si === 2 ? '#8f8a3c' : si === 0 ? '#79b04a' : '#5f9a3e';
+      g.fillStyle = si === AUTUMN ? '#8f8a3c' : si === SPRING ? '#79b04a' : '#5f9a3e';
       g.beginPath();
       for (let x = x0 + 6; x < x1 - 4; x += 5 + R() * 6) circle(g, x, yT + 1, 2 + R() * 2.8);
       g.fill();
-      const caps = si === 2 ? 4 : 2;
+      const caps = si === AUTUMN ? 4 : 2;
       for (let k = 0; k < caps; k++) {
         const fx = x0 + L * (0.2 + R() * 0.6), fy = yM + (R() - 0.2) * d * 0.3;
         g.fillStyle = '#e6cfa2';
@@ -86,7 +87,7 @@
         g.fillStyle = '#b8966a';
         g.beginPath(); g.ellipse(fx, fy, 5, 1, 0, 0, Math.PI); g.fill();
       }
-      if (si === 2) {
+      if (si === AUTUMN) {
         for (let k = 0; k < 2; k++) {
           const mx = x0 + L * (0.35 + k * 0.3);
           g.fillStyle = '#efe2c8';
@@ -165,7 +166,7 @@
     for (let k = 0; k < 6; k++) circle(g, (R() - 0.5) * w * 0.7, -h * (0.2 + R() * 0.5), 1 + R() * 1.6);
     g.fill();
     // Moss on the top (snow in winter)
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath();
       g.moveTo(-w * 0.6, -h * 0.72);
@@ -178,7 +179,7 @@
       g.lineWidth = 1;
       g.stroke();
     } else {
-      g.fillStyle = si === 2 ? 'rgba(150,140,60,0.75)' : 'rgba(96,150,62,0.8)';
+      g.fillStyle = si === AUTUMN ? 'rgba(150,140,60,0.75)' : 'rgba(96,150,62,0.8)';
       g.beginPath();
       for (let k = 0; k < 7; k++) circle(g, -w * 0.3 + k * w * 0.07 + (R() - 0.5) * 4, -h * (0.9 + R() * 0.12), 2.5 + R() * 3);
       g.fill();
@@ -234,15 +235,15 @@
       g.strokeStyle = 'rgba(150,108,70,0.8)';
       g.beginPath(); g.ellipse(ex, d / 2 - 1, d * 0.12, d / 4, 0, 0, TAU); g.stroke();
     }
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath(); g.moveTo(-2, 1); for (let x = 0; x <= L; x += 5) g.lineTo(x, -3.5 - Math.sin(x * 0.4) * 1); g.lineTo(L + 2, 1); g.closePath(); g.fill();
     } else {
-      g.fillStyle = si === 2 ? '#8f8a3c' : '#6aa446';
+      g.fillStyle = si === AUTUMN ? '#8f8a3c' : '#6aa446';
       g.beginPath();
       for (let x = 6; x < L - 4; x += 7 + R() * 9) circle(g, x, -0.5, 1.5 + R() * 2);
       g.fill();
-      if (si < 2) { // A sprout
+      if (si <= SUMMER) { // A sprout
         const sx = L * 0.62;
         g.strokeStyle = '#5a9a40';
         g.lineWidth = 1.2;
@@ -311,8 +312,8 @@
     if (grounded) { g.moveTo(L * 0.55, gap * 0.5); g.lineTo(L * 0.6, gap * 0.7); g.lineTo(L * 0.52, gap * 0.9); }
     g.stroke();
     // Moss clinging to the flanks
-    if (si !== 3 && grounded) {
-      g.fillStyle = si === 2 ? 'rgba(150,140,60,0.6)' : 'rgba(96,150,62,0.6)';
+    if (si !== WINTER && grounded) {
+      g.fillStyle = si === AUTUMN ? 'rgba(150,140,60,0.6)' : 'rgba(96,150,62,0.6)';
       g.beginPath();
       for (let k = 0; k < 6; k++) circle(g, -6 + R() * 10, gap * (0.3 + R() * 0.6), 2 + R() * 3);
       g.fill();
@@ -322,7 +323,7 @@
     g.lineWidth = 1.2;
     g.stroke(body);
     const gp = GROUND[si];
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath(); g.moveTo(-5, 1); for (let x = -4; x <= L + 4; x += 5) g.lineTo(x, -4.5 - Math.sin(x * 0.3) * 1); g.lineTo(L + 5, 1); g.closePath(); g.fill();
     } else {

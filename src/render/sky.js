@@ -5,6 +5,7 @@
   'use strict';
   const { TAU, clamp01, smoothstep: smooth } = Evo.util;
   const SEASON_KEYS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
+  const { WINTER } = Evo.SEASON;
 
   // Scenery uses its own seeded streams (Evo.util.mulberry32), never Evo.random: drawing must not
   // consume the simulation's random numbers.
@@ -225,7 +226,7 @@
       // Snow caps with a jagged snow line; the shaded side of the snow is bluer
       const line = pal.snowLine * (range ? 0.85 : 1);
       for (const p of peaks) {
-        if (p.h < H * 0.42 && si !== 3) continue;
+        if (p.h < H * 0.42 && si !== WINTER) continue;
         const depth = p.h * line + 10;
         const zig = [];
         for (let k = 0; k <= 12; k++) zig.push((k % 2 ? 7 : -3) * (0.6 + R() * 0.6)); // same for wrapped copies
@@ -274,7 +275,7 @@
         g.beginPath(); g.moveTo(x, ty); g.lineTo(x + tw, by); g.lineTo(x - tw, by); g.closePath(); g.fill();
         g.fillStyle = dark;
         g.beginPath(); g.moveTo(x, ty); g.lineTo(x + tw, by); g.lineTo(x + tw * 0.1, by); g.closePath(); g.fill();
-        if (si === 3) { // snow on each tier
+        if (si === WINTER) { // snow on each tier
           g.fillStyle = 'rgba(248,251,255,0.95)';
           g.beginPath(); g.moveTo(x, ty); g.lineTo(x + tw * 0.55, ty + h * 0.2); g.lineTo(x - tw * 0.6, ty + h * 0.2); g.closePath(); g.fill();
         }
@@ -288,7 +289,7 @@
     g.lineCap = 'round';
     g.lineWidth = Math.max(1, h * 0.06);
     g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - h * 0.55); g.stroke();
-    if (si === 3) {
+    if (si === WINTER) {
       g.lineWidth = Math.max(0.7, h * 0.025);
       const branch = (bx, by, a, len, depth) => {
         const ex = bx + Math.sin(a) * len, ey = by - Math.cos(a) * len;
@@ -339,7 +340,7 @@
       sil.lineTo(P, H + 2);
       sil.closePath();
       const grd = g.createLinearGradient(0, H - rd.base - 60, 0, H);
-      grd.addColorStop(0, rgb(mix(rd.col, [255, 255, 255], si === 3 ? 0.4 : 0.14)));
+      grd.addColorStop(0, rgb(mix(rd.col, [255, 255, 255], si === WINTER ? 0.4 : 0.14)));
       grd.addColorStop(0.5, rgb(rd.col));
       grd.addColorStop(1, rgb(scale(rd.col, pal.shadeK)));
       g.fillStyle = grd;
@@ -354,7 +355,7 @@
       const trees = ri ? 34 : 22;
       for (let k = 0; k < trees; k++) {
         const x = R() * P;
-        const conifer = R() < (si === 3 ? 0.7 : 0.35);
+        const conifer = R() < (si === WINTER ? 0.7 : 0.35);
         const h = (ri ? 16 : 11) + R() * (ri ? 16 : 10);
         const col = pal.trees[(R() * pal.trees.length) | 0];
         const dy = 3 + R() * (ri ? 26 : 16);
@@ -369,7 +370,7 @@
     for (let row = 0; row < 2; row++) {
       let x = R() * 20;
       while (x < P) {
-        const conifer = R() < (si === 3 ? 0.55 : 0.42);
+        const conifer = R() < (si === WINTER ? 0.55 : 0.42);
         const h = (row ? 88 : 64) + R() * (row ? 76 : 50);
         const y = H - (row ? 14 : 24) + R() * 4;
         const col0 = conifer ? pal.conifer : pal.round[(R() * pal.round.length) | 0];

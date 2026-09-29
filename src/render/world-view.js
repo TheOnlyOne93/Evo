@@ -10,6 +10,8 @@
   const { TAU, clamp, clamp01, hash2 } = Evo.util;
   const { makeCanvas, rgb, rgba, scale } = Evo.Sky.util;
   const Paint = Evo.Paint;
+  const { WINTER } = Evo.SEASON;
+  const SEASON_COUNT = Evo.SEASON_COUNT;
 
   const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;
   const GROUND_AT = 0.72;               // where the ground line sits on screen (fraction of height)
@@ -217,7 +219,7 @@
           for (let x = Math.max(0, x0 - 24); x <= Math.min(world.width, x1 + 24); x += 4) top = Math.min(top, this.info.surf(x));
           const cliff = (x0 < 110 || x1 > world.width - 110) && y1 > this.info.cliffTop - 50;
           const empty = !cliff && y1 < top - 30;
-          this.tiles[j * cols + i] = { kind: KIND.TILE, empty, bx0: x0, by0: j * TILE, bw: TILE, bh: TILE, sp: new Array(4 * NL).fill(null) };
+          this.tiles[j * cols + i] = { kind: KIND.TILE, empty, bx0: x0, by0: j * TILE, bw: TILE, bh: TILE, sp: new Array(SEASON_COUNT * NL).fill(null) };
         }
       }
       for (const sp of this.sprites) sp.canvas.width = sp.canvas.height = 0;
@@ -414,7 +416,7 @@
         (f.h || 0) * 29 + (f.radius || 0) * 31 + (f.species === 'mimic' ? 1 : 0) + top * 37;
       let rec = this.featRecs.get(f.id);
       if (rec && rec.sig === sig && rec.kind === kind) { rec.f = f; return rec; }
-      rec = { kind, f, sig, top, sp: new Array(4 * NL).fill(null), data: null, bx0: 0, by0: 0, bw: 1, bh: 1, phase: hash2(f.id | 0, 5) * TAU };
+      rec = { kind, f, sig, top, sp: new Array(SEASON_COUNT * NL).fill(null), data: null, bx0: 0, by0: 0, bw: 1, bh: 1, phase: hash2(f.id | 0, 5) * TAU };
       switch (kind) {
         case KIND.TREE: {
           const s = rec.data = Paint.treeStructure(f);
@@ -494,7 +496,7 @@
       const L = p.x1 - p.x0;
       const rock = p.kind === 'rock';
       const gap = rock ? this.info.surf((p.x0 + p.x1) / 2) - p.y : 0;
-      rec = { kind: rock ? KIND.PLAT_ROCK : KIND.PLAT_LOG, f: p, sig, owned, sp: new Array(4 * NL).fill(null), data: { gap } };
+      rec = { kind: rock ? KIND.PLAT_ROCK : KIND.PLAT_LOG, f: p, sig, owned, sp: new Array(SEASON_COUNT * NL).fill(null), data: { gap } };
       rec.bx0 = rock ? -26 : -10; rec.bw = L + (rock ? 52 : 20);
       rec.by0 = -12; rec.bh = rock ? Math.max(34, gap + 22) : 34;
       this.platRecs[i] = rec;
@@ -675,7 +677,7 @@
       const n = Math.min(heads.length, Math.round(f.seeding * heads.length));
       if (!n) return;
       const IC = this._itemColors();
-      g.strokeStyle = this.ss.cur === 3 ? '#b5a882' : '#b39a52';
+      g.strokeStyle = this.ss.cur === WINTER ? '#b5a882' : '#b39a52';
       g.lineWidth = 1;
       g.beginPath();
       for (let k = 0; k < n; k++) {

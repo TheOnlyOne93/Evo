@@ -4,6 +4,7 @@
 (function (Evo) {
   'use strict';
   const { TAU, clamp } = Evo.util;
+  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   const MAX_PARTICLES = 360;
   const LEAF_COLORS = ['#d8742e', '#c2452d', '#e2a93b', '#a8552a', '#f2c9dc', '#ffffff']; // falling leaves + petals
@@ -53,13 +54,13 @@
       if (fresh) { // drop the last season's weather at once
         for (let i = 0; i < P.n; i++) {
           const k = P.kind[i];
-          const keep = (k === 1 && si === 3) || (k === 0 && si === 2) || (k === 2 && si === 0) || ((k === 3 || k === 4) && si < 2);
+          const keep = (k === 1 && si === WINTER) || (k === 0 && si === AUTUMN) || (k === 2 && si === SPRING) || ((k === 3 || k === 4) && si <= SUMMER);
           if (!keep) this.kill(i--);
         }
       }
       // Spawning
       const wind = v.wind;
-      if (si === 3) { // snow: keep a density in view, heavier now and then
+      if (si === WINTER) { // snow: keep a density in view, heavier now and then
         const target = Math.round(area * (110 + 70 * Math.sin(t * 0.05)));
         let count = 0;
         for (let i = 0; i < P.n; i++) if (P.kind[i] === 1) count++;
@@ -68,8 +69,8 @@
           const i = this.spawn(1, x0 - 60 + R() * (vw + 120), fresh ? y0 + R() * vh : y0 - 10 - R() * 40, 5);
           if (i < 0) break;
         }
-      } else if (si === 2 || si === 0) { // leaves from the trees in autumn, petals in spring
-        const kind = si === 2 ? 0 : 2;
+      } else if (si === AUTUMN || si === SPRING) { // leaves from the trees in autumn, petals in spring
+        const kind = si === AUTUMN ? 0 : 2;
         this.spawnTimer += dt;
         const fs = v.world.features || [];
         if (this.spawnTimer > 0.12) {
@@ -81,21 +82,21 @@
               if (f.kind !== 'tree') continue;
               const rec = v.featRecs.get(f.id);
               if (!rec || f.x < x0 - 200 || f.x > x1 + 200) continue;
-              if (R() > (si === 2 ? 0.26 : 0.1)) continue;
+              if (R() > (si === AUTUMN ? 0.26 : 0.1)) continue;
               const d = rec.data;
               const a = R() * TAU;
               this.spawn(kind, f.x + Math.cos(a) * d.cr * 0.9, f.y + d.cy + Math.sin(a) * d.cr * 0.6, kind === 0 ? (R() * 4) | 0 : 4 + ((R() * 2) | 0));
             }
-            if (si === 2 && R() < 0.35) this.spawn(0, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * 4) | 0);
+            if (si === AUTUMN && R() < 0.35) this.spawn(0, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * 4) | 0);
           }
         }
       }
-      if (si === 0 || si === 1) { // pollen motes by day, fireflies on summer nights
+      if (si === SPRING || si === SUMMER) { // pollen motes by day, fireflies on summer nights
         let pollen = 0, flies = 0;
         for (let i = 0; i < P.n; i++) { if (P.kind[i] === 3) pollen++; else if (P.kind[i] === 4) flies++; }
         const wantPollen = Math.round(area * 18 * pal.day);
         for (let k = pollen; k < wantPollen; k++) this.spawn(3, x0 + R() * vw, v.info.meanS - 20 - R() * 160, 0);
-        const wantFlies = si === 1 ? Math.round(area * 26 * pal.night) : 0;
+        const wantFlies = si === SUMMER ? Math.round(area * 26 * pal.night) : 0;
         for (let k = flies; k < wantFlies; k++) {
           const x = x0 + R() * vw;
           this.spawn(4, x, v.info.surf(x) - 8 - R() * 70, 0);
@@ -144,7 +145,7 @@
           if (P.life[i] <= 0) dead = true;
         }
         if (P.x[i] < x0 - 150 || P.x[i] > x1 + 150 || P.y[i] > y1 + 60 || P.y[i] < y0 - 300) dead = true;
-        if (kind === 1 && si !== 3 && R() < dt * 0.5) dead = true;
+        if (kind === 1 && si !== WINTER && R() < dt * 0.5) dead = true;
         if (kind === 4 && pal.night < 0.2 && R() < dt) dead = true;
         if (dead) this.kill(i--);
       }

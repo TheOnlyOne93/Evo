@@ -6,11 +6,12 @@
   const { TAU, hash2 } = Evo.util;
   const { rgba, mix } = Evo.Sky.util;
   const { SNOW } = Evo.Paint;
+  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   // How frozen the ponds are: 1 in winter, easing in and out with the season blend
   function iceAmount(ss) {
-    if (ss.cur === 3) return 1 - ss.blend;
-    if (ss.next === 3) return ss.blend;
+    if (ss.cur === WINTER) return 1 - ss.blend;
+    if (ss.next === WINTER) return ss.blend;
     return 0;
   }
 
@@ -133,19 +134,19 @@
 
   function drawLilies(g, v, p, pi, t, amp, alpha) {
     const si = v.ss.cur;
-    if (si === 3) return;
+    if (si === WINTER) return;
     const n = Math.max(2, Math.round((p.x1 - p.x0) / 70));
     g.globalAlpha = alpha;
     for (let k = 0; k < n; k++) {
       const x = p.x0 + (p.x1 - p.x0) * (0.12 + 0.76 * hash2(pi * 31 + k, 11)) + Math.sin(t * 0.2 + k) * 3;
       const y = p.level + wave(x, t, amp) - 0.5;
       const r = 6 + hash2(k, pi) * 4;
-      g.fillStyle = si === 2 ? '#a8a04a' : '#3f8f4a';
+      g.fillStyle = si === AUTUMN ? '#a8a04a' : '#3f8f4a';
       g.beginPath(); g.ellipse(x, y, r, r * 0.3, 0, 0.25, TAU - 0.1); g.lineTo(x, y); g.closePath(); g.fill();
-      g.fillStyle = si === 2 ? '#c6b85c' : '#62b060';
+      g.fillStyle = si === AUTUMN ? '#c6b85c' : '#62b060';
       g.beginPath(); g.ellipse(x - r * 0.15, y - 0.6, r * 0.7, r * 0.16, 0, 0, TAU); g.fill();
-      if (k % 2 === 0 && si < 2) {
-        g.fillStyle = si === 0 ? '#ffd3e4' : '#fff5fa';
+      if (k % 2 === 0 && si <= SUMMER) {
+        g.fillStyle = si === SPRING ? '#ffd3e4' : '#fff5fa';
         g.beginPath();
         g.moveTo(x - 3.6, y - 1); g.lineTo(x - 2.2, y - 5.5); g.lineTo(x - 0.8, y - 2.4); g.lineTo(x, y - 6.5);
         g.lineTo(x + 0.8, y - 2.4); g.lineTo(x + 2.2, y - 5.5); g.lineTo(x + 3.6, y - 1); g.closePath();

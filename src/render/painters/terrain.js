@@ -6,6 +6,7 @@
   const { TAU, clamp, hash2 } = Evo.util;
   const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
   const { GROUND, SNOW, ROCK_TONES, circle } = Evo.Paint;
+  const { AUTUMN, WINTER } = Evo.SEASON;
 
   const SOIL = {
     grad: [[118, 80, 52], [96, 64, 43], [70, 47, 32], [50, 34, 25]],
@@ -233,8 +234,8 @@
     g.strokeStyle = rgba(SOIL.sandDark, 0.6);
     g.lineWidth = 1.2;
     g.stroke();
-    if (si !== 3) {
-      g.strokeStyle = si === 2 ? '#6f7a3a' : '#3f7a4a';
+    if (si !== WINTER) {
+      g.strokeStyle = si === AUTUMN ? '#6f7a3a' : '#3f7a4a';
       g.lineWidth = 1.4;
       g.beginPath();
       for (const wd of info.weeds) {
@@ -254,7 +255,7 @@
     for (let x = xa; x <= xb + 0.01; x += 3) {
       if (!wet(x)) { if (!cur) runs.push(cur = []); cur.push(x); } else cur = null;
     }
-    if (si === 3) {
+    if (si === WINTER) {
       for (const xs of runs) {
         // Soft drifts: thicker in hollows, lumpy on top, a blue shade where they meet the soil
         const topY = x => surf(x) - 5.5 - 2.2 * Math.sin(x * 0.061) - 1.3 * Math.sin(x * 0.23 + 1) - 0.8 * Math.sin(x * 0.53);
@@ -316,14 +317,14 @@
     // Tufts (dry straw poking through snow in winter)
     for (let c = 0; c < pal.tufts.length; c++) {
       g.strokeStyle = pal.tufts[c];
-      g.lineWidth = si === 3 ? 0.9 : 1.15;
+      g.lineWidth = si === WINTER ? 0.9 : 1.15;
       g.beginPath();
       for (let k = 0; k < info.tufts.length; k++) {
         const t = info.tufts[k];
         if (t.c % pal.tufts.length !== c || t.x < xa || t.x > xb || wet(t.x)) continue;
-        if (si === 3 && k % 3) continue;
-        const y = surf(t.x) + 1 - (si === 3 ? 3 : 0);
-        const h = t.h * (si === 3 ? 0.8 : 1);
+        if (si === WINTER && k % 3) continue;
+        const y = surf(t.x) + 1 - (si === WINTER ? 3 : 0);
+        const h = t.h * (si === WINTER ? 0.8 : 1);
         for (let b = 0; b < t.n; b++) {
           const bx = t.x + (b - t.n / 2) * 1.5;
           const tx = bx + t.lean * h + (b - t.n / 2) * 1.1;
@@ -386,7 +387,7 @@
     g.beginPath(); g.ellipse(x, y, rx * 0.94, ry * 0.94, 0, Math.PI, TAU); g.closePath(); g.fill();
     g.fillStyle = 'rgba(255,255,255,0.3)';
     g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.55, rx * 0.35, ry * 0.2, -0.2, 0, TAU); g.fill();
-    if (si === 3) {
+    if (si === WINTER) {
       g.fillStyle = SNOW.body;
       g.beginPath(); g.ellipse(x, y - ry * 0.82, rx * 0.72, ry * 0.26, 0, 0, TAU); g.fill();
     }
@@ -412,7 +413,7 @@
     face.lineTo(out, top - 10);
     face.closePath();
     // Dark joints behind everything, then each block as its own rounded stone
-    const stone = si === 3 ? [156, 152, 152] : [166, 150, 130];
+    const stone = si === WINTER ? [156, 152, 152] : [166, 150, 130];
     g.fillStyle = rgb(scale(stone, 0.38));
     g.fill(face);
     for (let i = 0; i < blocks.length; i++) {
@@ -472,7 +473,7 @@
       const b = blocks[i], up = blocks[i + 1];
       const lip = b.d1 - up.d0; // how far the ledge sticks out
       const lx0 = X(up.d0), lx1 = X(b.d1), y = b.y1;
-      if (si === 3) {
+      if (si === WINTER) {
         g.fillStyle = SNOW.body;
         g.beginPath(); g.ellipse((lx0 + lx1) / 2, y, Math.abs(lx1 - lx0) / 2 + 3, 3.2, 0, Math.PI, TAU); g.fill();
       } else if (b.moss && lip > 2) {
@@ -487,21 +488,21 @@
         }
         g.stroke();
       }
-      if (b.vine && si < 3) {
-        g.strokeStyle = si === 2 ? '#a0703a' : '#4f8c3e';
+      if (b.vine && si !== WINTER) {
+        g.strokeStyle = si === AUTUMN ? '#a0703a' : '#4f8c3e';
         g.lineWidth = 1.2;
         g.beginPath();
         const vx = X(b.d1 - 2);
         g.moveTo(vx, y);
         for (let k = 1; k <= 6; k++) g.lineTo(vx + Math.sin(k * 1.3) * 2, y + k * 6);
         g.stroke();
-        g.fillStyle = si === 2 ? '#c8783a' : '#6cae4e';
+        g.fillStyle = si === AUTUMN ? '#c8783a' : '#6cae4e';
         g.beginPath();
         for (let k = 1; k <= 6; k++) { const lx = vx + Math.sin(k * 1.3) * 2 + (k % 2 ? 2 : -2); g.moveTo(lx, y + k * 6); g.ellipse(lx, y + k * 6, 2, 1.1, k, 0, TAU); }
         g.fill();
       }
-      if (b.fern && si < 3 && lip > 3) {
-        g.strokeStyle = si === 2 ? '#a88a3e' : '#5a9a48';
+      if (b.fern && si !== WINTER && lip > 3) {
+        g.strokeStyle = si === AUTUMN ? '#a88a3e' : '#5a9a48';
         g.lineWidth = 1;
         g.beginPath();
         const fx = (lx0 + lx1) / 2;
@@ -511,7 +512,7 @@
     }
     // The top: turf or snow
     const tx0 = X(last.d1 + 2), tx1 = X(-80);
-    g.fillStyle = si === 3 ? SNOW.body : rgb(pal.grass);
+    g.fillStyle = si === WINTER ? SNOW.body : rgb(pal.grass);
     g.beginPath();
     g.moveTo(tx0, last.y1 + 2);
     g.quadraticCurveTo(X(last.d1 * 0.5), top - 18, X(-20), top - 13);
@@ -523,7 +524,7 @@
     g.fill();
     // A bush on the brink
     const bx = X(last.d1 * 0.45), by = top - 12;
-    const bush = si === 3 ? [[120, 108, 100], [140, 128, 118]] : si === 2 ? [[176, 96, 48], [214, 150, 64]] : [[62, 128, 64], [96, 162, 80]];
+    const bush = si === WINTER ? [[120, 108, 100], [140, 128, 118]] : si === AUTUMN ? [[176, 96, 48], [214, 150, 64]] : [[62, 128, 64], [96, 162, 80]];
     for (let k = 0; k < 2; k++) {
       g.fillStyle = rgb(bush[k]);
       g.beginPath();
@@ -532,7 +533,7 @@
       circle(g, bx + 13, by - 1 - k * 2, 8 - k * 2);
       g.fill();
     }
-    if (si === 3) { g.fillStyle = SNOW.body; g.beginPath(); g.ellipse(bx + 2, by - 15, 12, 4, 0, Math.PI, TAU); g.fill(); }
+    if (si === WINTER) { g.fillStyle = SNOW.body; g.beginPath(); g.ellipse(bx + 2, by - 15, 12, 4, 0, Math.PI, TAU); g.fill(); }
     // Fallen stones at the foot
     for (const t of c.talus) {
       const x = X(c.blocks[0].d0 + t.dx - 20);
