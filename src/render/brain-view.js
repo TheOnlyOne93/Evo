@@ -256,6 +256,13 @@
       ctx.textBaseline = 'alphabetic';
     }
 
+    // With a region picked, only connections touching it are shown (the recent-use view and its spikes)
+    touchesRegion(s) {
+      if (!this.region) return true;
+      const { sSrc, sDst } = this.brain, ns = this.brain.neurons;
+      return ns[sSrc[s]].lobe === this.region || ns[sDst[s]].lobe === this.region;
+    }
+
     // Connections: the probed neuron's, else recently used ones (or all), fading with time since use
     drawWiring(ctx, T) {
       const b = this.brain, S = this.screen, probe = this.probed, now = b.tickCount;
@@ -287,7 +294,6 @@
       }
       // Recently used connections in three strengths × excitatory / inhibitory, one path each: most
       // are weak, so only the strong ones stand out (with a region picked, only the ones touching it)
-      const lobeOf = this.region ? i => b.neurons[i].lobe : null;
       const bins = [[0.4, Infinity, 0.6, 1.3], [0.15, 0.4, 0.26, 0.9], [0, 0.15, 0.07, 0.7]];
       for (const [lo, hi, alpha, width] of bins) {
         for (const excite of [true, false]) {
@@ -297,7 +303,7 @@
           for (let s = 0; s < b.S; s++) {
             const w = sW[s], m = w < 0 ? -w : w;
             if (now - sActive[s] > RECENT || m < lo || m >= hi || (w >= 0) !== excite) continue;
-            if (lobeOf && lobeOf(sSrc[s]) !== this.region && lobeOf(sDst[s]) !== this.region) continue;
+            if (!this.touchesRegion(s)) continue;
             line(s);
           }
           ctx.stroke();
@@ -341,7 +347,8 @@
       ctx.fillStyle = T.color('--pulse');
       ctx.beginPath();
       for (let s = 0; s < b.S; s++) {
-        if (probe >= 0 ? sSrc[s] !== probe && sDst[s] !== probe : Math.abs(sW[s]) < weak) continue;
+        if (probe >= 0 ? sSrc[s] !== probe && sDst[s] !== probe
+          : Math.abs(sW[s]) < weak || !this.allWiring && !this.touchesRegion(s)) continue;
         const h = hist[sSrc[s]], d = sDelay[s];
         if (!(h & ((1 << d) - 2))) continue;
         const x0 = S[sSrc[s] * 2], y0 = S[sSrc[s] * 2 + 1], x1 = S[sDst[s] * 2], y1 = S[sDst[s] * 2 + 1];
