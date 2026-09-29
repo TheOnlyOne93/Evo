@@ -128,3 +128,18 @@ test('genome: axon guidance strength decodes symmetrically around byte 120', (Ev
   assert.ok(Math.abs(strength(180) - 0.8) < 1e-9);
   assert.strictEqual(strength(255), 1); assert.strictEqual(strength(0), -1);
 });
+
+test('genome: every kind of gene describes itself in plain words', (Evo, assert) => {
+  const brain = new Evo.Brain(Evo.Genome.founder().develop());
+  const seen = new Set();
+  for (let i = 0; i < 30; i++) {
+    const g = Evo.Genome.founder().cloneWithMutation(0.3);
+    for (const gene of g.findGenes()) {
+      const d = Evo.text.describeGene(g, gene, brain);
+      seen.add(d.name);
+      assert.ok(['body', 'brain', 'chemistry', 'instinct'].includes(d.group), `${d.name}: group ${d.group}`);
+      assert.ok(d.text && !/undefined|NaN/.test(d.text), `${d.name}: ${d.text}`);
+    }
+  }
+  assert.strictEqual(seen.size, Evo.GENES.length, 'every gene kind was seen');
+});

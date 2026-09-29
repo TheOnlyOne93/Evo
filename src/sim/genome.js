@@ -56,6 +56,11 @@
   // express(v, d): what the gene builds from its decoded values v.
   //   d.set(trait, value) votes for a trait (several copies of a gene average: co-dominance);
   //   d.add(list, entry) appends to a list trait; d.F is true for females.
+  // describe(v, x, w) (optional): the gene in plain words, as { group, text }. v = decoded values,
+  //   x = what this one gene expresses (Genome.expressed), w = word helpers from Evo.text. Genes
+  //   without one are listed as 'body' genes showing their expressed traits.
+  // birthOnly: the brain reads these traits only when it is built, so a copy that switches on at
+  //   a later life stage has no effect.
   const GENES = [
     { name: 'Appearance', fields: [u('hue'), u('accentHue'), u('pattern'), u('patternScale'), u('earSize'), u('tailLength'), u('eyeSize'), u('plumpness')],
       express(v, d) {
@@ -74,28 +79,36 @@
     { name: 'Nose', fields: [u('reach'), u('gain')],
       express(v, d) { d.set('noseReach', 14 + v.reach * 30); d.set('scentGain', 0.6 + v.gain); } },
     { name: 'Membrane', fields: [u('threshold'), u('leak'), u('refractory')],
-      express(v, d) { d.set('baseThreshold', -58 + v.threshold * 10); d.set('tauLeak', 0.72 + v.leak * 0.19); d.set('refractoryTicks', 1 + v.refractory * 2); } },
+      express(v, d) { d.set('baseThreshold', -58 + v.threshold * 10); d.set('tauLeak', 0.72 + v.leak * 0.19); d.set('refractoryTicks', 1 + v.refractory * 2); },
+      describe: (v, x, w) => ({ group: 'brain', text: `Neurons fire at ${w.num(x.baseThreshold, 0)} mV` }),
+      birthOnly: true },
     { name: 'Plasticity', fields: [u('rate'), u('memory'), u('sprouting'), u('pruning')],
       express(v, d) {
         d.set('learningRate', 0.018 + v.rate * 0.045);
         d.set('traceDecay', 0.88 + v.memory * 0.115); // Eligibility half-life from ~5 to ~140 ticks
         d.set('sproutingThreshold', 3 + v.sprouting * 7);
         d.set('pruningRate', 0.02 + v.pruning * 0.03);
-      } },
+      },
+      describe: (v, x, w) => ({ group: 'brain', text: `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.num(Math.log(0.5) / Math.log(x.traceDecay), 0)} ticks` }) },
     { name: 'Reinforcement', fields: [u('joy'), u('stress')],
-      express(v, d) { d.set('joyGain', 0.9 + v.joy * 1.3); d.set('stressGain', 1.1 + v.stress * 1.6); } },
+      express(v, d) { d.set('joyGain', 0.9 + v.joy * 1.3); d.set('stressGain', 1.1 + v.stress * 1.6); },
+      describe: (v, x, w) => ({ group: 'brain', text: `Feels reward ×${w.num(x.joyGain)}, stress ×${w.num(x.stressGain)}` }) },
     { name: 'Muscle', fields: [u('speed'), u('jump'), u('run')],
       express(v, d) { d.set('walkSpeed', 0.8 + v.speed * 1.0); d.set('jumpPower', 3.5 + v.jump * 3.5); d.set('runBoost', 1.2 + v.run * 0.8); } },
     { name: 'Life history', fields: [u('lifespan'), u('gestation')],
-      express(v, d) { d.set('lifespanTicks', (20 + v.lifespan * 24) * 60 * 60); d.set('gestationTicks', 3000 + v.gestation * 6000); } },
+      express(v, d) { d.set('lifespanTicks', (20 + v.lifespan * 24) * 60 * 60); d.set('gestationTicks', 3000 + v.gestation * 6000); },
+      describe: (v, x, w) => ({ group: 'body', text: `Lives about ${w.seconds(x.lifespanTicks)}; carries an egg for ${w.seconds(x.gestationTicks)}` }) },
     { name: 'Voice', fields: [u('pitch'), u('loudness')],
       express(v, d) { d.set('voicePitch', v.pitch); d.set('voiceLoudness', 0.4 + v.loudness * 0.6); } },
     { name: 'Curiosity', fields: [u('habituation'), u('novelty')],
-      express(v, d) { d.set('habituationRate', 0.0005 + v.habituation * 0.004); d.set('noveltyGain', 4 + v.novelty * 8); } },
+      express(v, d) { d.set('habituationRate', 0.0005 + v.habituation * 0.004); d.set('noveltyGain', 4 + v.novelty * 8); },
+      describe: (v, x, w) => ({ group: 'brain', text: `Gets used to things at rate ${w.num(x.habituationRate, 4)}, loves novelty ×${w.num(x.noveltyGain, 1)}` }) },
     { name: 'Anatomy', fields: [['region', CODEC.lobe], u('shift'), u('lateral'), u('size'), u('count')],
       express(v, d) {
         d.anatomy(LOBE_ORDER[v.region], { shift: (v.shift - 0.5) * 0.3, lateral: 0.6 + v.lateral * 0.8, size: 0.6 + v.size * 0.9, count: 0.5 + v.count * 1.1 });
-      } },
+      },
+      describe: (v, x, w) => ({ group: 'brain', text: `${w.lobe(v.region)} region: ${w.percent(x.count)} cells, ${w.percent(x.size)} size` }),
+      birthOnly: true },
     { name: 'Region duplication', fields: [['source', CODEC.lobe], u('depth'), u('lateral'), u('chemShift'), u('input')],
       express(v, d) {
         d.add('duplications', {
@@ -105,7 +118,9 @@
           chemShift: (v.chemShift - 0.5) * 0.8, // How far its chemical identity drifts from the original
           inputWeight: 0.3 + v.input * 0.6    // Strength of the in-register input from the original
         });
-      } },
+      },
+      describe: (v, x, w) => ({ group: 'brain', text: `A copy of the ${w.lobe(v.source).toLowerCase()} region` }),
+      birthOnly: true },
     { name: 'Axon guidance', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction')],
       express(v, d) {
         d.add('axonGuidance', {
@@ -118,27 +133,53 @@
           reach: 0.15 + v.reach * 1.35,      // How far these axons can grow (brain widths)
           conduction: 0.08 + v.conduction * 0.50 // Myelination: distance per tick
         });
+      },
+      describe(v, x, w) {
+        const src = x.source, map = src.relX || src.relY ? (src.mirrorX ? ', crossed map' : ', mapped') : '';
+        const [tx, ty, tz] = x.target.map(t => w.num(t));
+        return { group: 'brain', text: `${w.lobe(src.lobe)} axons seek (${tx}, ${ty}, ${tz})${map}, ${x.weightSign > 0 ? 'exciting' : 'inhibiting'}` };
       } },
     { name: 'Pacemaker', fields: [['lobe', CODEC.lobe], u('bias')],
-      express(v, d) { d.add('pacemakers', { lobeIdx: v.lobe, bias: v.bias * 3.0 }); } },
+      express(v, d) { d.add('pacemakers', { lobeIdx: v.lobe, bias: v.bias * 3.0 }); },
+      describe: (v, x, w) => ({ group: 'brain', text: `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)` }) },
     { name: 'Neurochemistry', fields: [['chem', CODEC.raw], u('spread')],
-      express(v, d) { d.neurochem(NEUROCHEMS[v.chem % NEUROCHEMS.length].key, v.spread); } },
+      express(v, d) { d.neurochem(NEUROCHEMS[v.chem % NEUROCHEMS.length].key, v.spread); },
+      describe: (v, x, w) => ({ group: 'brain', text: `${NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}` }),
+      birthOnly: true },
     { name: 'Reaction', fields: [['a', CODEC.chem], ['b', CODEC.chem], ['c', CODEC.chem], ['d', CODEC.chem], ['rate', CODEC.rate], ['yieldC', CODEC.yield], ['yieldD', CODEC.yield]],
-      express(v, d) { if (v.a) d.add('reactions', v); } },
+      express(v, d) { if (v.a) d.add('reactions', v); },
+      describe(v, x, w) {
+        const lhs = [v.a, v.b].filter(Boolean).map(w.chem).join(' + ');
+        const rhs = [[v.c, v.yieldC], [v.d, v.yieldD]].filter(([c, y]) => c && y > 0).map(([c]) => w.chem(c)).join(' + ');
+        return { group: 'chemistry', text: `${lhs || 'nothing'} → ${rhs || 'nothing'}` };
+      } },
     { name: 'Emitter', fields: [['locus', CODEC.locus], ['chem', CODEC.chem], u('threshold'), ['gain', CODEC.emit], ['flags', CODEC.raw]],
-      express(v, d) { if (v.chem) d.add('emitters', { ...v, ...flagsOf(v.flags) }); } },
+      express(v, d) { if (v.chem) d.add('emitters', { ...v, ...flagsOf(v.flags) }); },
+      describe: (v, x, w) => ({ group: 'chemistry', text: `${flagsOf(v.flags).invert ? 'Too little' : 'Enough'} ${w.locus(v.locus)} releases ${w.chem(v.chem).toLowerCase()}` }) },
     { name: 'Receptor', fields: [['chem', CODEC.chem], ['target', CODEC.target], u('threshold'), ['gain', CODEC.gain], ['flags', CODEC.raw]],
-      express(v, d) { if (v.chem && v.target) d.add('receptors', { ...v, ...flagsOf(v.flags) }); } },
+      express(v, d) { if (v.chem && v.target) d.add('receptors', { ...v, ...flagsOf(v.flags) }); },
+      describe(v, x, w) {
+        const f = flagsOf(v.flags), chem = f.invert ? `Lack of ${w.chem(v.chem).toLowerCase()}` : w.chem(v.chem);
+        return { group: 'chemistry', text: `${chem} ${f.negative ? 'lowers' : 'raises'} ${w.target(v.target)}` };
+      } },
     { name: 'Half-life', fields: [['chem', CODEC.chem], ['halfLife', CODEC.halfLife]],
-      express(v, d) { if (v.chem) d.halfLife(v.chem, v.halfLife); } },
+      express(v, d) { if (v.chem) d.halfLife(v.chem, v.halfLife); },
+      describe: (v, x, w) => ({ group: 'chemistry', text: v.halfLife === Infinity ? `${w.chem(v.chem)} never fades` : `${w.chem(v.chem)} halves in ${w.seconds(v.halfLife)}` }) },
     { name: 'Initial concentration', fields: [['chem', CODEC.chem], u('amount')],
-      express(v, d) { if (v.chem) d.add('initial', v); } },
+      express(v, d) { if (v.chem) d.add('initial', v); },
+      describe: (v, x, w) => ({ group: 'chemistry', text: `Born with ${w.percent(v.amount)} ${w.chem(v.chem).toLowerCase()}` }) },
     { name: 'Instinct', fields: [['lobeA', CODEC.lobe], ['indexA', CODEC.raw], ['lobeB', CODEC.lobe], ['indexB', CODEC.raw], ['motor', CODEC.raw], ['chem', CODEC.chem], u('amount')],
-      express(v, d) { d.add('instincts', v); } },
+      express(v, d) { d.add('instincts', v); },
+      describe(v, x, w) {
+        const inputs = [w.cell(v.lobeA, v.indexA), w.cell(v.lobeB, v.indexB)].filter(Boolean).join(' + ');
+        const motor = Evo.MOTORS[v.motor % Evo.MOTORS.length].word.toLowerCase();
+        return { group: 'instinct', text: `Dreams: ${inputs || 'nothing'} → ${motor}, feels ${w.chem(v.chem).toLowerCase()}` };
+      } },
     { name: 'Insulation', fields: [u('insulation'), u('bodyHeat')],
       express(v, d) { d.set('insulation', 0.3 + v.insulation * 0.6); d.set('bodyHeat', v.bodyHeat); } },
     { name: 'Reproduction', fields: [u('investment'), u('incubation')],
-      express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); } }
+      express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); },
+      describe: (v, x, w) => ({ group: 'body', text: `Puts ${w.percent(x.eggInvestment)} into each egg, which hatches in about ${w.seconds(x.incubationTicks)}` }) }
   ];
   GENES.forEach(g => { g.payload = g.fields.length; });
   const GENE_INDEX = Object.fromEntries(GENES.map((g, i) => [g.name, i]));
@@ -227,6 +268,21 @@
       const v = {};
       GENES[gene.type].fields.forEach(([key, codec], k) => { v[key] = codec.decode(this.dna[gene.start + 2 + k]); });
       return v;
+    }
+
+    // What one gene expresses on its own, as a flat record: the traits it sets, the fields of the
+    // list entry it adds, { neurochem, spread }, { region, ...anatomy } or { halfLife }
+    expressed(gene) {
+      const x = {};
+      GENES[gene.type].express(this.decode(gene), {
+        F: this.sexChrom !== 'Y',
+        set: (name, v) => { x[name] = v; },
+        add: (list, entry) => Object.assign(x, entry),
+        neurochem: (name, v) => Object.assign(x, { neurochem: name, spread: v }),
+        anatomy: (region, v) => Object.assign(x, { region }, v),
+        halfLife: (chem, ticks) => { x.halfLife = ticks; }
+      });
+      return x;
     }
 
     // An exact copy, including the family line's mutation count

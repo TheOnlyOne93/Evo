@@ -95,57 +95,29 @@
   };
   const num = (v, d = 2) => (Math.abs(v) >= 100 ? Math.round(v) : Number(v.toFixed(d)));
 
-  // One gene in plain words. Returns { name, group, text }; group is 'body' | 'brain' | 'chemistry' | 'instinct'
-  function describeGene(genome, gene, brain = null) {
-    const def = Evo.GENES[gene.type], v = genome.decode(gene), name = def.name;
+  // Word helpers handed to each gene's describe() (see GENES in genome.js)
+  const percent = x => `${Math.round(x * 100)}%`;   // A 0..1 fraction as a percentage
+  function geneWords(brain) {
     const lobe = i => LOBE_INFO[Evo.LOBE_ORDER[i]].word;
-    const pct = x => `${Math.round(x * 100)}%`;
-    switch (name) {
-      case 'Reaction': {
-        const lhs = [v.a, v.b].filter(Boolean).map(chemName).join(' + ');
-        const rhs = [[v.c, v.yieldC], [v.d, v.yieldD]].filter(([c, y]) => c && y > 0).map(([c]) => chemName(c)).join(' + ');
-        return { name, group: 'chemistry', text: `${lhs} → ${rhs || 'nothing'}` };
-      }
-      case 'Emitter': {
-        const inv = v.flags & 1;
-        return { name, group: 'chemistry', text: `${inv ? 'Too little' : 'Enough'} ${locusName(v.locus)} releases ${chemName(v.chem).toLowerCase()}` };
-      }
-      case 'Receptor': {
-        const inv = v.flags & 1, neg = v.flags & 4;
-        return { name, group: 'chemistry', text: `${inv ? 'Lack of' : ''}${inv ? ' ' + chemName(v.chem).toLowerCase() : chemName(v.chem)} ${neg ? 'lowers' : 'raises'} ${targetName(v.target)}` };
-      }
-      case 'Half-life':
-        return { name, group: 'chemistry', text: v.halfLife === Infinity ? `${chemName(v.chem)} never fades` : `${chemName(v.chem)} halves in ${seconds(v.halfLife)}` };
-      case 'Initial concentration':
-        return { name, group: 'chemistry', text: `Born with ${pct(v.amount)} ${chemName(v.chem).toLowerCase()}` };
-      case 'Axon guidance': {
-        const src = v.source, map = src.relX || src.relY ? (src.mirrorX ? ', crossed map' : ', mapped') : '';
-        return { name, group: 'brain', text: `${lobe(src.lobe)} axons seek (${num(v.tx)}, ${num(v.ty)}, ${num(v.tz)})${map}, ${v.sign > 120 ? 'exciting' : 'inhibiting'}` };
-      }
-      case 'Region duplication': return { name, group: 'brain', text: `A copy of the ${lobe(v.source).toLowerCase()} region` };
-      case 'Pacemaker': return { name, group: 'brain', text: `${lobe(v.lobe)} cells fire on their own (${pct(v.bias)})` };
-      case 'Anatomy': return { name, group: 'brain', text: `${lobe(v.region)} region: ${pct(0.5 + v.count * 1.1)} cells, ${pct(0.6 + v.size * 0.9)} size` };
-      case 'Neurochemistry': return { name, group: 'brain', text: `${Evo.NEUROCHEMS[v.chem % Evo.NEUROCHEMS.length].word} chemical spreads ${pct(v.spread)}` };
-      case 'Membrane': return { name, group: 'brain', text: `Neurons fire at ${num(-58 + v.threshold * 10, 0)} mV` };
-      case 'Plasticity': return { name, group: 'brain', text: `Learns at ${pct(v.rate)}, remembers ${pct(v.memory)}` };
-      case 'Reinforcement': return { name, group: 'brain', text: `Feels reward ${pct(v.joy)}, stress ${pct(v.stress)}` };
-      case 'Curiosity': return { name, group: 'brain', text: `Gets used to things ${pct(v.habituation)}, loves novelty ${pct(v.novelty)}` };
-      case 'Instinct': {
-        const L = Evo.LOBE_ORDER;
-        const cell = (l, i) => {
-          const idx = brain && brain.lobes[L[l]];
-          if (i >= 255 || !L[l]) return null;
-          return idx && i < idx.length ? neuronName(brain, brain.neurons[idx[i]]).toLowerCase() : `${lobe(l).toLowerCase()} ${i + 1}`;
-        };
-        const inputs = [cell(v.lobeA, v.indexA), cell(v.lobeB, v.indexB)].filter(Boolean).join(' + ');
-        const motor = MOTORS[v.motor % MOTORS.length].word.toLowerCase();
-        return { name, group: 'instinct', text: `Dreams: ${inputs || 'nothing'} → ${motor}, feels ${chemName(v.chem).toLowerCase()}` };
-      }
-      default: {
-        const parts = Object.entries(v).slice(0, 4).map(([k, x]) => `${words(k)} ${typeof x === 'number' ? pct(x) : x}`);
-        return { name, group: 'body', text: parts.join(', ') };
-      }
-    }
+    // An instinct's input cell by lobe and index (null for "no input")
+    const cell = (l, i) => {
+      const L = Evo.LOBE_ORDER;
+      if (i >= 255 || !L[l]) return null;
+      const idx = brain && brain.lobes[L[l]];
+      return idx && i < idx.length ? neuronName(brain, brain.neurons[idx[i]]).toLowerCase() : `${lobe(l).toLowerCase()} ${i + 1}`;
+    };
+    return { chem: chemName, locus: locusName, target: targetName, lobe, cell, percent, num, seconds };
+  }
+
+  // One gene in plain words. Returns { name, group, text }; group is 'body' | 'brain' | 'chemistry' | 'instinct'.
+  // The gene's own describe() says what it does; genes without one list the traits they express.
+  function describeGene(genome, gene, brain = null) {
+    const def = Evo.GENES[gene.type];
+    const x = genome.expressed(gene);
+    const d = def.describe
+      ? def.describe(genome.decode(gene), x, geneWords(brain))
+      : { group: 'body', text: Object.entries(x).slice(0, 4).map(([k, v]) => `${words(k)} ${typeof v === 'number' ? num(v, Math.abs(v) >= 10 ? 0 : 2) : v}`).join(', ') };
+    return { name: def.name, ...d };
   }
   const stageName = stage => STAGES[stage].word;
 
