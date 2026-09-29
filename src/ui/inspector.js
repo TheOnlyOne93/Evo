@@ -288,13 +288,15 @@
           `<span>${esc(h.name)} <span class="meta">gen ${h.generation}</span></span><span class="meta">${esc(fate)}</span></button>`;
       };
       const mother = rec(c.motherId), father = rec(c.fatherId);
-      $('familyParents').innerHTML = c.motherId === null ? '<p class="note">A founder: it came into the world grown, with no parents here.</p>' : person(mother) + person(father);
+      $('familyParents').innerHTML = c.motherId === null
+        ? `<p class="note">${c.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
+        : person(mother) + person(father);
       const siblings = c.motherId === null ? [] : hist.filter(h => h.id !== c.id && h.motherId === c.motherId && h.fatherId === c.fatherId);
       $('familySiblings').innerHTML = siblings.map(person).join('') || '<p class="note">None.</p>';
       const children = hist.filter(h => h.motherId === c.id || h.fatherId === c.id);
       $('familyChildren').innerHTML = children.map(person).join('') || `<p class="note">None yet.${c.pregnancy ? ' One is on the way.' : ''}</p>`;
       const grand = children.flatMap(ch => hist.filter(h => h.motherId === ch.id || h.fatherId === ch.id));
-      $('familyLine').textContent = `Generation ${c.generation}. ${children.length} ${children.length === 1 ? 'child' : 'children'}, ${grand.length} grandchildren. Mated ${c.timesMated} ${c.timesMated === 1 ? 'time' : 'times'}.`;
+      $('familyLine').textContent = `Generation ${c.generation}. ${children.length} ${children.length === 1 ? 'child' : 'children'}, ${grand.length} ${grand.length === 1 ? 'grandchild' : 'grandchildren'}. Mated ${c.timesMated} ${c.timesMated === 1 ? 'time' : 'times'}.`;
     }
 
     // ---------- World ----------
