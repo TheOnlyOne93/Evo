@@ -76,7 +76,7 @@
       this.meals = 0;
 
       // What the muscles are doing
-      this.mouthTimer = 0; this.runTimer = 0; this.restTimer = 0; this.callTimer = 0; this.jumpCooldown = 0;
+      this.mouthTimer = 0; this.drinkTimer = 0; this.runTimer = 0; this.restTimer = 0; this.callTimer = 0; this.jumpCooldown = 0;
       this.grabCooldown = 0; this.mateCooldown = 0; this.lastMotors = new Uint8Array(MOTORS.length);
       this.muscle = new Float32Array(MOTORS.length); // Muscle activation: spike trains smoothed into force
       this.asleep = false;
@@ -464,6 +464,7 @@
       const m = this.lastMotors;
       for (let k = 0; k < MOTORS.length; k++) m[k] = brain.hist[brain.lobes.motor[k]] & 1;
       if (this.mouthTimer > 0) this.mouthTimer--;
+      if (this.drinkTimer > 0) this.drinkTimer--;
       if (this.jumpCooldown > 0) this.jumpCooldown--;
       if (this.grabCooldown > 0) this.grabCooldown--;
       if (this.callTimer > 0) this.callTimer--;
@@ -510,7 +511,7 @@
         this.useMouth(world);
       }
       if (m[MOTOR_INDEX.drink] && this.waterAtMouth(world)) {
-        this.mouthTimer = 12;
+        this.drinkTimer = 12;
         this.ingest({ water: 0.05 });
         world.events.emit('drink', { creature: this });
       }
@@ -532,7 +533,7 @@
         world.makeSound(this);
       }
       this.exertion = this.exertion * 0.9 + Math.min(1, effort) * 0.1;
-      this.action = this.mouthTimer > 0 ? 'eating' : this.restTimer > 30 ? 'resting' : this.callTimer > 30 ? 'calling'
+      this.action = this.drinkTimer > 0 ? 'drinking' : this.mouthTimer > 0 ? 'eating' : this.restTimer > 30 ? 'resting' : this.callTimer > 30 ? 'calling'
         : !this.onGround ? 'jumping' : Math.abs(this.vx) > 0.25 ? (running ? 'running' : 'walking') : 'idle';
     }
 

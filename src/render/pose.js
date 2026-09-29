@@ -29,6 +29,7 @@
     const get = k => ch.get(k);
     const [gx, gy] = gaze(c);
     const T = c.traits;
+    const mouth = Math.max(c.mouthTimer, c.drinkTimer || 0);
     return {
       id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex,
       looks: {
@@ -42,13 +43,13 @@
       face: {
         eyesClosed: ease(s, 'eyes', c.asleep || c.dead ? 1 : clamp01(get('sleepiness') * 0.6), 0.15),
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
-        mouthOpen: c.callTimer > 20 ? 0.8 : c.mouthTimer > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(c.mouthTimer * 0.8)) : 0,
+        mouthOpen: c.callTimer > 20 ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : 0,
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
         earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), c.stage >= Evo.STAGE.SENILE ? 0.6 : 0)), 0.05),
         blush: ease(s, 'blush', clamp01(c.stim.gentle + get('endorphin')), 0.1)
       },
       state: {
-        asleep: c.asleep, held: c.held, dead: c.dead, eating: c.mouthTimer > 0,
+        asleep: c.asleep, held: c.held, dead: c.dead, eating: mouth > 0, // Eating or drinking: the mouth is at work
         calling: clamp01((c.callTimer - 20) / 20), flinch: c.stim.flinch,
         fear: get('fear'), anger: get('anger'), sick: clamp01(get('nausea') + get('toxin')), cold: get('coldness'), hot: get('hotness'),
         wet: ease(s, 'wet', c.inWater ? 1 : 0, c.inWater ? 0.2 : 0.004),
