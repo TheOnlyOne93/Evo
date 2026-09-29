@@ -5,11 +5,12 @@
 (function (Evo) {
   'use strict';
   const DRAG = 6;           // px a pointer must move before a press becomes a drag
-  const PAT_EVERY = 250;    // ms between pats while stroking
+  const PAT_TICKS = 15;     // sim ticks between pats while stroking (250 ms at 60 ticks/s)
   const FLING_WINDOW_MS = 100;  // ms: only hand movement this recent counts towards a throw
 
   class HandController {
-    // opts: { getTool(), onSelect(creature, keepFollowing), onDrop(tool, x, y), onPan(), onRelease() }
+    // opts: { getTool(), onSelect(creature, keepFollowing), onDrop(tool, x, y), onPan(), onRelease(),
+    //         msPerTick() } msPerTick: wall ms one sim tick currently takes (0 while paused)
     constructor(canvas, view, world, opts) {
       this.canvas = canvas;
       this.view = view;
@@ -52,7 +53,7 @@
       const tool = this.opts.getTool(), view = this.view;
       const creature = view.creatureAt(p.x, p.y);
       const item = creature ? null : view.itemAt(p.x, p.y);
-      this.press = { id: e.pointerId, tool, creature, item, start: p, last: p, moved: false, holding: false, samples: [], lastPat: 0 };
+      this.press = { id: e.pointerId, tool, creature, item, start: p, last: p, moved: false, holding: false, samples: [], lastPatTick: -Infinity };
       if (tool === 'pat' && creature) this.pat(creature);
       if (tool === 'slap' && creature) this.world.slap(creature);
       this.hover = p;
@@ -108,7 +109,10 @@
         // Only samples from the last moment count: a hand that paused before letting go drops it
         const now = performance.now();
         const s = pr.samples.filter(m => now - m.t <= FLING_WINDOW_MS), a = s[0], b = s[s.length - 1];
-        const dt = b && a && b.t > a.t ? (b.t - a.t) / (1000 / Evo.TICKS_PER_SECOND) : 0;
+        // px per wall ms x wall ms per tick = px per tick: the thing leaves at the hand's on-screen
+        // speed at any sim speed. Paused, no tick passes, so it is dropped with no velocity.
+        const msPerTick = this.opts.msPerTick();
+        const dt = b && a && b.t > a.t && msPerTick > 0 ? (b.t - a.t) / msPerTick : 0;
         this.world.releaseHand(dt ? (b.x - a.x) / dt : 0, dt ? (b.y - a.y) / dt : 0);
         this.opts.onRelease();
         return;
@@ -126,9 +130,9 @@
     }
 
     pat(c) {
-      const now = performance.now();
-      if (this.press && now - this.press.lastPat < PAT_EVERY) return;
-      if (this.press) this.press.lastPat = now;
+      const tick = this.world.clock.tick;
+      if (this.press && tick - this.press.lastPatTick < PAT_TICKS) return;
+      if (this.press) this.press.lastPatTick = tick;
       this.world.pat(c);
     }
 

@@ -56,7 +56,9 @@
       onSelect: (c, keep) => app.select(c, keep),
       onPan: () => { if (app.following) { app.following = false; app.syncFollow(); } },
       onRelease: () => view.follow(app.following ? app.focus : null),
-      onDrop: app.dropTool
+      onDrop: app.dropTool,
+      // Wall ms one tick takes at the speed actually achieved; 0 while paused (nothing moves in sim time)
+      msPerTick: () => app.paused ? 0 : 1000 / (Evo.TICKS_PER_SECOND * app.frameClock.achievedSpeed())
     });
 
     const clock = app.frameClock = new Evo.FrameClock();
