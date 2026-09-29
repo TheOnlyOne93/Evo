@@ -203,7 +203,6 @@
 
     _sync() {
       const world = this.world, T = world.terrain;
-      if (!T || !T.heights) return;
       if (T.heights === this.heights && world.width === this.info.W && world.height === this.info.H) return;
       this.heights = T.heights;
       this.info = Paint.buildTerrain(world);
@@ -237,7 +236,7 @@
       const W = this.world.width, info = this.info;
       if (!info) return;
       let tallest = 0;
-      for (const f of this.world.features || []) if (f.kind === 'tree') tallest = Math.max(tallest, (f.height || 0) + 110);
+      for (const f of this.world.features) if (f.kind === 'tree') tallest = Math.max(tallest, f.height + 110);
       const vh = Math.max(SKY_ROOM, tallest) / GROUND_AT;
       this.minZoom = clamp(this.w / W, ZOOM_MIN, ZOOM_MAX);
       const f = this.fit;
@@ -415,7 +414,7 @@
           break;
         }
         case KIND.LOG: {
-          const L = f.length || 110, top = rec.top;
+          const L = f.length, top = rec.top;
           const d = top ? clamp(top + 3, 14, 44) : clamp(L * 0.24, 20, 34);
           // Where the ground falls away under the log, a stone props it up
           const props = [];
@@ -442,7 +441,7 @@
           break;
         }
         case KIND.THORN: {
-          const r = f.radius || 26;
+          const r = f.radius;
           rec.bx0 = -r * 1.75 - 6; rec.bw = r * 3.5 + 12;
           rec.by0 = -r * 2.2 - 6; rec.bh = r * 2.2 + 12;
           break;
@@ -455,10 +454,9 @@
     // The rock or log feature whose top a platform is, if any
     _platformOn(f) {
       const ps = this.world.platforms;
-      if (!ps) return null;
       const log = f.kind === 'log';
-      const reach = log ? (f.length || 110) / 2 : (f.w || 70) / 2;
-      const height = log ? 60 : (f.h || 40) * 1.5 + 10;
+      const reach = log ? f.length / 2 : f.w / 2;
+      const height = log ? 60 : f.h * 1.5 + 10;
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i];
         if (Math.abs((p.x0 + p.x1) / 2 - f.x) < 14 && p.x1 - p.x0 <= reach * 2 + 16 && p.y < f.y && p.y > f.y - height) return p;
@@ -468,7 +466,7 @@
 
     _platRec(p, i) {
       let rec = this.platRecs[i];
-      const fs = this.world.features || [];
+      const fs = this.world.features;
       const sig = p.x0 * 3 + p.x1 * 7 + p.y * 11 + (p.kind === 'rock' ? 1 : 2) + fs.length * 1e7;
       if (rec && rec.sig === sig) { rec.f = p; return rec; }
       // Platforms on top of a rock or log feature are drawn by that feature
@@ -492,7 +490,7 @@
     // Draw the whole scene. t = seconds.
     render(t) {
       const world = this.world;
-      if (!world || !world.terrain) return;
+      if (!world) return;
       if (t === undefined) t = performance.now() / 1000;
       const dt = this.lastT === null ? 1 / 60 : clamp(t - this.lastT, 0, 0.1);
       this.lastT = t;
@@ -577,7 +575,7 @@
     }
 
     _drawFeatures(g, t, front) {
-      const fs = this.world.features || [];
+      const fs = this.world.features;
       const passes = front ? FRONT_PASSES : BACK_PASSES;
       for (let pi = 0; pi < passes.length; pi++) {
         const kinds = passes[pi];
@@ -621,7 +619,6 @@
 
     _drawPlatforms(g) {
       const ps = this.world.platforms;
-      if (!ps) return;
       const ss = this.ss;
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i];
@@ -952,11 +949,11 @@
       const pal = this.sky.pal, night = pal.night, gl = this.glows;
       g.globalCompositeOperation = 'lighter';
       // The warm rock
-      const fs = this.world.features || [];
+      const fs = this.world.features;
       for (let i = 0; i < fs.length; i++) {
         const f = fs[i];
         if (f.kind !== 'rock' || !(f.warm > 0.03) || f.x < this.vx0 - 100 || f.x > this.vx1 + 100) continue;
-        const w = f.w || 70, h = f.h || 40;
+        const w = f.w, h = f.h;
         g.globalAlpha = clamp01(f.warm) * (0.22 + 0.4 * night) * (0.9 + 0.1 * Math.sin(t * 2 + i));
         g.drawImage(gl.warm, f.x - w * 0.95, f.y - h * 1.45, w * 1.9, h * 1.9);
       }

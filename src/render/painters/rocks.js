@@ -61,7 +61,7 @@
 
   function paintLog(g, f, si, rec) {
     const R = rng(4000 + (f.id | 0) * 7);
-    const L = f.length || 110, d = rec.data.d;
+    const L = f.length, d = rec.data.d;
     const x0 = -L / 2, x1 = L / 2, yT = 3 - d, yM = 3 - d / 2;
     const bark = [118, 84, 56];
     for (const p of rec.data.props) {
@@ -128,7 +128,7 @@
   // is flat-topped at that height, so whoever stands on it stands on the stone.
   function rockShape(f, top) {
     const R = rng(5000 + (f.id | 0) * 11);
-    const w = f.w || 70, h = top || f.h || 40;
+    const w = f.w, h = top || f.h;
     const pts = [];
     const n = top ? 12 : 9;
     for (let k = 0; k <= n; k++) {

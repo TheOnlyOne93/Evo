@@ -27,7 +27,7 @@
 
   function treeStructure(f) {
     const R = rng(1000 + (f.id | 0) * 31);
-    const H = f.height || 240, cr = f.canopy || 80;
+    const H = f.height, cr = f.canopy;
     const cy = -H + cr * 0.86; // the crown's top reaches about f.height
     const branches = [];
     const grow = (x, y, a, len, w, depth) => {
@@ -236,7 +236,7 @@
 
   function grassStructure(f) {
     const R = rng(3000 + (f.id | 0) * 17);
-    const w = f.width || 100, h = f.height || 32;
+    const w = f.width, h = f.height;
     const blades = [];
     const n = Math.round(w / 2);
     for (let k = 0; k < n; k++) {
@@ -289,7 +289,7 @@
 
   function reedStructure(f) {
     const R = rng(6000 + (f.id | 0) * 19);
-    const w = f.width || 40;
+    const w = f.width;
     const leaves = [], stems = [];
     const n = Math.round(w / 3.5) + 5;
     for (let k = 0; k < n; k++) leaves.push({ x: (R() - 0.5) * w, h: 34 + R() * 42, lean: (R() - 0.5) * 0.7 });
@@ -333,7 +333,7 @@
   // spiky so it reads as "don't touch" at any size; in winter only the tangle of canes is left.
   function paintThorn(g, f, si, rec) {
     const R = rng(7000 + (f.id | 0) * 23);
-    const r = f.radius || 26;
+    const r = f.radius;
     const winter = si === WINTER, autumn = si === AUTUMN;
     const leaf = autumn ? [[84, 30, 52], [134, 46, 70], [196, 96, 104]] : [[44, 38, 60], [74, 58, 96], [126, 102, 158]];
     const rx = r * 1.05, ry = r * 1.05;

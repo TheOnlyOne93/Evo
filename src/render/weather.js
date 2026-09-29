@@ -75,7 +75,7 @@
       } else if (si === AUTUMN || si === SPRING) { // leaves from the trees in autumn, petals in spring
         const kind = si === AUTUMN ? LEAF : PETAL;
         this.spawnTimer += dt;
-        const fs = v.world.features || [];
+        const fs = v.world.features;
         if (this.spawnTimer > 0.12) {
           const steps = Math.min(8, Math.floor(this.spawnTimer / 0.12));
           this.spawnTimer -= steps * 0.12;

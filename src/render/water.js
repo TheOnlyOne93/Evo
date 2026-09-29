@@ -30,7 +30,6 @@
   // line, then lilies or snow on the ice
   function drawWater(g, v, t) {
     const ponds = v.world.terrain.ponds;
-    if (!ponds || !ponds.length) return;
     const pal = v.sky.pal;
     const ice = iceAmount(v.ss);
     const amp = 1.1 * (1 - ice);
@@ -176,7 +175,7 @@
   function drawGlints(g, v, t) {
     const pal = v.sky.pal;
     const ice = iceAmount(v.ss);
-    const ponds = v.world.terrain.ponds || [];
+    const ponds = v.world.terrain.ponds;
     if (pal.day > 0.05 && ice < 0.5) {
       g.strokeStyle = '#ffffff';
       g.lineWidth = 1.2;
