@@ -22,17 +22,25 @@ function lab(seed, { phase = 0.45 } = {}) {
   return { world, c };
 }
 
-// Run until done(world, creature, tick) is true or `ticks` pass; returns the tick it happened, or null
-function trial(setup, ticks, done) {
+// Run until done(world, creature, tick) is true, the creature dies, or `ticks` pass.
+// Returns { at: the tick it happened (or null), died }.
+function run(setup, ticks, done) {
   const { world, c, hold } = setup;
   for (let t = 0; t < ticks; t++) {
     if (hold) for (const [k, v] of Object.entries(hold)) c.chem.set(k, v);
     world.step();
-    if (done(world, c, t)) return t;
-    if (c.dead) return null;
+    if (done(world, c, t)) return { at: t, died: false };
+    if (c.dead) return { at: null, died: true };
   }
-  return null;
+  return { at: null, died: false };
 }
+// A scenario's score: the tick at which it passed, or null for a failure. Dying always fails.
+// trial: pass when done() happens; avoids: pass when done() never happens and the creature lives.
+const trial = (setup, ticks, done) => run(setup, ticks, done).at;
+const avoids = (setup, ticks, done) => {
+  const r = run(setup, ticks, done);
+  return r.at === null && !r.died ? 0 : null;
+};
 
 const SCENARIOS = {
   'hungry, food at mouth -> eats': seed => {
@@ -44,7 +52,7 @@ const SCENARIOS = {
   'sated, food at mouth -> leaves it': seed => {
     const s = lab(seed);
     s.world.spawnItem('fruit', s.c.mouthX + 3);
-    return trial(s, 600, w => !w.items.length) === null ? 0 : null;
+    return avoids(s, 600, w => !w.items.length);
   },
   'hungry, fruit 150px left -> reaches and eats it': seed => {
     const s = lab(seed);
@@ -76,8 +84,7 @@ const SCENARIOS = {
     s.c.y = s.world.terrain.groundY(s.c.x);
     let drinks = 0;
     s.world.events.on('drink', () => { drinks++; });
-    trial(s, 900, () => false);
-    return drinks <= 8 ? 0 : null;
+    return avoids(s, 900, () => drinks > 8);
   },
   'sleepy at night -> falls asleep': seed => {
     const s = lab(seed, { phase: 0.95 });
@@ -86,7 +93,7 @@ const SCENARIOS = {
   },
   'rested by day -> stays awake': seed => {
     const s = lab(seed);
-    return trial(s, 1200, (w, c) => c.asleep) === null ? 0 : null;
+    return avoids(s, 1200, (w, c) => c.asleep);
   },
   'in pain -> runs': seed => {
     const s = lab(seed);
@@ -100,17 +107,18 @@ const SCENARIOS = {
   },
   'thorn bush 120px right -> keeps away': seed => {
     const s = lab(seed);
-    s.world.addThornbush(s.c.x + 120);
-    return trial(s, 1200, (w, c) => c.x > s.c.x + 85 && false) === null && s.c.x < s.world.features[s.world.features.length - 1].x - 40 ? 0 : null;
+    const bush = s.world.addThornbush(s.c.x + 120);
+    // Fails if it ever walks up to the bush (within 35 px of its centre)
+    return avoids(s, 1200, (w, c) => c.x > bush.x - 35);
   }
 };
 
 const trials = Number(process.argv[2] || 12);
 const filter = process.argv[3] || '';
-for (const [name, run] of Object.entries(SCENARIOS)) {
+for (const [name, scenario] of Object.entries(SCENARIOS)) {
   if (!name.includes(filter)) continue;
   const times = [];
-  for (let seed = 1; seed <= trials; seed++) times.push(run(seed));
+  for (let seed = 1; seed <= trials; seed++) times.push(scenario(seed));
   const ok = times.filter(t => t !== null);
   const median = ok.length ? ok.sort((a, b) => a - b)[Math.floor(ok.length / 2)] : null;
   console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(48)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
