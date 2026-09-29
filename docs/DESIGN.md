@@ -154,7 +154,7 @@ with tau; fatigue slows recovery from adaptation. The founder uses it three time
   those pull on that side's walk muscle, so a creature keeps heading where it saw food after it
   vanishes (`memory:` reports in tools/scenarios/learning.js, against a persistence-0 knockout).
 A seizure brake holds every central neuron back 10 mV for a tick when more than a quarter of the
-brain has fired for 3 ticks running (`brain.seizures` counts it).
+brain has fired for 3 ticks running.
 
 **Sleep.** `brain.sleepStep(instincts, chem)` runs before each sleeping tick. A dream starts now and
 then: an instinct gene (its inputs, then its action, then its chemical, into the body), or, half

@@ -35,8 +35,8 @@
   const VALUE_RATE = 0.03;           // Step size of value (TD) learning
   const RATE_ALPHA = 0.012;          // Firing-rate smoothing per tick
   const SEIZURE_SHARE = 0.25, SEIZURE_TICKS = 3, SEIZURE_BRAKE = 10; // See tick()
-  const LEARN_EVERY = 4;
-  const EPISODES = 8;                // Remembered moments of surprise, replayed in sleep             // Ticks between weight updates (the signal is summed in between)
+  const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
+  const EPISODES = 8;                // Remembered moments of surprise, replayed in sleep
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
@@ -110,14 +110,13 @@
       this.sproutedCount = 0;
       this.prunedCount = 0;
       this.spikesThisTick = 0;
-      this.seizures = 0;      // Times the seizure brake has come on
       this.overdrive = 0;     // Consecutive ticks with too many neurons firing
       this.brake = 0;         // mV held back from every central neuron this tick
       this.awake = true;
       this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, t }
       this.episodes = [];     // Up to EPISODES recent surprises: { inputs, motor, value, tick }
       this.replayOutcome = new Float32Array(N_MOD); // Outcome a replayed episode adds this tick
-      // The outcome each modulatory channel predicts (0 reward, 1 punishment); the creature sets it
+      // The outcome each modulatory channel learns to predict (0 reward, 1 punishment); the creature sets it
       // before each tick from whatever receptor genes drive the first two feelings cells
       this.outcome = new Float32Array(N_MOD);
       this.outcomeMean = new Float32Array(N_MOD); // The expected outcome: only a rise above it counts
@@ -604,7 +603,7 @@
 
     // ---------- One tick ----------
     // drive: Float32Array (one per neuron) of external current: senses, needs, dreams.
-    // opts: { noise, arousal, canFire }. Returns the number of spikes.
+    // opts: { noise, arousal, canFire, asleep }. Returns the number of spikes.
     tick(drive, opts) {
       if (this.adjacencyDirty) this.rebuildAdjacency();
       const now = ++this.tickCount;
@@ -661,7 +660,6 @@
       // recurrent excitation, e.g. in working memory), every central neuron is held back next tick
       this.overdrive = this.spikesThisTick > SEIZURE_SHARE * N ? this.overdrive + 1 : 0;
       this.brake = this.overdrive >= SEIZURE_TICKS ? SEIZURE_BRAKE : 0;
-      if (this.overdrive === SEIZURE_TICKS) this.seizures++;
 
       // 2. New spikes depart along their axons
       const { sDst, sW, sDelay, sActive, outStart, outList } = this;
@@ -783,7 +781,7 @@
         if (this.awake && (d > 0.2 || d < -0.2)) this.rememberEpisode((c === 0 ? 1 : -1) * d);
       }
 
-      // 3. Eligibility, event-driven and causal: when a neuron fires, each input that arrived in the
+      // 2. Eligibility, event-driven and causal: when a neuron fires, each input that arrived in the
       // few ticks before (delay-matched: the axon's own delay) becomes eligible. It then decays with
       // the memory gene's half-life, computed lazily from the tick it was last touched.
       const { inStart, inList } = this;
@@ -799,7 +797,7 @@
         }
       }
 
-      // 4. Three-factor plasticity every few ticks. The learning signal at each neuron is each
+      // 3. Three-factor plasticity every few ticks. The learning signal at each neuron is each
       // channel's summed error, weighted by that channel's learning field there and by the
       // sensitivity genes: eligibility × signal at the synapse's target. Skipped when nothing happened.
       if (now % LEARN_EVERY) return;
@@ -827,9 +825,9 @@
   }
 
   Object.assign(Evo, {
-    Brain, BRAIN: { MAX_DELAY, SYNAPTIC_GAIN, WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, CHEM_CHANNELS, GAMMA },
+    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, HEARING, DRIVE_CELL_TAGS, FEELING_TAGS, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
+      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });
