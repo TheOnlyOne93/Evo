@@ -221,7 +221,8 @@
   </div>
 
   <!-- Plain scripts, in dependency order (no build step: the page opens straight from disk).
-       Scripts marked data-headless don't touch the page; tests/run.js loads them, in this order, into Node. -->
+       Scripts marked data-headless don't touch the page; tests/run.js loads them, in this order, into Node.
+       dev/world-lab.html and dev/creature-lab.html load this same list (up to the ui scripts): keep them in step. -->
   <script src="src/core/evo.js" data-headless></script>
   <script src="src/core/clock.js" data-headless></script>
   <script src="src/core/diffusion.js" data-headless></script>

@@ -30,7 +30,7 @@
   </style>
 </head>
 <body>
-  <canvas id="world" aria-label="World lab: drag to pan, wheel to zoom, click a creature to follow it"></canvas>
+  <canvas id="world" aria-label="World lab: drag to pan, drag a creature to carry it, wheel to zoom, click a creature to follow it"></canvas>
   <div id="panel">
     <div class="head"><b>World lab</b><span id="fps">– fps</span><button id="collapse" aria-label="Collapse panel">▾</button></div>
     <div class="rows">
@@ -47,13 +47,16 @@
         <button id="scentBtn" aria-pressed="false">Scent</button><button id="sensesBtn" aria-pressed="false">Senses</button><button id="followBtn" aria-pressed="false">Follow</button><button id="fitBtn">Fit</button>
       </div>
       <div class="row"><span>Hand</span>
-        <button data-hand="grab">Grab</button><button data-hand="hold">Hold</button><button data-hand="pat">Pat</button><button data-hand="slap">Slap</button>
+        <button data-hand="grab">Grab</button><button data-hand="pat">Pat</button><button data-hand="slap">Slap</button>
       </div>
     </div>
   </div>
-  <div id="hint">Drag to pan · wheel or +/− to zoom · arrows pan · click a creature to follow · F follow · space pause</div>
+  <div id="hint">Drag to pan · drag a creature to carry it · wheel or +/− to zoom · arrows pan · click a creature to follow · F follow · space pause</div>
 
+  <!-- The same src/ scripts as index.html, in the same order (keep the two lists in step); of the
+       ui scripts the lab needs only the hand -->
   <script src="../src/core/evo.js"></script>
+  <script src="../src/core/clock.js"></script>
   <script src="../src/core/diffusion.js"></script>
   <script src="../src/sim/constants.js"></script>
   <script src="../src/sim/genome.js"></script>
@@ -64,8 +67,11 @@
   <script src="../src/sim/founder-chem.js"></script>
   <script src="../src/sim/creature.js"></script>
   <script src="../src/sim/world.js"></script>
+  <script src="../src/audio/synth.js"></script>
   <script src="../src/render/theme.js"></script>
   <script src="../src/render/canvas.js"></script>
+  <script src="../src/render/pose.js"></script>
+  <script src="../src/render/creature-art.js"></script>
   <script src="../src/render/season.js"></script>
   <script src="../src/render/sky.js"></script>
   <script src="../src/render/item-art.js"></script>
@@ -78,8 +84,8 @@
   <script src="../src/render/hand-art.js"></script>
   <script src="../src/render/cues.js"></script>
   <script src="../src/render/world-view.js"></script>
-  <script src="mock-world.js"></script>
-  <script src="mock-creature-art.js"></script>
+  <script src="../src/render/brain-view.js"></script>
+  <script src="../src/ui/hand.js"></script>
   <script src="world-lab.js"></script>
 </body>
 </html>

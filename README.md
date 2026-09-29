@@ -36,7 +36,8 @@ npx eslint@10 .                # lint (flat config in eslint.config.js; needs no
 
 The runner loads every script that `index.html` marks `data-headless` into Node, in page order,
 so the simulation is tested exactly as the page loads it. `dev/creature-lab.html` and
-`dev/world-lab.html` are preview pages for the creature and world art.
+`dev/world-lab.html` are preview pages for the creature and world art; they load the same scripts
+as `index.html` and show the game's own world and creatures, with lab controls on top.
 
 ## Layout
 

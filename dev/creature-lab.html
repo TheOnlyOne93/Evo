@@ -55,7 +55,7 @@
     </section>
     <section>
       <h2>States</h2>
-      <p>Every state flag of the pose, one adult each (flinch replays every second or so).</p>
+      <p>Each state set on a real adult (its chemistry, timers or flags) and read back by <code>poseOf</code>; flinch replays every second or so.</p>
       <canvas class="scene" id="states"></canvas>
     </section>
     <section>
@@ -80,12 +80,15 @@
     </section>
     <section>
       <h2>Gene extremes</h2>
-      <p>Each shape gene at 0 (top) and 1 (bottom), all other genes at 0.5.</p>
+      <p>Each shape trait at 0 (top) and 1 (bottom), the others at 0.5.</p>
       <canvas class="scene" id="extremes"></canvas>
     </section>
   </main>
 
+  <!-- The same src/ scripts as index.html, in the same order (keep the two lists in step); the lab
+       needs none of the ui scripts -->
   <script src="../src/core/evo.js"></script>
+  <script src="../src/core/clock.js"></script>
   <script src="../src/core/diffusion.js"></script>
   <script src="../src/sim/constants.js"></script>
   <script src="../src/sim/genome.js"></script>
@@ -96,9 +99,24 @@
   <script src="../src/sim/founder-chem.js"></script>
   <script src="../src/sim/creature.js"></script>
   <script src="../src/sim/world.js"></script>
+  <script src="../src/audio/synth.js"></script>
   <script src="../src/render/theme.js"></script>
   <script src="../src/render/canvas.js"></script>
+  <script src="../src/render/pose.js"></script>
   <script src="../src/render/creature-art.js"></script>
+  <script src="../src/render/season.js"></script>
+  <script src="../src/render/sky.js"></script>
+  <script src="../src/render/item-art.js"></script>
+  <script src="../src/render/painters/palette.js"></script>
+  <script src="../src/render/painters/terrain.js"></script>
+  <script src="../src/render/painters/plants.js"></script>
+  <script src="../src/render/painters/rocks.js"></script>
+  <script src="../src/render/water.js"></script>
+  <script src="../src/render/weather.js"></script>
+  <script src="../src/render/hand-art.js"></script>
+  <script src="../src/render/cues.js"></script>
+  <script src="../src/render/world-view.js"></script>
+  <script src="../src/render/brain-view.js"></script>
   <script src="creature-lab.js"></script>
 </body>
 </html>
