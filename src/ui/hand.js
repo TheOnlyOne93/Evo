@@ -6,6 +6,7 @@
   'use strict';
   const DRAG = 6;           // px a pointer must move before a press becomes a drag
   const PAT_EVERY = 250;    // ms between pats while stroking
+  const FLING_WINDOW_MS = 100;  // ms: only hand movement this recent counts towards a throw
 
   class HandController {
     // opts: { getTool(), onSelect(creature, keepFollowing), onDrop(tool, x, y), onPan(), onRelease() }
@@ -42,6 +43,7 @@
     }
 
     down(e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return; // Only the primary button presses
       const p = this.local(e);
       this.canvas.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, p);
@@ -103,7 +105,9 @@
       if (e.pointerType !== 'mouse') this.hover = null;
       if (pr.holding) {
         // Let go: whatever was carried keeps the hand's recent velocity (a fling)
-        const s = pr.samples, a = s[0], b = s[s.length - 1];
+        // Only samples from the last moment count: a hand that paused before letting go drops it
+        const now = performance.now();
+        const s = pr.samples.filter(m => now - m.t <= FLING_WINDOW_MS), a = s[0], b = s[s.length - 1];
         const dt = b && a && b.t > a.t ? (b.t - a.t) / (1000 / Evo.TICKS_PER_SECOND) : 0;
         this.world.releaseHand(dt ? (b.x - a.x) / dt : 0, dt ? (b.y - a.y) / dt : 0);
         this.opts.onRelease();
