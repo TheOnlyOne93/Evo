@@ -27,18 +27,7 @@
       if (y > maxS) maxS = y;
       sum += y;
     }
-    const surf = x => {
-      const f = x / step;
-      if (f <= 0) return hs[0];
-      if (f >= n - 1) return hs[n - 1];
-      const i = f | 0;
-      return hs[i] + (hs[i + 1] - hs[i]) * (f - i);
-    };
-    const ponds = T.ponds || [];
-    const waterAt = x => {
-      for (const p of ponds) if (x >= p.x0 && x <= p.x1) return p.level;
-      return null;
-    };
+    const surf = x => T.groundY(x), waterAt = x => T.waterLevelAt(x); // the world's own queries
     const wet = x => { const l = waterAt(x); return l !== null && surf(x) > l + 0.5; };
     const R = rng(9001 + n);
     const sorted = Float32Array.from(hs).sort();
@@ -99,7 +88,7 @@
 
   // ---------------------------------------------------------------------------------------------
   // Terrain tile painter (world coordinates; the tile's canvas clips to its own rectangle)
-  function paintTile(g, info, x0, y0, x1, y1, si, ponds) {
+  function paintTile(g, info, x0, y0, x1, y1, si) {
     const { surf, wet, W } = info;
     const pal = GROUND[si];
     const xa = Math.max(-2, x0 - 24), xb = Math.min(W + 2, x1 + 24);
