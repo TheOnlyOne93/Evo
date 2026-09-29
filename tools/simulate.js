@@ -11,7 +11,6 @@ Evo.seed(seed);
 
 const world = new Evo.World();
 const avg = (list, f) => (list.length ? list.reduce((a, x) => a + f(x), 0) / list.length : 0);
-const pct = v => `${Math.round(v * 100)}%`.padStart(4);
 const f2 = v => v.toFixed(2);
 const counts = {};
 world.events.on('eat', e => { counts[e.item.type] = (counts[e.item.type] || 0) + 1; });

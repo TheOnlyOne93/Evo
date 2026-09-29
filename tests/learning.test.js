@@ -2,7 +2,6 @@
 // How the brain learns: modulator cells, prediction errors, credit assignment.
 
 const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
-const skip = () => {}; // A test waiting for the brain change that makes it pass
 
 // Random sensory drive, as a creature looking around would get
 function senseAround(Evo, brain, drive) {

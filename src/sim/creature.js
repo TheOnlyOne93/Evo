@@ -7,7 +7,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, ITEM_TYPES, MOTORS, N_NEEDS, N_LIMBIC, STIMULUS } = Evo;
+  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, MOTORS, N_LIMBIC, STIMULUS } = Evo;
 
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
