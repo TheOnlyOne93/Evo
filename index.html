@@ -12,7 +12,7 @@
 <body>
   <header class="topbar">
     <div class="wordmark">Synapse<span>Core</span></div>
-    <div class="status" aria-live="polite">
+    <div class="status">
       <span class="chip" title="Day and time of day"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:00</span></span>
       <span class="chip" title="Season"><b id="statSeason">Spring</b></span>
       <span class="chip" title="Creatures alive"><b id="statPop">0</b> living</span>
@@ -177,7 +177,7 @@
           <section class="block needs-creature"><h3>What its genes built</h3><div class="traits" id="traitList"></div></section>
           <section class="block needs-creature"><h3>Mutations</h3><div class="mutations" id="mutationList"></div></section>
           <div class="gene-find needs-creature">
-            <input type="search" id="geneFilter" placeholder="Find a gene: hunger, patted, sight…" aria-label="Find a gene" autocomplete="off">
+            <input type="search" id="geneFilter" placeholder="Find a gene: hunger, tickled, sight…" aria-label="Find a gene" autocomplete="off">
             <span class="note" id="geneFilterCount"></span>
           </div>
           <details class="gene-group needs-creature" open><summary>Body <span class="count" id="genes-body-count"></span></summary><div class="genes" id="genes-body"></div></details>

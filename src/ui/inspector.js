@@ -151,7 +151,7 @@
       const c = this.app.focus;
       const has = !!c;
       document.querySelectorAll('.needs-creature').forEach(el => el.classList.toggle('hidden', !has));
-      document.querySelectorAll('.no-creature').forEach(el => el.classList.toggle('hidden', has));
+      document.querySelectorAll('.no-creature').forEach(el => el.classList.toggle('hidden', has || this.deck === 'world'));
       if (this.deck === 'world') return this.renderWorld();
       if (!c) return;
       if (this.deck === 'body') this.renderBody(c);

@@ -9,6 +9,7 @@
     const strip = $('strip');
     let stripIds = '';
     app.refreshStrip = () => {
+      if (strip.offsetParent === null) return;
       const ids = world.creatures.map(c => c.id).join(',');
       if (ids !== stripIds) {
         stripIds = ids;
