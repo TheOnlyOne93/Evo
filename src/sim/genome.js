@@ -246,7 +246,9 @@
     const bytes = [PROMOTER, ((spec.stage || 0) << 5) | type];
     for (const [key, codec] of def.fields) {
       if (!(key in spec)) throw new Error(`${spec.gene} gene is missing "${key}"`);
-      bytes.push(codec.encode(spec[key]));
+      const b = codec.encode(spec[key]);
+      if (b === undefined || Number.isNaN(b) || b === -1) throw new Error(`${spec.gene} gene: bad value ${JSON.stringify(spec[key])} for "${key}" (unknown name?)`);
+      bytes.push(b);
     }
     return bytes;
   }

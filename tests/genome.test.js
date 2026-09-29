@@ -130,6 +130,15 @@ test('genome: axon guidance strength decodes symmetrically around byte 120', (Ev
   assert.strictEqual(strength(255), 1); assert.strictEqual(strength(0), -1);
 });
 
+test('genome: a misspelled chemical name in a gene throws instead of encoding to nothing', (Evo, assert) => {
+  assert.throws(() => Evo.encodeGene({ gene: 'Half-life', chem: 'no-such-chemical', halfLife: 100 }), /chem/);
+});
+
+test('genome: a founder guidance weight too weak to keep its sign throws', (Evo, assert) => {
+  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: 0.1 }), /0\.1/);
+  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: -0.1 }));
+});
+
 test('genome: a windowed guidance gene grows synapses only from the cells in its window', (Evo, assert) => {
   const sourcesOf = window => {
     const spec = { gene: 'Axon guidance', source: { lobe: 'needs', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.9,
