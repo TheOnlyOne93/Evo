@@ -5,8 +5,8 @@
   'use strict';
   const { TAU } = Evo.util;
   const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
-  const { GROUND, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
-  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
+  const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
+  const { SUMMER, AUTUMN, WINTER } = Evo.SEASON;
 
   function paintLog(g, f, si, rec) {
     const R = rng(4000 + (f.id | 0) * 7);
@@ -75,7 +75,7 @@
       g.closePath();
       g.fill();
     } else {
-      g.fillStyle = si === AUTUMN ? '#8f8a3c' : si === SPRING ? '#79b04a' : '#5f9a3e';
+      g.fillStyle = MOSS.log[si];
       g.beginPath();
       for (let x = x0 + 6; x < x1 - 4; x += 5 + R() * 6) circle(g, x, yT + 1, 2 + R() * 2.8);
       g.fill();
@@ -179,7 +179,7 @@
       g.lineWidth = 1;
       g.stroke();
     } else {
-      g.fillStyle = si === AUTUMN ? 'rgba(150,140,60,0.75)' : 'rgba(96,150,62,0.8)';
+      g.fillStyle = MOSS.rock[si];
       g.beginPath();
       for (let k = 0; k < 7; k++) circle(g, -w * 0.3 + k * w * 0.07 + (R() - 0.5) * 4, -h * (0.9 + R() * 0.12), 2.5 + R() * 3);
       g.fill();
@@ -239,7 +239,7 @@
       g.fillStyle = SNOW.body;
       g.beginPath(); g.moveTo(-2, 1); for (let x = 0; x <= L; x += 5) g.lineTo(x, -3.5 - Math.sin(x * 0.4) * 1); g.lineTo(L + 2, 1); g.closePath(); g.fill();
     } else {
-      g.fillStyle = si === AUTUMN ? '#8f8a3c' : '#6aa446';
+      g.fillStyle = MOSS.ledge[si];
       g.beginPath();
       for (let x = 6; x < L - 4; x += 7 + R() * 9) circle(g, x, -0.5, 1.5 + R() * 2);
       g.fill();
@@ -313,7 +313,7 @@
     g.stroke();
     // Moss clinging to the flanks
     if (si !== WINTER && grounded) {
-      g.fillStyle = si === AUTUMN ? 'rgba(150,140,60,0.6)' : 'rgba(96,150,62,0.6)';
+      g.fillStyle = MOSS.outcrop[si];
       g.beginPath();
       for (let k = 0; k < 6; k++) circle(g, -6 + R() * 10, gap * (0.3 + R() * 0.6), 2 + R() * 3);
       g.fill();

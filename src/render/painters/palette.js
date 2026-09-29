@@ -12,11 +12,18 @@
     { grass: [168, 158, 76], dark: [112, 104, 50], light: [212, 198, 112], tufts: ['#b8a150', '#9c9446', '#d0b664'], litter: ['#d8742e', '#c2452d', '#e2a93b', '#a8552a'] },
     { grass: [150, 150, 122], dark: [110, 108, 90], light: [190, 186, 150], tufts: ['#c9b98a', '#ad9f74'] },
   ];
+  // Moss on wood and stone, per season (null in winter, when snow covers it)
+  const MOSS = {
+    log: ['#79b04a', '#5f9a3e', '#8f8a3c', null],                   // the grub log
+    ledge: ['#6aa446', '#6aa446', '#8f8a3c', null],                 // a log platform
+    rock: ['rgba(96,150,62,0.8)', 'rgba(96,150,62,0.8)', 'rgba(150,140,60,0.75)', null],
+    outcrop: ['rgba(96,150,62,0.6)', 'rgba(96,150,62,0.6)', 'rgba(150,140,60,0.6)', null],
+  };
   const SNOW = { top: '#f8fbff', body: '#e8f0f7', shade: '#bfd0e2', sparkle: '#ffffff' };
   const ROCK_TONES = [[160, 154, 146], [170, 150, 128], [150, 150, 156]];
 
   // A circle as a subpath (for batching many into one fill)
   function circle(g, x, y, r) { g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU); }
 
-  Evo.Paint = { GROUND, SNOW, ROCK_TONES, circle };
+  Evo.Paint = { GROUND, MOSS, SNOW, ROCK_TONES, circle };
 })(globalThis.Evo);
