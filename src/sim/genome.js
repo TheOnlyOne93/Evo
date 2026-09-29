@@ -15,7 +15,7 @@
   const PROMOTER = 0xA5;
   const TYPE_SLOTS = 32;
   const MIN_LENGTH = 256;
-  const MAX_LENGTH = 2400;
+  const MAX_LENGTH = 3200;
 
   // ---- Codecs: how one payload byte decodes to a value, and how a founder value encodes to a byte ----
   const byte = v => clamp(Math.round(v), 0, 255);
@@ -312,11 +312,13 @@
         // 2. Gene duplication: a whole expressed gene is copied to a random place (it may land
         //    inside another gene and disrupt it, as in real genomes)
         let genes = Genome.findGenes(dna);
-        if (genes.length && Evo.chance(0.03) && dna.length < MAX_LENGTH) {
+        if (genes.length && Evo.chance(0.03)) {
           const g = Evo.pick(genes);
-          dna.splice(Evo.randInt(dna.length), 0, ...dna.slice(g.start, g.end));
-          muts++;
-          genes = Genome.findGenes(dna); // Positions moved: find the genes again
+          if (dna.length + g.end - g.start <= MAX_LENGTH) {
+            dna.splice(Evo.randInt(dna.length), 0, ...dna.slice(g.start, g.end));
+            muts++;
+            genes = Genome.findGenes(dna); // Positions moved: find the genes again
+          }
         }
         // 3. Gene loss: a whole expressed gene is deleted
         if (genes.length && Evo.chance(0.02) && dna.length > MIN_LENGTH) {
