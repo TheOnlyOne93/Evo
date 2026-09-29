@@ -198,7 +198,7 @@
   const NEUROCHEMS = [
     { key: 'DA', word: 'Reward', base: 0.5 },   // Dopamine-like reward chemical
     { key: 'ST', word: 'Stress', base: 0.5 },   // Stress chemical
-    { key: 'NO', word: 'NO', base: 0.15 }       // Nitric-oxide-like gas: active neighbours share credit
+    { key: 'NO', word: 'NO', base: 0.15 }       // Retired (it let active neighbours share credit); kept so gene bytes decode as before
   ];
 
   const LIMITS = {
