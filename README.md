@@ -6,7 +6,8 @@ biochemistry and the brain's wiring; drives, learning and behaviour emerge from 
 
 ## Running
 
-Open `index.html` in a browser (double-click works; there is no build step).
+Open `index.html` in a browser (double-click works; there is no build step). Runs are deterministic: the world starts from a fixed seed
+(`Evo.DEFAULT_SEED`); open `index.html?seed=123` to try another.
 
 * **Hand** (✋): tap a creature to follow it; drag creatures, eggs and items to carry them, and let
   go while moving to throw. Drag empty ground to look around.

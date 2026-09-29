@@ -39,7 +39,14 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  let rng = Math.random;
+  // Every run starts from the same seed so the app is deterministic; ?seed=N overrides it.
+  Evo.DEFAULT_SEED = 20260929;
+  let startSeed = Evo.DEFAULT_SEED;
+  if (typeof location !== 'undefined' && location.search) {
+    const m = /[?&]seed=(-?\d+)/.exec(location.search);
+    if (m) startSeed = Number(m[1]);
+  }
+  let rng = mulberry32(startSeed);
   Evo.seed = seed => { rng = mulberry32(seed); };
   Evo.useRandomSource = fn => { rng = fn; }; // Tests: script exact random draws
   Evo.random = () => rng();
@@ -68,6 +75,6 @@
     emit(type, payload) { const h = this.handlers[type]; if (h) for (const fn of h) fn(payload); }
   }
 
-  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU };
+  Evo.util = { clamp, clamp01, lerp, mean, wrapAngle, maxBy, minBy, countBy, TAU, mulberry32 };
   Evo.EventBus = EventBus;
 })(globalThis);
