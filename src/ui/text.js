@@ -131,11 +131,10 @@
     const minutes = Math.floor(phase * 24 * 60);
     return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
   };
-  const pct = v => `${Math.round(Math.max(0, Math.min(100, v)))}`;
   const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
 
   Evo.text = {
-    lobeName, neuronName, needChemicals, chemName, stageName, clock, timeOfDay, pct, titleCase,
+    lobeName, neuronName, needChemicals, chemName, stageName, clock, timeOfDay, titleCase,
     locusName, targetName, describeGene, seconds,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS
   };
