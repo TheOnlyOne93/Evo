@@ -1,0 +1,50 @@
+// The founder genome: brain wiring genes (see founder.js).
+(function (Evo) {
+  'use strict';
+  const { approach, guide, FEATURES, ODOURS } = Evo.founderKit;
+
+  Evo.founderBrain = [
+    // ---------- Brain wiring ----------
+    // Orienting. A sight cell's tag says which side (x) and which colour (y) it sees; the walk
+    // muscles sit at y = 0.5. Each of these genes carries one colour's cells to walking toward
+    // (or, crossed, away from) the side they see it on. Food colours pull hardest.
+    ...['red', 'yellow', 'green'].map(f => approach('sight', FEATURES, f, f === 'red' ? 0.6 : 0.5)),
+    approach('sight', FEATURES, 'blue', 0.3),
+    approach('sight', FEATURES, 'pink', 0.3),
+    approach('sight', FEATURES, 'creature', 0.25),                    // Company
+    approach('sight', FEATURES, 'violet', 0.5, true),                   // Thorny violet: walk away
+    // Every smell draws the creature toward the side it is stronger on; bitter and alarm push away
+    guide('smell', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.3, relX: true }),
+    approach('smell', ODOURS, 'bitter', 0.6, true),
+    approach('smell', ODOURS, 'alarm', 0.6, true),
+    guide('hearing', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.35, relX: true }),
+    // Each need cell and touch cell excites the muscle that shares its address
+    // (tired -> rest, lonely -> call, afraid or hurt -> run, hungry or thirsty -> use the mouth,
+    // something at the mouth -> eat it)
+    guide('needs', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.8, relX: true, relY: true }),
+    guide('touch', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
+    // Bumping into something on one side makes the opposite leg push: turn away from walls
+    guide('touch', [0.5, 0.5, 0.9], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
+    // Tastes inform thinking (what was just eaten), not the jaws directly
+    guide('taste', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
+    // Sights and smells reach the reward and punishment cells weakly; these cue synapses learn
+    // what each sight or smell predicts
+    ...['sight', 'smell'].flatMap(lobe => [[0.2, 0.9, 0.1], [0.9, 0.2, 0.1]].map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
+    // The alarm odour excites the feelings cell that shares its address (a fear cell)
+    guide('smell', [0.5, 0.5, 0.1], { radius: 0.07, weight: 0.9, relY: true }),
+    // Feelings project broadly and fast: where the reward cell's axons end is where learning happens
+    // (the chemical is released at the terminals; the synapses themselves are weak)
+    guide('feelings', [0.5, 0.5, 0.65], { radius: 0.8, weight: 0.2, conduction: 0.5 }),
+    // Action selection: every muscle inhibits the others, so the most strongly driven action wins
+    guide('motor', [0.5, 0.5, 0.9], { radius: 0.7, weight: -0.4, conduction: 0.5 }),
+    // Association: senses and needs into the thinking regions, and thinking regions to the muscles
+    guide('needs', [0.5, 0.5, 0.55], { radius: 0.3, weight: 0.4, reach: 0.8 }),
+    guide('sight', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
+    guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
+    guide('cortex', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    guide('central', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
+    { gene: 'Region duplication', source: 'motor', depth: 1.0, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Efference copy
+    { gene: 'Region duplication', source: 'sight', depth: 0.69, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Orienting map
+  ];
+})(globalThis.Evo);

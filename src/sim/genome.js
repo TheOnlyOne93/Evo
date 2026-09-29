@@ -229,7 +229,7 @@
       this.mutationCount = 0; // Mutation events along the longest parental line since the founders
     }
 
-    // Founder genes (Evo.FOUNDER_GENOME, see founder.js) separated by a few junk bytes, then junk
+    // Founder genes (Evo.FOUNDER_GENOME, see founder.js).separated by a few junk bytes, then junk
     // padding. The chromosome is sized to hold every founder gene.
     static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
       const bytes = [];
