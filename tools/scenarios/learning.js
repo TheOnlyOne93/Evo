@@ -1,10 +1,14 @@
 // Learning and decision probes. See tools/behave.js for the shape. The reports never gate anything:
 // they measure how the brain behaves (run with --report).
 //
-// Learning bench (one creature kept across trials, with matched controls). Still to add once Track 1
-// lands stimulus genes (A2), consummatory reward and bitter taste (A3) and the 'near' lobe (A5):
-// TODO mimic aversion: hunger .7, 10 mimic exposures interleaved with 10 fruits; eating mimic in
-//   exposures 8-10 at most half as often as in 1-3 while fruit is still eaten >= 80% (>= 60% of seeds).
+// Learning bench (one creature kept across trials, with matched controls).
+// TODO mimic aversion (the scenario below) fails: mimic is eaten as often in exposures 8-10 as in
+//   1-3. What was measured: a hungry creature's eat muscle fires on its own much of the time, so
+//   its inputs are eligible at every learning signal. The shared features (red look, sweet smell,
+//   something at the mouth, hunger) are weakened after a mimic and restored after a fruit, while
+//   what tells the two apart (a faint violet, a bitter smell) has no path to the jaws that
+//   punishment could strengthen. And while a mimic sits uneaten in view, the discounted punishment
+//   prediction (GAMMA) gives a steady trickle of relief that strengthens the eat muscle's inputs.
 'use strict';
 
 module.exports = ({ Evo, lab, session, trial }) => {
@@ -195,6 +199,30 @@ module.exports = ({ Evo, lab, session, trial }) => {
     'memory: walks toward hidden fruit (cortex persistence 0)': permanence.knockout
   };
 
+  // Mimic aversion. A hungry creature is offered 10 mimic berries interleaved with 10 fruits, 40 px
+  // away (a pair on the left, then a pair on the right), for up to 400 ticks each, with 150 quiet
+  // ticks after each. Passes when it eats mimic in exposures 8-10 at most half as often as in 1-3
+  // (and at least once there) while still eating at least 8 of the 10 fruits.
+  const mimicTrials = cached(seed => {
+    const s = session(seed);
+    s.hold = { hunger: 0.7, sleepiness: 0, tiredness: 0, loneliness: 0, thirst: 0, boredom: 0 };
+    const ate = { mimic: [], fruit: [] };
+    for (let k = 0; k < 20; k++) {
+      const type = k % 2 ? 'mimic' : 'fruit';
+      s.resetBody();
+      const item = s.place(type, (k >> 1) % 2 ? 40 : -40);
+      ate[type].push(trial(s, 400, w => !w.items.includes(item)) !== null ? 1 : 0);
+      s.world.items.length = 0;
+      trial(s, 150, () => false);
+    }
+    const count = a => a.reduce((n, x) => n + x, 0);
+    return { early: count(ate.mimic.slice(0, 3)), late: count(ate.mimic.slice(7)), fruit: count(ate.fruit) };
+  });
+  const mimicAversion = seed => {
+    const { early, late, fruit } = mimicTrials(seed);
+    return early > 0 && late <= early / 2 && fruit >= 8 ? 0 : null;
+  };
+
   // A pat reinforces what the creature was just doing. A quiet creature is made to call (or jump),
   // its muscle driven for a few ticks, every 300 ticks, 8 times, and patted `lag` ticks after each;
   // then how often it calls (jumps) on its own in the next 1500 ticks is counted.
@@ -217,12 +245,16 @@ module.exports = ({ Evo, lab, session, trial }) => {
   return {
     scenarios: {
       ...choice,
+      'hungry, mimic and fruit in turn -> eats mimic less, fruit still': mimicAversion,
       'made to call, patted just after -> calls more than patted later': pattedSoon('call'),
       'made to jump, patted just after -> jumps more than patted later': pattedSoon('jump')
     },
     reports: {
       'modulators: spike rate with no outcome': seed => busy(seed).modRate,
       'bench: hungry approach time, trials 6-8 over 1-3': approachLatency,
+      'bench: mimics eaten, exposures 1-3 (of 3)': seed => mimicTrials(seed).early,
+      'bench: mimics eaten, exposures 8-10 (of 3)': seed => mimicTrials(seed).late,
+      'bench: fruits eaten alongside the mimics (of 10)': seed => mimicTrials(seed).fruit,
       'bench: calls after slaps that follow each call (change)': seed => slapped(seed).contingent,
       'bench: calls after the same slaps at random (yoked, change)': seed => slapped(seed).yoked,
       'bench: calls after pats that follow each call (change)': seed => patted(seed).contingent,
