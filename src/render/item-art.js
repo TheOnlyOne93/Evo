@@ -7,35 +7,21 @@
   'use strict';
   const { TAU } = Evo.util;
 
-  // Used when a token is missing (e.g. a page without styles/app.css)
-  const FALLBACK = {
-    '--fruit': '#f0605d', '--grain': '#e8a33d', '--water': '#3fc1d9', '--protein': '#7bc96f',
-    '--grub': '#d9c38a', '--carrion': '#8f8a84', '--mimic-spot': '#581c87', '--female': '#ec6fa8',
-  };
   const RADIUS = { fruit: 6, grain: 5, dew: 4, grub: 5, bug: 4.5, mimic: 6, lure: 6, carrion: 9, egg: 7, ball: 8 };
   // How far above (item.x, item.y) each body's centre sits, in radii (so it rests on its lowest point)
   const LIFT = { fruit: 0.92, mimic: 0.92, grain: 0.72, dew: 1.26, grub: 0.98, bug: 0.95, lure: 0.84, carrion: 0.9, egg: 1, ball: 1 };
 
-  const hexRgb = hex => {
-    const h = hex.replace('#', '');
-    const f = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-    const n = parseInt(f, 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  };
   const css = (c, k, a) => {
     const r = Math.min(255, c[0] * k) | 0, g = Math.min(255, c[1] * k) | 0, b = Math.min(255, c[2] * k) | 0;
     return a === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a})`;
   };
-  const tint = (c, to, t) => [c[0] + (to[0] - c[0]) * t, c[1] + (to[1] - c[1]) * t, c[2] + (to[2] - c[2]) * t];
+  const tint = Evo.color.mix;
   const WHITE = [255, 255, 255];
 
   let C = null;
   function colors() {
     if (C) return C;
-    const tok = name => {
-      const v = Evo.theme ? Evo.theme.color(name) : '';
-      return hexRgb(v && v[0] === '#' && v !== '#ff00ff' ? v : FALLBACK[name]);
-    };
+    const tok = Evo.theme.rgb;
     const fruit = tok('--fruit'), grain = tok('--grain'), water = tok('--water'), protein = tok('--protein');
     const grub = tok('--grub'), carrion = tok('--carrion'), spot = tok('--mimic-spot'), female = tok('--female');
     C = {

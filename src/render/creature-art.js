@@ -450,7 +450,7 @@
       ctx.globalAlpha = focused ? 0.35 : 0.25;
       ctx.strokeStyle = '#06131a'; ctx.lineWidth = (focused ? 4.4 : 3.2) * px; ctx.stroke();
       ctx.globalAlpha = focused ? 1 : 0.6;
-      ctx.strokeStyle = token('--accent', '#9be3c8'); ctx.lineWidth = (focused ? 2.2 : 1.4) * px; ctx.stroke();
+      ctx.strokeStyle = token('--accent'); ctx.lineWidth = (focused ? 2.2 : 1.4) * px; ctx.stroke();
       ctx.globalAlpha = 1;
     }
   }
@@ -1025,7 +1025,7 @@
     }
     if (r.wet > 0.05) {
       // Drips from the belly, chin and tail
-      const water = token('--water', '#3fc1d9');
+      const water = token('--water');
       for (let i = 0; i < 3; i++) {
         const u = (t * 1.25 + i * 0.37 + e.phase) % 1;
         let x, y;
@@ -1090,8 +1090,8 @@
 
   // ---- Public API ------------------------------------------------------------------------------
 
-  // Colour tokens from styles/app.css (Evo.theme), with fallbacks where the theme is not loaded
-  const token = (name, fallback) => (Evo.theme ? Evo.theme.color(name) : fallback);
+  // Colour tokens from styles/app.css (Evo.theme)
+  const token = name => Evo.theme.color(name);
 
   // Unit-circle gradients shared by every creature: the ground shadow and the breeding glows
   const shared = new WeakMap();
@@ -1103,13 +1103,13 @@
         for (let i = 0; i < stops.length; i += 2) grad.addColorStop(stops[i], stops[i + 1]);
         return grad;
       };
-      const glow = (tok, rgb) => {
-        const c = a => (Evo.theme ? Evo.theme.rgba(tok, a) : `rgba(${rgb}, ${a})`);
+      const glow = tok => {
+        const c = a => Evo.theme.rgba(tok, a);
         return radial([0, c(0.8), 0.45, c(0.32), 1, c(0)]);
       };
       g = {
         shadow: radial([0, 'rgba(0, 0, 0, 0.32)', 0.6, 'rgba(0, 0, 0, 0.2)', 1, 'rgba(0, 0, 0, 0)']),
-        female: glow('--female', '236, 111, 168'), male: glow('--male', '106, 168, 240')
+        female: glow('--female'), male: glow('--male')
       };
       shared.set(ctx, g);
     }

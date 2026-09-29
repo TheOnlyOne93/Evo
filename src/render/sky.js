@@ -17,17 +17,8 @@
     return c;
   }
 
-  // Colours are [r, g, b] arrays; the per-frame helpers write into `out` to avoid allocation
-  function mixInto(out, a, b, t) {
-    out[0] = a[0] + (b[0] - a[0]) * t;
-    out[1] = a[1] + (b[1] - a[1]) * t;
-    out[2] = a[2] + (b[2] - a[2]) * t;
-    return out;
-  }
-  const rgb = c => 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
-  const rgba = (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')';
-  const mix = (a, b, t) => mixInto([0, 0, 0], a, b, t);
-  const scale = (c, k) => [Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)];
+  // Colours are [r, g, b] arrays (see Evo.color)
+  const { rgb, rgba, mix, mixInto, scale } = Evo.color;
 
   // Which season, and how far the fade into the next one has got (the last tenth of a season)
   function seasonState(season, out) {

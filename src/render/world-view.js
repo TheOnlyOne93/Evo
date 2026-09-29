@@ -25,7 +25,6 @@
   // Back-to-front passes over world.features; reeds stand in front of the water
   const BACK_PASSES = [[KIND.TREE], null /* platforms */, [KIND.LOG, KIND.ROCK], [KIND.THORN], [KIND.GRASS]];
   const FRONT_PASSES = [[KIND.REEDS]];
-  const SCENT_FALLBACK = ['#f0605d', '#e8a33d', '#3fc1d9', '#7bc96f', '#d9c38a', '#a77bf3', '#ec6fa8', '#6aa8f0', '#8f8a84', '#ffb86b'];
 
   const { hash2 } = Evo.util;
 
@@ -2155,10 +2154,8 @@
 
     _itemColors() {
       if (!this.ic) {
-        const tok = (n, fb) => { const v = Evo.theme ? Evo.theme.color(n) : ''; return v && v[0] === '#' && v !== '#ff00ff' ? v : fb; };
-        const grain = tok('--grain', '#e8a33d');
-        const n = parseInt(grain.slice(1), 16);
-        this.ic = { grain, grainDark: rgb(scale([(n >> 16) & 255, (n >> 8) & 255, n & 255], 0.6)) };
+        const grain = Evo.theme.color('--grain');
+        this.ic = { grain, grainDark: rgb(scale(Evo.theme.hexRgb(grain), 0.6)) };
       }
       return this.ic;
     }
@@ -2509,12 +2506,7 @@
 
     _waterColors() {
       if (!this.wc) {
-        let water = [63, 193, 217];
-        if (Evo.theme) {
-          const v = Evo.theme.color('--water');
-          if (v && v[0] === '#' && v !== '#ff00ff') { const n = parseInt(v.slice(1), 16); water = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-        }
-        this.wc = { water };
+        this.wc = { water: Evo.theme.rgb('--water') };
       }
       return this.wc;
     }
@@ -2843,10 +2835,7 @@
         const colors = [];
         for (let ch = 0; ch < sc.channels.length; ch++) {
           const def = Evo.SCENTS && Evo.SCENTS[ch];
-          let c = null;
-          if (def && def.token && Evo.theme) { const v = Evo.theme.color(def.token); if (v && v[0] === '#' && v !== '#ff00ff') c = Evo.theme.rgb(def.token); }
-          if (!c) { const n = parseInt(SCENT_FALLBACK[ch % SCENT_FALLBACK.length].slice(1), 16); c = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-          colors.push(c);
+          colors.push(Evo.theme.rgb(def.token));
         }
         const air = new Uint8Array(sc.cols * sc.rows);
         for (let j = 0; j < sc.rows; j++) {
