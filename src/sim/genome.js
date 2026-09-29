@@ -183,7 +183,7 @@
       express(v, d) { d.set('insulation', 0.3 + v.insulation * 0.6); d.set('bodyHeat', v.bodyHeat); } },
     { name: 'Reproduction', fields: [u('investment'), u('incubation')],
       express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); },
-      describe: (v, x, w) => ({ group: 'body', text: `Puts ${w.percent(x.eggInvestment)} into each egg, which hatches in about ${w.seconds(x.incubationTicks)}` }) },
+      describe: (v, x, w) => ({ group: 'body', text: `Fills each egg to ${w.percent(Evo.EGG_INVESTMENT_BASE + x.eggInvestment)} of a standard egg, which hatches in about ${w.seconds(x.incubationTicks)}` }) },
     // What a stimulus (Evo.STIMULI) releases: up to two chemicals, each by a signed amount
     { name: 'Stimulus', fields: [['event', CODEC.raw], ['chem1', CODEC.chem], ['amount1', CODEC.signed], ['chem2', CODEC.chem], ['amount2', CODEC.signed]],
       express(v, d) { d.add('stimuli', { event: v.event % STIMULI.length, chem1: v.chem1, amount1: v.amount1, chem2: v.chem2, amount2: v.amount2 }); },

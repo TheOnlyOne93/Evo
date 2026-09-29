@@ -20,6 +20,7 @@
   const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
+  const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
@@ -302,7 +303,7 @@
         const p = this.pregnancy;
         const share = 1 / T.gestationTicks;
         for (const [key, want] of Object.entries(Evo.EGG_CONTENTS)) {
-          const take = Math.min(c.get(key) * 0.5, want * share * (0.6 + T.eggInvestment));
+          const take = Math.min(c.get(key) * 0.5, want * share * (EGG_INVESTMENT_BASE + T.eggInvestment));
           c.add(key, -take);
           p.reserves[key] += take;
         }
@@ -752,6 +753,7 @@
 
   // What a mother puts into an egg (and a hatchling starts with), in chemical units
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
+  Evo.EGG_INVESTMENT_BASE = EGG_INVESTMENT_BASE;
 
   Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX } });
 })(globalThis.Evo);
