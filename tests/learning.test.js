@@ -134,7 +134,7 @@ test('learning: flat-out input and relentless reward neither run away nor break 
     brain.outcome[0] = t % 50 < 25 ? 1 : 0;
     const n = brain.tick(drive, { noise: 2, arousal: 3, canFire: true });
     if (t >= 1000) spikes += brain.spikesThisTick;
-    if (brain.tickCount % 80 === 0) brain.runMorphogenesis();
+    if (brain.tickCount % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
     assert.ok(n >= 0);
   }
   const share = spikes / 2000 / brain.N;

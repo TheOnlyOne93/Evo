@@ -693,6 +693,17 @@
     }
 
     // ---------- One tick ----------
+    // A tick runs in this order:
+    //   time         the clock advances
+    //   environment  food grows, items fall and drift, scent diffuses
+    //   contact      creatures jostle each other and prick against spiky things
+    //   each creature in turn, all of its phases before the next creature starts:
+    //     body       age and stage, chemistry, physiology, sleep (it may die here)
+    //     mind       senses, dreams, the brain's tick
+    //     act        muscles, mouth and hands
+    //     settle     movement, then stimuli fade
+    //     (a creature that died goes to handleDeath straight away)
+    //   ecology      mating, sounds age, wanderers arrive, an empty world is founded again
     step() {
       this.clock.tick++;
       this.updateClock();

@@ -28,6 +28,8 @@
   // each neuron sits (reward, stress; the NO image stays empty).
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
   const CHEM_SIZE = 20;
+  // The brain regrows and prunes its wiring every this many brain ticks
+  const MORPHOGENESIS_EVERY = 80;
   const N_MOD = 2;                   // Reward and stress
   const GAMMA = 0.98;                // Temporal-difference discount per tick
   const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
@@ -838,7 +840,7 @@
   }
 
   Object.assign(Evo, {
-    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE },
+    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY },
     BRAIN_BODY_PLAN: {
       TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell

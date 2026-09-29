@@ -46,7 +46,7 @@ test('brain: weights stay inside their limits under relentless reward and punish
     const pulse = t % 40 < 10 ? 1 : 0;
     brain.outcome[0] = t < 750 ? pulse : 0; brain.outcome[1] = t < 750 ? 0 : pulse;
     brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
-    if (t % 80 === 0) brain.runMorphogenesis();
+    if (t % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
   }
   const { WEIGHT_MIN, WEIGHT_MAX } = Evo.BRAIN;
   for (let s = 0; s < brain.S; s++) {

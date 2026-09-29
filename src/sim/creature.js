@@ -16,6 +16,7 @@
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
+  const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
   const FEATURE_KEYS = Evo.VISION_FEATURES.map(f => f.key);
@@ -473,8 +474,18 @@
     }
 
     // ---------- One tick ----------
+    // A tick runs in phases: body (chemistry and health), mind (senses and brain), act (muscles),
+    // settle (movement). A creature that dies in its body phase skips the rest
     step(world) {
       if (this.dead) return;
+      this.body(world);
+      if (this.dead) return;
+      this.mind(world);
+      this.act(world);
+      this.settle(world);
+    }
+
+    body(world) {
       this.ageTicks++;
       // Stages only move forward: a later gene that lengthens the lifespan must not send the
       // creature back to an earlier stage (which would switch that gene off again)
@@ -486,7 +497,9 @@
       this.physiology(world);
       if (this.dead) return;
       this.updateSleep(world);
+    }
 
+    mind(world) {
       this.sense(world);
       if (this.asleep) this.dreamStep();
       const brain = this.brain;
@@ -500,9 +513,10 @@
         canFire: this.chem.get('glucose') > 0.0005,
         asleep: this.asleep
       });
-      if (brain.tickCount % 80 === 0) brain.runMorphogenesis();
+      if (brain.tickCount % MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
+    }
 
-      this.act(world);
+    settle(world) {
       this.move(world);
       this.decayStimuli();
     }
