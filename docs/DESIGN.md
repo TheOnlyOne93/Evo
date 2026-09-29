@@ -75,9 +75,10 @@ free for mutation to use.
   `A + E → C + E`. Mass-action kinetics, with genetic yields.
 * **Emitter** reads a *locus* (a body sensor or any chemical) and releases a chemical when the
   reading is above (or below) a threshold.
-* **Receptor** reads a chemical and pushes on a *locus*: muscle strength, sleep pressure, health
-  damage, healing, fertility, growth, scent release, arousal, or a current into a specific neuron
-  of the Drives or Feelings lobe.
+* **Receptor** reads a chemical and pushes on a *target*: muscle strength, arousal, sleep pressure,
+  health damage, healing, fertility, growth, sex or alarm scent release, metabolic rate, shivering
+  (thermogenesis), panting (cooling), or a current into a specific neuron of the Drives or Feelings
+  lobe (`Evo.TARGETS`).
 * **Stimulus** names an event (`Evo.STIMULI`: ate, drank, patted, slapped, nuzzled, was nuzzled,
   shoved, was shoved, called, heard a call, grabbed, dropped, bumped, fell, woke, fell asleep, mated,
   played, pricked by thorns) and releases (or removes) up to two chemicals when it happens. The world raises each
@@ -95,16 +96,16 @@ own cell in the brain's Drives lobe (`Evo.driveCell(key)`; the founder's recepto
 drive to one cell). Drive cells sit at addresses of their own, apart from the muscles, so what a drive
 makes the creature do is up to guidance genes: the founder has a few weak innate priors, each a
 guidance gene windowed on one drive cell (pain and fear → run, sleepiness, tiredness and nausea →
-rest, loneliness → call, hunger → eat, thirst → drink, anger → grab, boredom, crowding, hunger and
-thirst → walk), and the rest is learned.
+rest, loneliness → call, hunger and protein hunger → eat, thirst → drink, anger → grab, boredom,
+crowding, hunger and thirst → walk), and the rest is learned.
 
 **Novelty** comes from things: a creature keeps a familiarity per vision feature, and the thing at its
 mouth (or the nearest item within 60 px) is novel in as far as its look is unfamiliar. Looking makes
 it familiar; familiarity fades slowly.
 
 **Reinforcement.** Each drive has a matching *relief* signal released by the sense or act that
-satisfies it: the taste of food (sweet or savoury), the taste of water, warmth flowing in, company,
-rest, dozing off, novelty, mating. A reaction `Drive + Relief → Reward` turns relief into reward *in
+satisfies it: the taste of food (sweet or savoury), the taste of water, warmth flowing in (or out,
+for a hot creature), company, rest, dozing off, novelty, mating. A reaction `Drive + Relief → Reward` turns relief into reward *in
 proportion to how much drive there was*, at the moment of relief: eating rewards while the food is
 tasted, falling asleep rewards once (not all night). A full gut still sates hunger, quietly, without
 reward. Punishment is released by emitters reading pain, nausea, fear and a bitter taste, and by
@@ -145,7 +146,7 @@ with tau; fatigue slows recovery from adaptation. The founder uses it three time
   going until it tires or a clearly stronger input takes over (actions persist; rivals rarely fire
   in the same tick).
 - *The sight copy* (the second region duplication): strong competition, so it settles on one thing;
-  windowed guidance genes from each drive's Needs cell bias the features it cares about (hunger:
+  windowed guidance genes from each drive's Drives cell bias the features it cares about (hunger:
   red, yellow, green; thirst: blue; loneliness: creatures; sex drive: pink). The copy inherits the
   sight lobe's approach tracts, so what is attended pulls hardest. `brain.attended()` reads
   `{ side, band, feature }`.
@@ -224,6 +225,7 @@ world.season = { key, index, progress }   // key: 'SPRING' | 'SUMMER' | 'AUTUMN'
 world.temperatureAt(x, y)            // 0..1 (0 freezing, 0.5 mild, 1 hot)
 world.scent = { cols, rows, cell, channels }   // Float32Array per channel; channel list in Evo.SCENTS
 world.sounds = [{ x, y, pitch, loudness, age, sourceId }]   // calls, for drawing notes; kept Evo.WORLD.SOUND_LIFE ticks
+world.surfaceBelow(x, fromY)         // the highest surface (ground or platform) at or below fromY at x
 world.setTime(day, phase)            // jump the clock (tools, tests, UI)
 ```
 
@@ -296,13 +298,14 @@ Evo.CreatureArt = {
 // src/render/world-view.js
 class WorldView {
   constructor(world, canvas)
+  setWorld(world)                     // show another world (e.g. after a restart)
   resize()
   render(t)                           // sky, parallax, terrain, water, features, items, creatures, overlays
   follow(creature | null)             // camera tracks a creature smoothly
-  panBy(dx, dy); zoomAt(factor, sx, sy)
+  panBy(dx, dy); zoomAt(factor, sx, sy); resetZoom()
   screenToWorld(sx, sy); worldToScreen(x, y)
   creatureAt(sx, sy); itemAt(sx, sy)  // picking in screen coordinates
-  options: { showScent, showSenses, focused, hand: { x, y, mode, holding } }
+  options: { showScent, showSenses, focused, hand: { x, y, mode, holding, tool } }
 }
 ```
 
@@ -316,9 +319,11 @@ Performance: 60 fps with 16 creatures and 80 items on a mid-range laptop. Cache 
 
 ## 9. Player tools (the hand)
 
-* **Look / grab**: tap a creature to follow it; drag a creature, egg or item to carry it; release to drop or throw.
-* **Pat**: gentle touch on the creature's back (a physical stimulus; the founder genome makes it pleasant).
-* **Slap**: an impact on its back (painful; wakes a sleeper).
-* **Drop items**: food, toys, lures.
+* **Hand**: tap a creature to follow it; drag a creature, egg or item to carry it; release to drop or throw.
+* **Tickle** (the `pat` tool, `world.pat`): gentle touch on the creature's back (a physical
+  stimulus; the founder genome makes it pleasant).
+* **Slap** (`world.slap`): an impact on its back (painful; wakes a sleeper).
+* **Drop things**: food (fruit, grain, dew, grubs, bugs, mimic berries), a ball, a lure, a founder
+  egg, a thorn bush. Adult founders (female or male) can be added too.
 
-Keyboard: arrow keys / WASD pan, +/− zoom, F follow, Space pause.
+Keyboard: see the README.
