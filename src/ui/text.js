@@ -413,8 +413,6 @@
     ];
   }
 
-  const stageName = stage => STAGES[stage].word;
-
   // Simulated time: ticks as minutes:seconds
   const clock = ticks => {
     const s = Math.max(0, Math.floor(ticks / Evo.TICKS_PER_SECOND));
@@ -428,8 +426,8 @@
   const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
 
   Evo.text = {
-    lobeName, neuronName, neuronRole, regionName, regionAbout, needChemicals, chemName, stageName, clock, timeOfDay, titleCase,
-    locusName, targetName, describeGene, geneWords, seconds, num, percent, signed, level,
+    lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, titleCase,
+    describeGene, geneWords, seconds, signed, level,
     geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, STIMULUS_PAST
   };

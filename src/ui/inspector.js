@@ -125,7 +125,7 @@
       }
       if (c && this.mind) this.sampleMind(c.brain, tick);
       if (tick % 60 === 0) for (const x of world.creatures) this.remember(x);
-      if (tick % 600 === 0) {
+      if (tick % 600 === 0 || !this.population.length) {
         this.population.push(world.creatures.length);
         if (this.population.length > 400) this.population.shift();
       }
@@ -184,9 +184,9 @@
 
     // ---------- Body ----------
     renderBody(c) {
-      const t = T, st = Evo.STAGES[c.stage];
-      const bits = [`<b>${c.sex === 'FEMALE' ? 'Female' : 'Male'}</b>`, st.word.toLowerCase(), `${t.clock(c.ageTicks)} old (lives about ${t.clock(c.lifespan)})`, `generation ${c.generation}`, `${c.meals} ${c.meals === 1 ? 'meal' : 'meals'}`];
-      let status = c.dead ? 'Dead.' : c.asleep ? 'Asleep.' : `${t.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
+      const st = Evo.STAGES[c.stage];
+      const bits = [`<b>${c.sex === 'FEMALE' ? 'Female' : 'Male'}</b>`, st.word.toLowerCase(), `${T.clock(c.ageTicks)} old (lives about ${T.clock(c.lifespan)})`, `generation ${c.generation}`, `${c.meals} ${c.meals === 1 ? 'meal' : 'meals'}`];
+      let status = c.dead ? 'Dead.' : c.asleep ? 'Asleep.' : `${T.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
       if (c.pregnancy) status += ` Carrying an egg (${percentOf(c.pregnancy.progress)}% formed).`;
       if (c.carrying) status += ` Holding ${Evo.ITEM_TYPES[c.carrying.type].word}.`;
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
@@ -212,6 +212,8 @@
 
     renderHistory() {
       const h = this.history, ctx = this.chartCtx;
+      const legend = $('historyLegend');
+      if (!legend.firstChild) legend.innerHTML = HISTORY.map(k => `<span><i style="background:${chemColor(k)}"></i>${T.CHEM_WORDS[k]}</span>`).join('');
       const w = this.chart.clientWidth, hh = this.chart.clientHeight;
       ctx.clearRect(0, 0, w, hh);
       if (!h || h.n < 2) return;
@@ -229,7 +231,6 @@
         ctx.stroke();
       });
       ctx.globalAlpha = 1;
-      $('historyLegend').innerHTML = HISTORY.map(k => `<span><i style="background:${chemColor(k)}"></i>${T.CHEM_WORDS[k]}</span>`).join('');
     }
 
     // ---------- Brain ----------
@@ -573,21 +574,21 @@
 
     // ---------- World ----------
     renderWorld() {
-      const world = this.app.world, st = world.stats, t = T, clock = world.clock;
+      const world = this.app.world, st = world.stats, clock = world.clock;
       const deaths = Object.values(st.deaths).reduce((a, v) => a + v, 0);
       const temp = world.temperatureAt(world.width / 2, world.terrain.groundY(world.width / 2) - 20);
-      $('worldLine').textContent = `Day ${clock.day + 1}, ${t.timeOfDay(clock.phase)}. ${world.seasonInfo.word}, ${temp < 0.3 ? 'cold' : temp > 0.62 ? 'hot' : temp < 0.42 ? 'cool' : 'mild'}. ${world.foodCount} bits of food about.`;
+      $('worldLine').textContent = `Day ${clock.day + 1}, ${T.timeOfDay(clock.phase)}. ${world.seasonInfo.word}, ${temp < 0.3 ? 'cold' : temp > 0.62 ? 'hot' : temp < 0.42 ? 'cool' : 'mild'}. ${world.foodCount} bits of food about.`;
       const tile = (v, label) => `<div class="tile"><b>${v}</b><span>${label}</span></div>`;
       $('worldTiles').innerHTML = tile(world.creatures.length, 'living') + tile(st.hatched, 'hatched') + tile(st.eggsLaid, 'eggs laid') + tile(st.matings, 'matings') +
         tile(st.meals, 'meals') + tile(st.poisonings, 'poisonings') + tile(st.wanderers, 'wanderers') + tile(deaths, 'deaths');
-      const causes = Object.entries(st.deaths).filter(([, v]) => v).map(([k, v]) => `${v} ${t.DEATH_WORDS[k] || k}`);
+      const causes = Object.entries(st.deaths).filter(([, v]) => v).map(([k, v]) => `${v} ${T.DEATH_WORDS[k] || k}`);
       $('deathBreakdown').textContent = (causes.length ? `Of the dead: ${causes.join(', ')}.` : 'No deaths yet.') + (st.refoundings ? ` Re-founded ${st.refoundings} times from proven breeders.` : '');
       const list = [...world.creatures].sort((a, b) => b.generation - a.generation || b.ageTicks - a.ageTicks);
       $('roster').innerHTML = list.map(c => {
         const need = c.topDrives(1)[0];
         return `<button class="member" data-creature="${c.id}" aria-current="${c === this.app.focus}">` +
           `<span class="sex-glyph" style="color:${sexColor(c.sex)}">${sexGlyph(c.sex)}</span>` +
-          `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(t.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
+          `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(T.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
           `<span class="meta">${need && need[1] > 0.2 ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
       }).join('') || '<p class="empty">Nobody lives here now.</p>';
       this.renderPopulation();
