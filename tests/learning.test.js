@@ -67,3 +67,61 @@ test('learning: a cue that comes before reward comes to predict it', (Evo, asser
   assert.ok(valueOf() > w0, `cue value synapses ${w0.toFixed(3)} -> ${valueOf().toFixed(3)}`);
   assert.ok(errors[29] < errors[0] * 0.6, `error at the reward: ${errors[0].toFixed(3)} first, ${errors[29].toFixed(3)} after 30 pairings`);
 });
+
+// Neuron A excites X and Y; X is made to fire just after A's spike arrives, Y is not. An outcome
+// on `channel` follows 30 ticks later. Returns the weight changes of A->X and A->Y.
+function creditTrial(Evo, channel, weight) {
+  const brain = founderBrain(Evo);
+  const field = brain.field[channel];
+  const plain = [...brain.lobes.cortex, ...brain.lobes.side, ...brain.lobes.central];
+  const [X, Y] = plain.slice().sort((a, b) => field[b] - field[a]);
+  const A = plain.find(i => i !== X && i !== Y);
+  for (const dst of [X, Y]) {
+    const old = brain.incoming(dst).find(s => brain.sSrc[s] === A);
+    if (old !== undefined) brain.removeSynapse(old);
+  }
+  const ax = brain.addSynapse(A, X, weight), ay = brain.addSynapse(A, Y, weight);
+  const drive = new Float32Array(brain.N), still = { noise: 0, arousal: 0, canFire: true };
+  for (let t = 0; t < 200; t++) brain.tick(drive, still);
+  const wx = brain.sW[ax], wy = brain.sW[ay];
+  brain.inject(A, 60, 1);
+  brain.inject(X, 60, brain.sDelay[ax] + 2);
+  for (let t = 0; t < 120; t++) {
+    brain.outcome[channel] = t >= 30 && t < 45 ? 0.5 : 0;
+    brain.tick(drive, still);
+  }
+  return { dx: brain.sW[ax] - wx, dy: brain.sW[ay] - wy, fieldX: field[X] };
+}
+
+test('learning: reward credits the synapse that made its target fire, not its neighbour', (Evo, assert) => {
+  const { dx, dy, fieldX } = creditTrial(Evo, 0, 0.3);
+  assert.ok(fieldX > 0.5, `the target sits in the reward cell's field (${fieldX.toFixed(2)})`);
+  assert.ok(dx > 0.02, `A->X grows: ${dx.toFixed(4)}`);
+  assert.ok(Math.abs(dy) < 0.1 * dx, `A->Y stays: ${dy.toFixed(4)}`);
+});
+
+test('learning: punishment weakens the synapse that made its target fire, not its neighbour', (Evo, assert) => {
+  const { dx, dy } = creditTrial(Evo, 1, 0.7);
+  // (Weakening is gentler: the soft bound scales it by how far the weight is from 0)
+  assert.ok(dx < -0.01, `A->X weakens: ${dx.toFixed(4)}`);
+  assert.ok(Math.abs(dy) < 0.1 * -dx, `A->Y stays: ${dy.toFixed(4)}`);
+});
+
+test('learning: a brain tick stays within its time budget', (Evo, assert) => {
+  // In a living world (16 creatures must run at 60 frames a second)
+  const world = new Evo.World();
+  const B = Evo.Brain.prototype, { tick, runMorphogenesis } = B;
+  let ns = 0n, ticks = 0;
+  B.tick = function (...a) { const t0 = process.hrtime.bigint(); const r = tick.apply(this, a); ns += process.hrtime.bigint() - t0; ticks++; return r; };
+  B.runMorphogenesis = function () { const t0 = process.hrtime.bigint(); runMorphogenesis.call(this); ns += process.hrtime.bigint() - t0; };
+  try {
+    for (let t = 0; t < 800; t++) {
+      if (t === 200) { ns = 0n; ticks = 0; }
+      world.step();
+    }
+  } finally {
+    Object.assign(B, { tick, runMorphogenesis });
+  }
+  const us = Number(ns) / 1000 / ticks;
+  assert.ok(us < 60, `${us.toFixed(1)} us per creature-tick`);
+});

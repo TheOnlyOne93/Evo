@@ -87,7 +87,7 @@
     { name: 'Plasticity', fields: [u('rate'), u('memory'), u('sprouting'), u('pruning')],
       express(v, d) {
         d.set('learningRate', 0.018 + v.rate * 0.045);
-        d.set('traceDecay', 0.88 + v.memory * 0.115); // Eligibility half-life from ~5 to ~140 ticks
+        d.set('traceDecay', 0.5 ** (1 / (14 * 10 ** v.memory))); // Eligibility half-life 14 to 140 ticks (0.95 to 0.995 per tick)
         d.set('sproutingThreshold', 3 + v.sprouting * 7);
         d.set('pruningRate', 0.02 + v.pruning * 0.03);
       },
@@ -203,7 +203,7 @@
       adultSize: F ? 40 : 38, legLength: 0.5, mouthReach: 8, crest: 0.5,
       visionRange: 300, opticGain: 1.0, nightVision: 0.3, noseReach: 26, scentGain: 1.0,
       baseThreshold: -52, tauLeak: 0.82, refractoryTicks: 2, membraneNoise: 0.35,
-      learningRate: 0.038, traceDecay: 0.94, sproutingThreshold: 6, pruningRate: 0.035,
+      learningRate: 0.038, traceDecay: 0.982, sproutingThreshold: 6, pruningRate: 0.035,
       joyGain: 1.45, stressGain: 1.85,
       walkSpeed: 1.3, jumpPower: 5, runBoost: 1.5,
       lifespanTicks: 30 * 60 * 60, gestationTicks: 5400,

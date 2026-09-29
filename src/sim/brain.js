@@ -32,6 +32,8 @@
   const GAMMA = 0.98;                // Temporal-difference discount per tick
   const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
   const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
+  const VALUE_RATE = 0.03;           // Step size of value (TD) learning
+  const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
@@ -112,6 +114,7 @@
       this.outcomeMean = new Float32Array(N_MOD); // The expected outcome: only a rise above it counts
       this.value = new Float32Array(N_MOD);       // What the value synapses currently predict
       this.delta = new Float32Array(N_MOD);       // Prediction error this tick
+      this.deltaSum = new Float32Array(N_MOD);    // …summed since the last weight update
       this.grownGenes = new Set(); // Guidance genes that have already grown their tracts
       this.buildNeurons();
       this.allocate();
@@ -227,7 +230,7 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
-      this.habit = f32(); this.signal = f32();
+      this.habit = f32();
       this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
       this.hist = new Uint32Array(N);
@@ -238,8 +241,9 @@
       // Synapses
       this.S = 0;
       this.sSrc = new Int32Array(S); this.sDst = new Int32Array(S); this.sW = new Float32Array(S);
-      this.sDelay = new Uint8Array(S); this.sElig = new Float32Array(S); this.sCue = new Float32Array(S); this.sX = new Float32Array(S);
-      this.sIdle = new Uint16Array(S); this.sBorn = new Int32Array(S); this.sFlags = new Uint8Array(S);
+      this.sDelay = new Uint8Array(S); this.sCue = new Float32Array(S); this.sX = new Float32Array(S);
+      this.sElig = new Float32Array(S); this.sEligAt = new Int32Array(S); // Eligibility as of tick sEligAt (it decays lazily)
+      this.sActive = new Int32Array(S); this.sBorn = new Int32Array(S); this.sFlags = new Uint8Array(S);
       this.keys = new Set();
       this.adjacencyDirty = true;
       // Display images of the learning signal, and each modulator's learning field
@@ -312,7 +316,8 @@
       const s = this.S++;
       this.sSrc[s] = src; this.sDst[s] = dst; this.sW[s] = weight;
       this.sDelay[s] = clamp(1 + Math.round(Math.hypot(a[0] - b[0], a[1] - b[1]) / conduction), 1, MAX_DELAY);
-      this.sElig[s] = 0; this.sCue[s] = 0; this.sX[s] = 0; this.sIdle[s] = 0; this.sBorn[s] = this.tickCount;
+      this.sElig[s] = 0; this.sEligAt[s] = this.tickCount; this.sCue[s] = 0; this.sX[s] = 0;
+      this.sActive[s] = this.tickCount; this.sBorn[s] = this.tickCount;
       const lobe = this.neurons[src].lobe;
       this.sFlags[s] = (sprouted ? SPROUTED : 0) | (weight < 0 ? INHIBITORY : 0) | (this.modulator[dst] >= 0 && (lobe === 'sight' || lobe === 'smell') ? CUE : 0);
       this.keys.add(key);
@@ -328,8 +333,9 @@
       const last = --this.S;
       if (s !== last) {
         this.sSrc[s] = this.sSrc[last]; this.sDst[s] = this.sDst[last]; this.sW[s] = this.sW[last];
-        this.sDelay[s] = this.sDelay[last]; this.sElig[s] = this.sElig[last]; this.sCue[s] = this.sCue[last]; this.sX[s] = this.sX[last];
-        this.sIdle[s] = this.sIdle[last]; this.sBorn[s] = this.sBorn[last]; this.sFlags[s] = this.sFlags[last];
+        this.sDelay[s] = this.sDelay[last]; this.sElig[s] = this.sElig[last]; this.sEligAt[s] = this.sEligAt[last];
+        this.sCue[s] = this.sCue[last]; this.sX[s] = this.sX[last];
+        this.sActive[s] = this.sActive[last]; this.sBorn[s] = this.sBorn[last]; this.sFlags[s] = this.sFlags[last];
       }
       this.adjacencyDirty = true;
     }
@@ -353,6 +359,15 @@
       this.outStart = start;
       this.outList = list;
       this.valueIn = value.map(v => Int32Array.from(v));
+      // Incoming plastic synapses per neuron: those that deliver current and don't come from a
+      // modulator cell (the modulators' own wiring stays as the genome built it)
+      const inStart = new Int32Array(N + 1);
+      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0 && modulator[sSrc[s]] < 0) inStart[sDst[s] + 1]++;
+      for (let i = 0; i < N; i++) inStart[i + 1] += inStart[i];
+      const inFill = inStart.slice(0, N), inList = new Int32Array(inStart[N]);
+      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0 && modulator[sSrc[s]] < 0) inList[inFill[sDst[s]]++] = s;
+      this.inStart = inStart;
+      this.inList = inList;
       this.adjacencyDirty = false;
       this.buildLearningFields();
     }
@@ -469,33 +484,31 @@
       for (let s = this.S - 1; s >= 0; s--) {
         if (!(this.sFlags[s] & SPROUTED)) continue;
         const w = Math.abs(this.sW[s]);
-        if ((w < T.pruningRate && this.sIdle[s] > 800) || (this.tickCount - this.sBorn[s] > 1500 && w < 0.14)) {
+        if ((w < T.pruningRate && this.tickCount - this.sActive[s] > 800) || (this.tickCount - this.sBorn[s] > 1500 && w < 0.14)) {
           this.removeSynapse(s);
           this.prunedCount++;
         }
       }
       // 2. Sprouting: an active neuron grows a short collateral toward its most depolarized neighbour
+      const { hist, rate, vShow, isSensory, posX, posY, N } = this;
       let best = -1, bestDst = -1, bestAffinity = 0;
-      for (const src of this.neurons) {
-        const si = src.index;
-        const spiked = this.hist[si] & 1;
-        if (!spiked && this.rate[si] <= 0.16) continue;
-        for (const dst of this.neurons) {
-          const di = dst.index;
-          if (this.isSensory[di] || di === si) continue;
-          const d = Math.hypot(src.pos[0] - dst.pos[0], src.pos[1] - dst.pos[1]);
-          if (d > 0.3) continue;
-          const depol = this.vShow[di] - V_REST;
-          if (depol <= T.sproutingThreshold || this.hasSynapse(si, di)) continue;
-          const affinity = depol * (spiked ? 2.0 : 1.0) * Math.exp(-((d / 0.2) ** 2));
-          if (affinity > bestAffinity) { bestAffinity = affinity; best = si; bestDst = di; }
+      for (let si = 0; si < N; si++) {
+        const spiked = hist[si] & 1;
+        if (!spiked && rate[si] <= 0.16) continue;
+        for (let di = 0; di < N; di++) {
+          const depol = vShow[di] - V_REST;
+          if (depol <= T.sproutingThreshold || isSensory[di] || di === si) continue;
+          const dx = posX[si] - posX[di], dy = posY[si] - posY[di], d2 = dx * dx + dy * dy;
+          if (d2 > 0.09) continue;
+          const affinity = depol * (spiked ? 2.0 : 1.0) * Math.exp(-d2 / 0.04);
+          if (affinity > bestAffinity && !this.hasSynapse(si, di)) { bestAffinity = affinity; best = si; bestDst = di; }
         }
       }
       this.scaleSynapses();
       if (best >= 0) {
         // Nascent spines are weak; reward-driven learning decides whether they grow up
         const s = this.addSynapse(best, bestDst, (0.05 + Evo.random() * 0.06) * (Evo.chance(0.7) ? 1 : -1), { sprouted: true, conduction: 0.10 });
-        if (s >= 0) { this.sElig[s] = 0.35; this.sproutedCount++; }
+        if (s >= 0) { this.sElig[s] = 0.35; this.sproutedCount++; } // (eligible as of now: addSynapse set sEligAt)
       }
       if (this.adjacencyDirty) this.rebuildAdjacency();
     }
@@ -579,12 +592,13 @@
       this.novelty = Math.min(1.0, (surprise / this.senseIndices.length) * T.noveltyGain);
 
       // 2. New spikes depart along their axons
-      const { sDst, sW, sDelay, outStart, outList } = this;
+      const { sDst, sW, sDelay, sActive, outStart, outList } = this;
       for (let i = 0; i < N; i++) {
         if (!(hist[i] & 1)) continue;
         for (let k = outStart[i], end = outStart[i + 1]; k < end; k++) {
           const s = outList[k];
           inbox[sDst[s] * SLOTS + (now + sDelay[s]) % SLOTS] += sW[s] * SYNAPTIC_GAIN;
+          sActive[s] = now;
         }
       }
 
@@ -600,7 +614,8 @@
 
     learn() {
       const T = this.traits;
-      const { hist, v, modulator, signal, field, sSrc, sDst, sW, sDelay, sElig, sCue, sX, sIdle, sFlags, S, N } = this;
+      const { hist, field, sSrc, sW, sDelay, sElig, sEligAt, sCue, sX, sActive, sFlags, N } = this;
+      const now = this.tickCount;
 
       // 1. Reward prediction errors. Each modulator channel's value V is what its value synapses
       // currently predict; its outcome counts only as far as it rises above what has lately been
@@ -608,6 +623,12 @@
       // prediction - old prediction: a cue that reliably comes before food is good news in itself, a
       // meal that was fully expected teaches little, and a cue that stops paying off fades.
       const lambda = T.traceDecay;
+      if (lambda !== this.decayOf) {
+        // Powers of the trace decay, for eligibility that decays lazily
+        this.decayOf = lambda;
+        this.decayPow = Float32Array.from({ length: 1024 }, (_, k) => lambda ** k);
+      }
+      const decayPow = this.decayPow;
       for (let c = 0; c < N_MOD; c++) {
         const O = this.outcome[c], mean = this.outcomeMean[c];
         const r = O > mean ? O - mean : 0;
@@ -616,54 +637,67 @@
         let V = 0;
         for (let k = 0; k < list.length; k++) {
           const s = list[k];
-          sX[s] = sX[s] * 0.7 + (((hist[sSrc[s]] >>> sDelay[s]) & 3) ? 0.3 : 0); // Input in the last two ticks (senses pulse every other tick), smoothed
+          const arrived = (hist[sSrc[s]] >>> sDelay[s]) & 3;
+          if (arrived & 1) sActive[s] = now;
+          sX[s] = sX[s] * 0.7 + (arrived ? 0.3 : 0); // Input in the last two ticks (senses pulse every other tick), smoothed
           V += sW[s] * sX[s];
         }
         if (V < 0) V = 0;
         const d = clamp(r + GAMMA * V - this.value[c], -1, 1);
         this.value[c] = V;
         this.delta[c] = d;
+        this.deltaSum[c] += d;
         // TD(λ): the error credits the inputs that made the previous prediction (their trace, before
         // this tick's input joins it), so a cue's own onset doesn't reinforce itself
         for (let k = 0; k < list.length; k++) {
           const s = list[k];
           // Plain (not soft-bounded) steps: TD needs increases and decreases to weigh the same
-          if (d !== 0 && sCue[s] > 1e-4) sW[s] = hardBounded(sW[s], 0.004 * d * sCue[s], sFlags[s] & INHIBITORY);
-          sCue[s] = sCue[s] * lambda + sX[s];
+          if (d !== 0 && sCue[s] > 1e-4) sW[s] = hardBounded(sW[s], VALUE_RATE * d * sCue[s], sFlags[s] & INHIBITORY);
+          sCue[s] = sCue[s] * lambda + (1 - lambda) * sX[s]; // A running average of the input
         }
         // A positive error makes the modulator cell fire (on the next tick)
         if (d > 0) this.inject(this.modulatorCells[c], ERROR_DRIVE * d, 1);
       }
 
-      // 2. The learning signal at each neuron: each channel's error, weighted by that channel's
-      // learning field and the creature's sensitivity genes. Shown in the display images.
-      const dR = this.delta[0] * T.joyGain, dP = this.delta[1] * T.stressGain, FR = field[0], FP = field[1];
-      const [imgR, imgP, imgN] = this.chem, cell = this.cell;
-      for (let k = 0; k < imgR.length; k++) { imgR[k] *= 0.9; imgP[k] *= 0.9; imgN[k] *= 0.9; }
+      // 3. Eligibility, event-driven and causal: when a neuron fires, each input that arrived in the
+      // few ticks before (delay-matched: the axon's own delay) becomes eligible. It then decays with
+      // the memory gene's half-life, computed lazily from the tick it was last touched.
+      const { inStart, inList } = this;
       for (let i = 0; i < N; i++) {
-        const m = dR * FR[i] - dP * FP[i];
-        signal[i] = m;
-        if (m > 0) imgR[cell[i]] += m; else imgP[cell[i]] -= m;
+        if (!(hist[i] & 1)) continue;
+        for (let k = inStart[i], end = inStart[i + 1]; k < end; k++) {
+          const s = inList[k];
+          if (!((hist[sSrc[s]] >>> sDelay[s]) & 0xF)) continue;
+          const age = now - sEligAt[s];
+          const e = sElig[s] * (age < 1024 ? decayPow[age] : 0) + 1;
+          sElig[s] = e > ELIG_MAX ? ELIG_MAX : e;
+          sEligAt[s] = now;
+        }
       }
 
-      // 3. Three-factor plasticity: Hebbian eligibility × the learning signal at the synapse's
-      // target. The modulatory cells' own inputs (value synapses, above) and outputs stay as the
-      // genome built them, so a brain can't talk itself into reward.
-      const eta = T.learningRate * 0.05, decay = T.traceDecay;
-      for (let s = 0; s < S; s++) {
-        const src = sSrc[s], dst = sDst[s];
-        const arrived = (hist[src] >>> sDelay[s]) & 0xF, post = hist[dst] & 1;
-        if ((arrived & 1) || post) sIdle[s] = 0; else if (sIdle[s] < 65535) sIdle[s]++;
-        let e = sElig[s];
-        // Causal: only input that arrived in the few ticks before the target fired gets credit
-        if (post && arrived) e += 1;
-        e *= decay;
-        if (e > ELIG_MAX) e = ELIG_MAX; // Traces saturate: steady co-activity doesn't make a synapse hypersensitive
-        sElig[s] = e < 0.0001 ? 0 : e;
-        if (modulator[dst] >= 0 || modulator[src] >= 0) continue;
-        const sig = signal[dst];
-        if (sig === 0 || e <= 0.0001) continue;
-        sW[s] = softBounded(sW[s], eta * e * sig, sFlags[s] & INHIBITORY);
+      // 4. Three-factor plasticity every few ticks. The learning signal at each neuron is each
+      // channel's summed error, weighted by that channel's learning field there and by the
+      // sensitivity genes: eligibility × signal at the synapse's target. Skipped when nothing happened.
+      if (now % LEARN_EVERY) return;
+      const sumR = this.deltaSum[0] * T.joyGain, sumP = this.deltaSum[1] * T.stressGain, FR = field[0], FP = field[1];
+      this.deltaSum.fill(0);
+      // The display images: where the signal is now
+      const [imgR, imgP, imgN] = this.chem, cell = this.cell, fade = 0.9 ** LEARN_EVERY;
+      for (let k = 0; k < imgR.length; k++) { imgR[k] *= fade; imgP[k] *= fade; imgN[k] *= fade; }
+      if (Math.abs(sumR) + Math.abs(sumP) < 1e-3) return;
+      const eta = 0.25 * T.learningRate;
+      for (let i = 0; i < N; i++) {
+        const m = sumR * FR[i] - sumP * FP[i];
+        if (m > 0) imgR[cell[i]] += m; else imgP[cell[i]] -= m;
+        if (m > -1e-4 && m < 1e-4) continue;
+        for (let k = inStart[i], end = inStart[i + 1]; k < end; k++) {
+          const s = inList[k];
+          if (sElig[s] === 0) continue;
+          const age = now - sEligAt[s];
+          if (age >= 1024) { sElig[s] = 0; continue; }
+          const e = sElig[s] * decayPow[age];
+          if (e > 1e-3) sW[s] = softBounded(sW[s], eta * m * e, sFlags[s] & INHIBITORY);
+        }
       }
     }
   }
