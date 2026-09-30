@@ -119,7 +119,9 @@
   const CLOUD_COUNT = 10;                // cloud shapes made
   const CLOUDS_BY_SEASON = [7, 5, 9, 9]; // clouds in the sky, by season
   const STAR_COUNT = 170;                // stars in the night sky
-  const LUNAR_DAYS = 8;                  // days in the moon's cycle of phases; equals a year (4 seasons × 2 days): an open question
+  // Days in the moon's cycle of phases. A day short of a year (8 days), so the moon drifts against
+  // the seasons: the full moon comes a night earlier each year, and the same night again after 7 years
+  const LUNAR_DAYS = 7;
   // Sun elevations between which night, day and the stars fade in (smoothstep edges)
   const NIGHT_FADE = [-0.04, -0.28], DAY_FADE = [0.02, 0.3], STARS_FADE = [-0.03, -0.24];
 
