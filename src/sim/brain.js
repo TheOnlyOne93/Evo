@@ -46,6 +46,41 @@
   const SEIZURE_SHARE = 0.25, SEIZURE_TICKS = 3, SEIZURE_BRAKE = 10; // See tick()
   const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
   const EPISODES = 8;                // Remembered moments of surprise, replayed in sleep
+  const EPISODE_GAP = 20, EPISODE_INPUTS = 24; // Fewest ticks between remembered episodes; most senses one keeps
+
+  // Axon conduction speed (distance per tick) of wiring no guidance gene sets
+  const CONDUCTION = { default: 0.12, inRegister: 0.3, local: 0.10, sprout: 0.10 };
+
+  // Per-lobe neuron parameters (initNeurons). tau: membrane leak per tick; adaptInc: adaptation per
+  // spike; adaptKeep: share of adaptation kept per tick (Lobe dynamics genes override it);
+  // thrDrop: how far homeostasis may lower the threshold. Central tau comes from the genome.
+  const NEURON = {
+    rate: 0.12, adaptKeep: 0.95,     // Every neuron's starting rate and set point, and adaptation fade
+    sensory: { thrBelow: 3.0, tau: 0.78, adaptInc: 0.12, adaptKeep: 0.996 }, // The needs cells don't adapt
+    motor: { tau: 0.85, adaptInc: 0.3, targetRate: 0.004, thrDrop: 3 },
+    central: { adaptInc: 0.15, thrDrop: 14 },
+    modulatorAdaptInc: 0.8
+  };
+
+  // Dreams (sleepStep). Timings are ticks since the dream began; injections are mV.
+  const DREAM = {
+    startChance: 1 / 150,            // Chance per sleeping tick that a dream starts
+    length: 40,
+    episode: { inputsUntil: 20, motorFrom: 8, motorUntil: 20, outcomeAt: 18, inputMV: 25, motorMV: 40 },
+    instinct: { inputsUntil: 30, motorFrom: 10, motorUntil: 30, chemAt: 26, inputMV: 35, motorMV: 45 }
+  };
+
+  // Morphogenesis. The tick windows assume it runs every MORPHOGENESIS_EVERY ticks.
+  const PRUNE = { idle: 800, trial: 1500, keepWeight: 0.14 }; // A weak sprout idle this long dies; so does one below keepWeight after its trial
+  const SPROUT = {
+    minRate: 0.16,                   // A source that didn't just spike must fire faster than this
+    maxDist2: 0.09, spread: 0.04,    // Squared reach, and the squared distance over which affinity falls by e
+    spikedAffinity: 2.0, affinity: 1.0,
+    weight: 0.05, weightRange: 0.06, excitatory: 0.7, elig: 0.35 // Nascent weight, chance it excites, starting eligibility
+  };
+  // Synaptic scaling: over targetRate * overBy + overMargin (at the threshold ceiling) scales down;
+  // under targetRate * underBy scales up, for synapses weaker than upBelow
+  const SCALING = { overBy: 4, overMargin: 0.05, down: 0.95, underBy: 0.2, upBelow: 0.45, up: 1.01 };
 
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
@@ -307,30 +342,32 @@
         const sensory = SENSORY_LOBES.includes(n.lobe);
         this.isSensory[i] = sensory ? 1 : 0;
         this.v[i] = V_REST; this.vShow[i] = V_REST;
-        this.rate[i] = 0.12; this.targetRate[i] = 0.12;
+        this.rate[i] = NEURON.rate; this.targetRate[i] = NEURON.rate;
         this.posX[i] = n.pos[0]; this.posY[i] = n.pos[1];
         this.cell[i] = clamp(Math.floor(n.pos[1] * CHEM_SIZE), 0, CHEM_SIZE - 1) * CHEM_SIZE + clamp(Math.floor(n.pos[0] * CHEM_SIZE), 0, CHEM_SIZE - 1);
-        this.adaptKeep[i] = 0.95;
+        this.adaptKeep[i] = NEURON.adaptKeep;
         if (sensory) {
-          this.thr[i] = T.baseThreshold - 3.0;
-          this.tau[i] = 0.78;
+          const P = NEURON.sensory;
+          this.thr[i] = T.baseThreshold - P.thrBelow;
+          this.tau[i] = P.tau;
           this.fast[i] = 1;
           // Receptors adapt slowly to a constant stimulus, so what is unchanging fades and what is new stands out
-          if (n.lobe !== 'needs') { this.adaptInc[i] = 0.12; this.adaptKeep[i] = 0.996; }
+          if (n.lobe !== 'needs') { this.adaptInc[i] = P.adaptInc; this.adaptKeep[i] = P.adaptKeep; }
         } else {
           // The genome's membrane gene (threshold, leak, refractory) applies to central neurons. Muscles
-          // use a fixed leak (tau 0.85) and are fast, so they ignore the leak and refractory genes.
+          // use a fixed leak and are fast, so they ignore the leak and refractory genes.
+          const motor = n.lobe === 'motor', P = motor ? NEURON.motor : NEURON.central;
           this.thr[i] = T.baseThreshold;
-          this.tau[i] = n.lobe === 'motor' ? 0.85 : T.tauLeak;
+          this.tau[i] = motor ? P.tau : T.tauLeak;
           this.homeo[i] = 1;
-          this.adaptInc[i] = n.lobe === 'motor' ? 0.3 : 0.15; // A muscle that keeps working tires (Lobe dynamics set how slowly)
+          this.adaptInc[i] = P.adaptInc; // A muscle that keeps working tires (Lobe dynamics set how slowly)
           // Muscles are mostly quiet unless driven: a low set point keeps them excitable (so the
           // creature fidgets, explores and babbles) without acting all the time
-          if (n.lobe === 'motor') this.targetRate[i] = 0.004;
+          if (motor) this.targetRate[i] = P.targetRate;
           // …and disuse makes a muscle only slightly twitchier, so a weak input alone never becomes an action
-          this.thrDrop[i] = n.lobe === 'motor' ? 3 : 14;
+          this.thrDrop[i] = P.thrDrop;
           this.refrPeriod[i] = T.refractoryTicks; // develop() rounds it to 1..3
-          this.fast[i] = n.lobe === 'motor' ? 1 : 0;
+          this.fast[i] = motor ? 1 : 0;
         }
         this.thrBase[i] = this.thr[i];
       }
@@ -338,7 +375,7 @@
       // They fire only on a positive error (better than expected for reward, worse for punishment),
       // so they don't tune toward tonic firing, and like real dopamine cells they adapt quickly.
       this.modulatorCells = this.lobes.feelings.slice(0, N_MOD);
-      this.modulatorCells.forEach((i, c) => { this.modulator[i] = c; this.homeo[i] = 0; this.adaptInc[i] = 0.8; });
+      this.modulatorCells.forEach((i, c) => { this.modulator[i] = c; this.homeo[i] = 0; this.adaptInc[i] = NEURON.modulatorAdaptInc; });
 
       // Pacemaker genes give a whole lobe a steady depolarizing current (spontaneous activity),
       // and raise the lobe's homeostatic set point so homeostasis doesn't simply cancel it
@@ -434,7 +471,7 @@
     }
 
     // ---------- Synapses: the only way they are made or removed ----------
-    addSynapse(src, dst, weight, { sprouted = false, cap = LIMITS.SYNAPSE_CAP, conduction = 0.12 } = {}) {
+    addSynapse(src, dst, weight, { sprouted = false, cap = LIMITS.SYNAPSE_CAP, conduction = CONDUCTION.default } = {}) {
       const key = synapseKey(src, dst);
       if (this.keys.has(key) || this.S >= cap || src === dst) return -1;
       const a = this.neurons[src].pos, b = this.neurons[dst].pos;
@@ -542,7 +579,7 @@
       // A fresh duplicate is wired in register: each original neuron feeds its own copy
       if (atBirth) {
         for (const lobe of this.duplicateLobes) {
-          for (const i of this.lobes[lobe]) this.addSynapse(neurons[i].copyOf, i, neurons[i].copyWeight, { cap: budget, conduction: 0.3 });
+          for (const i of this.lobes[lobe]) this.addSynapse(neurons[i].copyOf, i, neurons[i].copyWeight, { cap: budget, conduction: CONDUCTION.inRegister });
         }
       }
 
@@ -568,7 +605,7 @@
             if (s === d) continue;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
             if (Evo.chance(0.03 * Math.exp(-((dist / 0.18) ** 2)))) {
-              this.addSynapse(s.index, d.index, (Evo.random() - 0.5) * 0.25, { cap: budget + LIMITS.BACKGROUND_WIRING_EXTRA, conduction: 0.10 });
+              this.addSynapse(s.index, d.index, (Evo.random() - 0.5) * 0.25, { cap: budget + LIMITS.BACKGROUND_WIRING_EXTRA, conduction: CONDUCTION.local });
             }
           }
         }
@@ -612,7 +649,7 @@
       for (let s = this.S - 1; s >= 0; s--) {
         if (!(this.sFlags[s] & SPROUTED)) continue;
         const w = Math.abs(this.sW[s]);
-        if ((w < T.pruningRate && this.tickCount - this.sActive[s] > 800) || (this.tickCount - this.sBorn[s] > 1500 && w < 0.14)) {
+        if ((w < T.pruningRate && this.tickCount - this.sActive[s] > PRUNE.idle) || (this.tickCount - this.sBorn[s] > PRUNE.trial && w < PRUNE.keepWeight)) {
           this.removeSynapse(s);
           this.prunedCount++;
         }
@@ -624,21 +661,22 @@
       let best = -1, bestDst = -1, bestAffinity = 0;
       for (let si = 0; si < N; si++) {
         const spiked = hist[si] & 1;
-        if (!spiked && rate[si] <= 0.16) continue;
+        if (!spiked && rate[si] <= SPROUT.minRate) continue;
         for (let di = 0; di < N; di++) {
           const depol = vShow[di] - V_REST;
           if (depol <= T.sproutingThreshold || isSensory[di] || di === si) continue;
           const dx = posX[si] - posX[di], dy = posY[si] - posY[di], d2 = dx * dx + dy * dy;
-          if (d2 > 0.09) continue;
-          const affinity = depol * (spiked ? 2.0 : 1.0) * Math.exp(-d2 / 0.04);
+          if (d2 > SPROUT.maxDist2) continue;
+          const affinity = depol * (spiked ? SPROUT.spikedAffinity : SPROUT.affinity) * Math.exp(-d2 / SPROUT.spread);
           if (affinity > bestAffinity && !this.hasSynapse(si, di)) { bestAffinity = affinity; best = si; bestDst = di; }
         }
       }
       this.scaleSynapses();
       if (best >= 0) {
         // Nascent spines are weak; reward-driven learning decides whether they grow up
-        const s = this.addSynapse(best, bestDst, (0.05 + Evo.random() * 0.06) * (Evo.chance(0.7) ? 1 : -1), { sprouted: true, conduction: 0.10 });
-        if (s >= 0) { this.sElig[s] = 0.35; this.sproutedCount++; } // (eligible as of now: addSynapse set sEligAt)
+        const s = this.addSynapse(best, bestDst, (SPROUT.weight + Evo.random() * SPROUT.weightRange) * (Evo.chance(SPROUT.excitatory) ? 1 : -1),
+          { sprouted: true, conduction: CONDUCTION.sprout });
+        if (s >= 0) { this.sElig[s] = SPROUT.elig; this.sproutedCount++; } // (eligible as of now: addSynapse set sEligAt)
       }
       if (this.adjacencyDirty) this.rebuildAdjacency();
     }
@@ -651,8 +689,8 @@
       for (let s = 0; s < this.S; s++) {
         const d = sDst[s];
         if (isSensory[d] || modulator[d] >= 0 || sW[s] <= 0) continue;
-        if (rate[d] > targetRate[d] * 4 + 0.05 && thr[d] >= thrBase[d] + THR_AT_CEILING) sW[s] *= 0.95;
-        else if (rate[d] < targetRate[d] * 0.2 && sW[s] < 0.45) sW[s] *= 1.01;
+        if (rate[d] > targetRate[d] * SCALING.overBy + SCALING.overMargin && thr[d] >= thrBase[d] + THR_AT_CEILING) sW[s] *= SCALING.down;
+        else if (rate[d] < targetRate[d] * SCALING.underBy && sW[s] < SCALING.upBelow) sW[s] *= SCALING.up;
       }
     }
 
@@ -732,17 +770,17 @@
     }
 
     // A surprise worth dreaming about (value: + good, - bad): the senses active just then and the
-    // action under way. At most one every 20 ticks; the oldest is forgotten.
+    // action under way. At most one every EPISODE_GAP ticks; the oldest is forgotten.
     rememberEpisode(value) {
       const now = this.tickCount, last = this.episodes[this.episodes.length - 1];
-      if (last && now - last.tick < 20) return;
+      if (last && now - last.tick < EPISODE_GAP) return;
       const { rate, isSensory, modulator } = this;
       const inputs = [];
       for (let i = 0; i < this.N; i++) if (isSensory[i] && modulator[i] < 0 && rate[i] > 0.05) inputs.push(i);
       inputs.sort((a, b) => rate[b] - rate[a]);
       let motor = -1, most = 0.01;
       for (const i of this.lobes.motor) if (rate[i] > most) { most = rate[i]; motor = i; }
-      this.episodes.push({ inputs: inputs.slice(0, 24), motor, value: clamp(value, -1, 1), tick: now });
+      this.episodes.push({ inputs: inputs.slice(0, EPISODE_INPUTS), motor, value: clamp(value, -1, 1), tick: now });
       if (this.episodes.length > EPISODES) this.episodes.shift();
     }
 
@@ -752,7 +790,7 @@
     // biochemistry). The ordinary learning rule does the rest.
     sleepStep(instincts, chem) {
       if (!this.dream) {
-        if (Evo.chance(1 / 150)) {
+        if (Evo.chance(DREAM.startChance)) {
           if (this.episodes.length && Evo.chance(0.5)) this.dream = { episode: Evo.pick(this.episodes), t: 0 };
           else if (instincts.length) this.dream = { instinct: Evo.pick(instincts), t: 0 };
         }
@@ -760,25 +798,27 @@
       }
       const d = this.dream, t = d.t;
       if (d.episode) {
-        const { inputs, motor, value } = d.episode;
-        if (t < 20) for (const i of inputs) this.inject(i, 25, 1);
-        if (t >= 8 && t < 20 && motor >= 0) this.inject(motor, 40, 1);
-        if (t === 18) this.replayOutcome[value > 0 ? 0 : 1] += 0.5 * Math.abs(value);
+        const { inputs, motor, value } = d.episode, E = DREAM.episode;
+        if (t < E.inputsUntil) for (const i of inputs) this.inject(i, E.inputMV, 1);
+        if (t >= E.motorFrom && t < E.motorUntil && motor >= 0) this.inject(motor, E.motorMV, 1);
+        if (t === E.outcomeAt) this.replayOutcome[value > 0 ? 0 : 1] += 0.5 * Math.abs(value);
       } else {
-        const inst = d.instinct;
-        const neuronOf = (lobeIdx, index) => {
-          const lobe = this.lobes[LOBE_ORDER[lobeIdx]];
-          return index < lobe.length ? lobe[index] : -1;
-        };
-        if (t < 30) {
-          const a = neuronOf(inst.lobeA, inst.indexA), b = neuronOf(inst.lobeB, inst.indexB);
-          if (a >= 0) this.inject(a, 35, 1);
-          if (b >= 0) this.inject(b, 35, 1);
+        const inst = d.instinct, I = DREAM.instinct;
+        if (t < I.inputsUntil) {
+          const a = this.lobeCell(inst.lobeA, inst.indexA), b = this.lobeCell(inst.lobeB, inst.indexB);
+          if (a >= 0) this.inject(a, I.inputMV, 1);
+          if (b >= 0) this.inject(b, I.inputMV, 1);
         }
-        if (t >= 10 && t < 30) this.inject(this.lobes.motor[inst.motor % MOTORS.length], 45, 1);
-        if (t === 26 && inst.chem) chem.c[inst.chem] = Math.min(1, chem.c[inst.chem] + inst.amount);
+        if (t >= I.motorFrom && t < I.motorUntil) this.inject(this.lobes.motor[inst.motor % MOTORS.length], I.motorMV, 1);
+        if (t === I.chemAt && inst.chem) chem.c[inst.chem] = Math.min(1, chem.c[inst.chem] + inst.amount);
       }
-      if (++d.t >= 40) this.dream = null;
+      if (++d.t >= DREAM.length) this.dream = null;
+    }
+
+    // The neuron that is cell index of lobe LOBE_ORDER[lobeIdx], or -1 if the lobe has fewer cells
+    lobeCell(lobeIdx, index) {
+      const lobe = this.lobes[LOBE_ORDER[lobeIdx]];
+      return index < lobe.length ? lobe[index] : -1;
     }
 
     // Deliver mV of input to neuron i, arriving delayTicks ticks from now (1 = on the next tick)
