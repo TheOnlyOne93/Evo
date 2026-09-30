@@ -24,10 +24,10 @@
       else if (k === 'f') app.toggleFollow();
       else if (k === 'Escape') app.setTool('grab');
       else if (k >= '1' && k <= String(app.SPEEDS.length)) app.setSpeed(app.SPEEDS[+k - 1]);
-      else if (k === 'Tab' && world.creatures.length) {
-        e.preventDefault();
-        const i = world.creatures.indexOf(app.focus);
-        app.select(world.creatures[(i + (e.shiftKey ? world.creatures.length - 1 : 1)) % world.creatures.length]);
+      // [ and ] step through the creatures (Tab stays with the browser, for moving between controls)
+      else if ((k === '[' || k === ']') && world.creatures.length) {
+        const n = world.creatures.length, i = world.creatures.indexOf(app.focus);
+        app.select(world.creatures[k === ']' ? (i + 1) % n : (i < 0 ? n - 1 : (i + n - 1) % n)]);
       }
     });
   };

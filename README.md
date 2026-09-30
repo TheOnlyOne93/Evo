@@ -22,9 +22,9 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 * Zoom: mouse wheel or two-finger pinch. **Sound** (top right) turns the sound on or off, and
   **Scent** (beside the speed buttons) shows the scents in the air. **Skip to the next season** is
   in the Inside view's World tab.
-* Keys: arrows / WASD pan, `+` `−` zoom, `0` reset zoom, `F` follow, `Tab` next creature,
-  `Shift+Tab` previous creature, `Space` pause, `.` step one tick while paused, `1`–`4` speed,
-  `Esc` back to the hand.
+* Keys: arrows / WASD pan, `+` `−` zoom, `0` reset zoom, `F` follow, `]` next creature,
+  `[` previous creature, `Space` pause, `.` step one tick while paused, `1`–`4` speed,
+  `Esc` back to the hand. `Tab` moves between the buttons as usual.
 
 ## Tests and tools
 
