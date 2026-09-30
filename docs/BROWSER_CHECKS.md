@@ -63,7 +63,7 @@ season index 0–3.
 * `dev/world-lab.html`: the game's world drawn by the game's `WorldView`, with controls for the
   time of day, speed (❚❚, 1×, 4×, 20×, 120×), season, overlays, following, fitting the view, and the
   hand (grab, tickle, slap). Keys: arrows or WASD pan, `+` `-` zoom, `f` follows, Space pauses, and
-  `1`–`4` pick the **season** (in the game they pick the speed). URL options (`dev/world-lab.js`
+  `1`–`4` pick the season. URL options (`dev/world-lab.js`
   lists them): `?seed=11&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1`. `window.lab`
   is there for scripted checks: `world`, `view`, `state`, `hand`, `clock`, `focus`, `refresh`,
   `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n = 600)` (a promise of

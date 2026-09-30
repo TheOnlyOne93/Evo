@@ -28,20 +28,18 @@ Each row of `Evo.GENES` decodes its payload bytes (`fields`, one codec per byte)
 | | Voice | Pitch, loudness |
 | | Insulation | Fur, body heat |
 | | Reproduction | How full a mother fills an egg; how long an egg of this genome incubates (3000–9000 ticks) |
-| brain | Membrane\* | Firing threshold; leak and refractory period of the interior neurons |
+| brain | Membrane | Firing threshold; leak and refractory period of the interior neurons |
 | | Plasticity | Learning rate, eligibility half-life (14–140 ticks), sprouting threshold, pruning |
 | | Reinforcement | Sensitivity to reward and to punishment |
 | | Curiosity | How fast a look becomes familiar, how strongly novelty registers |
-| | Anatomy\* | A region's position, width, depth and cell count |
-| | Region duplication\* | A copy of a region |
+| | Anatomy | A region's position, width, depth and cell count |
+| | Region duplication | A copy of a region |
 | | Axon guidance | A tract: the source region (and a window on it), the receptor chemistry sought, sign and strength, reach, conduction speed |
 | | Pacemaker | A steady current into a region |
-| | Neurochemistry\* | How far a modulator's learning signal spreads |
-| | Lobe dynamics\* | Competition and persistence within a region or one of its copies |
+| | Neurochemistry | How far a modulator's learning signal spreads |
+| | Lobe dynamics | Competition and persistence within a region or one of its copies |
 | chemistry | Reaction, Emitter, Receptor, Half-life, Initial concentration, Stimulus | See [BIOCHEMISTRY.md](BIOCHEMISTRY.md) |
 | instinct | Instinct | Two input cells, a muscle, and a chemical with an amount: replayed in dreams ([BRAIN.md](BRAIN.md)) |
-
-\* Marked `birthOnly`: the brain is meant to read these only when it is built, and the Genes tab says a later copy has no effect. That holds for four of them. It does not yet hold for Neurochemistry: a copy that switches on later changes the learning field the next time the modulator's axon terminals change.
 
 Several copies of a trait gene average their values. Genes that add to a list (tracts, reactions, emitters, instincts…) each add an entry. For Half-life the last copy wins, and for Lobe dynamics the last one for each region.
 

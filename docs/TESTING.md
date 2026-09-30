@@ -52,6 +52,6 @@ The `memory:` and `cost:` reports need about 12 seeds to settle.
 
 ## CI and lint
 
-`.github/workflows/test.yml` runs on pushes to `main` and on pull requests (Node 24): `node tests/run.js` and `npx --yes eslint@10 .`. It does not run the fingerprint.
+`.github/workflows/test.yml` runs on pushes to `main` and on pull requests (Node 24): `node tests/run.js` and `npx --yes eslint@10 .`.
 
 `eslint.config.js` is a flat config for plain ES2022 scripts: `src/` and `dev/` get browser globals and a writable `Evo`, `tests/` and `tools/` Node globals and `test`. Undefined names, redeclarations, duplicate keys, unreachable code and bad assignments are errors; unused variables only warn.
