@@ -54,7 +54,7 @@
     const hand = new Evo.HandController(canvas, view, world, {
       getTool: () => app.tool,
       onSelect: (c, keep) => app.select(c, keep),
-      onPan: () => { if (app.following) { app.following = false; app.syncFollow(); } },
+      onPan: app.stopFollowing,
       onRelease: () => view.follow(app.following ? app.focus : null),
       onDrop: app.dropTool,
       // Wall ms one tick takes at the speed actually achieved; 0 while paused (nothing moves in sim time)

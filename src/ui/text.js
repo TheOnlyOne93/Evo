@@ -2,6 +2,7 @@
 // technical names). Pure functions, no page access: tests load this file in Node.
 (function (Evo) {
   'use strict';
+  const { clamp } = Evo.util;
   const { LOBE_INFO, VISION_FEATURES, SCENTS, STAGES, CHEMICALS, MOTORS, TRAIT_RANGES: R } = Evo;
 
   const SIDE = { L: 'left', R: 'right' };
@@ -168,11 +169,16 @@
     const s = ticks / Evo.TICKS_PER_SECOND;
     return s < 1 ? 'under a second' : s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
   };
+  // How long ago, for an event: 'just now', '5 s ago'
+  const ago = ticks => {
+    const s = seconds(ticks);
+    return s === 'under a second' ? 'just now' : s + ' ago';
+  };
   const num = (v, d = 2) => (Math.abs(v) >= 100 ? Math.round(v) : Number(v.toFixed(d)));
   const percent = x => `${Math.round(x * 100)}%`;   // A 0..1 fraction as a percentage
   const signed = (v, d = 2) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(d)}`;
   // A value on a scale lo..hi as one of a few words (low to high)
-  const level = (v, lo, hi, names) => names[Math.max(0, Math.min(names.length - 1, Math.floor((v - lo) / (hi - lo) * names.length)))];
+  const level = (v, lo, hi, names) => names[clamp(Math.floor((v - lo) / (hi - lo) * names.length), 0, names.length - 1)];
   // A trait on its range (genome.js TRAIT_RANGES) as one of a few words
   const graded = (v, range, names) => level(v, range.lo, range.hi, names);
   // How a region's cells work together (Lobe dynamics), in words: { compete, persist }
@@ -465,7 +471,7 @@
 
   Evo.text = {
     lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, capitalize,
-    describeGene, describeInstinct, seconds, signed, level, dynamicsWords, GENE_KINDS,
+    describeGene, describeInstinct, seconds, ago, signed, level, dynamicsWords, GENE_KINDS,
     geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, SIDE, whereSeen, STIMULUS_PAST
   };

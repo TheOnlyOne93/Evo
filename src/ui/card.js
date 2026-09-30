@@ -53,6 +53,8 @@
       app.view.follow(app.following ? app.focus : null);
       app.syncFollow();
     };
+    // Called when the player pans away
+    app.stopFollowing = () => { if (app.following) { app.following = false; app.syncFollow(); } };
     $('followBtn').addEventListener('click', app.toggleFollow);
 
     const chip = (cls, icon, text, title = text) =>
@@ -71,19 +73,19 @@
       if (force) {
         $('cardSex').textContent = H.sexGlyph(c.sex);
         $('cardSex').style.color = H.sexColor(c.sex);
-        $('cardSex').title = c.sex === 'FEMALE' ? 'Female' : 'Male';
+        $('cardSex').title = H.sexWord(c.sex);
         $('cardName').textContent = c.name;
       }
       $('cardSub').textContent = `${Evo.STAGES[c.stage].word} · gen ${c.generation} · ${t.clock(c.ageTicks)} old`;
       $('cardDoing').textContent = doing(c, world);
       const needs = c.dead ? [] : Evo.needsOf(c, 3);
       H.setHtml($('cardNeeds'), needs.length
-        ? needs.map(n => chip(n.level > 0.6 ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percentOf(n.level)}%`)).join('')
+        ? needs.map(n => chip(n.level > 0.6 ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percent(n.level)}`)).join('')
         : c.dead ? '' : chip('need calm', '🙂', 'No pressing needs'));
       const now = world.clock.tick, recent = view.cues.recent(c).filter(e => now - e.tick < EVENT_SHOWN_S * Evo.TICKS_PER_SECOND);
       H.setHtml($('cardEvents'), recent.map(e => {
-        const look = Evo.EVENT_LOOK[e.key], ago = t.seconds(now - e.tick);
-        return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago === 'under a second' ? 'just now' : ago + ' ago'}`);
+        const look = Evo.EVENT_LOOK[e.key], ago = t.ago(now - e.tick);
+        return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago}`);
       }).join(''));
       const drives = c.topDrives(3).filter(([, v]) => v > 0.02);
       $('cardDrives').innerHTML = H.bar('Health', c.health, 'var(--protein)') +
@@ -93,12 +95,7 @@
     app.drawPortrait = t => {
       const c = app.focus, ctx = portraitCtx, { width: w, height: h } = portraitSize;
       ctx.clearRect(0, 0, w, h);
-      if (!c || !Evo.CreatureArt) return;
-      try {
-        ctx.save();
-        Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), w, h, t);
-        ctx.restore();
-      } catch (e) { ctx.restore(); }
+      if (c) H.drawCreatureFace(ctx, app.view, c, w, h, t);
     };
   };
 })(globalThis.Evo);

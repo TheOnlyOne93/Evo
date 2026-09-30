@@ -23,17 +23,16 @@
         // A badge with its strongest need (or sleep), and the needs in words on hover
         const needs = c.dead || c.asleep ? [] : Evo.needsOf(c, 3, 0.45);
         const badge = c.dead ? '' : c.asleep ? '💤' : needs.length ? needs[0].icon : '';
-        const label = `${c.name} (${c.sex === 'FEMALE' ? 'female' : 'male'})` +
+        const label = `${c.name} (${H.sexWord(c.sex).toLowerCase()})` +
           (c.asleep ? ', asleep' : needs.length ? ': ' + needs.map(n => n.word.toLowerCase()).join(', ') : '');
         if (b.lastChild.textContent !== badge) b.lastChild.textContent = badge;
         if (b.title !== label) { b.title = label; b.setAttribute('aria-label', label); }
-        if (!Evo.CreatureArt) return;
         const cv = b.firstChild, ctx = cv.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         if (cv.width !== Math.round(AVATAR * dpr)) Evo.fitCanvas(cv, ctx, AVATAR, AVATAR); // on creation and when the pixel ratio changes
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, AVATAR, AVATAR);
-        try { ctx.save(); Evo.CreatureArt.drawPortrait(ctx, app.view.poseFor(c), AVATAR, AVATAR, performance.now() / 1000, 'face'); ctx.restore(); } catch (e) { ctx.restore(); }
+        H.drawCreatureFace(ctx, app.view, c, AVATAR, AVATAR, performance.now() / 1000, 'face');
       });
     };
     strip.addEventListener('click', e => {

@@ -7,7 +7,7 @@
   const { clamp } = Evo.util;
   const T = Evo.text;
   const $ = id => document.getElementById(id);
-  const { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor } = Evo.uiHelpers;
+  const { esc, bar, setHtml, percent, plural, sexColor, sexGlyph, sexWord, chemToken, chemColor } = Evo.uiHelpers;
   const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
@@ -23,6 +23,14 @@
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const RECENT = 30;         // Ticks within which a connection counts as just used
   const COLD = 0.3, HOT = 0.7; // Body heat below or above these is cold or hot (the bar's colour and word)
+  const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
+  const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
+  const CHANGE_WORDS = { changed: 'changed', new: 'new', copy: 'extra copy', lost: 'lost' };
+  // The fill of a bar that grows left or right from its middle: v in -1..1
+  const centeredBar = (v, color) => {
+    const width = Math.abs(v) * 50;
+    return `<span style="${v >= 0 ? 'left:50%' : `left:${50 - width}%`};width:${width}%;background:${color}"></span>`;
+  };
   const tempWord = t => t < COLD ? 'cold' : t > HOT ? 'hot' : 'fine';
 
   class Inspector {
@@ -181,9 +189,9 @@
     // ---------- Body ----------
     renderBody(c) {
       const st = Evo.STAGES[c.stage];
-      const bits = [`<b>${c.sex === 'FEMALE' ? 'Female' : 'Male'}</b>`, st.word.toLowerCase(), `${T.clock(c.ageTicks)} old (lives about ${T.clock(c.lifespan)})`, `generation ${c.generation}`, `${c.meals} ${c.meals === 1 ? 'meal' : 'meals'}`];
+      const bits = [`<b>${sexWord(c.sex)}</b>`, st.word.toLowerCase(), `${T.clock(c.ageTicks)} old (lives about ${T.clock(c.lifespan)})`, `generation ${c.generation}`, plural(c.meals, 'meal', 'meals')];
       let status = c.dead ? 'Dead.' : c.asleep ? 'Asleep.' : `${T.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
-      if (c.pregnancy) status += ` Carrying an egg (${percentOf(c.pregnancy.progress)}% formed).`;
+      if (c.pregnancy) status += ` Carrying an egg (${percent(c.pregnancy.progress)} formed).`;
       if (c.carrying) status += ` Holding ${Evo.ITEM_TYPES[c.carrying.type].word}.`;
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
 
@@ -265,12 +273,11 @@
 
       // Prediction errors: how things turned out against what it expected
       const surprise = (ch, label, good, bad) => {
-        const e = m.error[ch], v = clamp(e, -1, 1), width = Math.abs(v) * 50;
+        const e = m.error[ch];
         const color = (ch === 0) === (e >= 0) ? 'var(--joy)' : 'var(--stress)';
-        const style = v >= 0 ? `left:50%;width:${width}%;background:${color}` : `left:${50 - width}%;width:${width}%;background:${color}`;
         const verdict = e > 0.1 ? good : e < -0.1 ? bad : 'as expected';
         const expects = T.level(b.value[ch], 0, 1.6, ['expects nothing much', 'expects a little', 'expects some', 'expects a lot']);
-        rows.push(`<div class="mind-row"><span class="mind-k">${label}</span><span class="mind-v mind-meter"><span class="centered-track" title="Prediction error ${T.signed(e)}"><span style="${style}"></span></span>` +
+        rows.push(`<div class="mind-row"><span class="mind-k">${label}</span><span class="mind-v mind-meter"><span class="centered-track" title="Prediction error ${T.signed(e)}">${centeredBar(clamp(e, -1, 1), color)}</span>` +
           `<span>${verdict} <span class="muted">· ${expects}</span></span></span></div>`);
       };
       surprise(0, 'Reward', 'better than expected', 'less than expected');
@@ -298,8 +305,8 @@
 
       // The last thing that happened to it
       const ls = c.lastStimulus;
-      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.seconds(c.ageTicks - ls.tick)} ago</span>` : '<span class="muted">nothing yet</span>');
-      if (b.seizures || b.brake) row('Seizures', `${b.brake ? '<b>brake on now</b> · ' : ''}the brake has come on ${b.seizures} ${b.seizures === 1 ? 'time' : 'times'}`, ' alert');
+      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.ago(c.ageTicks - ls.tick)}</span>` : '<span class="muted">nothing yet</span>');
+      if (b.seizures || b.brake) row('Seizures', `${b.brake ? '<b>brake on now</b> · ' : ''}the brake has come on ${plural(b.seizures, 'time', 'times')}`, ' alert');
       $('mindRows').innerHTML = rows.join('');
       this.brainView.marks.attended = this.attendedCell(b, att);
       this.brainView.marks.winner = w;
@@ -346,7 +353,7 @@
         else if (b.sDst[s] === i) ins.push(s);
       }
       $('neuronFacts').innerHTML = [
-        `<span>Fires <b>${Math.round(b.rate[i] * 100)}%</b> of the time</span>`,
+        `<span>Fires <b>${percent(b.rate[i])}</b> of the time</span>`,
         `<span>Last fired <b>${last < 0 ? 'over half a second ago' : last === 0 ? 'just now' : `${last} ticks ago`}</b></span>`,
         `<span>Charge <b>${b.vShow[i] > 0 ? 'firing' : `${Math.max(0, Math.round(b.thr[i] - b.vShow[i]))} mV below firing`}</b></span>`,
         `<span><b>${ins.length}</b> in, <b>${outs.length}</b> out</span>`
@@ -354,14 +361,14 @@
       const list = (title, syns, otherEnd) => {
         if (!syns.length) return '';
         syns.sort((x, y) => Math.abs(b.sW[y]) - Math.abs(b.sW[x]));
-        const rows = syns.slice(0, 8).map(s => {
+        const rows = syns.slice(0, SYNAPSES_SHOWN).map(s => {
           const w = b.sW[s], width = Math.round(Math.sqrt(Math.min(1, Math.abs(w) / Evo.BRAIN.WEIGHT_MAX)) * 100), other = otherEnd(s); // Most are weak: a square root spreads them out
           const name = T.neuronName(b, b.neurons[other]);
           const grown = b.sFlags[s] & Evo.BRAIN.SPROUTED ? '<i class="grown" title="grown in life"></i>' : '';
           return `<button class="link" data-neuron="${other}" data-syn="${s}" title="${esc(name)}"><span class="who">${grown}${esc(name)}</span>` +
             `<span class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></span><span class="delay">${b.sDelay[s]}t</span></button>`;
         }).join('');
-        const more = syns.length > 8 ? `<p class="note">and ${syns.length - 8} weaker</p>` : '';
+        const more = syns.length > SYNAPSES_SHOWN ? `<p class="note">and ${syns.length - SYNAPSES_SHOWN} weaker</p>` : '';
         return `<div class="link-list"><h4>${title}</h4>${rows}${more}</div>`;
       };
       const predicts = b.modulator[i] >= 0;
@@ -395,10 +402,9 @@
       }
       const list = [...rows.entries()].map(([k, r]) => [k, (r.good - r.bad) / Math.max(1, r.n / 2)]).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1])).slice(0, 10);
       $('learnedList').innerHTML = list.length ? list.map(([label, net]) => {
-        const v = clamp(net * 2, -1, 1), width = Math.abs(v) * 50;
-        const style = v >= 0 ? `left:50%;width:${width}%;background:var(--joy)` : `left:${50 - width}%;width:${width}%;background:var(--stress)`;
+        const v = clamp(net * 2, -1, 1);
         const verdict = net > 0.05 ? 'good news' : net < -0.05 ? 'trouble' : 'no meaning yet';
-        return `<div class="learn-row"><span>${esc(label)}</span><div class="centered-track"><span style="${style}"></span></div><span class="verdict">${verdict}</span></div>`;
+        return `<div class="learn-row"><span>${esc(label)}</span><div class="centered-track">${centeredBar(v, v >= 0 ? 'var(--joy)' : 'var(--stress)')}</div><span class="verdict">${verdict}</span></div>`;
       }).join('') : '<p class="empty">No senses are wired to its feelings.</p>';
     }
 
@@ -406,7 +412,7 @@
       const b = c.brain, w = this.mind ? this.mind.winner : -1;
       $('barsMuscles').innerHTML = Evo.MOTORS.map((m, k) => {
         const i = b.lobes.motor[k];
-        return bar(i === w ? `${m.word} ◂` : m.word, Math.min(1, b.rate[i] * 8), i === w ? 'var(--energy)' : b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', `${Math.round(b.rate[i] * 100)}%`);
+        return bar(i === w ? `${m.word} ◂` : m.word, Math.min(1, b.rate[i] * 8), i === w ? 'var(--energy)' : b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', percent(b.rate[i]));
       }).join('');
     }
 
@@ -416,7 +422,7 @@
       this.genesStage = c.stage;
       const g = c.genome, genes = g.findGenes();
       $('genesSummary').textContent = `${genes.length} genes in ${g.dna.length} bytes of DNA. ${g.sexChrom === 'Y' ? 'Male (XY)' : 'Female (XX)'}. ` +
-        `${g.mutationCount} ${g.mutationCount === 1 ? 'mutation' : 'mutations'} in its family line since the founders.`;
+        `${plural(g.mutationCount, 'mutation', 'mutations')} in its family line since the founders.`;
       $('traitList').innerHTML = T.traitWords(c.traits).map(([k, v, exact]) =>
         `<div class="trait"><span>${k}</span><b title="${esc(exact)}">${esc(v)} <span class="exact">${esc(exact)}</span></b></div>`).join('');
       const marked = this.renderMutations(c);
@@ -493,7 +499,6 @@
 
     changeList(c, changes, title, none) {
       if (!changes.length) return `<div class="mut-block"><h4>${title}</h4><p class="note">${none}</p></div>`;
-      const WORD = { changed: 'changed', new: 'new', copy: 'extra copy', lost: 'lost' };
       const order = { changed: 0, new: 1, copy: 2, lost: 3 };
       const rows = changes.slice().sort((a, z) => order[a.kind] - order[z.kind]).map(ch => {
         const gene = ch.gene || ch.ref.gene, genome = ch.gene ? c.genome : ch.ref.genome;
@@ -506,10 +511,10 @@
           body = before !== d.text ? `<span class="mut-text"><s>${esc(before)}</s><br>${esc(d.text)}</span>` : body;
           if (fields) body += `<span class="mut-fields">${fields}</span>`;
         }
-        return `<div class="mut"><span class="mut-tag ${ch.kind}">${WORD[ch.kind]}</span><span class="mut-name">${esc(d.name)}</span>${body}</div>`;
+        return `<div class="mut"><span class="mut-tag ${ch.kind}">${CHANGE_WORDS[ch.kind]}</span><span class="mut-name">${esc(d.name)}</span>${body}</div>`;
       });
-      const shown = rows.slice(0, 8).join(''), rest = rows.length > 8 ? `<details class="mut-more"><summary>${rows.length - 8} more</summary>${rows.slice(8).join('')}</details>` : '';
-      return `<div class="mut-block"><h4>${title}: ${changes.length} ${changes.length === 1 ? 'difference' : 'differences'}</h4>${shown}${rest}</div>`;
+      const shown = rows.slice(0, MUTATIONS_SHOWN).join(''), rest = rows.length > MUTATIONS_SHOWN ? `<details class="mut-more"><summary>${rows.length - MUTATIONS_SHOWN} more</summary>${rows.slice(MUTATIONS_SHOWN).join('')}</details>` : '';
+      return `<div class="mut-block"><h4>${title}: ${plural(changes.length, 'difference', 'differences')}</h4>${shown}${rest}</div>`;
     }
 
     // Show only genes whose name or words contain the search text (opening the groups they are in)
@@ -528,7 +533,7 @@
           if (any) d.open = true;
         });
       } else document.querySelectorAll('#deck-genes details.gene-group, #deck-genes details.gene-kind').forEach(d => d.classList.remove('hidden'));
-      $('geneFilterCount').textContent = q ? `${n} ${n === 1 ? 'gene' : 'genes'}` : '';
+      $('geneFilterCount').textContent = q ? plural(n, 'gene', 'genes') : '';
     }
 
     renderDNA(g, genes) {
@@ -569,7 +574,7 @@
       const children = hist.filter(h => h.motherId === c.id || h.fatherId === c.id);
       setHtml($('familyChildren'), children.map(person).join('') || `<p class="note">None yet.${c.pregnancy ? ' One is on the way.' : ''}</p>`);
       const grand = children.flatMap(ch => hist.filter(h => h.motherId === ch.id || h.fatherId === ch.id));
-      $('familyLine').textContent = `Generation ${c.generation}. ${children.length} ${children.length === 1 ? 'child' : 'children'}, ${grand.length} ${grand.length === 1 ? 'grandchild' : 'grandchildren'}. Mated ${c.timesMated} ${c.timesMated === 1 ? 'time' : 'times'}.`;
+      $('familyLine').textContent = `Generation ${c.generation}. ${plural(children.length, 'child', 'children')}, ${plural(grand.length, 'grandchild', 'grandchildren')}. Mated ${plural(c.timesMated, 'time', 'times')}.`;
     }
 
     // ---------- World ----------

@@ -54,7 +54,7 @@
       const creature = view.creatureAt(p.x, p.y);
       const item = creature ? null : view.itemAt(p.x, p.y);
       this.press = { id: e.pointerId, tool, creature, item, start: p, last: p, moved: false, holding: false, samples: [], lastPatTick: -Infinity };
-      if (tool === 'pat' && creature) this.pat(creature);
+      if (tool === 'pat' && creature) this.pat(creature, this.press);
       if (tool === 'slap' && creature) this.world.slap(creature);
       this.hover = p;
     }
@@ -84,7 +84,7 @@
         } else if (pr.tool === 'pat') {
           // Stroking: keep tickling whatever is under the hand
           const c = this.view.creatureAt(p.x, p.y);
-          if (c) this.pat(c);
+          if (c) this.pat(c, pr);
           else this.pan(p, pr);
         } else {
           this.pan(p, pr);
@@ -129,10 +129,10 @@
       this.opts.onPan();
     }
 
-    pat(c) {
+    pat(c, pr) {
       const tick = this.world.clock.tick;
-      if (this.press && tick - this.press.lastPatTick < PAT_TICKS) return;
-      if (this.press) this.press.lastPatTick = tick;
+      if (tick - pr.lastPatTick < PAT_TICKS) return;
+      pr.lastPatTick = tick;
       this.world.pat(c);
     }
 

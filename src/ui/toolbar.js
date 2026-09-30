@@ -16,18 +16,25 @@
     { key: 'food', word: 'Food', tools: ['fruit', 'grain', 'dew', 'grub', 'bug', 'mimic'] },
     { key: 'more', word: 'Toys & more', short: 'More', tools: ['ball', 'lure', 'egg', 'thorn'] }
   ];
-  const DROP_HINTS = {
-    fruit: 'Fruit: sugar', grain: 'Grain: starch and a little protein', dew: 'Dew: water', grub: 'Grub: protein and fat that crawls slowly',
-    bug: 'Bug: protein that runs away', mimic: 'Mimic: looks and smells like fruit, but it is poisonous', lure: 'Lure: female scent that attracts males',
-    ball: 'Ball: a toy to play with', egg: 'Egg: a new founder egg', thorn: 'Thorns: a thorn bush that pricks'
+  // What each thing to drop is called on its button, and what it is (the hint is "label: about")
+  const DROP_TOOLS = {
+    fruit: { label: 'Fruit', about: 'sugar' },
+    grain: { label: 'Grain', about: 'starch and a little protein' },
+    dew: { label: 'Dew', about: 'water' },
+    grub: { label: 'Grub', about: 'protein and fat that crawls slowly' },
+    bug: { label: 'Bug', about: 'protein that runs away' },
+    mimic: { label: 'Mimic', about: 'looks and smells like fruit, but it is poisonous' },
+    lure: { label: 'Lure', about: 'female scent that attracts males' },
+    ball: { label: 'Ball', about: 'a toy to play with' },
+    egg: { label: 'Egg', about: 'a new founder egg' },
+    thorn: { label: 'Thorns', about: 'a thorn bush that pricks' }
   };
   const HAND_ICONS = { grab: '✋', pat: '🪶', slap: '💥' };
-  const SPEEDS = [1, 2, 4, 8];
 
   function setupPlayback(app) {
     const { view, synth } = app;
-    app.SPEEDS = SPEEDS;
     const speedBtns = document.querySelectorAll('[data-speed]');
+    app.SPEEDS = [...speedBtns].map(b => +b.dataset.speed);
     app.syncPlayback = () => {
       $('pauseBtn').textContent = app.paused ? '▶' : '❚❚';
       $('pauseBtn').setAttribute('aria-label', app.paused ? 'Resume' : 'Pause');
@@ -36,7 +43,8 @@
     };
     app.setSpeed = s => { app.speed = s; app.paused = false; app.syncPlayback(); };
     speedBtns.forEach(b => b.addEventListener('click', () => app.setSpeed(+b.dataset.speed)));
-    $('pauseBtn').addEventListener('click', () => { app.paused = !app.paused; app.syncPlayback(); });
+    app.togglePause = () => { app.paused = !app.paused; app.syncPlayback(); };
+    $('pauseBtn').addEventListener('click', app.togglePause);
     $('scentBtn').addEventListener('click', () => {
       view.options.showScent = !view.options.showScent;
       $('scentBtn').setAttribute('aria-pressed', String(view.options.showScent));
@@ -55,10 +63,6 @@
     const { world } = app;
     const canvas = $('worldCanvas');
     const tray = $('toolTray');
-    const toolWord = k => {
-      const w = k === 'thorn' ? 'thorns' : (Evo.ITEM_TYPES[k] || { word: k }).word.split(' ')[0];
-      return Evo.text.capitalize(w);
-    };
     const toolButton = (key, label, hint, icon) =>
       `<button class="tool" data-tool="${key}" aria-pressed="${key === app.tool}" title="${H.esc(hint)}">${icon}<span class="tool-text">${label}</span></button>`;
     const art = k => `<canvas class="tool-art" data-art="${k}"></canvas>`;
@@ -72,21 +76,22 @@
     tray.innerHTML =
       group('hand', 'Hand', '', '', HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('')) +
       DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art toggle-art"></canvas>`,
-        g.tools.map(k => toolButton(k, toolWord(k), DROP_HINTS[k], art(k))).join(''))).join('') +
+        g.tools.map(k => toolButton(k, DROP_TOOLS[k].label, `${DROP_TOOLS[k].label}: ${DROP_TOOLS[k].about}`, art(k))).join(''))).join('') +
       group('add', 'Add a creature', 'Add', '<span class="tool-icon">＋</span>',
         '<button class="tool" id="addFemaleBtn" title="Add a grown female"><span class="tool-icon" style="color:var(--female)">♀</span><span class="tool-text">Female</span></button>' +
         '<button class="tool" id="addMaleBtn" title="Add a grown male"><span class="tool-icon" style="color:var(--male)">♂</span><span class="tool-text">Male</span></button>');
-    // Item icons drawn with the same art as the world
-    tray.querySelectorAll('canvas[data-art]').forEach(cv => {
-      const ctx = cv.getContext('2d'), k = cv.dataset.art;
-      Evo.fitCanvas(cv, ctx, ICON, ICON);
+    // An item icon on a canvas, drawn with the same art as the world
+    const drawToolIcon = (cv, k) => {
+      const ctx = cv.getContext('2d');
+      Evo.fitCanvas(cv, ctx, ICON, ICON);   // also clears
       if (k === 'thorn') {
         ctx.strokeStyle = Evo.theme.color('--toxin'); ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-        for (let a = 0; a < 7; a++) { const r = a / 7 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(11, 13); ctx.lineTo(11 + Math.cos(r) * 8, 13 + Math.sin(r) * 7); ctx.stroke(); }
-      } else if (Evo.ItemArt && Evo.ItemArt.drawIcon) {
-        try { Evo.ItemArt.drawIcon(ctx, k, 11, 11, 20, 0); } catch (e) { /* An icon is decoration */ }
+        for (let a = 0; a < 7; a++) { const r = a / 7 * Evo.util.TAU; ctx.beginPath(); ctx.moveTo(11, 13); ctx.lineTo(11 + Math.cos(r) * 8, 13 + Math.sin(r) * 7); ctx.stroke(); }
+      } else {
+        try { Evo.ItemArt.drawIcon(ctx, k, 11, 11, 20, 0); } catch (e) { console.error(e); }   // An icon is decoration
       }
-    });
+    };
+    tray.querySelectorAll('canvas[data-art]').forEach(cv => drawToolIcon(cv, cv.dataset.art));
     // A group's toggle shows the icon of its chosen tool, or else its first
     const groups = [...tray.querySelectorAll('.tool-group')];
     const syncToggle = g => {
@@ -95,22 +100,18 @@
       const chosen = g.querySelector('.group-items [aria-pressed="true"]');
       toggle.setAttribute('aria-pressed', String(!!chosen));
       if (!cv) return;
-      const src = (chosen || g.querySelector('.group-items [data-tool]')).querySelector('canvas');
-      const ctx = cv.getContext('2d');
-      Evo.fitCanvas(cv, ctx, ICON, ICON); // also clears
-      if (src) ctx.drawImage(src, 0, 0, ICON, ICON);
+      drawToolIcon(cv, (chosen || g.querySelector('.group-items [data-tool]')).dataset.tool);
     };
-    const closeGroups = except => groups.forEach(g => {
-      if (g === except) return;
-      g.classList.remove('open');
+    const setGroupOpen = (g, open) => {
+      g.classList.toggle('open', open);
       const t = g.querySelector('.group-toggle');
-      if (t) t.setAttribute('aria-expanded', 'false');
-    });
+      if (t) t.setAttribute('aria-expanded', String(open));
+    };
+    const closeGroups = except => groups.forEach(g => { if (g !== except) setGroupOpen(g, false); });
     tray.querySelectorAll('.group-toggle').forEach(t => t.addEventListener('click', () => {
       const g = t.closest('.tool-group'), open = !g.classList.contains('open');
       closeGroups(g);
-      g.classList.toggle('open', open);
-      t.setAttribute('aria-expanded', String(open));
+      setGroupOpen(g, open);
     }));
     document.addEventListener('pointerdown', e => { if (!e.target.closest('.tool-group')) closeGroups(); });
 
