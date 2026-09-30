@@ -1,13 +1,18 @@
 // Run several seeds in parallel and summarise how well the creatures live: meals, drinking, sleep,
 // social contact, births and deaths. For comparing gene or physiology changes.
 //   node tools/evaluate.js [days=2] [seeds=3] [firstSeed=1]
+// `node tools/evaluate.js 10 4` is the long run to use after body or chemistry changes (2 days
+// reaches no death and no winter).
 'use strict';
 const { fork } = require('child_process');
+const Evo = require('../tests/load')();
+
+// Every kind of item a creature can eat, in the order Evo.ITEM_TYPES lists them
+const FOODS = Object.keys(Evo.ITEM_TYPES).filter(k => Evo.ITEM_TYPES[k].food);
 
 const SAMPLE_EVERY = 20;   // Ticks between samples of each creature
 
 if (process.argv[2] === '--child') {
-  const Evo = require('../tests/load')();
   const [days, seed] = [Number(process.argv[3]), Number(process.argv[4])];
   Evo.seed(seed);
   const world = new Evo.World();
@@ -68,7 +73,7 @@ Promise.all(runs).then(all => {
   const f = v => v.toFixed(2);
   for (const r of results) {
     const perDay = k => ((r.counts[k] || 0) / r.creatureDays).toFixed(1);
-    console.log(`seed ${r.seed}: pop ${r.pop}, ${f(r.msPerTick)} ms/tick | per creature-day: food ${perDay('eat')} (fruit ${perDay('fruit')} grain ${perDay('grain')} grub ${perDay('grub')} bug ${perDay('bug')} mimic ${perDay('mimic')}), ` +
+    console.log(`seed ${r.seed}: pop ${r.pop}, ${f(r.msPerTick)} ms/tick | per creature-day: food ${perDay('eat')} (${FOODS.map(k => `${k} ${perDay(k)}`).join(' ')}), ` +
       `drinks ${perDay('drink')}, nuzzles ${perDay('nuzzle')}, shoves ${perDay('shove')}, calls ${perDay('call')}`);
     console.log(`   asleep ${Math.round(r.asleep * 100)}%  hunger ${f(r.hunger)} thirst ${f(r.thirst)} reward ${f(r.reward)} punish ${f(r.punish)} | mates ${r.counts.mate || 0} eggs ${r.counts.egg || 0} hatched ${r.counts.hatch || 0} wanderers ${r.counts.wanderer || 0} | deaths ${JSON.stringify(r.deaths)}`);
     for (const d of r.died) console.log(`   died    ${d}`);

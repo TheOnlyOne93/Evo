@@ -37,7 +37,8 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | Command | What it does |
 |---|---|
 | `node tools/behave.js [trials=12] [filter] [--report] [--jobs N]` | The behaviour bench: one creature in a controlled situation, seeds 1 to N, split across worker processes (default: one per CPU thread, at most one per seed). Prints each scenario's pass rate and median ticks; with `--report`, each report's mean. Always exits 0 |
-| `node tools/evaluate.js [days=2] [seeds=3] [firstSeed=1]` | Ecology: one process per seed; meals, drinking, sleep, company, births, deaths, and where the creatures spend their time |
+| `node tools/evaluate.js [days=2] [seeds=3] [firstSeed=1]` | Ecology: one process per seed; meals, drinking, sleep, company, births, deaths, and where the creatures spend their time. `10 4` is the long run for body and chemistry changes (2 days reaches no death and no winter) |
+| `node tools/wiring.js [FEMALE\|MALE]` | How a founder's brain is wired: what each wiring gene grows on its own and where it lands, then each region's connections in, out and inside, marking regions that receive but send little on |
 | `node tools/simulate.js [days=2] [seed=1] [reportsPerDay=4]` | One run with a running report |
 | `node tools/serve.js [port=8123]` | A no-cache static server on 127.0.0.1 for browser checks. Stop it when done |
 
@@ -49,6 +50,7 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 |---|---|---|
 | `basics.js` | 11: eating, reaching fruit either side, drinking, sleeping at night and not by day, running in pain, calling when lonely, keeping away from thorns | |
 | `drives.js` | 3: nausea, nuzzling, drinking at the world's edge | 2 |
+| `homeostasis.js` | 5: hunger rising, and staying halved a third of a day after one fruit, fear fading after slaps, tiredness building by day, thick fur keeping a resting body warmer, a fed baby growing all the way up; no drive is held | |
 | `learning.js` | 5: fruit before dew, water past fruit, mimic aversion (known to fail), calling and jumping sooner after pats | 14: `modulators:`, `bench:`, `memory:`, `decision:` |
 
 The `memory:` reports need about 12 seeds to settle.
