@@ -571,11 +571,9 @@
     // and sisters (half ones marked), children and grandchildren. The living can be selected; the
     // dead say when they lived.
     renderFamily(c) {
-      const world = this.app.world, hist = world.history;
-      const byId = new Map(hist.map(h => [h.id, h]));
-      const kids = new Map(); // parent id -> its children's records
-      for (const h of hist) for (const p of [h.motherId, h.fatherId]) if (p !== null) (kids.get(p) || kids.set(p, []).get(p)).push(h);
-      const childrenOf = id => kids.get(id) || [];
+      const world = this.app.world;
+      const kin = Evo.kinOf(Evo.kinIndex(world.history), c.id);
+      if (!kin) return;
       const day = tick => Math.floor((tick + world.startPhase * Evo.DAY_TICKS) / Evo.DAY_TICKS) + 1;
       const person = (h, note = '') => {
         if (!h) return '<span class="muted">unknown</span>';
@@ -596,30 +594,20 @@
           ? `<details class="family-more"><summary>${rows.length - FAMILY_SHOWN} more</summary>${rows.slice(FAMILY_SHOWN).join('')}</details>` : '');
       };
 
-      const outsider = c.motherId === null;
-      const mother = byId.get(c.motherId), father = byId.get(c.fatherId);
+      const { outsider, children, grandchildren, descendants } = kin;
       setHtml($('familyParents'), outsider
         ? `<p class="note">${c.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
-        : person(mother, 'mother') + person(father, 'father'));
-      const grandparents = [[mother, "mother's"], [father, "father's"]].filter(([p]) => p && p.motherId !== null)
-        .flatMap(([p, side]) => [[byId.get(p.motherId), `${side} mother`], [byId.get(p.fatherId), `${side} father`]]);
-      setHtml($('familyGrandparents'), grandparents.map(([h, note]) => person(h, note)).join('') ||
+        : person(kin.mother, 'mother') + person(kin.father, 'father'));
+      setHtml($('familyGrandparents'), kin.grandparents.map(g => person(g.rec, `${g.of}'s ${g.role}`)).join('') ||
         `<p class="note">${outsider ? 'Its family lived somewhere else.' : 'Its parents came from outside, so their parents never lived here.'}</p>`);
-      const halfOf = h => h.motherId !== c.motherId || h.fatherId !== c.fatherId;
-      const siblings = outsider ? [] : [...new Set([...childrenOf(c.motherId), ...childrenOf(c.fatherId)])]
-        .filter(h => h.id !== c.id).sort((a, z) => halfOf(a) - halfOf(z));
-      setHtml($('familySiblings'), list(siblings, 'None.', h => (halfOf(h) ? 'half' : '')));
-      const children = childrenOf(c.id);
+      const half = new Set(kin.siblings.filter(s => s.half).map(s => s.rec));
+      setHtml($('familySiblings'), list(kin.siblings.map(s => s.rec), 'None.', h => (half.has(h) ? 'half' : '')));
       setHtml($('familyChildren'), list(children, `None yet.${c.pregnancy ? ' One is on the way.' : ''}`));
-      const grandchildren = [...new Set(children.flatMap(ch => childrenOf(ch.id)))];
       setHtml($('familyGrandchildren'), list(grandchildren, 'None yet.'));
-      // Every descendant, however far down
-      const descendants = new Set(), queue = [c.id];
-      while (queue.length) for (const h of childrenOf(queue.pop())) if (!descendants.has(h)) { descendants.add(h); queue.push(h.id); }
-      const living = [...descendants].filter(h => world.creatureById(h.id)).length;
+      const living = descendants.filter(h => world.creatureById(h.id)).length;
       $('familyLine').textContent = `Generation ${c.generation}. ${plural(children.length, 'child', 'children')}, ${plural(grandchildren.length, 'grandchild', 'grandchildren')}` +
-        (descendants.size > children.length + grandchildren.length ? `, ${plural(descendants.size, 'descendant', 'descendants')} in all` : '') +
-        (descendants.size ? `; ${living} of them alive` : '') + `. Mated ${plural(c.timesMated, 'time', 'times')}.`;
+        (descendants.length > children.length + grandchildren.length ? `, ${plural(descendants.length, 'descendant', 'descendants')} in all` : '') +
+        (descendants.length ? `; ${living} of them alive` : '') + `. Mated ${plural(c.timesMated, 'time', 'times')}.`;
     }
 
     // ---------- World ----------
