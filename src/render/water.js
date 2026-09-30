@@ -36,20 +36,20 @@
     const ice = iceAmount(v.ss);
     const amp = WAVE_AMP * (1 - ice);
     const wc = waterColors();
-    const surf = v.info.surf, step = v.info.step;
+    const surf = v.info.surf, spacing = v.info.spacing;
     for (let pi = 0; pi < ponds.length; pi++) {
       const p = ponds[pi];
       if (p.x1 < v.vx0 || p.x0 > v.vx1) continue;
       const L = p.level;
       let deep = L;
-      for (let x = p.x0; x <= p.x1; x += step) deep = Math.max(deep, surf(x));
+      for (let x = p.x0; x <= p.x1; x += spacing) deep = Math.max(deep, surf(x));
       const depth = Math.max(8, deep - L);
       // Water body: animated surface on top, the pond bed below
       g.beginPath();
       g.moveTo(p.x0, L);
       for (let x = p.x0; x <= p.x1; x += 5) g.lineTo(x, L + wave(x, t, amp));
       g.lineTo(p.x1, L);
-      for (let x = Math.floor(p.x1 / step) * step; x > p.x0; x -= step) g.lineTo(x, Math.max(L, surf(x)) + 1);
+      for (let x = Math.floor(p.x1 / spacing) * spacing; x > p.x0; x -= spacing) g.lineTo(x, Math.max(L, surf(x)) + 1);
       g.closePath();
       const grd = g.createLinearGradient(0, L - 2, 0, L + depth);
       grd.addColorStop(0, rgba(mix(wc.water, pal.hor, 0.4), 0.62));

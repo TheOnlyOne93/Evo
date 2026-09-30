@@ -33,12 +33,12 @@
   // ---------- Terrain: a height field with a pond ----------
   class Terrain {
     constructor(width, layout) {
-      this.step = 8;
-      const n = Math.ceil(width / this.step) + 1;
+      this.spacing = 8;
+      const n = Math.ceil(width / this.spacing) + 1;
       this.heights = new Float32Array(n);
       const ph = [Evo.random() * TAU, Evo.random() * TAU, Evo.random() * TAU];
       for (let i = 0; i < n; i++) {
-        const x = i * this.step;
+        const x = i * this.spacing;
         let h = 640 + 30 * Math.sin(x / 1400 * TAU + ph[0]) + 18 * Math.sin(x / 520 * TAU + ph[1]) + 7 * Math.sin(x / 170 * TAU + ph[2]);
         // The hill with the warm rock
         const hill = (x - layout.hill) / 260;
@@ -51,7 +51,7 @@
       // Ponds: smooth dips that fill with water up to just below their lower rim
       this.ponds = layout.ponds.map(([x0, x1, depth]) => {
         for (let i = 0; i < n; i++) {
-          const x = i * this.step;
+          const x = i * this.spacing;
           if (x > x0 && x < x1) this.heights[i] += depth * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
         }
         const level = Math.min(this.groundY(x0), this.groundY(x1)) + 6;
@@ -63,7 +63,7 @@
     }
 
     groundY(x) {
-      const f = clamp(x / this.step, 0, this.heights.length - 1.001);
+      const f = clamp(x / this.spacing, 0, this.heights.length - 1.001);
       const i = Math.floor(f), t = f - i;
       return this.heights[i] * (1 - t) + this.heights[i + 1] * t;
     }
@@ -145,7 +145,7 @@
         feature('thornbush', jitter(0.125), { radius: 22 }),
         tree(jitter(0.16), 'fruit', { height: 210, canopy: 85, fruiting: 0.5 }),
         tree(jitter(0.235), 'mimic', { height: 140, canopy: 55, fruiting: 0.4 }),
-        feature('rock', layout.hill + 30, { w: 96, h: 52, warm: 0 }),
+        feature('rock', layout.hill + 30, { width: 96, height: 52, warm: 0 }),
         feature('grass', jitter(0.41), { width: 230, height: 40, seeding: 0.4 }),
         feature('log', jitter(0.49), { length: 150 }),
         ...this.terrain.ponds.flatMap(p => [feature('reeds', p.x0 - 20, { width: 50 }), feature('reeds', p.x1 + 20, { width: 50 })]),
@@ -158,7 +158,7 @@
       const log = this.features.find(f => f.kind === 'log');
       // Each platform is the walkable top of a feature, named by featureId (renderers draw them as one)
       this.platforms = [
-        { x0: rock.x - rock.w / 2 + 6, x1: rock.x + rock.w / 2 - 6, y: rock.y - rock.h + 4, kind: 'rock', featureId: rock.id },
+        { x0: rock.x - rock.width / 2 + 6, x1: rock.x + rock.width / 2 - 6, y: rock.y - rock.height + 4, kind: 'rock', featureId: rock.id },
         { x0: log.x - log.length / 2, x1: log.x + log.length / 2, y: log.y - 24, kind: 'log', featureId: log.id }
       ];
     }
@@ -202,7 +202,7 @@
       let t = s.temp + s.swing * c.sunElevation;
       for (const f of this.features) {
         if (f.kind === 'tree' && Math.abs(x - f.x) < f.canopy && y > f.y - f.height) t -= 0.05 * c.light; // Shade
-        if (f.kind === 'rock' && Math.abs(x - f.x) < f.w * 0.8 && y > f.y - f.h - 40) t += 0.04 + f.warm * 0.14; // Stored sun
+        if (f.kind === 'rock' && Math.abs(x - f.x) < f.width * 0.8 && y > f.y - f.height - 40) t += 0.04 + f.warm * 0.14; // Stored sun
       }
       const level = this.terrain.waterLevelAt(x);
       if (level !== null && y > level) t -= 0.08;
@@ -290,7 +290,7 @@
       const item = {
         id: Evo.nextId(), type, x, y: y === undefined ? this.terrain.groundY(x) : y,
         vx: 0, vy: 0, radius: def.radius, rot: Evo.random() * TAU,
-        age: 0, held: null, onGround: false, ...props
+        age: 0, heldBy: null, onGround: false, ...props
       };
       this.items.push(item);
       return item;
@@ -336,10 +336,10 @@
 
     // Take an item out of the mouth of the creature carrying it (if one is)
     detachFromCarrier(item) {
-      if (!item.held || item.held === 'hand') return;
-      const c = this.creatureById(item.held);
+      if (!item.heldBy || item.heldBy === 'hand') return;
+      const c = this.creatureById(item.heldBy);
       if (c && c.carrying === item) c.carrying = null;
-      item.held = null;
+      item.heldBy = null;
     }
 
     removeItem(item) {
@@ -357,8 +357,8 @@
     }
 
     pickUpItem(creature, item) {
-      if (item.held) return;
-      item.held = creature.id;
+      if (item.heldBy) return;
+      item.heldBy = creature.id;
       creature.carrying = item;
       creature.stimulate('grabbed');
       if (item.type === 'ball') creature.stimulate('played');
@@ -524,7 +524,7 @@
     }
 
     hatch(egg) {
-      if (this.creatures.length >= LIMITS.MAX_POPULATION || egg.held) return;
+      if (this.creatures.length >= LIMITS.MAX_POPULATION || egg.heldBy) return;
       this.removeItem(egg);
       const c = this.addCreature(egg.genome, egg.x, { generation: egg.generation, parents: egg.parents, reserves: egg.reserves, growth: 0 });
       c.y = egg.y;
@@ -653,7 +653,7 @@
         const def = ITEM_TYPES[item.type];
         item.age++;
         // A held item moves with its holder: the hand (moveHand), or a carrier's mouth (Creature.settle)
-        if (item.held) continue;
+        if (item.heldBy) continue;
         // Little animals move by themselves
         if (def.crawls && item.onGround) {
           if (Evo.chance(0.03)) item.vx += (Evo.random() - 0.5) * def.crawls;
@@ -694,7 +694,7 @@
       }
       // Hatch after the loop: removing an egg from this.items mid-loop would skip the next item
       for (const egg of hatching) this.hatch(egg);
-      this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.held);
+      this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.heldBy);
     }
 
     // Odours rise from items and bodies, spread through the air, and fade
@@ -734,7 +734,7 @@
       }
       if (holding.item) {
         this.detachFromCarrier(holding.item);
-        holding.item.held = 'hand';
+        holding.item.heldBy = 'hand';
       }
       this.hand.holding = holding;
       this.moveHand(x, y);
@@ -751,7 +751,7 @@
       const h = this.hand.holding;
       if (!h) return;
       if (h.creature) { h.creature.held = false; h.creature.vx = clamp(vx, -8, 8); h.creature.vy = clamp(vy, -10, 10); h.creature.onGround = false; }
-      if (h.item) { h.item.held = null; h.item.vx = clamp(vx, -8, 8); h.item.vy = clamp(vy, -10, 10); }
+      if (h.item) { h.item.heldBy = null; h.item.vx = clamp(vx, -8, 8); h.item.vy = clamp(vy, -10, 10); }
       this.hand.holding = null;
     }
 

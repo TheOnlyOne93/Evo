@@ -20,7 +20,7 @@ if (process.argv[2] === '--child') {
     `x ${Math.round(c.x)} water ${c.chem.get('water').toFixed(2)} thirst ${c.chem.get('thirst').toFixed(2)} glucose ${c.chem.get('glucose').toFixed(2)} temp ${c.bodyTemp.toFixed(2)}`));
   let creatureTicks = 0, asleep = 0, hunger = 0, thirst = 0, reward = 0, punish = 0;
   const zones = {};
-  const halfExtent = f => f.canopy || f.width / 2 || f.length / 2 || f.w / 2 || f.radius || 40;
+  const halfExtent = f => f.canopy || f.width / 2 || f.length / 2 || f.radius || 40;
   const zoneOf = c => {
     if (c.inWater) return 'water';
     for (const f of world.features) if (Math.abs(c.x - f.x) < halfExtent(f) + 20) return f.kind + (f.species ? ':' + f.species : '');

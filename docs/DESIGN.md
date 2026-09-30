@@ -253,8 +253,8 @@ y grows downward. All lengths in world pixels.
 ```js
 world.width, world.height            // ~3600 × 900
 world.terrain = {
-  step,                              // px between height samples
-  heights,                           // Float32Array: ground surface y at x = i * step
+  spacing,                           // px between height samples
+  heights,                           // Float32Array: ground surface y at x = i * spacing
   groundY(x),                        // interpolated surface y
   ponds: [{ x0, x1, level }],        // water surface y over [x0, x1] where the ground is below it
   waterLevelAt(x)                    // pond surface y at x, or null
@@ -265,10 +265,10 @@ world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
   //  'tree'      { height, canopy, species: 'fruit' | 'mimic', yields: item type, fruiting: 0..1 }
   //  'grass'     { width, height, seeding: 0..1 }       grain grows here
   //  'log'       { length }                             grubs live here
-  //  'rock'      { w, h, warm: 0..1 }                   the sun-warmed rock
+  //  'rock'      { width, height, warm: 0..1 }          the sun-warmed rock
   //  'reeds'     { width }
   //  'thornbush' { radius }                             looks violet; moving through it pricks ('pricked' stimulus)
-world.items = [{ id, type, x, y, vx, vy, radius, rot, age, held, onGround, ... }]
+world.items = [{ id, type, x, y, vx, vy, radius, rot, age, heldBy, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
   //  egg: { hue, accentHue, progress: 0..1 (may exceed 1 while the egg waits for room to hatch) }   ball: { hue }   carrion: { hue }
 world.creatures                      // live creatures; draw each via Evo.CreatureArt.draw(ctx, Evo.poseOf(c), t)

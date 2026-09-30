@@ -247,7 +247,7 @@
       else {
         let best = 60;
         for (const item of world.items) {
-          if (item.held) continue;
+          if (item.heldBy) continue;
           const d = Math.hypot(item.x - this.x, item.y - this.y);
           if (d < best) { best = d; look = world.lookOf(item); }
         }
@@ -415,7 +415,7 @@
         }
       };
       for (const item of world.items) {
-        if (item.held === this.id) continue;
+        if (item.heldBy === this.id) continue;
         look(item.x, item.y - item.radius, item.radius, world.lookOf(item));
       }
       for (const other of world.creatures) {
@@ -510,7 +510,7 @@
       const mx = this.mouthX, my = this.mouthY, reach = this.traits.mouthReach + 2;
       let best = null, bestD = Infinity;
       for (const item of world.items) {
-        if (item.held) continue;
+        if (item.heldBy) continue;
         const d = Math.abs(item.x - mx) - item.radius, iy = item.y - item.radius;
         if (d < reach && d < bestD && iy > my - reach - item.radius && iy < this.y + 2) { bestD = d; best = { kind: 'item', item }; }
       }
@@ -642,7 +642,7 @@
         if (this.carrying) world.dropCarried(this);
         else {
           const t = this.thingAtMouth(world);
-          if (t && t.kind === 'item' && !t.item.held) world.pickUpItem(this, t.item);
+          if (t && t.kind === 'item' && !t.item.heldBy) world.pickUpItem(this, t.item);
           else if (t && t.kind === 'creature') world.shove(this, t.creature);
         }
       }

@@ -40,7 +40,7 @@ function sampleWorld(h, world, base) {
     const b = c.brain;
     h.add(b.N).add(b.S).all(b.sSrc, b.S).all(b.sDst, b.S).all(b.sW, b.S).all(b.sDelay, b.S).all(b.v).all(b.thr);
   }
-  for (const i of world.items) h.all([rel(i.id), i.type, i.x, i.y, i.vx, i.vy, i.age, rel(i.held), i.progress, i.hue, i.home]);
+  for (const i of world.items) h.all([rel(i.id), i.type, i.x, i.y, i.vx, i.vy, i.age, rel(i.heldBy), i.progress, i.hue, i.home]);
 }
 
 // Every Evo.text output a genome (and its brain and traits) can drive

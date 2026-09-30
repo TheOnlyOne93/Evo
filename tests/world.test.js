@@ -189,7 +189,7 @@ test('world: the hand pats, slaps, carries and throws', (Evo, assert) => {
   const fruit = world.dropItem('fruit', 5, 100);
   assert.strictEqual(fruit.x, world.edge, 'dropped items land inside the world');
   world.grab({ item: fruit }, 900, 200);
-  assert.strictEqual(fruit.held, 'hand');
+  assert.strictEqual(fruit.heldBy, 'hand');
   world.removeItem(fruit);
   assert.strictEqual(world.hand.holding, null, 'eaten or rotted items leave the hand');
 });

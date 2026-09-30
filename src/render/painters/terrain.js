@@ -21,7 +21,7 @@
   // Terrain data derived from world.terrain: extents and fixed decoration lists
   function buildTerrain(world) {
     const T = world.terrain, W = world.width, H = world.height;
-    const hs = T.heights, n = hs.length, step = T.step;
+    const hs = T.heights, n = hs.length, spacing = T.spacing;
     let minS = Infinity, sum = 0;
     for (let i = 0; i < n; i++) {
       const y = hs[i];
@@ -31,7 +31,7 @@
     const surf = x => T.groundY(x), waterAt = x => T.waterLevelAt(x); // the world's own queries
     const wet = x => { const l = waterAt(x); return l !== null && surf(x) > l + 0.5; };
     const R = rng(9001 + n);
-    const info = { W, H, step, minS, meanS: sum / n, surf, waterAt, wet };
+    const info = { W, H, spacing, minS, meanS: sum / n, surf, waterAt, wet };
     info.cliffTop = Math.max(-240, minS - 360);
 
     const pebbles = [];
@@ -92,12 +92,12 @@
     const { surf, wet, W } = info;
     const pal = GROUND[si];
     const xa = Math.max(-2, x0 - TILE_MARGIN), xb = Math.min(W + 2, x1 + TILE_MARGIN);
-    const step = info.step;
+    const spacing = info.spacing;
     // Soil body
     const soil = new Path2D();
     soil.moveTo(xa, y1 + 4);
     soil.lineTo(xa, surf(xa));
-    for (let x = Math.ceil(xa / step) * step; x < xb; x += step) soil.lineTo(x, surf(x));
+    for (let x = Math.ceil(xa / spacing) * spacing; x < xb; x += spacing) soil.lineTo(x, surf(x));
     soil.lineTo(xb, surf(xb));
     soil.lineTo(xb, y1 + 4);
     soil.closePath();

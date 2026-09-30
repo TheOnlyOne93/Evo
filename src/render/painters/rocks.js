@@ -128,7 +128,7 @@
   // is flat-topped at that height, so whoever stands on it stands on the stone.
   function rockShape(f, top) {
     const R = rng(5000 + (f.id | 0) * 11);
-    const w = f.w, h = top || f.h;
+    const w = f.width, h = top || f.height;
     const pts = [];
     const n = top ? 12 : 9;
     for (let k = 0; k <= n; k++) {

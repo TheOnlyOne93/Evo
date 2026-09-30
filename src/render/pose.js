@@ -76,7 +76,7 @@
       if (score > most) { most = score; best = { kind, ref, x, y, radius, word }; }
     };
     for (const it of world.items) {
-      if (it.held === c.id) continue;
+      if (it.heldBy === c.id) continue;
       consider('item', it, it.x, it.y - it.radius, it.radius, world.lookOf(it), (Evo.ITEM_TYPES[it.type] || { word: it.type }).word);
     }
     for (const o of world.creatures) {

@@ -400,7 +400,7 @@
       // A rock or log may carry a platform (its walkable top): then it is shaped to that height
       const plat = kind === KIND.LOG || kind === KIND.ROCK ? this.world.platforms.find(p => p.featureId === f.id) : null;
       const top = plat ? Math.round(f.y - plat.y) : 0;
-      const sig = [f.height, f.canopy, f.width, f.length, f.w, f.h, f.radius, f.species, top].join();
+      const sig = [f.height, f.canopy, f.width, f.length, f.radius, f.species, top].join();
       let rec = this.featRecs.get(f.id);
       if (rec && rec.sig === sig && rec.kind === kind) { rec.f = f; return rec; }
       rec = { kind, f, sig, top, sp: new Array(SEASON_COUNT * NL).fill(null), data: null, bx0: 0, by0: 0, bw: 1, bh: 1, phase: hash2(f.id | 0, 5) * TAU };
@@ -752,7 +752,7 @@
       g.beginPath();
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        if (it.held || it.x < this.vx0 - 20 || it.x > this.vx1 + 20) continue;
+        if (it.heldBy || it.x < this.vx0 - 20 || it.x > this.vx1 + 20) continue;
         const r = it.radius;
         const sy = this.world.surfaceBelow(it.x, it.y - 1);
         const gap = sy - it.y;
@@ -782,7 +782,7 @@
       const art = Evo.ItemArt, m = 30;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        if (!!it.held !== held) continue;
+        if (!!it.heldBy !== held) continue;
         if (it.x < this.vx0 - m || it.x > this.vx1 + m || it.y < this.vy0 - m || it.y > this.vy1 + m) continue;
         if (it === this.hoveredItem) {
           const r = it.radius * 1.9 + 1.5 * Math.sin(t * 5);
@@ -800,7 +800,7 @@
 
     // >= 0 when an item rests on a pond's surface (how far above the bed), else -1
     _floatDepth(it) {
-      if (it.held) return -1;
+      if (it.heldBy) return -1;
       const wl = this.info.waterAt(it.x);
       if (wl === null || it.y < wl - 1.5 || it.y > wl + 1.5) return -1;
       const d = this.info.surf(it.x) - wl;
@@ -899,7 +899,7 @@
       for (let i = 0; i < fs.length; i++) {
         const f = fs[i];
         if (f.kind !== 'rock' || !(f.warm > 0.03) || f.x < this.vx0 - 100 || f.x > this.vx1 + 100) continue;
-        const w = f.w, h = f.h;
+        const w = f.width, h = f.height;
         g.globalAlpha = clamp01(f.warm) * (0.22 + 0.4 * night) * (0.9 + 0.1 * Math.sin(t * 2 + i));
         g.drawImage(gl.warm, f.x - w * 0.95, f.y - h * 1.45, w * 1.9, h * 1.9);
       }
