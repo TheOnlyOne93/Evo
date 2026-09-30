@@ -349,6 +349,7 @@
     let text = DESCRIBE[def.name](genome.decode(gene), genome.expressed(gene), geneWords(brain), brain, gene);
     // The brain is built once, at birth: a brain-building gene that switches on later does nothing
     if (def.birthOnly && gene.stage > 1) text += ' (only works from birth, so this late copy has no effect)';
+    else if (brain && brain.skippedDuplications.has(gene.start)) text += ' (not built: the brain was already at its size limit)';
     return { name: def.name, kind: GENE_KIND[def.name] || '', group: def.group, text };
   }
 

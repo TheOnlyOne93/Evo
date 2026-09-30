@@ -213,7 +213,7 @@
     MAX_POPULATION: 16,   // Performance ceiling; food and weather normally limit population first
     MAX_FOOD: 70,         // How much growing food the world holds at once
     SEED_BANK: 24,        // Proven breeders kept for wanderers and re-founding
-    MAX_NEURONS: 1024,    // Most neurons one brain can build: a Region duplication that would pass this is skipped (keeps the build quick and synapse keys valid)
+    MAX_NEURONS: 512,     // Most neurons one brain can build (about twice a founder's): a Region duplication that would pass this is skipped. Past it the innate synapse budget is spent anyway, and a build at the cap stays near 30 ms
     SYNAPSE_CAP: 3200,    // Most synapses one brain can hold
     INNATE_BUDGET: 2400,  // Synapses the genome grows before birth (the rest is room to learn)
     BACKGROUND_WIRING_EXTRA: 150 // Random local wiring may go this far past the budget

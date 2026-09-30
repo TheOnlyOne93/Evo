@@ -69,9 +69,16 @@ test('brain: founders grow the movement copy and the sight copy', (Evo, assert) 
 // Unbudgeted, 121 more sight copies would make 4119 neurons: more than synapse keys allow
 test('brain: region copies stop at the neuron budget, however many genes ask for them', (Evo, assert) => {
   const copy = { gene: 'Region duplication', source: 'sight', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
-  const brain = new Evo.Brain(Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, ...Array(121).fill(copy)]).develop());
+  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, ...Array(121).fill(copy)]);
+  const brain = new Evo.Brain(genome.develop());
   assert.ok(brain.N <= Evo.LIMITS.MAX_NEURONS, `${brain.N} neurons`);
   assert.ok(brain.N + brain.lobes.sight.length > Evo.LIMITS.MAX_NEURONS, 'copies are made until the next would not fit');
+  // The Genes tab says which copies were not built
+  const copies = genome.findGenes().filter(g => Evo.GENES[g.type].name === 'Region duplication');
+  const skipped = copies.filter(g => brain.skippedDuplications.has(g.start));
+  assert.strictEqual(brain.duplicateLobes.length + skipped.length, copies.length);
+  assert.ok(/not built/.test(Evo.text.describeGene(genome, skipped[0], brain).text));
+  assert.ok(!/not built/.test(Evo.text.describeGene(genome, copies[0], brain).text));
 });
 
 test('brain: founders are born with their reflex arcs', (Evo, assert) => {

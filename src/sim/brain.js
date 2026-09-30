@@ -289,14 +289,15 @@
       // depth, and is a central (non-sensory) region. Its parent's guidance genes also grow its axons.
       // Copies are budgeted: nothing else limits how many Region duplication genes a genome carries,
       // and wiring a brain takes time with the square of its size, so a copy that would take the brain
-      // past LIMITS.MAX_NEURONS is skipped.
+      // past LIMITS.MAX_NEURONS is skipped (its gene is noted in skippedDuplications, for the Genes tab).
       this.duplicatesOf = {};
       this.duplicateLobes = [];
+      this.skippedDuplications = new Set(); // Gene starts of the Region duplication genes not built
       T.duplications.forEach((d, k) => {
         const parentId = LOBE_ORDER[d.sourceLobeIdx];
         const lobeId = `dup${k}_${parentId}`;
         const parent = lobes[parentId].map(i => neurons[i]);
-        if (neurons.length + parent.length > LIMITS.MAX_NEURONS) return;
+        if (neurons.length + parent.length > LIMITS.MAX_NEURONS) { this.skippedDuplications.add(d.gene); return; }
         const cy = mean(parent.map(n => n.pos[1]));
         for (const src of parent) {
           const tag = [src.tag[0], src.tag[1], clamp(src.tag[2] + d.chemShift, 0, 1)];
