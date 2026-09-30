@@ -19,7 +19,7 @@
   const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time at 1×
   // Genes left out of the comparison with the founders: every founder gets its own looks and voice
   const FOUNDER_VARIES = ['Appearance', 'Voice'];
-  const GENOME_MEMORY = 400; // Genomes remembered by creature id, so a child can be compared with its parents
+  const REMEMBERED = 400;    // Creatures whose genome and looks are remembered by id, for their children's gene comparison and the family tree
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const GLOW_TICKS = 30;     // Ticks within which a connection counts as just used: outlasts two list refreshes (every 15 ticks at 1x)
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
@@ -33,6 +33,7 @@
   const MUSCLE_GAIN = 8;       // A muscle bar fills at this multiple of the cell's firing rate
   const BUSY_RATE = 0.04;      // A cell firing faster than this counts as busy
   const CHANGE_WORDS = { changed: 'changed', new: 'new', copy: 'extra copy', lost: 'lost' };
+  const lowerFirst = s => s.charAt(0).toLowerCase() + s.slice(1);
   // The fill of a bar that grows left or right from its middle: v in -1..1
   const centeredBar = (v, color) => {
     const width = Math.abs(v) * 50;
@@ -54,6 +55,11 @@
       this.history = null;
       this.population = [];
       this.genomes = new Map(); // Creature id -> genome, for comparing children with their parents
+      this.faces = new Map();   // Creature id -> { looks, stage } as last seen, for drawing relatives who have died
+      this.familyView = new Evo.FamilyView($('familyCanvas'));
+      this.familyOf = null;     // Id of the dead relative whose family the Family deck shows (null: the followed creature's)
+      // For the family tree: who is alive, how the living look now and how the dead last looked
+      this.who = { creatureOf: id => app.world.creatureById(id), poseOf: c => app.view.poseFor(c), faces: this.faces };
       this.mind = null;         // What the followed creature's brain is up to (see sample)
       this.chart = $('historyCanvas');
       this.chartCtx = this.chart.getContext('2d');
@@ -84,19 +90,35 @@
         this.renderProbe();
       });
       $('geneFilter').addEventListener('input', () => this.filterGenes());
-      // Links to other creatures anywhere in the panel
+      // Links to other creatures anywhere in the panel: the living are followed, the dead show their family
       $('labInner').addEventListener('click', e => {
-        const el = e.target.closest('[data-creature]');
-        if (!el) return;
-        const c = this.app.world.creatureById(Number(el.dataset.creature));
-        if (c) this.app.select(c);
+        const el = e.target.closest('[data-creature]'), gone = e.target.closest('[data-family]');
+        const c = el && this.app.world.creatureById(Number(el.dataset.creature));
+        if (c) this.follow(c);
+        else if (gone) this.viewFamily(Number(gone.dataset.family));
       });
+      // The family tree: tap a relative as in the lists; hover to read who it is
+      const tree = $('familyCanvas');
+      const nodeUnder = e => {
+        const r = tree.getBoundingClientRect();
+        return this.familyView.nodeAt(e.clientX - r.left, e.clientY - r.top);
+      };
+      tree.addEventListener('pointermove', e => this.hoverFamily(nodeUnder(e)));
+      tree.addEventListener('pointerleave', () => this.hoverFamily(null));
+      tree.addEventListener('click', e => {
+        const n = nodeUnder(e);
+        if (!n || n.self) return;
+        const c = this.app.world.creatureById(n.rec.id);
+        if (c) this.follow(c); else this.viewFamily(n.rec.id);
+      });
+      $('familyBackBtn').addEventListener('click', () => this.viewFamily(null));
       $('skipSeasonBtn').addEventListener('click', () => this.app.skipSeason());
     }
 
     resize() {
       this.brainView.resize();
       this.scope.resize();
+      this.familyView.resize();
       for (const [canvas, ctx] of [[this.chart, this.chartCtx], [this.popChart, this.popCtx]]) Evo.fitCanvas(canvas, ctx, 200, 60);
     }
 
@@ -110,16 +132,20 @@
       const c = this.app.focus;
       this.brainView.setBrain(c ? c.brain : null);
       this.genesFor = null;
+      this.familyOf = null;
       this.history = c ? { id: c.id, data: HISTORY.map(() => new Float32Array(HISTORY_LEN)), n: 0 } : null;
       this.mind = c ? { error: [0, 0], winner: -1, since: 0, idle: 0 } : null;
       if (c) this.remember(c);
       this.update(true);
     }
 
+    // Note a living creature: how it looks now, and (once) its genome
     remember(c) {
+      this.faces.set(c.id, { looks: Evo.looksOf(c), stage: c.stage });
+      if (this.faces.size > REMEMBERED) this.faces.delete(this.faces.keys().next().value);
       if (this.genomes.has(c.id)) return;
       this.genomes.set(c.id, c.genome);
-      if (this.genomes.size > GENOME_MEMORY) this.genomes.delete(this.genomes.keys().next().value);
+      if (this.genomes.size > REMEMBERED) this.genomes.delete(this.genomes.keys().next().value);
     }
 
     // Every tick: sample the drive history, what the brain is up to, and the population
@@ -567,24 +593,65 @@
     }
 
     // ---------- Family ----------
-    // Its family from world.history (everyone who has lived here): parents, grandparents, brothers
-    // and sisters (half ones marked), children and grandchildren. The living can be selected; the
-    // dead say when they lived.
-    renderFamily(c) {
+    // When someone in world.history lived, in words: { alive (the creature, or null), when ('starved,
+    // day 9'), title ('Hatched on day 3; starved on day 9') }
+    life(h) {
       const world = this.app.world;
-      const kin = Evo.kinOf(Evo.kinIndex(world.history), c.id);
-      if (!kin) return;
       const day = tick => Math.floor((tick + world.startPhase * Evo.DAY_TICKS) / Evo.DAY_TICKS) + 1;
+      const came = `${h.motherId === null ? 'Arrived' : 'Hatched'} on day ${day(h.born)}`;
+      const fate = h.died !== null ? T.DEATH_WORDS[h.cause] || 'died' : 'gone';
+      return {
+        alive: world.creatureById(h.id),
+        when: h.died !== null ? `${fate}, day ${day(h.died)}` : fate,
+        title: h.died !== null ? `${came}; ${fate} on day ${day(h.died)}` : came
+      };
+    }
+
+    // A living creature tapped in the panel: follow it. Tapping the one already followed, while
+    // the Family deck shows a dead relative's family, brings its own family back.
+    follow(c) {
+      const same = c === this.app.focus;
+      this.app.select(c);
+      if (same && this.familyOf !== null) this.viewFamily(null);
+    }
+
+    // Show the family of someone who has died (by id), or the followed creature's own again (null)
+    viewFamily(id) {
+      const c = this.app.focus;
+      this.familyOf = c && id === c.id ? null : id;
+      this.update(true);
+      $('deck-family').scrollTop = 0;
+    }
+
+    // Under the pointer on the family tree: a hand over a relative that can be tapped, and who it is
+    hoverFamily(node) {
+      const tree = this.familyView;
+      const id = node ? node.rec.id : null;
+      if (id === tree.hover) return;
+      tree.hover = id;
+      tree.canvas.style.cursor = node && !node.self ? 'pointer' : '';
+      const life = node && this.life(node.rec);
+      tree.canvas.title = node ? `${node.rec.name}${node.role ? `, its ${node.role}` : ''}: ${life.alive ? 'alive' : lowerFirst(life.title)}` : '';
+      tree.redraw();
+    }
+
+    // A family from world.history (everyone who has lived here): the tree, then parents,
+    // grandparents, brothers and sisters (half ones marked), children and grandchildren. It is the
+    // followed creature's, unless the player has tapped a dead relative to look at theirs. The
+    // living can be followed; the dead open their own family.
+    renderFamily(c) {
+      const world = this.app.world, index = Evo.kinIndex(world.history);
+      const kin = (this.familyOf !== null && Evo.kinOf(index, this.familyOf)) || Evo.kinOf(index, c.id);
+      if (!kin) return;
+      const s = kin.self, own = s.id === c.id, live = world.creatureById(s.id);
+      this.familyView.render(kin, index, this.who, performance.now() / 1000);
       const person = (h, note = '') => {
         if (!h) return '<span class="muted">unknown</span>';
-        const alive = world.creatureById(h.id);
+        const { alive, when, title } = this.life(h);
         const who = `<span class="sex-glyph" style="color:${sexColor(h.sex)}">${sexGlyph(h.sex)}</span>` +
           `<span>${esc(h.name)} <span class="meta">gen ${h.generation}${note ? ` · ${note}` : ''}</span></span>`;
-        if (alive) return `<button class="member" data-creature="${h.id}">${who}<span class="meta">${alive === c ? 'this one' : 'alive'}</span></button>`;
-        const came = `${h.motherId === null ? 'Arrived' : 'Hatched'} on day ${day(h.born)}`;
-        const fate = h.died !== null ? T.DEATH_WORDS[h.cause] || 'died' : 'gone';
-        const title = h.died !== null ? `${came}; ${fate} on day ${day(h.died)}` : came;
-        return `<div class="member gone" title="${esc(title)}">${who}<span class="meta">${esc(fate)}${h.died !== null ? `, day ${day(h.died)}` : ''}</span></div>`;
+        if (alive) return `<button class="member" data-creature="${h.id}">${who}<span class="meta">${alive !== c ? 'alive' : own ? 'this one' : 'followed'}</span></button>`;
+        return `<button class="member gone" data-family="${h.id}" title="${esc(title)}">${who}<span class="meta">${esc(when)}</span></button>`;
       };
       // A list of people, the rest folded away past FAMILY_SHOWN
       const list = (people, none, note = () => '') => {
@@ -595,19 +662,26 @@
       };
 
       const { outsider, children, grandchildren, descendants } = kin;
+      const none = live ? 'None yet.' : 'None.';
       setHtml($('familyParents'), outsider
-        ? `<p class="note">${c.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
+        ? `<p class="note">${s.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
         : person(kin.mother, 'mother') + person(kin.father, 'father'));
       setHtml($('familyGrandparents'), kin.grandparents.map(g => person(g.rec, `${g.of}'s ${g.role}`)).join('') ||
         `<p class="note">${outsider ? 'Its family lived somewhere else.' : 'Its parents came from outside, so their parents never lived here.'}</p>`);
-      const half = new Set(kin.siblings.filter(s => s.half).map(s => s.rec));
-      setHtml($('familySiblings'), list(kin.siblings.map(s => s.rec), 'None.', h => (half.has(h) ? 'half' : '')));
-      setHtml($('familyChildren'), list(children, `None yet.${c.pregnancy ? ' One is on the way.' : ''}`));
-      setHtml($('familyGrandchildren'), list(grandchildren, 'None yet.'));
+      const half = new Set(kin.siblings.filter(x => x.half).map(x => x.rec));
+      setHtml($('familySiblings'), list(kin.siblings.map(x => x.rec), 'None.', h => (half.has(h) ? 'half' : '')));
+      setHtml($('familyChildren'), list(children, none + (live && live.pregnancy ? ' One is on the way.' : '')));
+      setHtml($('familyGrandchildren'), list(grandchildren, none));
       const living = descendants.filter(h => world.creatureById(h.id)).length;
-      $('familyLine').textContent = `Generation ${c.generation}. ${plural(children.length, 'child', 'children')}, ${plural(grandchildren.length, 'grandchild', 'grandchildren')}` +
+      const counts = `${plural(children.length, 'child', 'children')}, ${plural(grandchildren.length, 'grandchild', 'grandchildren')}` +
         (descendants.length > children.length + grandchildren.length ? `, ${plural(descendants.length, 'descendant', 'descendants')} in all` : '') +
-        (descendants.length ? `; ${living} of them alive` : '') + `. Mated ${plural(c.timesMated, 'time', 'times')}.`;
+        (descendants.length ? `; ${living} of them alive` : '');
+      $('familyLine').textContent = own
+        ? `Generation ${c.generation}. ${counts}. Mated ${plural(c.timesMated, 'time', 'times')}.`
+        : `The family of ${s.name}, generation ${s.generation} (${lowerFirst(this.life(s).title)}). ${counts}.`;
+      const back = $('familyBackBtn');
+      back.classList.toggle('hidden', own);
+      back.textContent = `Back to ${c.name}`;
     }
 
     // ---------- World ----------

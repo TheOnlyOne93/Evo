@@ -198,7 +198,12 @@
           <div class="deck-intro needs-creature">
             <h2>Family</h2>
             <p id="familyLine"></p>
+            <button class="btn small hidden" id="familyBackBtn"></button>
           </div>
+          <section class="block needs-creature"><h3>Family tree</h3>
+            <p class="note">Tap a relative: the living are followed, the dead show their own family.</p>
+            <div class="tree-frame"><canvas id="familyCanvas" aria-label="Family tree: parents and grandparents above, brothers, sisters and mates beside, children and grandchildren below. The lists under it name everyone."></canvas></div>
+          </section>
           <section class="block needs-creature"><h3>Parents</h3><div class="roster" id="familyParents"></div></section>
           <section class="block needs-creature"><h3>Grandparents</h3><div class="roster" id="familyGrandparents"></div></section>
           <section class="block needs-creature"><h3>Brothers and sisters</h3><div class="roster" id="familySiblings"></div></section>
@@ -255,6 +260,7 @@
   <script src="src/render/cues.js"></script>
   <script src="src/render/world-view.js"></script>
   <script src="src/render/brain-view.js"></script>
+  <script src="src/render/family-view.js"></script>
   <script src="src/ui/text.js" data-headless></script>
   <script src="src/ui/kin.js" data-headless></script>
   <script src="src/ui/helpers.js"></script>

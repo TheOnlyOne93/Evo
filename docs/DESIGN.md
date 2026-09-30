@@ -296,7 +296,9 @@ Creatures (`src/sim/creature.js`): `x` = centre, `y` = feet on the ground, `faci
 ## 7. Creature pose — contract between the simulation and `Evo.CreatureArt`
 
 `Evo.poseOf(creature)` (in `src/render/pose.js`) turns simulation state into this plain object.
-The creature artist draws only from the pose, never from simulation internals.
+The creature artist draws only from the pose, never from simulation internals. `Evo.looksOf(creature)`
+gives the `looks` alone: with an id, a stage and a sex they are pose enough for a portrait, which is
+how the family tree draws relatives who have died.
 
 ```js
 pose = {
@@ -364,6 +366,14 @@ class WorldView {
   screenToWorld(sx, sy); worldToScreen(x, y)
   creatureAt(sx, sy); itemAt(sx, sy)  // picking in screen coordinates
   options: { showScent, showSenses, focused, hand: { x, y, mode, holding, tool } }
+}
+
+// src/render/family-view.js: the family tree in the Family deck
+class FamilyView {
+  constructor(canvas)
+  render(kin, index, who, t)          // kin and index from Evo.kinOf and Evo.kinIndex (src/ui/kin.js, read from world.history);
+                                      // who: { creatureOf(id), poseOf(creature), faces: Map id -> { looks, stage } as last seen }
+  nodeAt(x, y)                        // the face under a point: { rec (the history record), role, self } or null
 }
 ```
 

@@ -19,6 +19,8 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 * **Add a creature**: a grown female (♀) or male (♂) arrives near the one you follow. On a phone,
   each toolbar group (Food, More, Add) opens from one button.
 * **Inside view**: the followed creature's body chemistry, brain, genes and family, and the world.
+  The Family tab draws its family tree: tap a living relative to follow it, a dead one to see
+  its family.
 * Zoom: mouse wheel or two-finger pinch. **Sound** (top right) turns the sound on or off, and
   **Scent** (beside the speed buttons) shows the scents in the air. **Skip to the next season** is
   in the Inside view's World tab.
@@ -52,7 +54,7 @@ as `index.html` and show the game's own world and creatures, with lab controls o
 | `src/core/` | The `Evo` namespace, shared helpers (seedable random numbers, events), diffusion |
 | `src/sim/` | The simulation: genome, founder genes, biochemistry, brain, creature, world. No DOM, no audio |
 | `src/audio/` | Procedural sound, driven by simulation events |
-| `src/render/` | Canvas drawing: sky, world, items, creatures (from a pose), brain map |
+| `src/render/` | Canvas drawing: sky, world, items, creatures (from a pose), brain map, family tree |
 | `src/ui/` | The hand, the inside view, the main loop |
 | `styles/app.css` | Styles and colour tokens (the canvases read the same tokens) |
 | `tests/`, `tools/` | Headless tests; behaviour and ecology tools |

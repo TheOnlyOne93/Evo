@@ -1,5 +1,6 @@
 // Evo.poseOf(creature): turn simulation state into the plain pose object the creature artist draws
 // from (docs/DESIGN.md §7). Smooths a few values between frames so poses don't flicker.
+// Evo.looksOf(creature): the pose's looks alone.
 // Evo.attentionOf(creature, world): the thing in the world the creature is attending to.
 (function (Evo) {
   'use strict';
@@ -99,6 +100,16 @@
     return u < len ? Math.sin(u / len * Math.PI) : 0;
   }
 
+  // A creature's looks as the pose carries them: all genetic (a later-stage appearance gene can
+  // change them). Enough, with its stage and sex, to draw its face after it has gone.
+  Evo.looksOf = function looksOf(c) {
+    const T = c.traits;
+    return {
+      hue: T.hue, accentHue: T.accentHue, pattern: T.pattern, patternScale: T.patternScale, earSize: T.earSize,
+      tailLength: T.tailLength, eyeSize: T.eyeSize, plumpness: T.plumpness, legLength: T.legLength, crest: T.crest
+    };
+  };
+
   // world (optional): lets the eyes follow what the creature is attending to
   Evo.poseOf = function poseOf(c, { focused = false, hovered = false, world = null } = {}) {
     let s = smooth.get(c);
@@ -112,7 +123,6 @@
     const ch = c.chem;
     const get = k => ch.get(k);
     const [gx, gy] = gaze(c, attentionOf(c, world));
-    const T = c.traits;
     const mouth = Math.max(c.mouthTimer, c.drinkTimer || 0);
     const awake = !c.asleep && !c.dead && !c.held;
     // Yawning when sleepy or tired; licking its lips when hungry or thirsty
@@ -120,10 +130,7 @@
     const lick = awake && !mouth && !yawn && Math.max(get('hunger'), get('thirst'), get('proteinHunger'), get('fatHunger')) > 0.55 ? every(c, LICK.period, LICK.len, LICK.salt) : 0;
     return {
       id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex,
-      looks: {
-        hue: T.hue, accentHue: T.accentHue, pattern: T.pattern, patternScale: T.patternScale, earSize: T.earSize,
-        tailLength: T.tailLength, eyeSize: T.eyeSize, plumpness: T.plumpness, legLength: T.legLength, crest: T.crest
-      },
+      looks: Evo.looksOf(c),
       motion: {
         vx: c.vx, airborne: !c.onGround && !c.held, walkPhase: c.walkPhase,
         lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08)
