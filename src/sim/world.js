@@ -29,6 +29,9 @@
   // A dead body's food: gut protein (capped) from body protein and growth, fat and sugar from reserves
   const CARRION = { proteinCap: 0.5, protein: 0.6, growth: 0.1, fat: 0.5, sugar: 0.3 };
   const POND_SCENT = { spacing: 60, amount: 0.02 };
+  // A pond's water stands belowRim px below its lower rim and is at least minDepth px deep (a shallow
+  // dip is dug deeper, up to digPasses times)
+  const POND = { belowRim: 6, minDepth: 18, digPasses: 4 };
   const CLIFF_WIDTH = 140;          // The cliffs at each end of the world reach this far in (px); World.edge must be at least this
 
   // ---------- Terrain: a height field with a pond ----------
@@ -49,13 +52,25 @@
         if (edge < CLIFF_WIDTH) h -= 260 * (1 - edge / CLIFF_WIDTH) ** 2;
         this.heights[i] = h;
       }
-      // Ponds: smooth dips that fill with water up to just below their lower rim
+      // Ponds: smooth dips that fill with water up to just below their lower rim. Where the land
+      // around a dip leaves too little water, its bed is dug deeper, in the same shape
       this.ponds = layout.ponds.map(([x0, x1, depth]) => {
-        for (let i = 0; i < n; i++) {
-          const x = i * this.spacing;
-          if (x > x0 && x < x1) this.heights[i] += depth * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
+        const dig = d => {
+          for (let i = 0; i < n; i++) {
+            const x = i * this.spacing;
+            if (x > x0 && x < x1) this.heights[i] += d * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
+          }
+        };
+        dig(depth);
+        let level;
+        for (let pass = 0; ; pass++) {
+          level = Math.max(this.groundY(x0), this.groundY(x1)) + POND.belowRim;
+          let bed = -Infinity;
+          for (let i = Math.ceil(x0 / this.spacing); i * this.spacing < x1; i++) bed = Math.max(bed, this.heights[i]);
+          const short = POND.minDepth - (bed - level);
+          if (short <= 0 || pass === POND.digPasses) break;
+          dig(short);
         }
-        const level = Math.min(this.groundY(x0), this.groundY(x1)) + 6;
         let a = x0, b = x1;
         while (a < x1 && this.groundY(a) < level) a += 2;
         while (b > x0 && this.groundY(b) < level) b -= 2;
