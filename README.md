@@ -29,9 +29,10 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 ## Tests and tools
 
 ```sh
+node tools/check.js            # the tests and fingerprint --check side by side: run before committing
 node tests/run.js              # everything
 node tests/run.js genome       # tests whose name contains "genome"
-node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds metrics, printed only with --report)
+node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds metrics; --jobs N sets the worker processes)
 node tools/evaluate.js 2 3     # ecology: several seeds in parallel, meals, sleep, births, deaths
 node tools/simulate.js 2 1     # one headless run with a running report
 node tools/fingerprint.js --check  # determinism: sim, pose and text hashes match tools/fingerprint.json (--save rewrites it)
