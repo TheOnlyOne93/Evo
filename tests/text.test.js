@@ -2,7 +2,7 @@
 
 // Evo.text: the plain-language names and descriptions the inspector shows
 
-const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
+const { founderBrain } = require('./helpers');
 
 test('text: every neuron has a plain-language name', (Evo, assert) => {
   const brain = founderBrain(Evo);

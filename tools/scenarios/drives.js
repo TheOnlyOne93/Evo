@@ -13,21 +13,18 @@ module.exports = ({ lab, trial, avoids }) => ({
       const s = lab(seed);
       const other = s.world.addAdult('MALE', { x: s.c.mouthX + 12 });
       for (const phase of ['body', 'mind', 'act', 'settle']) other[phase] = () => {}; // A friend standing still at its mouth
-      let nuzzles = 0;
-      s.world.events.on('nuzzle', e => { if (e.from === s.c) nuzzles++; });
+      const nuzzles = s.count('nuzzle', e => e.from === s.c);
       // A friendly nuzzle or two is fine; more than 3 in 900 ticks is nuzzling without a need
-      return avoids(s, 900, () => nuzzles > 3);
+      return avoids(s, 900, () => nuzzles() > 3);
     },
     // The small pond lies near the world's end: a thirsty creature at the edge beside it must still drink
     // (200px short of the pond's middle is always past the edge on seeds 1-12, so the creature starts at the edge)
     'thirsty, at the world edge beside the small pond -> drinks': seed => {
       const s = lab(seed);
-      Object.assign(s.c, { x: s.world.edge, facing: 1 });
-      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.placeAt(s.world.edge);
       s.hold = { thirst: 0.7 };
-      let drank = false;
-      s.world.events.on('drink', () => { drank = true; });
-      return trial(s, 1800, () => drank);
+      const drinks = s.count('drink');
+      return trial(s, 1800, () => drinks() > 0);
     },
     // Stimulus genes: the hand's pat and slap release reward and punishment at once
     'patted -> reward >= 0.15 next tick': seed => {
@@ -47,12 +44,10 @@ module.exports = ({ lab, trial, avoids }) => ({
     'thirsty, 200px inland of the small pond -> drinks within 1800 ticks': seed => {
       const s = lab(seed);
       const p = s.world.terrain.ponds[1];
-      Object.assign(s.c, { x: p.x1 + 200, facing: -1 });
-      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.placeAt(p.x1 + 200, -1);
       s.hold = { thirst: 0.7 };
-      let drank = false;
-      s.world.events.on('drink', () => { drank = true; });
-      return trial(s, 1800, () => drank) === null ? 0 : 1;
+      const drinks = s.count('drink');
+      return trial(s, 1800, () => drinks() > 0) === null ? 0 : 1;
     },
     // Novelty comes from things: a bored creature with a ball nearby (share of seeds that touch it)
     'bored, ball 60 px -> touches or grabs it within 1800 ticks': seed => {

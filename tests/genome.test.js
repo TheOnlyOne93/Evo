@@ -172,6 +172,7 @@ test('genome: a windowed guidance gene grows synapses only from the cells in its
   const k = 10, cell = open.brain.lobes.needs[k];
   const [tx, ty] = open.brain.neurons[cell].tag;
   assert.ok(open.from.size > 1, 'without a window many need cells send axons');
+  // sr is a radius encoded over the window's range (0.02 to 0.5): a radius of about 0.05 in the cell's own tag space
   const windowed = sourcesOf({ sx: tx, sy: ty, sr: (0.05 - 0.02) / 0.5 });
   assert.ok(windowed.from.size > 0, 'the windowed cell grew synapses');
   assert.deepStrictEqual([...windowed.from], [cell], 'only the cell in the window');

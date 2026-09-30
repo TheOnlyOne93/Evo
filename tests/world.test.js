@@ -9,6 +9,11 @@ function emptyWorld(Evo) {
   return world;
 }
 
+// A ready-to-hatch founder egg at x
+function eggAt(world, Evo, x) {
+  return world.spawnItem('egg', x, undefined, { genome: Evo.Genome.founder(), reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1, progress: 1, incubationTicks: 5000 });
+}
+
 // Make a creature an adult ready to mate (the receptor gene's verdict is overridden)
 function fertile(c, Evo) {
   c.ageTicks = Math.floor(c.lifespan * 0.5);
@@ -120,7 +125,7 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
 test('world: a hatching egg does not make the next item skip its tick', (Evo, assert) => {
   const world = emptyWorld(Evo);
   world.items = [];
-  const egg = world.spawnItem('egg', world.width / 2, undefined, { genome: Evo.Genome.founder(), reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1, progress: 1, incubationTicks: 5000 });
+  const egg = eggAt(world, Evo, world.width / 2);
   const ball = world.spawnItem('ball', world.width / 2 + 40, undefined, { hue: 0 });
   world.moveItems();
   assert.ok(!world.items.includes(egg) && world.creatures.length === 1, 'the egg hatched');
@@ -131,7 +136,7 @@ test('world: the population cap holds for adults and hatchlings', (Evo, assert) 
   const world = new Evo.World();
   while (world.creatures.length < Evo.LIMITS.MAX_POPULATION) assert.ok(world.addAdult('FEMALE'));
   assert.strictEqual(world.addAdult('MALE'), null, 'a full world refuses newcomers');
-  const egg = world.spawnItem('egg', world.width / 2, undefined, { genome: Evo.Genome.founder(), reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1, progress: 1, incubationTicks: 5000 });
+  const egg = eggAt(world, Evo, world.width / 2);
   world.moveItems();
   assert.ok(world.items.includes(egg), 'the egg waits');
   assert.strictEqual(world.creatures.length, Evo.LIMITS.MAX_POPULATION);

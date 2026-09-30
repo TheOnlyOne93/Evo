@@ -10,24 +10,23 @@
 //   punishment could strengthen. And while a mimic sits uneaten in view, the discounted punishment
 //   prediction (GAMMA) gives a steady trickle of relief that strengthens the eat muscle's inputs.
 'use strict';
+const { cortexKnockout, callThenPat, timeCosts } = require('../../tests/helpers');
 
-module.exports = ({ Evo, lab, session, trial }) => {
+module.exports = ({ Evo, lab, session, run, trial }) => {
   const cached = fn => { const memo = new Map(); return seed => { if (!memo.has(seed)) memo.set(seed, fn(seed)); return memo.get(seed); }; };
 
   // A creature with several moderate drives, things to look at and no reward or punishment: which
   // actions does it pick, how long does it stick with one, and do its modulator cells stay quiet?
   const busy = cached(seed => {
-    const { world, c } = lab(seed);
+    const s = lab(seed), { world, c } = s;
     world.spawnItem('fruit', c.x - 150);
     world.spawnItem('ball', c.x + 120);
-    const hold = { hunger: 0.4, thirst: 0.2, loneliness: 0.3, boredom: 0.3, reward: 0, punishment: 0 };
+    s.hold = { hunger: 0.4, thirst: 0.2, loneliness: 0.3, boredom: 0.3, reward: 0, punishment: 0 };
     const motor = c.brain.lobes.motor, [rewardCell, punishCell] = c.brain.lobes.feelings;
     let active = 0, multi = 0, modSpikes = 0, ticks = 0, cur = -1, first = 0, last = 0;
     const bouts = [];
-    for (let t = 0; t < 2400 && !c.dead; t++) {
-      for (const k in hold) c.chem.set(k, hold[k]);
-      world.step();
-      if (t < 300) continue;
+    run(s, 2400, (w, _c, t) => {
+      if (t < 300) return;
       const b = c.brain;
       ticks++;
       let n = 0, some = -1;
@@ -39,7 +38,7 @@ module.exports = ({ Evo, lab, session, trial }) => {
       if (cur >= 0 && (t - last > 30 || (n && !(b.hist[motor[cur]] & 1)))) { bouts.push(last - first + 1); cur = -1; }
       if (n && cur < 0) { cur = some; first = t; }
       if (n) last = t;
-    }
+    });
     if (cur >= 0) bouts.push(last - first + 1);
     // Half the time spent acting is in bouts at least this long (a stray twitch barely counts)
     bouts.sort((a, b) => a - b);
@@ -62,23 +61,16 @@ module.exports = ({ Evo, lab, session, trial }) => {
     // A full world: MAX_POPULATION creatures (the population ceiling)
     while (world.creatures.length < Evo.LIMITS.MAX_POPULATION) world.addAdult(Evo.chance(0.5) ? 'FEMALE' : 'MALE');
     world.maybeWanderer = () => {};
-    const B = Evo.Brain.prototype, C = Evo.Creature.prototype;
-    const { tick, runMorphogenesis } = B, { sense } = C;
-    let brainNs = 0n, senseNs = 0n, creatureTicks = 0, t0 = 0n, worldMs = 0;
-    const timed = (fn, add) => function (...a) { const t0 = process.hrtime.bigint(); const r = fn.apply(this, a); add(process.hrtime.bigint() - t0); return r; };
-    B.tick = timed(tick, d => { brainNs += d; creatureTicks++; });
-    B.runMorphogenesis = timed(runMorphogenesis, d => { brainNs += d; });
-    C.sense = timed(sense, d => { senseNs += d; });
-    try {
+    let worldMs = 0;
+    const { brain, senses } = timeCosts(Evo, reset => {
+      let t0 = 0n;
       for (let t = 0; t < COST_TICKS; t++) {
-        if (t === COST_WARMUP) { brainNs = 0n; senseNs = 0n; creatureTicks = 0; t0 = process.hrtime.bigint(); }
+        if (t === COST_WARMUP) { reset(); t0 = process.hrtime.bigint(); }
         world.step();
       }
       worldMs = Number(process.hrtime.bigint() - t0) / 1e6 / (COST_TICKS - COST_WARMUP);
-    } finally {
-      Object.assign(B, { tick, runMorphogenesis }); C.sense = sense;
-    }
-    return { brain: Number(brainNs) / 1000 / creatureTicks, senses: Number(senseNs) / 1000 / creatureTicks, worldMs };
+    });
+    return { brain, senses, worldMs };
   });
 
   // Two things in view, one on each side: does the creature go for the one its need is about?
@@ -94,31 +86,24 @@ module.exports = ({ Evo, lab, session, trial }) => {
     'thirsty, fruit left + pond right -> reaches water': seed => {
       const s = lab(seed);
       const p = s.world.terrain.ponds[0];
-      Object.assign(s.c, { x: p.x0 - 150, facing: 1 });
-      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.placeAt(p.x0 - 150);
       s.world.spawnItem('fruit', s.c.x - 150);
       s.hold = { thirst: 0.7 };
-      let drank = false;
-      s.world.events.on('drink', () => { drank = true; });
-      return trial(s, 1800, () => drank);
+      const drinks = s.count('drink');
+      return trial(s, 1800, () => drinks() > 0);
     }
   };
 
-  // Object permanence: a hungry creature sees fruit on its left for 60 ticks, then the fruit is
-  // taken away. How much more of the next 120 ticks does it spend walking left than a creature that
-  // never saw it?
-  const walkingLeft = (seed, show) => {
-    const s = lab(seed);
+  // Object permanence: a hungry creature in a lab sees fruit 150 px to one side (or, for a control,
+  // nothing) for 60 ticks; then the fruit is taken away. Returns the share of the next 120 ticks it
+  // spends walking toward where the fruit was (side -1 is left, 1 is right).
+  const walksTowardHidden = (s, side, show = true) => {
     s.hold = { hunger: 0.7 };
-    const fruit = show ? s.world.spawnItem('fruit', s.c.x - 150) : null;
-    let left = 0;
-    for (let t = 0; t < 180; t++) {
-      for (const k in s.hold) s.c.chem.set(k, s.hold[k]);
-      if (t === 60 && fruit) s.world.items.length = 0;
-      s.world.step();
-      if (t >= 60 && s.c.vx < -0.25) left++;
-    }
-    return left / 120;
+    if (show) s.world.spawnItem('fruit', s.c.x + side * 150);
+    let toward = 0;
+    run(s, 180, (w, c, t) => { if (t >= 60 && c.vx * side > 0.25) toward++; },
+      (w, c, t) => { if (t === 60) w.items.length = 0; });
+    return toward / 120;
   };
 
   // Does finding food get quicker? A hungry creature finds fruit placed 150 px away, alternately
@@ -133,7 +118,7 @@ module.exports = ({ Evo, lab, session, trial }) => {
       const at = trial(s, 1800, w => !w.items.includes(fruit));
       times.push(at === null ? 1800 : at);
     }
-    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const { mean } = Evo.util;
     return mean(times.slice(5)) / Math.max(1, mean(times.slice(0, 3)));
   });
 
@@ -144,31 +129,36 @@ module.exports = ({ Evo, lab, session, trial }) => {
   // sets the two apart the copy calls when the original did, so most of its pats follow a call too.)
   // Returns the change in calls, (test - baseline) / the larger of the two (-1 .. 1), for the
   // contingent and the yoked creature.
+  const BASELINE_END = 1500, TRAINING_END = 4500, TOTAL_TICKS = 6000;
   const consequence = kind => cached(seed => {
-    const run = (seed, schedule) => {
+    // Plays one creature through all three phases and records the ticks it called on. It is touched at
+    // the ticks in `schedule` or, without one, 5-15 ticks after a call in the training phase (the
+    // ticks are returned as `touches`).
+    const play = (seed, schedule) => {
       const s = lab(seed);
-      const hold = { loneliness: 0.3, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
-      const touches = schedule || [];
-      let calls = 0, due = -1;
-      s.world.events.on('call', ({ creature }) => { if (creature === s.c) { calls++; if (!schedule && due < 0) due = 5 + Evo.randInt(11); } });
-      let base = 0;
-      for (let t = 0; t < 6000; t++) {
-        for (const k in hold) s.c.chem.set(k, hold[k]);
-        if (t === 1500) { base = calls; calls = 0; }
-        if (t === 4500) calls = 0;
-        const training = t >= 1500 && t < 4500;
+      s.hold = { loneliness: 0.3, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
+      const touches = schedule || [], callTicks = [];
+      let now = 0, due = -1;
+      s.world.events.on('call', ({ creature }) => {
+        if (creature !== s.c) return;
+        callTicks.push(now);
+        if (!schedule && due < 0) due = 5 + Evo.randInt(11);
+      });
+      run(s, TOTAL_TICKS, () => false, (w, c, t) => {
+        now = t;
+        const training = t >= BASELINE_END && t < TRAINING_END;
         if (schedule ? touches.includes(t) : training && due === 0) {
-          s.world[kind](s.c);
+          w[kind](c);
           if (!schedule) touches.push(t);
         }
         if (due >= 0) due--;
         if (!training) due = -1;
-        s.world.step();
-      }
-      return { change: (calls - base) / Math.max(1, base, calls), touches };
+      });
+      const base = callTicks.filter(t => t < BASELINE_END).length, test = callTicks.filter(t => t >= TRAINING_END).length;
+      return { change: (test - base) / Math.max(1, base, test), touches };
     };
-    const contingent = run(seed, null);
-    return { contingent: contingent.change, yoked: run(seed + 1000, contingent.touches).change };
+    const contingent = play(seed, null);
+    return { contingent: contingent.change, yoked: play(seed + 1000, contingent.touches).change };
   });
   const slapped = consequence('slap'), patted = consequence('pat');
 
@@ -176,25 +166,13 @@ module.exports = ({ Evo, lab, session, trial }) => {
   // A hungry creature sees fruit 150 px to one side (alternating by seed) for 60 ticks; then the
   // fruit vanishes. Share of the next 120 ticks spent walking toward where it was, for the founder
   // and for a knockout whose thinking (cortex) Lobe dynamics gene has persistence 0 (same seed).
-  const cortexKnockout = Evo.FOUNDER_GENOME.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
   const labWith = (seed, genes) => {
     const saved = Evo.FOUNDER_GENOME;
     Evo.FOUNDER_GENOME = genes;
     try { return lab(seed); } finally { Evo.FOUNDER_GENOME = saved; }
   };
-  const hiddenFruit = genes => cached(seed => {
-    const s = labWith(seed, genes), side = seed % 2 ? -1 : 1;
-    s.world.spawnItem('fruit', s.c.x + side * 150);
-    let toward = 0;
-    for (let t = 0; t < 180 && !s.c.dead; t++) {
-      s.c.chem.set('hunger', 0.7);
-      if (t === 60) s.world.items.length = 0;
-      s.world.step();
-      if (t >= 60 && s.c.vx * side > 0.25) toward++;
-    }
-    return toward / 120;
-  });
-  const permanence = { founder: hiddenFruit(Evo.FOUNDER_GENOME), knockout: hiddenFruit(cortexKnockout) };
+  const hiddenFruit = genes => cached(seed => walksTowardHidden(labWith(seed, genes), seed % 2 ? -1 : 1));
+  const permanence = { founder: hiddenFruit(Evo.FOUNDER_GENOME), knockout: hiddenFruit(cortexKnockout(Evo)) };
   const memoryReports = {
     'memory: walks toward hidden fruit (founder)': permanence.founder,
     'memory: walks toward hidden fruit (cortex persistence 0)': permanence.knockout
@@ -227,18 +205,14 @@ module.exports = ({ Evo, lab, session, trial }) => {
   // A pat reinforces what the creature was just doing. A quiet creature is made to call (or jump),
   // its muscle driven for a few ticks, every 300 ticks, 8 times, and patted `lag` ticks after each;
   // then how often it calls (jumps) on its own in the next 1500 ticks is counted.
+  const MOULD_ROUNDS = 8, COUNT_TICKS = 1500;
   const moulded = (seed, action, lag) => {
-    const s = lab(seed), b = s.c.brain, muscle = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === action)];
-    const hold = { loneliness: 0, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
+    const s = lab(seed), muscle = s.c.brain.lobes.motor[Evo.MOTORS.findIndex(m => m.key === action)];
+    s.hold = { loneliness: 0, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
     const did = action === 'jump' ? () => s.c.jumpCooldown === 30 : () => s.c.callTimer === 40;
+    callThenPat(s.world, s.c, muscle, lag, MOULD_ROUNDS, () => { for (const k in s.hold) s.c.chem.set(k, s.hold[k]); });
     let n = 0;
-    for (let t = 0; t < 2400 + 1500; t++) {
-      for (const k in hold) s.c.chem.set(k, hold[k]);
-      if (t < 2400 && t % 300 < 6) b.inject(muscle, 40, 1);
-      if (t < 2400 && t % 300 === lag) s.world.pat(s.c);
-      s.world.step();
-      if (t >= 2400 && did()) n++;
-    }
+    run(s, COUNT_TICKS, () => { if (did()) n++; });
     return n;
   };
   const pattedSoon = action => seed => (moulded(seed, action, 10) > moulded(seed, action, 150) ? 0 : null);
@@ -260,7 +234,7 @@ module.exports = ({ Evo, lab, session, trial }) => {
       'bench: calls after the same slaps at random (yoked, change)': seed => slapped(seed).yoked,
       'bench: calls after pats that follow each call (change)': seed => patted(seed).contingent,
       'bench: calls after the same pats at random (yoked, change)': seed => patted(seed).yoked,
-      'memory: walks left after fruit there vanishes (share above control)': seed => walkingLeft(seed, true) - walkingLeft(seed, false),
+      'memory: walks left after fruit there vanishes (share above control)': seed => walksTowardHidden(lab(seed), -1) - walksTowardHidden(lab(seed), -1, false),
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,

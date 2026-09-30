@@ -30,22 +30,18 @@ module.exports = ({ lab, trial, avoids }) => ({
     'thirsty at the pond -> drinks': seed => {
       const s = lab(seed);
       const p = s.world.terrain.ponds[0];
-      Object.assign(s.c, { x: p.x0 + 12, facing: 1 });
-      s.c.y = s.world.terrain.groundY(s.c.x);
+      s.placeAt(p.x0 + 12);
       s.hold = { thirst: 0.7 };
-      let drank = false;
-      s.world.events.on('drink', () => { drank = true; });
-      return trial(s, 900, () => drank);
+      const drinks = s.count('drink');
+      return trial(s, 900, () => drinks() > 0);
     },
     'not thirsty at the pond -> rarely drinks': seed => {
       const s = lab(seed);
       const p = s.world.terrain.ponds[0];
-      Object.assign(s.c, { x: p.x0 + 12, facing: 1 });
-      s.c.y = s.world.terrain.groundY(s.c.x);
-      let drinks = 0;
-      s.world.events.on('drink', () => { drinks++; });
+      s.placeAt(p.x0 + 12);
+      const drinks = s.count('drink');
       // A sip or two is fine; more than 8 in 900 ticks is drinking without thirst
-      return avoids(s, 900, () => drinks > 8);
+      return avoids(s, 900, () => drinks() > 8);
     },
     'sleepy at night -> falls asleep': seed => {
       const s = lab(seed, { phase: 0.95 });

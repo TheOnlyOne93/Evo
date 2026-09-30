@@ -8,31 +8,35 @@
 const fs = require('fs');
 const path = require('path');
 const Evo = require('../tests/load')();
+const { quietWorld } = require('../tests/helpers');
 
-// A quiet world with one creature and nothing else happening
+// A quiet world with one creature and nothing else happening. Besides { world, c }, it has
+// placeAt(x, facing) to stand the creature on the ground at x, and count(eventName, [filter]) which
+// returns a function giving how many such events (passing the filter) have happened since.
 function lab(seed, { phase = 0.45 } = {}) {
-  Evo.seed(seed);
-  const world = new Evo.World();
-  world.items = [];
-  world.growFood = () => {};
-  world.maybeWanderer = () => {};
-  world.startPhase = phase;
-  world.updateClock();
-  const c = world.creatures[0];
-  world.creatures = [c];
-  const x = world.features.find(f => f.kind === 'grass').x;
-  Object.assign(c, { x, y: world.terrain.groundY(x), vx: 0, vy: 0, facing: 1 });
+  const s = quietWorld(Evo, seed, phase);
+  const { world, c } = s;
+  s.placeAt = (x, facing = 1) => Object.assign(c, { x, y: world.terrain.groundY(x), facing });
+  s.count = (name, filter = () => true) => {
+    let n = 0;
+    world.events.on(name, e => { if (filter(e)) n++; });
+    return () => n;
+  };
+  Object.assign(c, { vx: 0, vy: 0 });
+  s.placeAt(world.features.find(f => f.kind === 'grass').x);
   for (const k of Evo.DRIVES) c.chem.set(k, 0);
   c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); c.chem.set('adenosine', 0); c.chem.set('melatonin', 0);
-  return { world, c };
+  return s;
 }
 
-// Run until done(world, creature, tick) is true, the creature dies, or `ticks` pass.
-// Returns { at: the tick it happened (or null), died }.
-function run(setup, ticks, done) {
+// Run until done(world, creature, tick) is true, the creature dies, or `ticks` pass. Drives in
+// setup.hold are set before every tick, and before(world, creature, tick) runs then too, just before
+// the world steps. Returns { at: the tick it happened (or null), died }.
+function run(setup, ticks, done, before) {
   const { world, c, hold } = setup;
   for (let t = 0; t < ticks; t++) {
     if (hold) for (const [k, v] of Object.entries(hold)) c.chem.set(k, v);
+    if (before) before(world, c, t);
     world.step();
     if (done(world, c, t)) return { at: t, died: false };
     if (c.dead) return { at: null, died: true };
@@ -41,9 +45,9 @@ function run(setup, ticks, done) {
 }
 // A scenario's score: the tick at which it passed, or null for a failure. Dying always fails.
 // trial: pass when done() happens; avoids: pass when done() never happens and the creature lives.
-const trial = (setup, ticks, done) => run(setup, ticks, done).at;
-const avoids = (setup, ticks, done) => {
-  const r = run(setup, ticks, done);
+const trial = (setup, ticks, done, before) => run(setup, ticks, done, before).at;
+const avoids = (setup, ticks, done, before) => {
+  const r = run(setup, ticks, done, before);
   return r.at === null && !r.died ? 0 : null;
 };
 
@@ -61,7 +65,7 @@ function session(seed, opts) {
   return s;
 }
 
-const kit = { Evo, lab, session, trial, avoids };
+const kit = { Evo, lab, session, run, trial, avoids };
 const SCENARIOS = {}, REPORTS = {};
 const dir = path.join(__dirname, 'scenarios');
 for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {

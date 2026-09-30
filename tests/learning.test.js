@@ -1,7 +1,7 @@
 'use strict';
 // How the brain learns: modulator cells, prediction errors, credit assignment.
 
-const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
+const { founderBrain, TICK_OPTS, quietWorld, callThenPat, timeCosts } = require('./helpers');
 
 // Random sensory drive, as a creature looking around would get
 function senseAround(Evo, brain, drive) {
@@ -14,29 +14,27 @@ test('learning: modulator cells stay silent without an outcome', (Evo, assert) =
   for (let t = 0; t < 600; t++) {
     senseAround(Evo, brain, drive);
     brain.outcome[0] = 0; brain.outcome[1] = 0;
-    brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
+    brain.tick(drive, TICK_OPTS);
   }
   for (const m of brain.modulatorCells) assert.ok(brain.rate[m] < 0.02, `modulator ${m} fires at ${brain.rate[m].toFixed(3)}`);
 });
 
-const quiet = { noise: 0.35, arousal: 0, canFire: true };
-
 test('learning: an unexpected outcome is a prediction error; a constant one stops being one', (Evo, assert) => {
   const brain = founderBrain(Evo);
   const drive = new Float32Array(brain.N);
-  for (let t = 0; t < 200; t++) brain.tick(drive, quiet);
+  for (let t = 0; t < 200; t++) brain.tick(drive, TICK_OPTS);
   brain.outcome[0] = 0.5;
-  brain.tick(drive, quiet);
+  brain.tick(drive, TICK_OPTS);
   assert.ok(brain.delta[0] > 0.3, `error at an unexpected reward: ${brain.delta[0].toFixed(3)}`);
   const m = brain.modulatorCells[0];
   let fired = 0;
-  for (let t = 0; t < 3; t++) { brain.tick(drive, quiet); fired += brain.hist[m] & 1; }
+  for (let t = 0; t < 3; t++) { brain.tick(drive, TICK_OPTS); fired += brain.hist[m] & 1; }
   assert.ok(fired > 0, 'the reward cell fires on the error');
-  for (let t = 0; t < 400; t++) brain.tick(drive, quiet);
+  for (let t = 0; t < 400; t++) brain.tick(drive, TICK_OPTS);
   assert.ok(Math.abs(brain.delta[0]) < 0.05, `error once the reward is usual: ${brain.delta[0].toFixed(3)}`);
   // Punishment works the same way on its own channel
   brain.outcome[1] = 0.5;
-  brain.tick(drive, quiet);
+  brain.tick(drive, TICK_OPTS);
   assert.ok(brain.delta[1] > 0.3 && Math.abs(brain.delta[0]) < 0.05);
 });
 
@@ -52,7 +50,7 @@ test('learning: a cue that comes before reward comes to predict it', (Evo, asser
     for (let t = 0; t < 120; t++) {
       for (const i of cue) drive[i] = t < 20 ? 30 : 0;
       brain.outcome[0] = reward && t === 20 ? 0.5 : 0;
-      brain.tick(drive, quiet);
+      brain.tick(drive, TICK_OPTS);
       // The prediction fades over a few ticks after the cue goes, so the error at the reward is
       // the sum over those ticks
       if (t >= 20 && t < 32) error += brain.delta[0];
@@ -110,19 +108,12 @@ test('learning: punishment weakens the synapse that made its target fire, not it
 test('learning: a brain tick stays within its time budget', (Evo, assert) => {
   // In a default World (2 founders); the game must run many creatures at 60 frames a second
   const world = new Evo.World();
-  const B = Evo.Brain.prototype, { tick, runMorphogenesis } = B;
-  let ns = 0n, ticks = 0;
-  B.tick = function (...a) { const t0 = process.hrtime.bigint(); const r = tick.apply(this, a); ns += process.hrtime.bigint() - t0; ticks++; return r; };
-  B.runMorphogenesis = function () { const t0 = process.hrtime.bigint(); runMorphogenesis.call(this); ns += process.hrtime.bigint() - t0; };
-  try {
+  const { brain: us } = timeCosts(Evo, reset => {
     for (let t = 0; t < 800; t++) {
-      if (t === 200) { ns = 0n; ticks = 0; }
+      if (t === 200) reset();
       world.step();
     }
-  } finally {
-    Object.assign(B, { tick, runMorphogenesis });
-  }
-  const us = Number(ns) / 1000 / ticks;
+  });
   assert.ok(us < 60, `${us.toFixed(1)} us per creature-tick`);
 });
 
@@ -154,7 +145,7 @@ function sleepAfterReward(Evo, forget) {
   if (old !== undefined) brain.removeSynapse(old);
   const ax = brain.addSynapse(A, X, 0.2);
   const drive = new Float32Array(brain.N);
-  const awake = { noise: 0.35, arousal: 0, canFire: true, asleep: false }, asleep = { ...awake, asleep: true };
+  const awake = { ...TICK_OPTS, asleep: false }, asleep = { ...awake, asleep: true };
   for (let t = 0; t < 200; t++) brain.tick(drive, awake);
   for (let trial = 0; trial < 4; trial++) {
     for (let t = 0; t < 100; t++) {
@@ -204,23 +195,12 @@ test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => 
 // ticks, and the hand pats it `lag` ticks after each call. Returns the change in the summed weight
 // of the synapses into the call muscle.
 function patAfterCall(Evo, seed, lag) {
-  Evo.seed(seed);
-  const world = new Evo.World();
-  world.items = []; world.maybeWanderer = () => {}; world.growFood = () => {};
-  world.creatures.length = 1;
-  const c = world.creatures[0], b = c.brain, call = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === 'call')];
+  const { world, c } = quietWorld(Evo, seed), b = c.brain, call = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === 'call')];
   const inputs = () => b.incoming(call).reduce((w, s) => w + b.sW[s], 0);
   const calm = () => { for (const k of Evo.DRIVES) c.chem.set(k, 0); c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); };
   for (let t = 0; t < 200; t++) { calm(); world.step(); }
   const w0 = inputs();
-  for (let k = 0; k < 4; k++) {
-    for (let t = 0; t < 300; t++) {
-      calm();
-      if (t < 6) b.inject(call, 40, 1);
-      if (t === lag) world.pat(c);
-      world.step();
-    }
-  }
+  callThenPat(world, c, call, lag, 4, calm);
   return inputs() - w0;
 }
 

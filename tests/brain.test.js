@@ -1,6 +1,6 @@
 'use strict';
 
-const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
+const { founderBrain, TICK_OPTS, cortexKnockout } = require('./helpers');
 
 // The synapse arrays, the lookup set and the outgoing lists must always agree; nothing ends on a sense cell
 function checkWiring(brain, assert) {
@@ -48,7 +48,7 @@ test('brain: weights stay inside their limits under relentless reward and punish
     // Outcomes that keep coming, in pulses, so they never become fully expected
     const pulse = t % 40 < 10 ? 1 : 0;
     brain.outcome[0] = t < 750 ? pulse : 0; brain.outcome[1] = t < 750 ? 0 : pulse;
-    brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
+    brain.tick(drive, TICK_OPTS);
     if (t % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
   }
   const { WEIGHT_MIN, WEIGHT_MAX } = Evo.BRAIN;
@@ -94,7 +94,7 @@ test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert)
   for (let t = 0; t < 400; t++) {
     const on = t >= 200;
     for (const i of brain.lobes.sight) drive[i] = on ? 30 : 0;
-    brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
+    brain.tick(drive, TICK_OPTS);
     for (const i of cortex) { const f = brain.hist[i] & 1; if (on) after += f; else before += f; }
   }
   assert.ok(after > before, `cortex spikes: ${before} quiet, ${after} seeing`);
@@ -140,7 +140,7 @@ test('brain: an injected input arrives after its delay', (Evo, assert) => {
 function twoMuscles(Evo, seed) {
   Evo.seed(seed);
   const brain = founderBrain(Evo);
-  const [L, R] = brain.lobes.motor, drive = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  const [L, R] = brain.lobes.motor, drive = new Float32Array(brain.N), opts = TICK_OPTS;
   for (let t = 0; t < 100; t++) brain.tick(drive, opts);
   const fired = i => brain.hist[i] & 1;
   let active = 0, both = 0, winner = -1, held = 0;
@@ -189,7 +189,7 @@ test('brain: decided() names the muscle that is winning, and nothing when all ar
 function attentionWinner(Evo, seed, drive) {
   Evo.seed(seed);
   const brain = founderBrain(Evo), P = Evo.BRAIN_BODY_PLAN;
-  const input = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  const input = new Float32Array(brain.N), opts = TICK_OPTS;
   const cell = Evo.founderKit.need(drive);
   const count = {};
   for (let t = 0; t < 400; t++) {
@@ -221,7 +221,7 @@ test('brain: attention goes to what the creature needs', (Evo, assert) => {
 function cortexAfterSight(Evo, seed, genes) {
   Evo.seed(seed);
   const brain = new Evo.Brain(Evo.Genome.founder('X', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
-  const drive = new Float32Array(brain.N), opts = { noise: 0.35, arousal: 0, canFire: true };
+  const drive = new Float32Array(brain.N), opts = TICK_OPTS;
   const eyes = ['low', 'high'].map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
   const spikes = { before: 0, seeing: 0, gap: 0, after: 0 };
   for (let t = 0; t < 200; t++) {
@@ -236,7 +236,7 @@ function cortexAfterSight(Evo, seed, genes) {
 }
 
 test('brain: working memory keeps the cortex going after what it saw is gone; a persistence knockout does not', (Evo, assert) => {
-  const knockout = Evo.FOUNDER_GENOME.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
+  const knockout = cortexKnockout(Evo);
   for (let seed = 1; seed <= 4; seed++) {
     const wm = cortexAfterSight(Evo, seed), ko = cortexAfterSight(Evo, seed, knockout);
     assert.ok(wm.seeing > 0 && ko.seeing > 0, `seed ${seed}: the cortex hears the eyes (${wm.seeing}, knockout ${ko.seeing})`);
