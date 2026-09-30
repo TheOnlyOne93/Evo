@@ -21,6 +21,9 @@
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const CALL_TICKS = 40;            // A call lasts this long (callTimer counts down from it)
+  const CALLING_ABOVE = CALL_TICKS - 10; // Its action reads 'calling' while callTimer is above this (the call's first 10 ticks)
+  const REST_TICKS = 90;            // Each spike of the rest muscle keeps it resting this long (restTimer counts down from it)
+  const LYING_ABOVE = 30;           // It lies down while restTimer is above this (the rest's first 60 ticks)
   const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
@@ -160,7 +163,7 @@
     get fertile() { return !this.dead && !this.asleep && this.isMature && this.stage <= STAGE.OLD && this.chem.effect('fertility') > 1; }
     // Read from the current traits, so a life-history gene that switches on later in life counts
     get lifespan() { return this.traits.lifespanTicks; }
-    get lying() { return this.dead || this.asleep || this.restTimer > 30; }
+    get lying() { return this.dead || this.asleep || this.restTimer > LYING_ABOVE; }
 
     stageForAge() {
       const f = this.ageTicks / this.lifespan;
@@ -647,14 +650,14 @@
         }
       }
       // Resting: each spike of the rest muscle keeps the creature lying down for a while
-      if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = 90; // move() brakes a resting body
+      if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = REST_TICKS; // move() brakes a resting body
       // Calling
       if (m[MOTOR_INDEX.call] && this.callTimer === 0) {
         this.callTimer = CALL_TICKS;
         world.makeSound(this);
       }
       this.exertion = this.exertion * 0.9 + Math.min(1, effort) * 0.1;
-      this.action = this.drinkTimer > 0 ? 'drinking' : this.mouthTimer > 0 ? 'eating' : this.restTimer > 30 ? 'resting' : this.callTimer > 30 ? 'calling'
+      this.action = this.drinkTimer > 0 ? 'drinking' : this.mouthTimer > 0 ? 'eating' : this.restTimer > LYING_ABOVE ? 'resting' : this.callTimer > CALLING_ABOVE ? 'calling'
         : !this.onGround ? 'jumping' : Math.abs(this.vx) > 0.25 ? (running ? 'running' : 'walking') : 'idle';
     }
 
@@ -782,5 +785,5 @@
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
   Evo.EGG_INVESTMENT_BASE = EGG_INVESTMENT_BASE;
 
-  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX, CALL_TICKS, JUMP_COOLDOWN } });
+  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX, CALL_TICKS, LYING_ABOVE, JUMP_COOLDOWN } });
 })(globalThis.Evo);

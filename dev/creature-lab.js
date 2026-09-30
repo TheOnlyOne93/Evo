@@ -135,8 +135,8 @@
     else if (name === 'dead') c.dead = true;
     else if (name === 'eating') sub.eating = true;                 // the mouth timer runs in animate()
     else if (name === 'flinch') sub.flinch = true;                 // replayed in animate()
-    else if (name === 'calling') c.callTimer = 40;
-    else if (name === 'lying') c.restTimer = 31;                   // resting: lying down awake
+    else if (name === 'calling') c.callTimer = Evo.CREATURE.CALL_TICKS;
+    else if (name === 'lying') c.restTimer = Evo.CREATURE.LYING_ABOVE + 1; // resting: lying down awake
     else if (name === 'wet') c.inWater = true;
     else if (name === 'pregnant') c.pregnancy = { progress: 0.8 }; // only its progress is drawn
     else if (name === 'inHeat') sub.heat = true;
