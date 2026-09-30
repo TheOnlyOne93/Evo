@@ -924,7 +924,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, FEELING_TAGS, sideX,
+      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

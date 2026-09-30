@@ -294,3 +294,7 @@ test('world: scent a body gives off reaches every creature\'s nose in the same t
     for (const c of [a, b]) assert.ok(Math.max(c.senses.scentsL[alarm], c.senses.scentsR[alarm]) > 0, `${c === a ? 'a' : 'b'} smells it${swap ? ' (swapped)' : ''}`);
   }
 });
+
+test('world: wandering adults arrive past youth, so they can mate', (Evo, assert) => {
+  assert.ok(Evo.WORLD.ADULT_ARRIVAL_AGE[0] > Evo.STAGES[Evo.STAGE.YOUTH].until);
+});

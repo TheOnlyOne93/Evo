@@ -17,6 +17,9 @@
   const MIN_LENGTH = 256;
   const MAX_LENGTH = 3200;
   const GENOME_LIMITS = { MIN_LENGTH, MAX_LENGTH };
+  // Per-copy mutation: a point mutation per byte at `rate` (mostly a small step, else a new byte), then
+  // chances of duplicating a gene, losing a gene, and one small insertion or deletion
+  const MUTATION = { rate: 0.004, smallStepShare: 0.8, stepWidth: 48, duplication: 0.03, deletion: 0.02, indel: 0.02 };
 
   // span: a 0..1 field read as lo .. lo + width (decode), and back for founder values (encode)
   const span = (lo, width) => ({ lo, width, decode: v => lo + v * width, encode: x => (x - lo) / width });
@@ -135,7 +138,7 @@
     { name: 'Muscle', group: 'body', fields: [u('speed'), u('jump'), u('run')],
       express(v, d) { d.set('walkSpeed', R.walk.decode(v.speed)); d.set('jumpPower', R.jump.decode(v.jump)); d.set('runBoost', 1.2 + v.run * 0.8); } },
     { name: 'Life history', group: 'body', fields: [u('lifespan'), u('gestation')],
-      express(v, d) { d.set('lifespanTicks', (20 + v.lifespan * 24) * 60 * 60); d.set('gestationTicks', 3000 + v.gestation * 6000); } },
+      express(v, d) { d.set('lifespanTicks', (20 + v.lifespan * 24) * 60 * Evo.TICKS_PER_SECOND); d.set('gestationTicks', 3000 + v.gestation * 6000); } },
     { name: 'Voice', group: 'body', fields: [u('pitch'), u('loudness')],
       express(v, d) { d.set('voicePitch', v.pitch); d.set('voiceLoudness', 0.4 + v.loudness * 0.6); } },
     { name: 'Curiosity', group: 'brain', fields: [u('habituation'), u('novelty')],
@@ -222,7 +225,7 @@
       learningRate: 0.038, traceDecay: 0.982, sproutingThreshold: 6, pruningRate: 0.035,
       joyGain: 1.45, stressGain: 1.85,
       walkSpeed: 1.3, jumpPower: 5, runBoost: 1.5,
-      lifespanTicks: 30 * 60 * 60, gestationTicks: 5400,
+      lifespanTicks: 30 * 60 * Evo.TICKS_PER_SECOND, gestationTicks: 5400,
       voicePitch: F ? 0.65 : 0.4, voiceLoudness: 0.7,
       habituationRate: 0.0015, noveltyGain: 8,
       insulation: 0.6, bodyHeat: 0.5,
@@ -323,46 +326,44 @@
       return g;
     }
 
-    cloneWithMutation(mutationRate = 0.004, allowIndels = true) {
+    cloneWithMutation(mutationRate = MUTATION.rate) {
       const dna = Array.from(this.dna);
       let muts = 0;
 
       // 1. Point mutations: mostly small shifts, sometimes a completely new byte
       for (let i = 0; i < dna.length; i++) {
         if (Evo.chance(mutationRate)) {
-          dna[i] = Evo.chance(0.8)
-            ? (dna[i] + Math.floor((Evo.random() - 0.5) * 48) + 256) % 256
+          dna[i] = Evo.chance(MUTATION.smallStepShare)
+            ? (dna[i] + Math.floor((Evo.random() - 0.5) * MUTATION.stepWidth) + 256) % 256
             : Evo.randInt(256);
           muts++;
         }
       }
 
-      if (allowIndels) {
-        // 2. Gene duplication: a whole expressed gene is copied to a random place (it may land
-        //    inside another gene and disrupt it, as in real genomes)
-        let genes = Genome.findGenes(dna);
-        if (genes.length && Evo.chance(0.03)) {
-          const g = Evo.pick(genes);
-          if (dna.length + g.end - g.start <= MAX_LENGTH) {
-            dna.splice(Evo.randInt(dna.length), 0, ...dna.slice(g.start, g.end));
-            muts++;
-            genes = Genome.findGenes(dna); // Positions moved: find the genes again
-          }
-        }
-        // 3. Gene loss: a whole expressed gene is deleted
-        if (genes.length && Evo.chance(0.02) && dna.length > MIN_LENGTH) {
-          const g = Evo.pick(genes);
-          dna.splice(g.start, g.end - g.start);
+      // 2. Gene duplication: a whole expressed gene is copied to a random place (it may land
+      //    inside another gene and disrupt it, as in real genomes)
+      let genes = Genome.findGenes(dna);
+      if (genes.length && Evo.chance(MUTATION.duplication)) {
+        const g = Evo.pick(genes);
+        if (dna.length + g.end - g.start <= MAX_LENGTH) {
+          dna.splice(Evo.randInt(dna.length), 0, ...dna.slice(g.start, g.end));
           muts++;
+          genes = Genome.findGenes(dna); // Positions moved: find the genes again
         }
-        // 4. Small indel: one byte inserted or deleted anywhere. Inside a gene it is a frameshift
-        //    that garbles that gene; in junk DNA it usually does nothing.
-        if (Evo.chance(0.02)) {
-          const at = Evo.randInt(dna.length);
-          if (Evo.chance(0.5) && dna.length < MAX_LENGTH) dna.splice(at, 0, Evo.randInt(256));
-          else if (dna.length > MIN_LENGTH) dna.splice(at, 1);
-          muts++;
-        }
+      }
+      // 3. Gene loss: a whole expressed gene is deleted
+      if (genes.length && Evo.chance(MUTATION.deletion) && dna.length > MIN_LENGTH) {
+        const g = Evo.pick(genes);
+        dna.splice(g.start, g.end - g.start);
+        muts++;
+      }
+      // 4. Small indel: one byte inserted or deleted anywhere. Inside a gene it is a frameshift
+      //    that garbles that gene; in junk DNA it usually does nothing.
+      if (Evo.chance(MUTATION.indel)) {
+        const at = Evo.randInt(dna.length);
+        if (Evo.chance(0.5) && dna.length < MAX_LENGTH) dna.splice(at, 0, Evo.randInt(256));
+        else if (dna.length > MIN_LENGTH) dna.splice(at, 1);
+        muts++;
       }
 
       const child = new Genome(Uint8Array.from(dna), this.sexChrom);
@@ -380,7 +381,7 @@
       if (a > b) [a, b] = [b, a];
       for (let i = a; i < b; i++) dna[i] = donor.dna[i];
 
-      const child = new Genome(dna, Evo.chance(0.5) ? 'X' : 'Y');
+      const child = new Genome(dna, null);
       child.mutationCount = Math.max(mother.mutationCount, father.mutationCount);
       return child.cloneWithMutation();
     }

@@ -13,6 +13,21 @@
   const WANDER_INTERVAL = 1800;
   const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
   const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
+  const ADULT_ARRIVAL_AGE = [0.36, 0.5]; // A wandering adult arrives at this fraction of its lifespan
+  // Food growth per tick (rate x light x season): fruit and grain build up to a threshold, then ripen by chance; dew forms in a dawn window
+  const GROWTH = {
+    fruit: { rate: 0.00009, threshold: 0.3, chance: 0.0025, cost: 0.06 },
+    grain: { rate: 0.0001, threshold: 0.3, chance: 0.003, cost: 0.05 },
+    dew: { from: 0.2, to: 0.3, chance: 0.004 }, bug: 0.0004, grub: 0.0007,
+    rockWarm: 0.0004, rockCool: 0.00025, rockLight: 0.5 // The rock warms in daylight (above this light) and cools otherwise
+  };
+  // Mating: reach is a share of the two body sizes (horizontal), vertical is px
+  const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldown: 1800, maleProtein: 0.04 };
+  // Egg incubation speed: (temperature - cold) / span, at most max
+  const INCUBATION = { cold: 0.15, span: 0.3, max: 1.3 };
+  // A dead body's food: gut protein (capped) from body protein and growth, fat and sugar from reserves
+  const CARRION = { proteinCap: 0.5, protein: 0.6, growth: 0.1, fat: 0.5, sugar: 0.3 };
+  const POND_SCENT = { spacing: 60, amount: 0.02 };
   const CLIFF_WIDTH = 140;          // The cliffs at each end of the world reach this far in (px); World.edge must be at least this
 
   // ---------- Terrain: a height field with a pond ----------
@@ -395,7 +410,7 @@
       genome.sexChrom = chromFor(sex);
       const lifespan = genome.develop().lifespanTicks;
       const px = x === null ? Evo.randRange(0.2, 0.8) * this.width : x;
-      return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(0.36, 0.5)) });
+      return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(ADULT_ARRIVAL_AGE[0], ADULT_ARRIVAL_AGE[1])) });
     }
 
     // An adult descended from a random banked genome (or a fresh founder if the bank is empty); fromEdge
@@ -445,15 +460,15 @@
         if (f.sex !== 'FEMALE' || f.pregnancy || f.mateCooldown > 0 || !f.fertile) continue;
         for (const m of this.creatures) {
           if (m.sex !== 'MALE' || m.mateCooldown > 0 || !m.fertile) continue;
-          if (Math.abs(m.x - f.x) > (m.size + f.size) * 0.45 || Math.abs(m.y - f.y) > 20) continue;
-          if (!Evo.chance(0.03)) continue;
+          if (Math.abs(m.x - f.x) > (m.size + f.size) * MATING.reach || Math.abs(m.y - f.y) > MATING.vertical) continue;
+          if (!Evo.chance(MATING.chance)) continue;
           f.pregnancy = { genome: Evo.Genome.recombine(f.genome, m.genome), fatherId: m.id, generation: Math.max(f.generation, m.generation) + 1,
             parents: [f, m], progress: 0, reserves: Object.fromEntries(Object.keys(Evo.EGG_CONTENTS).map(k => [k, 0])) };
           f.stim.mated = 1; m.stim.mated = 1;
           f.stimulate('mated'); m.stimulate('mated');
-          f.mateCooldown = m.mateCooldown = 1800;
+          f.mateCooldown = m.mateCooldown = MATING.cooldown;
           f.timesMated++; m.timesMated++;
-          m.chem.add('protein', -0.04);
+          m.chem.add('protein', -MATING.maleProtein);
           this.bankGenome(f); this.bankGenome(m);
           this.stats.matings++;
           this.events.emit('mate', { mother: f, father: m });
@@ -503,7 +518,7 @@
     // egg is ready to hatch (the caller hatches it once it is no longer iterating the items).
     incubate(egg) {
       const t = this.temperatureAt(egg.x, egg.y - 5);
-      egg.progress += clamp((t - 0.15) / 0.3, 0, 1.3) / egg.incubationTicks;
+      egg.progress += clamp((t - INCUBATION.cold) / INCUBATION.span, 0, INCUBATION.max) / egg.incubationTicks;
       return egg.progress >= 1;
     }
 
@@ -569,7 +584,7 @@
       const rec = this.history.find(h => h.id === c.id);
       if (rec) { rec.died = this.clock.tick; rec.cause = c.causeOfDeath; }
       const ch = c.chem;
-      const contents = { gutProtein: Math.min(0.5, ch.get('protein') * 0.6 + 0.1 * c.growth), gutFat: ch.get('fat') * 0.5, gutSugar: ch.get('glucose') * 0.3 };
+      const contents = { gutProtein: Math.min(CARRION.proteinCap, ch.get('protein') * CARRION.protein + CARRION.growth * c.growth), gutFat: ch.get('fat') * CARRION.fat, gutSugar: ch.get('glucose') * CARRION.sugar };
       this.spawnItem('carrion', c.x, c.y, { contents, hue: c.traits.hue });
       if (this.hand.holding && this.hand.holding.creature === c) this.hand.holding = null;
     }
@@ -580,32 +595,32 @@
       const full = this.foodCount >= LIMITS.MAX_FOOD;
       for (const f of this.features) {
         if (f.kind === 'tree') {
-          f.fruiting = clamp01(f.fruiting + s.grow[f.yields] * 0.00009 * light);
-          if (!full && f.fruiting > 0.3 && Evo.chance(f.fruiting * 0.0025)) {
+          f.fruiting = clamp01(f.fruiting + s.grow[f.yields] * GROWTH.fruit.rate * light);
+          if (!full && f.fruiting > GROWTH.fruit.threshold && Evo.chance(f.fruiting * GROWTH.fruit.chance)) {
             this.spawnItem(f.yields, f.x + Evo.randRange(-0.7, 0.7) * f.canopy, f.y - f.height + f.canopy * 0.5);
-            f.fruiting -= 0.06;
+            f.fruiting -= GROWTH.fruit.cost;
           }
         } else if (f.kind === 'grass') {
-          f.seeding = clamp01(f.seeding + s.grow.grain * 0.0001 * light);
-          if (!full && f.seeding > 0.3 && Evo.chance(f.seeding * 0.003)) {
+          f.seeding = clamp01(f.seeding + s.grow.grain * GROWTH.grain.rate * light);
+          if (!full && f.seeding > GROWTH.grain.threshold && Evo.chance(f.seeding * GROWTH.grain.chance)) {
             const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
             this.spawnItem('grain', x, this.terrain.groundY(x) - f.height);
-            f.seeding -= 0.05;
+            f.seeding -= GROWTH.grain.cost;
           }
           // Dew forms on the grass at dawn
-          if (!full && this.clock.phase > 0.2 && this.clock.phase < 0.3 && Evo.chance(0.004 * s.dew)) {
+          if (!full && this.clock.phase > GROWTH.dew.from && this.clock.phase < GROWTH.dew.to && Evo.chance(GROWTH.dew.chance * s.dew)) {
             const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
             this.spawnItem('dew', x, this.terrain.groundY(x) - 2);
           }
-          if (!full && Evo.chance(0.0004 * s.grow.bug)) this.spawnItem('bug', f.x + Evo.randRange(-0.5, 0.5) * f.width, f.y - 4);
+          if (!full && Evo.chance(GROWTH.bug * s.grow.bug)) this.spawnItem('bug', f.x + Evo.randRange(-0.5, 0.5) * f.width, f.y - 4);
         } else if (f.kind === 'log') {
-          if (!full && Evo.chance(0.0007 * s.grow.grub)) {
+          if (!full && Evo.chance(GROWTH.grub * s.grow.grub)) {
             const x = f.x + (Evo.chance(0.5) ? -1 : 1) * (f.length / 2 + Evo.randRange(0, 30));
             this.spawnItem('grub', x, this.terrain.groundY(x), { home: f.x });
           }
         } else if (f.kind === 'rock') {
           // The rock soaks up sunshine by day and gives it back at night
-          f.warm = clamp01(f.warm + (light > 0.5 ? 0.0004 : -0.00025));
+          f.warm = clamp01(f.warm + (light > GROWTH.rockLight ? GROWTH.rockWarm : -GROWTH.rockCool));
         }
       }
     }
@@ -686,7 +701,7 @@
       for (const item of this.items) {
         for (const [ch, rate] of ITEM_TYPES[item.type].odour) this.depositScent(item.x, item.y - item.radius, ch, rate);
       }
-      for (const p of this.terrain.ponds) for (let x = p.x0; x < p.x1; x += 60) this.depositScent(x, p.level - 10, Evo.SCENT.moist, 0.02);
+      for (const p of this.terrain.ponds) for (let x = p.x0; x < p.x1; x += POND_SCENT.spacing) this.depositScent(x, p.level - 10, Evo.SCENT.moist, POND_SCENT.amount);
       if (this.clock.tick % SCENT_EVERY) return;
       const s = this.scent;
       SCENTS.forEach((sc, ch) => {
@@ -782,5 +797,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, WORLD: { HOLD_GRIP, SOUND_LIFE, CLIFF_WIDTH } });
+  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE, CLIFF_WIDTH } });
 })(globalThis.Evo);

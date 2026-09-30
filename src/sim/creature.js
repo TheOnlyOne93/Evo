@@ -22,7 +22,7 @@
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
-  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
+  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
@@ -44,6 +44,24 @@
   const LEFT = [SIGHT_CELL.L], RIGHT = [SIGHT_CELL.R], BOTH_SIDES = [SIGHT_CELL.L, SIGHT_CELL.R];
   // Per-tick scales for the physiological receptor targets (chem.effect(target) × scale)
   const SCALE = { damage: 0.001, healing: 0.0002, growth: 0.00003, scentSex: 0.02, scentAlarm: 0.05 };
+  // Physiology per tick. cost: glucose burned (basal x mass^0.75, shivering, muscle work); water: evaporation
+  // and its rise with heat and panting; heat: body temperature exchange and heat sources; harm: what fails
+  // the body, and how fast it recovers
+  const BODY = {
+    cost: { basal: 0.00003, sleepFactor: 0.7, shiver: 0.00003, work: 0.00006, massSize: 40 },
+    water: { loss: 0.000012, heatOnset: 0.55, heatFactor: 2, pant: 0.00001 },
+    heat: { wetInsulation: 0.3, exchange: 0.004, body: 0.3, work: 0.8, thermogenesis: 0.6, scale: 0.0006, huddle: 0.0005,
+      baseLoss: 0.00025, pantCooling: 0.0003, display: 500 },
+    heal: { protein: 0.3 },
+    harm: { starvation: 0.0003, dehydration: 0.0003, thirstBelow: 0.05, cold: 0.0002, coldBelow: 0.12, heat: 0.0002, heatAbove: 0.88,
+      injury: 0.001, injuryAt: 0.99, recovery: 0.00003, recoveryProtein: 0.15, logFade: 0.998 }
+  };
+  const FAMILIARITY_FADE = 0.9999;  // Per tick, what a creature has grown used to fades back
+  const HABITUATION_SCALE = 20;     // Habituation gene x this = how fast looking at a thing makes it familiar
+  const NOVELTY_GAIN_MID = 8;       // The Curiosity gene's mid value (genome: noveltyGain = 4 + v.novelty * 8, so 0.5 gives 8)
+  const SIGHT_GAIN = 1.4;           // Sight drive relative to the other senses
+  const POND_SIGHT_RADIUS = 30;     // A pond is seen as a blue blob of this radius
+  const HEARING_FALLOFF = { x: 200, y: 400 }; // Distance (px) at which a call's loudness halves, sideways and vertically
 
   // Pronounceable names; children mix syllables from their parents' names
   const SYLLABLES = ['ka', 'mi', 'ro', 'lu', 'sa', 'vi', 'no', 'pip', 'bo', 'ki', 'ar', 'el', 'ju', 'zo', 'fen', 'wy', 'dru', 'ta', 'po', 'lin', 'ose', 'mar', 'tuk', 'bel', 'ren', 'ani', 'qui', 'da'];
@@ -220,7 +238,7 @@
     // familiarity fades slowly, so things become interesting again.
     noticeNovelty(world) {
       const fam = this.familiar, T = this.traits;
-      for (let f = 0; f < fam.length; f++) fam[f] *= 0.9999;
+      for (let f = 0; f < fam.length; f++) fam[f] *= FAMILIARITY_FADE;
       const t = this.thingAtMouth(world);
       let look = null;
       if (t) look = t.kind === 'item' ? world.lookOf(t.item) : world.lookOfCreature(t.creature);
@@ -234,7 +252,7 @@
       }
       let nov = 0;
       if (look) {
-        const h = T.habituationRate * 20;
+        const h = T.habituationRate * HABITUATION_SCALE;
         for (let f = 0; f < fam.length; f++) {
           const v = look[FEATURE_KEYS[f]];
           if (!v) continue;
@@ -242,7 +260,7 @@
           fam[f] += h * v * (1 - fam[f]);
         }
       }
-      this.novelty = clamp01(nov * T.noveltyGain / 8);
+      this.novelty = clamp01(nov * T.noveltyGain / NOVELTY_GAIN_MID);
       return this.novelty;
     }
 
@@ -254,27 +272,27 @@
 
       // Running costs, paid from blood sugar: a basal rate (mass^0.75, Kleiber's law, taking mass
       // as (size / 40)^2 for a body seen side-on), shivering when cold, and the muscles in use
-      const mass = (this.size / 40) ** 2;
-      const basal = 0.00003 * Math.pow(mass, 0.75) * (1 + c.effect('metabolism')) * (this.asleep ? 0.7 : 1);
-      const shiver = 0.00003 * Math.max(0, c.effect('thermogenesis'));
-      const work = 0.00006 * this.exertion;
+      const mass = (this.size / BODY.cost.massSize) ** 2;
+      const basal = BODY.cost.basal * Math.pow(mass, 0.75) * (1 + c.effect('metabolism')) * (this.asleep ? BODY.cost.sleepFactor : 1);
+      const shiver = BODY.cost.shiver * Math.max(0, c.effect('thermogenesis'));
+      const work = BODY.cost.work * this.exertion;
       c.add('glucose', -(basal + shiver + work + SPIKE_COST * this.brain.spikesThisTick));
 
       // Water: evaporation rises with heat and effort, and panting costs more
       const ambient = world.temperatureAt(this.x, this.centerY);
       const pant = Math.max(0, c.effect('cooling'));
-      c.add('water', -0.000012 * (1 + 2 * Math.max(0, ambient - 0.55)) * (1 + this.exertion) - 0.00001 * pant);
+      c.add('water', -BODY.water.loss * (1 + BODY.water.heatFactor * Math.max(0, ambient - BODY.water.heatOnset)) * (1 + this.exertion) - BODY.water.pant * pant);
 
       // Temperature: exchange with the air through the fur, plus heat from the body's own work
       // and from huddling against others
-      const insulation = this.inWater ? T.insulation * 0.3 : T.insulation; // Wet fur keeps little heat in
-      const exchange = (ambient - this.bodyTemp) * (1 - insulation) * 0.004;
-      const heat = (T.bodyHeat * 0.3 + this.exertion * 0.8 + Math.max(0, c.effect('thermogenesis')) * 0.6) * 0.0006
-        + this.stim.touchingFriend * 0.0005 - 0.00025 - pant * 0.0003;
+      const insulation = this.inWater ? T.insulation * BODY.heat.wetInsulation : T.insulation; // Wet fur keeps little heat in
+      const exchange = (ambient - this.bodyTemp) * (1 - insulation) * BODY.heat.exchange;
+      const heat = (T.bodyHeat * BODY.heat.body + this.exertion * BODY.heat.work + Math.max(0, c.effect('thermogenesis')) * BODY.heat.thermogenesis) * BODY.heat.scale
+        + this.stim.touchingFriend * BODY.heat.huddle - BODY.heat.baseLoss - pant * BODY.heat.pantCooling;
       const dT = exchange + heat;
       this.bodyTemp = clamp01(this.bodyTemp + dT);
-      this.heatGain = clamp01(dT * 500);
-      this.heatLoss = clamp01(-dT * 500);
+      this.heatGain = clamp01(dT * BODY.heat.display);
+      this.heatLoss = clamp01(-dT * BODY.heat.display);
 
       // Growth: growth hormone builds body protein into a bigger body
       if (this.growth < 1) {
@@ -286,7 +304,7 @@
       if (this.injury > 0) {
         const heal = Math.min(this.injury, Math.max(0, c.effect('healing')) * SCALE.healing);
         this.injury -= heal;
-        c.add('protein', -heal * 0.3);
+        c.add('protein', -heal * BODY.heal.protein);
       }
 
       // Damage: chemicals (via receptor genes), and failing supplies
@@ -297,13 +315,13 @@
       };
       const chemDamage = Math.max(0, c.effect('damage')) * SCALE.damage;
       if (chemDamage > 0) hurt(c.damageCause() || 'illness', chemDamage);
-      if (this.loci[LOCUS.starving]) hurt('starvation', 0.0003);
-      if (c.get('water') < 0.05) hurt('dehydration', 0.0003);
-      if (this.bodyTemp < 0.12) hurt('cold', 0.0002);
-      if (this.bodyTemp > 0.88) hurt('heat', 0.0002);
-      if (this.injury >= 0.99) hurt('injury', 0.001);
-      if (chemDamage === 0 && !this.loci[LOCUS.starving] && c.get('protein') > 0.15) this.health = Math.min(1, this.health + 0.00003);
-      for (const k in this.damageLog) this.damageLog[k] *= 0.998;
+      if (this.loci[LOCUS.starving]) hurt('starvation', BODY.harm.starvation);
+      if (c.get('water') < BODY.harm.thirstBelow) hurt('dehydration', BODY.harm.dehydration);
+      if (this.bodyTemp < BODY.harm.coldBelow) hurt('cold', BODY.harm.cold);
+      if (this.bodyTemp > BODY.harm.heatAbove) hurt('heat', BODY.harm.heat);
+      if (this.injury >= BODY.harm.injuryAt) hurt('injury', BODY.harm.injury);
+      if (chemDamage === 0 && !this.loci[LOCUS.starving] && c.get('protein') > BODY.harm.recoveryProtein) this.health = Math.min(1, this.health + BODY.harm.recovery);
+      for (const k in this.damageLog) this.damageLog[k] *= BODY.harm.logFade;
       if (this.health <= 0) {
         let cause = 'illness', worst = 0;
         for (const k in this.damageLog) if (this.damageLog[k] > worst) { worst = this.damageLog[k]; cause = k; }
@@ -406,8 +424,8 @@
         if (l) look(l.x, l.y, l.radius, l.features);
       }
       const pond = world.nearestWater(ex, range);
-      if (pond) look(pond.x, pond.y, 30, { blue: 1 });
-      const sightGain = NEURAL_GAIN * 1.4 * T.opticGain * gainScale;
+      if (pond) look(pond.x, pond.y, POND_SIGHT_RADIUS, { blue: 1 });
+      const sightGain = NEURAL_GAIN * SIGHT_GAIN * T.opticGain * gainScale;
       const sightIdx = brain.lobes.sight;
       for (let k = 0; k < SIGHT_CELLS; k++) drive[sightIdx[k]] = sight[k] * sightGain;
 
@@ -429,11 +447,11 @@
       // and 2; a hearing cell still refractory from the first can't miss it), and the heardCall
       // stimulus fires once, at age 1. A caller doesn't hear itself.
       let heard = 0, heardNew = 0;
-      const hear = [0, 0, 0, 0];
+      const hear = new Array(HEARING_CELLS).fill(0);
       for (const snd of world.sounds) {
         if (snd.age < 1 || snd.age > 2 || snd.sourceId === this.id) continue;
         const dx = snd.x - this.x;
-        const v = snd.loudness / (1 + Math.abs(dx) / 200 + Math.abs(snd.y - this.y) / 400);
+        const v = snd.loudness / (1 + Math.abs(dx) / HEARING_FALLOFF.x + Math.abs(snd.y - this.y) / HEARING_FALLOFF.y);
         const k = hearingIndex(dx < 0 ? 'L' : 'R', snd.pitch < 0.5 ? 'low' : 'high');
         hear[k] = Math.max(hear[k], v);
         heard = Math.max(heard, v);

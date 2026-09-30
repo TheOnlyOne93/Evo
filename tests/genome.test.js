@@ -74,7 +74,7 @@ test('genome: gene loss after a duplication removes a whole gene', (Evo, assert)
   let child;
   try {
     Evo.useRandomSource(() => (i < draws.length ? draws[i++] : 0.5));
-    child = parent.cloneWithMutation(0.004, true);
+    child = parent.cloneWithMutation(0.004);
   } finally {
     Evo.seed(1);
   }
@@ -90,7 +90,7 @@ test('genome: gene loss after a duplication removes a whole gene', (Evo, assert)
 test('genome: heavy mutation keeps length in bounds and every trait finite', (Evo, assert) => {
   let g = Evo.Genome.founder();
   for (let gen = 0; gen < 300; gen++) {
-    g = g.cloneWithMutation(0.03, true);
+    g = g.cloneWithMutation(0.03);
     assert.ok(g.dna.length >= 256 && g.dna.length <= 3200, `length ${g.dna.length}`);
     const t = g.develop(Evo.STAGE.SENILE);
     for (const [k, v] of Object.entries(t)) if (typeof v === 'number') assert.ok(Number.isFinite(v), `${k} = ${v}`);
