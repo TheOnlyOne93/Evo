@@ -16,7 +16,7 @@ Each system has its own doc. Change the doc with the code it describes.
 | Chemicals, drives, reward and punishment | [BIOCHEMISTRY.md](BIOCHEMISTRY.md) | `src/sim/biochem.js`, `src/sim/constants.js` |
 | The spiking brain: wiring, learning, dreams | [BRAIN.md](BRAIN.md) | `src/sim/brain.js` |
 | The body: senses, physiology, muscles | [CREATURE.md](CREATURE.md) | `src/sim/creature.js` |
-| Land, food, scent, sound, ecology, the hand, events | [WORLD.md](WORLD.md) | `src/sim/world.js` |
+| Land, food, scent, sound, ecology, the hand, events | [WORLD.md](WORLD.md) | `src/sim/landscape.js`, `src/sim/world.js` |
 | Sound | [AUDIO.md](AUDIO.md) | `src/audio/` |
 | Drawing: the creature pose, the world view, the brain map, the family tree | [RENDERING.md](RENDERING.md) | `src/render/` |
 | The page: the main loop, the hand and tools, the inside view, layout, styles | [INTERFACE.md](INTERFACE.md) | `src/ui/`, `index.html`, `styles/` |

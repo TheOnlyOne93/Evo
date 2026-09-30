@@ -8,6 +8,7 @@
 //   &phase=0.5&season=2      jump to a time of day (0 midnight, 0.5 noon) and a season (0..3)
 //   &creatures=4             add that many adults (world.addAdult) to the founders
 //   &ui=0  &scent=1          hide the panel, show scent
+//   ?map=classic             the landscape (a name in Evo.MAPS); the game's map when left out
 (function (Evo) {
   'use strict';
   const params = new URLSearchParams(location.search);
@@ -18,7 +19,7 @@
   function start() {
     if (params.get('ui') === '0') document.body.classList.add('noui');
 
-    const world = new Evo.World();
+    const world = new Evo.World(params.has('map') ? { map: params.get('map') } : undefined);
     for (let i = 0; i < num('creatures', 0); i++) world.addAdult(i % 2 ? 'MALE' : 'FEMALE');
     // The clock moves only through world.setTime(day, phase). A season is SEASON_DAYS days, so
     // choosing one moves the day into it, keeping the year, the day within the season and the

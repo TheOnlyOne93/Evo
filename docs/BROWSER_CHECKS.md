@@ -60,7 +60,7 @@ and returns one hash of the pixels per kind: `{ tiles, thornbush, tree, rock, gr
    on every load).
 2. Make the change, load the lab fresh, and compare. A hash that moved names the painter.
 
-The default world has one log and one rock. When a painter has cases the world doesn't show (a
+The default world has one log and one rock (platforms exist for every log and rock, so a map with more shows more). When a painter has cases the world doesn't show (a
 log with no platform on it, say), paint those onto a scratch canvas with the painter itself
 and hash them the same way, before and after. `rec = lab.view._featRec(f)` gives the shape the
 painter needs; painters draw in the feature's own coordinates, so size the canvas `rec.bw × rec.bh`,
@@ -75,7 +75,7 @@ season index 0–3.
   time of day, speed (❚❚, 1×, 4×, 20×, 120×), season, overlays, following, fitting the view, and the
   hand (grab, tickle, slap). Keys: arrows or WASD pan, `+` `-` zoom, `f` follows, Space pauses, and
   `1`–`4` pick the season. URL options (`dev/world-lab.js`
-  lists them): `?seed=11&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1`. `window.lab`
+  lists them): `?seed=11&map=classic&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1` (`map` names a landscape in `Evo.MAPS`; the game's when left out). `window.lab`
   is there for scripted checks: `world`, `view`, `state`, `hand`, `clock`, `focus`, `refresh`,
   `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n = 600)` (a promise of
   `{ frames, renderAvg, renderP95, frameAvg }`) and `paintHash()`.

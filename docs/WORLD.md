@@ -1,21 +1,22 @@
 # World
 
-`src/sim/world.js`: `Evo.World`, the side-view world: terrain, ponds, plants that grow food, day and night, seasons, temperature, scent, sound and the creatures. It never touches the page. It announces what happens on `world.events`, and renderers read it through the contract below without changing it. The shared tables (items, scents, seasons, limits) are in `src/sim/constants.js`.
+`src/sim/world.js`: `Evo.World`, the side-view world: terrain, ponds, plants that grow food, day and night, seasons, temperature, scent, sound and the creatures. Its landscape comes from `src/sim/landscape.js` (see Land, light and weather). It never touches the page. It announces what happens on `world.events`, and renderers read it through the contract below without changing it. The shared tables (items, scents, seasons, limits) are in `src/sim/constants.js`.
 
 ## The contract
 
 y grows downward. All lengths are world pixels.
 
 ```js
-world.width, world.height            // 3600 × 900
+world.width, world.height            // from the map (the game's: 3600 × 900)
 world.terrain = {
   spacing,                           // px between height samples
+  cliffs: { width, rise },           // the cliff at each end: it reaches width px in and drops the land by up to rise px
   heights,                           // Float32Array: ground surface y at x = i * spacing
   groundY(x), slopeAt(x),            // interpolated surface y; its slope
   ponds: [{ x0, x1, level }],        // water surface y over [x0, x1]
   waterLevelAt(x)                    // pond surface y at x, or null
 }
-world.platforms = [{ x0, x1, y, kind, featureId }]  // one-way surfaces: the walkable top of the 'log' or 'rock'
+world.platforms = [{ x0, x1, y, kind, featureId }]  // one-way surfaces: the walkable top of every 'log' and 'rock'
                                                     // whose id is featureId (the feature draws it)
 world.features  = [{ id, kind, x, y, ...props }]    // y = base on the ground
   //  'tree'      { height, canopy, species: 'fruit' | 'mimic', yields: item type, fruiting: 0..1 }
@@ -49,11 +50,13 @@ world.events                         // an Evo.EventBus (below)
 world.setTime(day, phase)            // jump the clock (the world lab, tests, the season skip)
 ```
 
-Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE`, `Evo.WORLD.CLIFF_WIDTH`, `Evo.CREATURE.CALL_TICKS` and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
+Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE`, `Evo.CREATURE.CALL_TICKS` and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
 
 ## Land, light and weather
 
-The ground is a height field with a hill that carries the warm rock, a cliff at each end, and two ponds. Creatures and items stay 150 px from the ends. The seed jitters where things stand: three trees (two fruit, one mimic), two grass patches, the grub log, the rock, reeds at each pond's edges and three thorn bushes.
+The ground is a height field with a hill that carries the warm rock, a cliff at each end, and two ponds. Creatures and items stay 150 px from the ends (`world.edge`, at least `terrain.cliffs.width`). The seed jitters where things stand: three trees (two fruit, one mimic), two grass patches, the grub log, the rock, reeds at each pond's edges and three thorn bushes.
+
+The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name (for now only `classic`, today's world, which is temporary: it stays as the before-picture for the terrain redesign and goes once the new map is accepted), and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, spawnX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`). `spawnX()` draws a founder's x when one is founded, and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
 
 The sun's elevation is a sine of the day's phase, and light follows it. `Evo.SEASONS` gives each season a mean temperature, a day-night swing, a dew factor and a growth factor for each food. `temperatureAt` adds to the season and the sun: cooler in a tree's shade and in water, warmer by the rock, which stores the day's sun and gives it back at night.
 

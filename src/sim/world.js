@@ -6,7 +6,6 @@
   const { clamp, clamp01, TAU } = Evo.util;
   const { SCENTS, ITEM_TYPES, SEASONS, DAY_TICKS, SEASON_DAYS, LIMITS, STAGE, CREATURE } = Evo;
 
-  const WORLD_W = 3600, WORLD_H = 900;
   const SCENT_CELL = 30;
   const SCENT_EVERY = 3;            // Scent spreads slowly, so it diffuses every third tick (at triple rate)
   const GRAVITY = CREATURE.GRAVITY;
@@ -29,71 +28,6 @@
   // A dead body's food: gut protein (capped) from body protein and growth, fat and sugar from reserves
   const CARRION = { proteinCap: 0.5, protein: 0.6, growth: 0.1, fat: 0.5, sugar: 0.3 };
   const POND_SCENT = { spacing: 60, amount: 0.02 };
-  // A pond's water stands belowRim px below its lower rim and is at least minDepth px deep (a shallow
-  // dip is dug deeper, up to digPasses times)
-  const POND = { belowRim: 6, minDepth: 18, digPasses: 4 };
-  const CLIFF_WIDTH = 140;          // The cliffs at each end of the world reach this far in (px); World.edge must be at least this
-
-  // ---------- Terrain: a height field with two ponds ----------
-  class Terrain {
-    constructor(width, layout) {
-      this.spacing = 8;
-      const n = Math.ceil(width / this.spacing) + 1;
-      this.heights = new Float32Array(n);
-      const ph = [Evo.random() * TAU, Evo.random() * TAU, Evo.random() * TAU];
-      for (let i = 0; i < n; i++) {
-        const x = i * this.spacing;
-        let h = 640 + 30 * Math.sin(x / 1400 * TAU + ph[0]) + 18 * Math.sin(x / 520 * TAU + ph[1]) + 7 * Math.sin(x / 170 * TAU + ph[2]);
-        // The hill with the warm rock
-        const hill = (x - layout.hill) / 260;
-        h -= 70 * Math.exp(-hill * hill);
-        // Cliffs at both ends; the walkable edge (World.edge) keeps creatures off them
-        const edge = Math.min(x, width - x);
-        if (edge < CLIFF_WIDTH) h -= 260 * (1 - edge / CLIFF_WIDTH) ** 2;
-        this.heights[i] = h;
-      }
-      // Ponds: smooth dips that fill with water up to just below their lower rim. Where the land
-      // around a dip leaves too little water, its bed is dug deeper, in the same shape
-      this.ponds = layout.ponds.map(([x0, x1, depth]) => {
-        const dig = d => {
-          for (let i = 0; i < n; i++) {
-            const x = i * this.spacing;
-            if (x > x0 && x < x1) this.heights[i] += d * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
-          }
-        };
-        dig(depth);
-        let level;
-        for (let pass = 0; ; pass++) {
-          level = Math.max(this.groundY(x0), this.groundY(x1)) + POND.belowRim;
-          let bed = -Infinity;
-          for (let i = Math.ceil(x0 / this.spacing); i * this.spacing < x1; i++) bed = Math.max(bed, this.heights[i]);
-          const short = POND.minDepth - (bed - level);
-          if (short <= 0 || pass === POND.digPasses) break;
-          dig(short);
-        }
-        let a = x0, b = x1;
-        while (a < x1 && this.groundY(a) < level) a += 2;
-        while (b > x0 && this.groundY(b) < level) b -= 2;
-        return { x0: a, x1: b, level };
-      });
-    }
-
-    groundY(x) {
-      const f = clamp(x / this.spacing, 0, this.heights.length - 1.001);
-      const i = Math.floor(f), t = f - i;
-      return this.heights[i] * (1 - t) + this.heights[i + 1] * t;
-    }
-
-    slopeAt(x) {
-      return (this.groundY(x + 4) - this.groundY(x - 4)) / 8;
-    }
-
-    // The pond surface at x, or null where there is no water
-    waterLevelAt(x) {
-      for (const p of this.ponds) if (x >= p.x0 && x <= p.x1) return p.level;
-      return null;
-    }
-  }
 
   // A new world, and one refounded after extinction (from the seed bank), starts with one female and one male
   const FOUNDERS = ['FEMALE', 'MALE'];
@@ -102,9 +36,7 @@
   const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
 
   class World {
-    constructor({ width = WORLD_W, height = WORLD_H } = {}) {
-      this.width = width;
-      this.height = height;
+    constructor({ map = Evo.DEFAULT_MAP } = {}) {
       this.events = new Evo.EventBus();
       this.clock = { tick: 0, day: 0, phase: 0.3, light: 1, sunElevation: 1 };
       this.startPhase = 0.3; // Begin on a morning
@@ -120,9 +52,19 @@
       // every body has run, so all bodies read the same world (see step)
       this.pendingScent = [];          // { x, y, channel, amount }
       this.pendingEggs = [];           // { mother, pregnancy }
-      this.edge = 150;       // Creatures and items stay this far from the world's ends, so they never reach the cliffs (edge >= CLIFF_WIDTH)
 
-      this.buildLandscape();
+      // The landscape (Evo.buildLandscape): the size, the terrain, the features and platforms, where
+      // founders appear and where the ball starts. Built before anyone is founded, as it draws at random
+      const land = Evo.buildLandscape(map);
+      const { width, height } = land;
+      this.width = width;
+      this.height = height;
+      this.edge = land.edge;   // Creatures and items stay this far from the world's ends, so they never reach the cliffs (edge >= terrain.cliffs.width)
+      this.terrain = land.terrain;
+      this.features = land.features;
+      this.platforms = land.platforms;
+      this.ballX = land.ballX;
+      this.spawnX = land.spawnX;
       this.scent = {
         cols: Math.ceil(width / SCENT_CELL), rows: Math.ceil(height / SCENT_CELL), cell: SCENT_CELL,
         channels: SCENTS.map(() => new Float32Array(Math.ceil(width / SCENT_CELL) * Math.ceil(height / SCENT_CELL)))
@@ -145,40 +87,6 @@
     }
 
     // ---------- Landscape ----------
-    buildLandscape() {
-      const W = this.width;
-      const jitter = f => (f + Evo.randRange(-0.015, 0.015)) * W;
-      const big = jitter(0.58), small = jitter(0.06);
-      const layout = { hill: jitter(0.31), ponds: [[big, big + 420, 80], [small, small + 170, 45]] };
-      this.terrain = new Terrain(W, layout);
-      const t = this.terrain;
-      const at = x => ({ x, y: t.groundY(x) });
-      let id = 0;
-      const feature = (kind, x, props) => ({ id: ++id, kind, ...at(x), ...props });
-      // A tree's species decides the item type it yields (renderers draw by species)
-      const tree = (x, species, props) => feature('tree', x, { species, yields: species, ...props });
-      this.features = [
-        feature('thornbush', jitter(0.125), { radius: 22 }),
-        tree(jitter(0.16), 'fruit', { height: 210, canopy: 85, fruiting: 0.5 }),
-        tree(jitter(0.235), 'mimic', { height: 140, canopy: 55, fruiting: 0.4 }),
-        feature('rock', layout.hill + 30, { width: 96, height: 52, warm: 0 }),
-        feature('grass', jitter(0.41), { width: 230, height: 40, seeding: 0.4 }),
-        feature('log', jitter(0.49), { length: 150 }),
-        ...this.terrain.ponds.flatMap(p => [feature('reeds', p.x0 - 20, { width: 50 }), feature('reeds', p.x1 + 20, { width: 50 })]),
-        tree(jitter(0.79), 'fruit', { height: 230, canopy: 95, fruiting: 0.5 }),
-        feature('thornbush', jitter(0.84), { radius: 20 }),
-        feature('grass', jitter(0.905), { width: 210, height: 40, seeding: 0.4 }),
-        feature('thornbush', jitter(0.70), { radius: 18 })
-      ];
-      const rock = this.features.find(f => f.kind === 'rock');
-      const log = this.features.find(f => f.kind === 'log');
-      // Each platform is the walkable top of a feature, named by featureId (renderers draw them as one)
-      this.platforms = [
-        { x0: rock.x - rock.width / 2 + 6, x1: rock.x + rock.width / 2 - 6, y: rock.y - rock.height + 4, kind: 'rock', featureId: rock.id },
-        { x0: log.x - log.length / 2, x1: log.x + log.length / 2, y: log.y - 24, kind: 'log', featureId: log.id }
-      ];
-    }
-
     // The highest surface at or below fromY at x: the ground, or a platform the thing is above
     surfaceBelow(x, fromY) {
       let y = this.terrain.groundY(x);
@@ -426,7 +334,7 @@
       genome = genome || this.founderGenome(sex);
       genome.sexChrom = chromFor(sex);
       const lifespan = genome.develop().lifespanTicks;
-      const px = x === null ? Evo.randRange(0.2, 0.8) * this.width : x;
+      const px = x === null ? this.spawnX() : x;
       return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(ADULT_ARRIVAL_AGE[0], ADULT_ARRIVAL_AGE[1])) });
     }
 
@@ -653,7 +561,7 @@
         if (f.kind === 'grass') for (let i = 0; i < 4; i++) this.spawnItem('grain', f.x + Evo.randRange(-0.5, 0.5) * f.width);
         if (f.kind === 'log') for (let i = 0; i < 2; i++) this.spawnItem('grub', f.x + (i ? 1 : -1) * (f.length / 2 + 10), undefined, { home: f.x });
       }
-      this.spawnItem('ball', this.width * 0.45, undefined, { hue: 200 });
+      this.spawnItem('ball', this.ballX, undefined, { hue: 200 });
     }
 
     // A creature pushing through a thornbush is pricked (at most every 30 ticks); what that feels
@@ -819,5 +727,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE, CLIFF_WIDTH } });
+  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE } });
 })(globalThis.Evo);

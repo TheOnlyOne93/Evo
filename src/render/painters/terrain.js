@@ -49,7 +49,7 @@
     const litter = [];
     for (let x = 4; x < W; x += 5 + R() * 14) litter.push({ x, rot: (R() - 0.5) * 1.2, c: (R() * 4) | 0 });
     const stones = [];
-    for (let x = Evo.WORLD.CLIFF_WIDTH; x < W - Evo.WORLD.CLIFF_WIDTH; x += 110 + R() * 260) stones.push({ x, r: 4 + R() * 7, tone: (R() * 3) | 0 });
+    for (let x = world.terrain.cliffs.width; x < W - world.terrain.cliffs.width; x += 110 + R() * 260) stones.push({ x, r: 4 + R() * 7, tone: (R() * 3) | 0 });
     const roots = [];
     for (let x = 20; x < W; x += 30 + R() * 80) roots.push({ x, len: 8 + R() * 18, curl: (R() - 0.5) * 12 });
     const pockets = [];
