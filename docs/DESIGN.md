@@ -184,8 +184,9 @@ Plasticity memory gene, half-life 14–140 ticks); every 4 ticks each weight mov
 0.25 × learning rate × e × the summed signal at its target, joy × δ_R × F_R − punishment × δ_P × F_P.
 F_c is the modulator's *learning field*: Gaussians around its axon terminals (width set by the
 Neurochemistry gene), so where learning happens depends on where its axons grew. Synapses keep
-their sign (Dale's law) and soft bounds. `brain.chem[0..2]` are 20×20 images of this signal for the
-brain view (the old NO channel is retired: a Neurochemistry gene that picks it does nothing).
+their sign (Dale's law) and soft bounds. `brain.chemImages[0..1]` are 20×20 images of this signal
+(reward, punishment) for the brain view (the old NO channel is retired: a Neurochemistry gene that
+picks it does nothing).
 
 **Lobe dynamics** (gene: lobe, which copy, competition, persistence, tau, fatigue). The cells of a
 region inhibit each other in proportion to the others' recent firing; cells crossing threshold in
@@ -240,7 +241,7 @@ them). The modulatory channels (DA reward, ST punishment, and the retired NO) ar
 "stimulate").
 
 Neuron state lives in typed arrays (struct-of-arrays) for speed; `brain.neurons[i]` holds each
-neuron's identity (id, lobe, position, receptor tag, meta) for the UI.
+neuron's identity (lobe, position, receptor tag, meta) for the UI.
 
 ---
 

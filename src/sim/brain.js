@@ -8,11 +8,11 @@
 //
 // Neuron state lives in typed arrays (one entry per neuron) and synapses in parallel typed arrays,
 // so a brain of ~250 neurons and ~3000 synapses costs a few hundredths of a millisecond per tick.
-// brain.neurons[i] describes neuron i (id, lobe, position, receptor tag) for the UI.
+// brain.neurons[i] describes neuron i (lobe, position, receptor tag) for the UI.
 (function (Evo) {
   'use strict';
-  const { clamp, mean } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
+  const { clamp, mean, TAU } = Evo.util;
+  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -23,11 +23,16 @@
   const V_FLOOR = -90;               // A neuron cannot be pushed below this
   const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags. CUE: a sight or smell value synapse (what the UI lists as learned)
   const ELIG_MAX = 2.0;              // Largest eligibility trace a synapse can hold
+  const TRACE_HORIZON = 1024;        // Ticks after which an untouched eligibility trace counts as gone
+  // Homeostasis may raise a threshold at most this far above its base; a neuron within half a mV
+  // of that ceiling counts as being at it (synaptic scaling)
+  const THR_RISE_MAX = 10, THR_AT_CEILING = THR_RISE_MAX - 0.5;
+  const DECISION_FLOOR = 0.5;        // Activity a competing cell needs to count as attended to or decided on
 
   // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 punishment (ST). The third, NO, once let
   // active neighbours share credit; it is retired, and a Neurochemistry gene that picks it does nothing.
-  // brain.chem holds one CHEM_SIZE² image per channel, for display only: the learning signal where
-  // each neuron sits (reward, punishment; the NO image stays empty).
+  // brain.chemImages holds one CHEM_SIZE² image per modulator channel, for display only: the learning
+  // signal where each neuron sits (reward, punishment).
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
   const CHEM_SIZE = 20;
   // The brain regrows and prunes its wiring every this many brain ticks
@@ -45,37 +50,40 @@
   // Soft bounds: changes shrink as a weight nears its limit, so weights don't pile up at the rails.
   // A synapse keeps the sign it was born with (Dale's law): learning can silence an excitatory
   // synapse, but never turn it inhibitory, so an innate reflex can fade but not invert.
+  const INHIBITORY_BOUNDS = [WEIGHT_MIN, 0], EXCITATORY_BOUNDS = [0, WEIGHT_MAX];
+  // [lo, hi]. Read by index, not destructured: destructuring makes the brain about 10% slower.
+  const weightBounds = inhibitory => (inhibitory ? INHIBITORY_BOUNDS : EXCITATORY_BOUNDS);
+
   function softBounded(w, dw, inhibitory) {
-    const lo = inhibitory ? WEIGHT_MIN : 0, hi = inhibitory ? 0 : WEIGHT_MAX;
+    const bounds = weightBounds(inhibitory), lo = bounds[0], hi = bounds[1];
     const room = dw > 0 ? (hi - w) : (w - lo);
     const nw = w + dw * room / (hi - lo);
-    return nw < lo ? lo : nw > hi ? hi : nw;
+    return clamp(nw, lo, hi);
   }
 
   function hardBounded(w, dw, inhibitory) {
-    const nw = w + dw;
-    return inhibitory ? (nw < WEIGHT_MIN ? WEIGHT_MIN : nw > 0 ? 0 : nw) : (nw < 0 ? 0 : nw > WEIGHT_MAX ? WEIGHT_MAX : nw);
+    const bounds = weightBounds(inhibitory), lo = bounds[0], hi = bounds[1];
+    return clamp(w + dw, lo, hi);
   }
 
   // ---- The body plan's fixed neurons ----
   const SIDES = ['L', 'R'];
   const BANDS = ['low', 'high'];
   const HEARING = [['L', 'low'], ['L', 'high'], ['R', 'low'], ['R', 'high']];
-  const NF = VISION_FEATURES.length, NO = SCENTS.length;
+  const NF = VISION_FEATURES.length, N_ODOURS = SCENTS.length;
   const FEATURE_INDEX = Object.fromEntries(VISION_FEATURES.map((f, i) => [f.key, i]));
-  const ODOUR_INDEX = Object.fromEntries(SCENTS.map((s, i) => [s.key, i]));
-  const SIGHT_CELLS = SIDES.length * BANDS.length * NF, SMELL_CELLS = SIDES.length * NO;
+  const SIGHT_CELLS = SIDES.length * BANDS.length * NF, SMELL_CELLS = SIDES.length * N_ODOURS;
   // Where a cell sits within its sensory lobe. Sight: [left low, left high, right low, right high]
   // × features; smell: [left antenna, right antenna] × odours; hearing: HEARING order. side is
   // 'L' | 'R', band 'low' | 'high', feature and odour a key or an index.
   const sideIndex = side => (side === 'R' ? 1 : 0);
   const sightIndex = (side, band, feature) =>
     (sideIndex(side) * BANDS.length + (band === 'high' ? 1 : 0)) * NF + (typeof feature === 'number' ? feature : FEATURE_INDEX[feature]);
-  const smellIndex = (side, odour) => sideIndex(side) * NO + (typeof odour === 'number' ? odour : ODOUR_INDEX[odour]);
+  const smellIndex = (side, odour) => sideIndex(side) * N_ODOURS + (typeof odour === 'number' ? odour : SCENT[odour]);
   const hearingIndex = (side, pitch) => sideIndex(side) * 2 + (pitch === 'high' ? 1 : 0);
   // …and back: what the sight / smell cell at index k within its lobe reports
   const sightCell = k => ({ side: SIDES[Math.floor(k / (BANDS.length * NF))], band: BANDS[Math.floor(k / NF) % BANDS.length], feature: VISION_FEATURES[k % NF].key });
-  const smellCell = k => ({ side: SIDES[Math.floor(k / NO)], odour: SCENTS[k % NO].key });
+  const smellCell = k => ({ side: SIDES[Math.floor(k / N_ODOURS)], odour: SCENTS[k % N_ODOURS].key });
   // Touch cells. A receptor tag that matches a muscle's address lets topographic guidance wire
   // it to that muscle (the mouth cells to Eat, the pain cell to Run).
   const TOUCH = [
@@ -98,14 +106,38 @@
   ];
   // Feelings cells: 0 releases the reward chemical, 1 the punishment chemical. Cell 2's address matches
   // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
-  const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENTS.findIndex(s => s.key === 'alarm') + 0.5) / SCENTS.length],
+  const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENT.alarm + 0.5) / N_ODOURS],
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
 
-  // The lookup-set key of the synapse src -> dst (neuron counts stay far below 4096)
-  const synapseKey = (src, dst) => src * 4096 + dst;
+  // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
+  // constructor checks); neuron counts stay far below that.
+  const KEY_SPAN = 4096;
+  const synapseKey = (src, dst) => src * KEY_SPAN + dst;
 
-  const ring = (cx, cy, r, i, n) => [cx + r * Math.cos(i * 2 * Math.PI / n), cy + r * Math.sin(i * 2 * Math.PI / n)];
+  const ring = (cx, cy, r, i, n) => [cx + r * Math.cos(i * TAU / n), cy + r * Math.sin(i * TAU / n)];
   const mirror = (x, right) => (right ? 1.0 - x : x);
+
+  // The per-synapse arrays: a synapse is an index into every one of them. allocate() creates them
+  // by name, not in a loop over this list: assigning them by computed key slows the brain by about 10%.
+  const SYN_FIELDS = ['sSrc', 'sDst', 'sW', 'sDelay', 'sCue', 'sX', 'sElig', 'sEligAt', 'sActive', 'sBorn', 'sFlags'];
+
+  // Compressed rows: the synapses s (below S) with keep[s] set, grouped by the neuron row[s], in
+  // synapse order. Neuron i's are list[start[i]] up to list[start[i + 1]].
+  function compressedRows(N, S, row, keep) {
+    const start = new Int32Array(N + 1);
+    for (let s = 0; s < S; s++) if (keep[s]) start[row[s] + 1]++;
+    for (let i = 0; i < N; i++) start[i + 1] += start[i];
+    const fill = start.slice(0, N), list = new Int32Array(start[N]);
+    for (let s = 0; s < S; s++) if (keep[s]) list[fill[row[s]]++] = s;
+    return { start, list };
+  }
+
+  // The most active cell of a Lobe dynamics group, as an index into its cells, if above floor; else -1
+  function winner(group, floor) {
+    let best = -1, most = floor;
+    for (let k = 0; k < group.cells.length; k++) if (group.activity[k] > most) { most = group.activity[k]; best = k; }
+    return best;
+  }
 
   class Brain {
     constructor(traits) {
@@ -129,7 +161,9 @@
       this.delta = new Float32Array(N_MOD);       // Prediction error this tick
       this.deltaSum = new Float32Array(N_MOD);    // …summed since the last weight update
       this.grownGenes = new Set(); // Guidance genes that have already grown their tracts
+      this.setTraceDecay(traits.traceDecay);
       this.buildNeurons();
+      if (this.N >= KEY_SPAN) throw new Error(`A brain of ${this.N} neurons is too big: synapse keys allow fewer than ${KEY_SPAN}`);
       this.allocate();
       this.initNeurons();
       this.growTracts(traits.axonGuidance, true);
@@ -140,8 +174,9 @@
       const T = this.traits, A = T.anatomy;
       const neurons = this.neurons = [];
       const lobes = this.lobes = {};
-      const add = (lobe, id, label, tag, pos, meta = {}) => {
-        const n = { index: neurons.length, id, label, lobe, parentLobe: lobe, tag, pos, meta, copyOf: null };
+      // label: the UI's name, for the kinds Evo.text.neuronName doesn't name itself (touch, taste, feelings)
+      const add = (lobe, tag, pos, meta, label = null) => {
+        const n = { index: neurons.length, label, lobe, parentLobe: lobe, tag, pos, meta, copyOf: null };
         neurons.push(n);
         (lobes[lobe] = lobes[lobe] || []).push(n.index);
         return n;
@@ -151,33 +186,31 @@
       // Sight: two eyes' fields (left, right) × low/high × features; a map across the front.
       // Cells are added in sightIndex order.
       for (let k = 0; k < SIGHT_CELLS; k++) {
-        const { side, band, feature } = sightCell(k), fi = FEATURE_INDEX[feature], b = band === 'high' ? 1 : 0;
+        const { side, band, feature } = sightCell(k), fi = k % NF, b = band === 'high' ? 1 : 0;
         const x = side === 'R' ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045;
-        add('sight', `see_${side}_${band}_${feature}`, `See ${feature} ${side} ${band}`,
-          [sideX(side), (fi + 0.5) / NF, 0.2 + b * 0.04], [x, 0.05 + b * 0.05],
+        add('sight', [sideX(side), (fi + 0.5) / NF, 0.2 + b * 0.04], [x, 0.05 + b * 0.05],
           { kind: 'sight', side, band, feature });
       }
       // Smell: one bulb per antenna, each on its own side (in smellIndex order)
       for (let k = 0; k < SMELL_CELLS; k++) {
-        const { side, odour } = smellCell(k), o = ODOUR_INDEX[odour];
+        const { side, odour } = smellCell(k), o = SCENT[odour];
         const x = side === 'R' ? 0.60 + (o % 5) * 0.05 : 0.40 - (o % 5) * 0.05;
-        add('smell', `smell_${side}_${odour}`, `Smell ${odour} ${side}`,
-          [sideX(side), (o + 0.5) / NO, 0.4], [x, 0.16 + Math.floor(o / 5) * 0.04],
+        add('smell', [sideX(side), (o + 0.5) / N_ODOURS, 0.4], [x, 0.16 + Math.floor(o / 5) * 0.04],
           { kind: 'smell', side, odour });
       }
-      HEARING.forEach(([side, pitch], k) => add('hearing', `hear_${side}_${pitch}`, `Hear ${pitch} ${side}`,
+      HEARING.forEach(([side, pitch], k) => add('hearing',
         [sideX(side), pitch === 'low' ? 0.35 : 0.65, 0.3], [side === 'L' ? 0.08 : 0.92, 0.26 + (k % 2) * 0.04],
         { kind: 'hearing', side, pitch }));
-      TOUCH.forEach(t => add('touch', `touch_${t.key}`, t.word, [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }));
-      TASTES.forEach((t, k) => add('taste', `taste_${t.key}`, t.word, [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }));
+      TOUCH.forEach(t => add('touch', [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }, t.word));
+      TASTES.forEach((t, k) => add('taste', [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }, t.word));
       // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
-      VISION_FEATURES.forEach((f, fi) => add('near', `near_${f.key}`, `Up close: ${f.key}`, [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
+      VISION_FEATURES.forEach((f, fi) => add('near', [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
       for (let k = 0; k < N_NEEDS; k++) {
-        add('needs', `need_${k}`, `Needs cell ${k + 1}`, [...DRIVE_CELL_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
+        add('needs', [...DRIVE_CELL_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
       }
       for (let k = 0; k < N_LIMBIC; k++) {
-        add('feelings', `feel_${k}`, k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`,
-          [...FEELING_TAGS[k], 0.1], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k });
+        add('feelings', [...FEELING_TAGS[k], 0.1], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
+          k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`);
       }
 
       // Anatomy genes grow or shrink the interior regions (always an even count for paired ones)
@@ -185,22 +218,22 @@
         const c = Math.round(base * (A[lobe] ? A[lobe].count : 1.0));
         return paired ? Math.max(4, c - (c % 2)) : Math.max(3, c);
       };
-      const general = (lobe, prefix, count, cols, z, posFor) => {
+      const general = (lobe, count, cols, z, posFor) => {
         for (let i = 0; i < count; i++) {
-          add(lobe, `${prefix}_${i}`, `${prefix} #${i + 1}`, [(i % cols) / cols, Math.floor(i / cols) / Math.ceil(count / cols), z], posFor(i, count), { kind: 'cell', index: i });
+          add(lobe, [(i % cols) / cols, Math.floor(i / cols) / Math.ceil(count / cols), z], posFor(i, count), { kind: 'cell', index: i });
         }
       };
-      general('cortex', 'cortex', countFor('cortex', 30, true), 10, 0.5, (i, n) => {
+      general('cortex', countFor('cortex', 30, true), 10, 0.5, (i, n) => {
         const half = n / 2, k = i % half;
         return [mirror(0.14 + (k % 5) * 0.065, i >= half), 0.33 + Math.floor(k / 5) * 0.055];
       });
-      general('side', 'side', countFor('side', 24, true), 8, 0.7, (i, n) => {
+      general('side', countFor('side', 24, true), 8, 0.7, (i, n) => {
         const half = n / 2, k = i % half, t = k / (half - 1);
         return [mirror(0.20 + 0.06 * Math.sin(t * Math.PI), i >= half), 0.50 + t * 0.22];
       });
-      general('central', 'central', countFor('central', 20, false), 5, 0.6, i => [0.36 + (i % 5) * 0.07, 0.46 + Math.floor(i / 5) * 0.035]);
-      MOTORS.forEach(m => add('motor', `motor_${m.key}`, m.word, [...m.tag, 0.9], m.pos, { kind: 'motor', key: m.key }));
-      general('stem', 'stem', countFor('stem', 16, false), 4, 0.8, (i, n) => [0.2 + i * (0.6 / Math.max(1, n - 1)), 0.975]);
+      general('central', countFor('central', 20, false), 5, 0.6, i => [0.36 + (i % 5) * 0.07, 0.46 + Math.floor(i / 5) * 0.035]);
+      MOTORS.forEach(m => add('motor', [...m.tag, 0.9], m.pos, { kind: 'motor', key: m.key }));
+      general('stem', countFor('stem', 16, false), 4, 0.8, (i, n) => [0.2 + i * (0.6 / Math.max(1, n - 1)), 0.975]);
 
       // Anatomy genes reshape the body plan: each region can shift forward/back, widen or narrow
       // (mirrored, so the brain stays bilateral) and stretch front-to-back about its centre.
@@ -226,7 +259,7 @@
         for (const src of parent) {
           const tag = [src.tag[0], src.tag[1], clamp(src.tag[2] + d.chemShift, 0, 1)];
           const pos = [clamp(0.5 + (src.pos[0] - 0.5) * d.lateral, 0.01, 0.99), clamp(d.depth + (src.pos[1] - cy), 0.005, 0.995)];
-          const n = add(lobeId, `${lobeId}_${src.id}`, `Copy: ${src.label}`, tag, pos, src.meta);
+          const n = add(lobeId, tag, pos, src.meta);
           n.copyOf = src.index;
           n.parentLobe = parentId;
           n.copyWeight = d.inputWeight;
@@ -251,7 +284,7 @@
       this.modulator = new Int8Array(N).fill(-1);
       this.cell = new Int32Array(N);
       this.inbox = new Float32Array(N * SLOTS);
-      // Synapses
+      // Synapses (every array in SYN_FIELDS)
       this.S = 0;
       this.sSrc = new Int32Array(S); this.sDst = new Int32Array(S); this.sW = new Float32Array(S);
       this.sDelay = new Uint8Array(S); this.sCue = new Float32Array(S); this.sX = new Float32Array(S);
@@ -260,7 +293,7 @@
       this.keys = new Set();
       this.adjacencyDirty = true;
       // Display images of the learning signal, and each modulator's learning field
-      this.chem = CHEM_CHANNELS.map(() => new Float32Array(CHEM_SIZE * CHEM_SIZE));
+      this.chemImages = Array.from({ length: N_MOD }, () => new Float32Array(CHEM_SIZE * CHEM_SIZE));
       this.field = Array.from({ length: N_MOD }, () => new Float32Array(N).fill(1));
       this.fieldKey = new Array(N_MOD).fill('');
       this.valueIn = Array.from({ length: N_MOD }, () => new Int32Array(0));
@@ -295,7 +328,7 @@
           if (n.lobe === 'motor') this.targetRate[i] = 0.004;
           // …and disuse makes a muscle only slightly twitchier, so a weak input alone never becomes an action
           this.thrDrop[i] = n.lobe === 'motor' ? 3 : 14;
-          this.refrPeriod[i] = clamp(T.refractoryTicks, 1, 3);
+          this.refrPeriod[i] = T.refractoryTicks; // develop() rounds it to 1..3
           this.fast[i] = n.lobe === 'motor' ? 1 : 0;
         }
         this.thrBase[i] = this.thr[i];
@@ -373,8 +406,7 @@
       const copy = (this.duplicatesOf.sight || [])[0];
       const g = copy && this.dynamics.find(d => d.lobe === copy);
       if (!g) return null;
-      let best = -1, most = 0.5;
-      for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = k; }
+      const best = winner(g, DECISION_FLOOR);
       if (best < 0) return null;
       const { side, band, feature } = this.neurons[g.cells[best]].meta;
       return { side, band, feature };
@@ -385,9 +417,9 @@
     // muscle cell.
     decided() {
       const g = this.dynamics.find(d => d.lobe === 'motor');
-      let best = -1, most = g ? 0.5 : 0.02;
-      if (g) { for (let k = 0; k < g.cells.length; k++) if (g.activity[k] > most) { most = g.activity[k]; best = k; } }
-      else this.lobes.motor.forEach((i, k) => { if (this.rate[i] > most) { most = this.rate[i]; best = k; } });
+      if (g) return winner(g, DECISION_FLOOR);
+      let best = -1, most = 0.02;
+      this.lobes.motor.forEach((i, k) => { if (this.rate[i] > most) { most = this.rate[i]; best = k; } });
       return best;
     }
 
@@ -423,12 +455,7 @@
     removeSynapse(s) {
       this.keys.delete(synapseKey(this.sSrc[s], this.sDst[s]));
       const last = --this.S;
-      if (s !== last) {
-        this.sSrc[s] = this.sSrc[last]; this.sDst[s] = this.sDst[last]; this.sW[s] = this.sW[last];
-        this.sDelay[s] = this.sDelay[last]; this.sElig[s] = this.sElig[last]; this.sEligAt[s] = this.sEligAt[last];
-        this.sCue[s] = this.sCue[last]; this.sX[s] = this.sX[last];
-        this.sActive[s] = this.sActive[last]; this.sBorn[s] = this.sBorn[last]; this.sFlags[s] = this.sFlags[last];
-      }
+      if (s !== last) for (const name of SYN_FIELDS) this[name][s] = this[name][last];
       this.adjacencyDirty = true;
     }
 
@@ -437,29 +464,23 @@
     // current (a modulator's own spikes predict nothing, so synapses between modulators are silent).
     rebuildAdjacency() {
       const { N, S, sSrc, sDst, modulator } = this;
-      const start = new Int32Array(N + 1);
-      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0) start[sSrc[s] + 1]++;
-      for (let i = 0; i < N; i++) start[i + 1] += start[i];
-      const fill = start.slice(0, N);
-      const list = new Int32Array(start[N]);
+      // Per synapse: does it deliver current, and is it plastic (it delivers current and doesn't come
+      // from a modulator cell: the modulators' own wiring stays as the genome built it)
+      const delivers = new Uint8Array(S), plastic = new Uint8Array(S);
       const value = Array.from({ length: N_MOD }, () => []);
       for (let s = 0; s < S; s++) {
-        const m = modulator[sDst[s]];
-        if (m < 0) list[fill[sSrc[s]]++] = s;
-        else if (modulator[sSrc[s]] < 0) value[m].push(s);
+        const m = modulator[sDst[s]], fromCell = modulator[sSrc[s]] < 0;
+        if (m < 0) { delivers[s] = 1; if (fromCell) plastic[s] = 1; }
+        else if (fromCell) value[m].push(s);
       }
-      this.outStart = start;
-      this.outList = list;
+      const out = compressedRows(N, S, sSrc, delivers);
+      this.outStart = out.start;
+      this.outList = out.list;
       this.valueIn = value.map(v => Int32Array.from(v));
-      // Incoming plastic synapses per neuron: those that deliver current and don't come from a
-      // modulator cell (the modulators' own wiring stays as the genome built it)
-      const inStart = new Int32Array(N + 1);
-      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0 && modulator[sSrc[s]] < 0) inStart[sDst[s] + 1]++;
-      for (let i = 0; i < N; i++) inStart[i + 1] += inStart[i];
-      const inFill = inStart.slice(0, N), inList = new Int32Array(inStart[N]);
-      for (let s = 0; s < S; s++) if (modulator[sDst[s]] < 0 && modulator[sSrc[s]] < 0) inList[inFill[sDst[s]]++] = s;
-      this.inStart = inStart;
-      this.inList = inList;
+      // Incoming plastic synapses per neuron
+      const inc = compressedRows(N, S, sDst, plastic);
+      this.inStart = inc.start;
+      this.inList = inc.list;
       this.adjacencyDirty = false;
       this.buildLearningFields();
     }
@@ -615,7 +636,7 @@
       for (let s = 0; s < this.S; s++) {
         const d = sDst[s];
         if (isSensory[d] || modulator[d] >= 0 || sW[s] <= 0) continue;
-        if (rate[d] > targetRate[d] * 4 + 0.05 && thr[d] >= thrBase[d] + 9.5) sW[s] *= 0.95;
+        if (rate[d] > targetRate[d] * 4 + 0.05 && thr[d] >= thrBase[d] + THR_AT_CEILING) sW[s] *= 0.95;
         else if (rate[d] < targetRate[d] * 0.2 && sW[s] < 0.45) sW[s] *= 1.01;
       }
     }
@@ -668,8 +689,7 @@
         // Intrinsic homeostatic plasticity: overactive neurons get harder to fire, silent ones easier
         if (homeo[i]) {
           let t = thr[i] + 0.03 * (rate[i] - targetRate[i]);
-          const lo = thrBase[i] - thrDrop[i], hi = thrBase[i] + 10;
-          t = t < lo ? lo : t > hi ? hi : t;
+          t = clamp(t, thrBase[i] - thrDrop[i], thrBase[i] + THR_RISE_MAX);
           thr[i] = t < V_REST + 2 ? V_REST + 2 : t;
         }
       }
@@ -707,7 +727,7 @@
       inputs.sort((a, b) => rate[b] - rate[a]);
       let motor = -1, most = 0.01;
       for (const i of this.lobes.motor) if (rate[i] > most) { most = rate[i]; motor = i; }
-      this.episodes.push({ inputs: inputs.slice(0, 24), motor, value: Math.sign(value) * Math.min(1, Math.abs(value)), tick: now });
+      this.episodes.push({ inputs: inputs.slice(0, 24), motor, value: clamp(value, -1, 1), tick: now });
       if (this.episodes.length > EPISODES) this.episodes.shift();
     }
 
@@ -752,6 +772,12 @@
       this.inbox[i * SLOTS + (this.tickCount + d) % SLOTS] += mV;
     }
 
+    // Powers of the trace decay lambda, for eligibility that decays lazily
+    setTraceDecay(lambda) {
+      this.decayOf = lambda;
+      this.decayPow = Float32Array.from({ length: TRACE_HORIZON }, (_, k) => lambda ** k);
+    }
+
     learn() {
       const T = this.traits;
       const { hist, field, sSrc, sW, sDelay, sElig, sEligAt, sCue, sX, sActive, sFlags, N } = this;
@@ -763,16 +789,12 @@
       // prediction - old prediction: a cue that reliably comes before food is good news in itself, a
       // meal that was fully expected teaches little, and a cue that stops paying off fades.
       const lambda = T.traceDecay;
-      if (lambda !== this.decayOf) {
-        // Powers of the trace decay, for eligibility that decays lazily
-        this.decayOf = lambda;
-        this.decayPow = Float32Array.from({ length: 1024 }, (_, k) => lambda ** k);
-      }
+      if (lambda !== this.decayOf) this.setTraceDecay(lambda); // A later-stage Plasticity gene changed it
       const decayPow = this.decayPow;
       for (let c = 0; c < N_MOD; c++) {
-        const O = this.outcome[c], mean = this.outcomeMean[c];
-        const r = (O > mean ? O - mean : 0) + this.replayOutcome[c];
-        this.outcomeMean[c] += (O - mean) / OUTCOME_MEMORY;
+        const O = this.outcome[c], usual = this.outcomeMean[c];
+        const r = (O > usual ? O - usual : 0) + this.replayOutcome[c];
+        this.outcomeMean[c] += (O - usual) / OUTCOME_MEMORY;
         this.replayOutcome[c] = 0;
         const list = this.valueIn[c];
         let V = 0;
@@ -811,7 +833,7 @@
           const s = inList[k];
           if (!((hist[sSrc[s]] >>> sDelay[s]) & 0xF)) continue;
           const age = now - sEligAt[s];
-          const e = sElig[s] * (age < 1024 ? decayPow[age] : 0) + 1;
+          const e = sElig[s] * (age < TRACE_HORIZON ? decayPow[age] : 0) + 1;
           sElig[s] = e > ELIG_MAX ? ELIG_MAX : e;
           sEligAt[s] = now;
         }
@@ -824,8 +846,8 @@
       const sumR = this.deltaSum[0] * T.joyGain, sumP = this.deltaSum[1] * T.stressGain, FR = field[0], FP = field[1];
       this.deltaSum.fill(0);
       // The display images: where the signal is now
-      const [imgR, imgP, imgN] = this.chem, cell = this.cell, fade = 0.9 ** LEARN_EVERY;
-      for (let k = 0; k < imgR.length; k++) { imgR[k] *= fade; imgP[k] *= fade; imgN[k] *= fade; }
+      const [imgR, imgP] = this.chemImages, cell = this.cell, fade = 0.9 ** LEARN_EVERY;
+      for (let k = 0; k < imgR.length; k++) { imgR[k] *= fade; imgP[k] *= fade; }
       if (Math.abs(sumR) + Math.abs(sumP) < 1e-3) return;
       const eta = 0.25 * T.learningRate;
       for (let i = 0; i < N; i++) {
@@ -836,7 +858,7 @@
           const s = inList[k];
           if (sElig[s] === 0) continue;
           const age = now - sEligAt[s];
-          if (age >= 1024) { sElig[s] = 0; continue; }
+          if (age >= TRACE_HORIZON) { sElig[s] = 0; continue; }
           const e = sElig[s] * decayPow[age];
           if (e > 1e-3) sW[s] = softBounded(sW[s], eta * m * e, sFlags[s] & INHIBITORY);
         }
@@ -845,7 +867,7 @@
   }
 
   Object.assign(Evo, {
-    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY },
+    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
       TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell

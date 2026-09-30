@@ -137,7 +137,7 @@
     // muscle cell is winning (brain.decided()), held until another takes over.
     sampleMind(b, tick) {
       const m = this.mind;
-      for (let ch = 0; ch < 2; ch++) {
+      for (let ch = 0; ch < Evo.BRAIN.N_MOD; ch++) {
         const d = b.delta[ch], faded = m.error[ch] * ERROR_FADE;
         m.error[ch] = Math.abs(d) > Math.abs(faded) ? d : faded;
       }

@@ -190,7 +190,7 @@
         this.chemColors = ['--joy', '--stress'].map(t => Evo.theme.rgb(t));
       }
       const px = this.chemImage.data, [cDA, cST] = this.chemColors;
-      const [DA, ST] = b.chem;
+      const [DA, ST] = b.chemImages;
       for (let i = 0; i < n * n; i++) {
         const d = DA[i], s = ST[i], total = d + s, o = i * 4;
         if (total > 0.003) {
