@@ -8,3 +8,6 @@
 - Run `node tools/check.js` (the tests and `fingerprint --check`, side by side) before committing;
   `node tools/behave.js` and `node tools/evaluate.js` check behaviour and ecology after gene or
   physiology changes.
+- Drawing and interface changes can't be fingerprinted: check them in a browser as
+  `docs/BROWSER_CHECKS.md` says (`node tools/serve.js` never lets the browser cache; stop it
+  when the check is done).
