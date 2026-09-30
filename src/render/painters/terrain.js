@@ -521,5 +521,5 @@
     }
   }
 
-  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, paintCliff, CLIFF_REACH, TILE_MARGIN });
+  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, CLIFF_REACH, TILE_MARGIN });
 })(globalThis.Evo);

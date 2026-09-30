@@ -235,6 +235,9 @@
       this.spritePx = 0;
       this.featRecs = new Map();
       this.scent = null;
+      // Feature id -> the platform on top of it (a world's platforms are laid once, with its landscape)
+      this.platformOf = new Map();
+      if (this.world) for (const p of this.world.platforms) if (!this.platformOf.has(p.featureId)) this.platformOf.set(p.featureId, p);
     }
 
     // Default zoom: the view's height holds SKY_ROOM of scenery above the ground line (trees and
@@ -398,7 +401,7 @@
       const kind = FEATURE_KIND[f.kind];
       if (kind === undefined) return null;
       // A rock or log may carry a platform (its walkable top): then it is shaped to that height
-      const plat = kind === KIND.LOG || kind === KIND.ROCK ? this.world.platforms.find(p => p.featureId === f.id) : null;
+      const plat = kind === KIND.LOG || kind === KIND.ROCK ? this.platformOf.get(f.id) : null;
       const top = plat ? Math.round(f.y - plat.y) : 0;
       const sig = [f.height, f.canopy, f.width, f.length, f.radius, f.species, top].join();
       let rec = this.featRecs.get(f.id);
@@ -948,10 +951,6 @@
       if (!S || S.cols !== sc.cols || S.rows !== sc.rows || S.cell !== sc.cell || S.nch !== sc.channels.length) {
         const canvas = makeCanvas(sc.cols, sc.rows);
         const cg = canvas.getContext('2d');
-        const colors = [];
-        for (let ch = 0; ch < sc.channels.length; ch++) {
-          colors.push(Evo.theme.rgbOf(Evo.SCENTS[ch].token));
-        }
         const air = new Uint8Array(sc.cols * sc.rows);
         for (let j = 0; j < sc.rows; j++) {
           for (let i = 0; i < sc.cols; i++) {
@@ -959,7 +958,10 @@
             air[j * sc.cols + i] = y < this.info.surf(x) + sc.cell * 0.3 ? 1 : 0;
           }
         }
-        S = this.scent = { cols: sc.cols, rows: sc.rows, cell: sc.cell, nch: sc.channels.length, canvas, cg, img: cg.createImageData(sc.cols, sc.rows), colors, air };
+        S = this.scent = {
+          cols: sc.cols, rows: sc.rows, cell: sc.cell, nch: sc.channels.length, canvas, cg, img: cg.createImageData(sc.cols, sc.rows),
+          colors: sc.channels.map((_, ch) => Evo.theme.rgbOf(Evo.SCENTS[ch].token)), air
+        };
       }
       const px = S.img.data, colors = S.colors, chans = sc.channels, n = sc.cols * sc.rows;
       for (let i = 0; i < n; i++) {
