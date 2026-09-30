@@ -3,7 +3,7 @@
 // palette the WorldView uses to tint the scene. Reads world.clock and world.season only.
 (function (Evo) {
   'use strict';
-  const { TAU, clamp01, smoothstep: smooth } = Evo.util;
+  const { TAU, smoothstep: smooth } = Evo.util;
   const { WINTER } = Evo.SEASON, SEASON_COUNT = Evo.SEASON_COUNT;
 
   // Scenery uses its own seeded streams (Evo.util.mulberry32), never Evo.random: drawing must not
@@ -70,8 +70,8 @@
   function makePalette() {
     return {
       ...Object.fromEntries(COLOR_KEYS.map(key => [key, [0, 0, 0]])), haze: [0, 0, 0],
-      ambA: 0, night: 0, day: 1, twilight: 0, stars: 0, elevation: 1, morning: true,
-      topCss: '', midCss: '', horCss: '', ambCss: '', hazeCss: '', sunCss: '',
+      ambA: 0, night: 0, day: 1, stars: 0, elevation: 1, morning: true,
+      topCss: '', midCss: '', horCss: '', ambCss: '', hazeCss: '',
     };
   }
 
@@ -521,7 +521,6 @@
       pal.morning = morning;
       pal.night = smooth(NIGHT_FADE[0], NIGHT_FADE[1], e);
       pal.day = smooth(DAY_FADE[0], DAY_FADE[1], e);
-      pal.twilight = clamp01(1 - pal.night - pal.day);
       pal.stars = smooth(STARS_FADE[0], STARS_FADE[1], e);
       pal.moonPhase = ((clock.day + clock.phase) / LUNAR_DAYS + 0.42) % 1;
       pal.topCss = rgb(pal.top);

@@ -428,5 +428,5 @@
     }
   }
 
-  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, PROMOTER, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES, encodeGene });
+  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES, encodeGene });
 })(globalThis.Evo);

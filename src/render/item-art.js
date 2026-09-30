@@ -39,7 +39,6 @@
       bug: rgb(protein), bugDark: rgb(scale(protein, 0.52)), bugLight: rgb(tint(protein, WHITE, 0.55)), bugLeg: rgb(scale(protein, 0.3)),
       lure: rgb(female), lureDark: rgb(scale(female, 0.6)), lureLight: rgb(tint(female, WHITE, 0.55)), lurePuff: tint(female, WHITE, 0.35).map(Math.round),
       carrionRgb: carrion,
-      outline: 'rgba(40,24,20,0.55)',
     };
     return C;
   }

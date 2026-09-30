@@ -75,7 +75,7 @@
       `<div class="group-items">${items}</div></div>`;
     tray.innerHTML =
       group('hand', 'Hand', '', '', HAND_TOOLS.map(t => toolButton(t.key, t.word, t.hint, `<span class="tool-icon">${HAND_ICONS[t.key]}</span>`)).join('')) +
-      DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art toggle-art"></canvas>`,
+      DROP_GROUPS.map(g => group(g.key, g.word, g.short || g.word, `<canvas class="tool-art"></canvas>`,
         g.tools.map(k => toolButton(k, DROP_TOOLS[k].label, `${DROP_TOOLS[k].label}: ${DROP_TOOLS[k].about}`, art(k))).join(''))).join('') +
       group('add', 'Add a creature', 'Add', '<span class="tool-icon">＋</span>',
         '<button class="tool" id="addFemaleBtn" title="Add a grown female"><span class="tool-icon" style="color:var(--female)">♀</span><span class="tool-text">Female</span></button>' +

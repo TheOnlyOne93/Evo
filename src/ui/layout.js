@@ -39,7 +39,6 @@
       requestAnimationFrame(() => { resizeAll(); inspector.update(true); });
     }
     app.setDeck = setDeck;
-    app.openLab = deck => { if (deck) setDeck(deck); setLabState(true); };
     labPanel.addEventListener('transitionend', e => { if (e.target === labPanel) resizeAll(); });
     const setCardCollapsed = collapsed => {
       $('creatureCard').classList.toggle('collapsed', collapsed);
