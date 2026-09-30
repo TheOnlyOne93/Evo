@@ -23,6 +23,7 @@
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const GLOW_TICKS = 30;     // Ticks within which a connection counts as just used: outlasts two list refreshes (every 15 ticks at 1x)
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
+  const FAMILY_SHOWN = 12;     // Relatives in one list before the rest fold away
   const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
   const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome
   const POP_EVERY = 10 * Evo.TICKS_PER_SECOND;    // Ticks between population chart samples
@@ -566,26 +567,59 @@
     }
 
     // ---------- Family ----------
+    // Its family from world.history (everyone who has lived here): parents, grandparents, brothers
+    // and sisters (half ones marked), children and grandchildren. The living can be selected; the
+    // dead say when they lived.
     renderFamily(c) {
       const world = this.app.world, hist = world.history;
-      const rec = id => hist.find(h => h.id === id);
-      const person = h => {
+      const byId = new Map(hist.map(h => [h.id, h]));
+      const kids = new Map(); // parent id -> its children's records
+      for (const h of hist) for (const p of [h.motherId, h.fatherId]) if (p !== null) (kids.get(p) || kids.set(p, []).get(p)).push(h);
+      const childrenOf = id => kids.get(id) || [];
+      const day = tick => Math.floor((tick + world.startPhase * Evo.DAY_TICKS) / Evo.DAY_TICKS) + 1;
+      const person = (h, note = '') => {
         if (!h) return '<span class="muted">unknown</span>';
         const alive = world.creatureById(h.id);
-        const fate = alive ? (alive === c ? 'this one' : 'alive') : h.died !== null ? T.DEATH_WORDS[h.cause] || 'died' : 'gone';
-        return `<button class="member" ${alive ? `data-creature="${h.id}"` : 'disabled'}><span class="sex-glyph" style="color:${sexColor(h.sex)}">${sexGlyph(h.sex)}</span>` +
-          `<span>${esc(h.name)} <span class="meta">gen ${h.generation}</span></span><span class="meta">${esc(fate)}</span></button>`;
+        const who = `<span class="sex-glyph" style="color:${sexColor(h.sex)}">${sexGlyph(h.sex)}</span>` +
+          `<span>${esc(h.name)} <span class="meta">gen ${h.generation}${note ? ` · ${note}` : ''}</span></span>`;
+        if (alive) return `<button class="member" data-creature="${h.id}">${who}<span class="meta">${alive === c ? 'this one' : 'alive'}</span></button>`;
+        const came = `${h.motherId === null ? 'Arrived' : 'Hatched'} on day ${day(h.born)}`;
+        const fate = h.died !== null ? T.DEATH_WORDS[h.cause] || 'died' : 'gone';
+        const title = h.died !== null ? `${came}; ${fate} on day ${day(h.died)}` : came;
+        return `<div class="member gone" title="${esc(title)}">${who}<span class="meta">${esc(fate)}${h.died !== null ? `, day ${day(h.died)}` : ''}</span></div>`;
       };
-      const mother = rec(c.motherId), father = rec(c.fatherId);
-      setHtml($('familyParents'), c.motherId === null
+      // A list of people, the rest folded away past FAMILY_SHOWN
+      const list = (people, none, note = () => '') => {
+        if (!people.length) return `<p class="note">${none}</p>`;
+        const rows = people.map(h => person(h, note(h)));
+        return rows.slice(0, FAMILY_SHOWN).join('') + (rows.length > FAMILY_SHOWN
+          ? `<details class="family-more"><summary>${rows.length - FAMILY_SHOWN} more</summary>${rows.slice(FAMILY_SHOWN).join('')}</details>` : '');
+      };
+
+      const outsider = c.motherId === null;
+      const mother = byId.get(c.motherId), father = byId.get(c.fatherId);
+      setHtml($('familyParents'), outsider
         ? `<p class="note">${c.generation > 1 ? 'It wandered in from outside: its parents never lived here.' : 'A founder: it came into the world grown, with no parents here.'}</p>`
-        : person(mother) + person(father));
-      const siblings = c.motherId === null ? [] : hist.filter(h => h.id !== c.id && h.motherId === c.motherId && h.fatherId === c.fatherId);
-      setHtml($('familySiblings'), siblings.map(person).join('') || '<p class="note">None.</p>');
-      const children = hist.filter(h => h.motherId === c.id || h.fatherId === c.id);
-      setHtml($('familyChildren'), children.map(person).join('') || `<p class="note">None yet.${c.pregnancy ? ' One is on the way.' : ''}</p>`);
-      const grand = children.flatMap(ch => hist.filter(h => h.motherId === ch.id || h.fatherId === ch.id));
-      $('familyLine').textContent = `Generation ${c.generation}. ${plural(children.length, 'child', 'children')}, ${plural(grand.length, 'grandchild', 'grandchildren')}. Mated ${plural(c.timesMated, 'time', 'times')}.`;
+        : person(mother, 'mother') + person(father, 'father'));
+      const grandparents = [[mother, "mother's"], [father, "father's"]].filter(([p]) => p && p.motherId !== null)
+        .flatMap(([p, side]) => [[byId.get(p.motherId), `${side} mother`], [byId.get(p.fatherId), `${side} father`]]);
+      setHtml($('familyGrandparents'), grandparents.map(([h, note]) => person(h, note)).join('') ||
+        `<p class="note">${outsider ? 'Its family lived somewhere else.' : 'Its parents came from outside, so their parents never lived here.'}</p>`);
+      const halfOf = h => h.motherId !== c.motherId || h.fatherId !== c.fatherId;
+      const siblings = outsider ? [] : [...new Set([...childrenOf(c.motherId), ...childrenOf(c.fatherId)])]
+        .filter(h => h.id !== c.id).sort((a, z) => halfOf(a) - halfOf(z));
+      setHtml($('familySiblings'), list(siblings, 'None.', h => (halfOf(h) ? 'half' : '')));
+      const children = childrenOf(c.id);
+      setHtml($('familyChildren'), list(children, `None yet.${c.pregnancy ? ' One is on the way.' : ''}`));
+      const grandchildren = [...new Set(children.flatMap(ch => childrenOf(ch.id)))];
+      setHtml($('familyGrandchildren'), list(grandchildren, 'None yet.'));
+      // Every descendant, however far down
+      const descendants = new Set(), queue = [c.id];
+      while (queue.length) for (const h of childrenOf(queue.pop())) if (!descendants.has(h)) { descendants.add(h); queue.push(h.id); }
+      const living = [...descendants].filter(h => world.creatureById(h.id)).length;
+      $('familyLine').textContent = `Generation ${c.generation}. ${plural(children.length, 'child', 'children')}, ${plural(grandchildren.length, 'grandchild', 'grandchildren')}` +
+        (descendants.size > children.length + grandchildren.length ? `, ${plural(descendants.size, 'descendant', 'descendants')} in all` : '') +
+        (descendants.size ? `; ${living} of them alive` : '') + `. Mated ${plural(c.timesMated, 'time', 'times')}.`;
     }
 
     // ---------- World ----------
