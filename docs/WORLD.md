@@ -59,9 +59,7 @@ The ground is a height field with ponds and a cliff at each end: the land rises 
 
 The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name, and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, spawnX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`, `valley`). `spawnX()` draws a founder's x when one is founded, and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
 
-`classic` is the world from before the redesign and is temporary (reach it with `new Evo.World({ map: 'classic' })` or `?map=classic` in the world lab): a legacy builder (`{ build() }`) whose ground is sines with random phases, a hill that carries the warm rock and two dug ponds, and where the seed jitters where things stand: three trees (two fruit, one mimic), two grass patches, the grub log, the rock, reeds at each pond's edges and three thorn bushes. It stays as the before-picture and goes once the valley is accepted.
-
-Every other map is a spec, built by one shared function with nothing random in it. `valley` is the game's, 2960 px wide, with the ground level at y 640 and three ponds dug into it: `ponds[0]` the lake, `ponds[1]` the east pool and `ponds[2]` the spring. Left to right (a pond's x is its rims; the water is inside them):
+A map is a spec, built by one shared function with nothing random in it. `valley` is the game's, 2960 px wide, with the ground level at y 640 and three ponds dug into it: `ponds[0]` the lake, `ponds[1]` the east pool and `ponds[2]` the spring. Left to right (a pond's x is its rims; the water is inside them):
 
 | x | What |
 |---|---|
@@ -76,7 +74,7 @@ Every other map is a spec, built by one shared function with nothing random in i
 | 2460 | The mimic tree |
 | 2530–2770 | The east pool (`ponds[1]`): 28 px deep, its water 2566–2734, with reeds at 2546 and 2754. It is by the east end of the world, 46 px from where wanderers arrive there |
 
-Reeds stand 20 px outside the ends of a pond's water. The map's design rules, which `tests/landscape.test.js` holds every spec map to where it can:
+Reeds stand 20 px outside the ends of a pond's water. The map's design rules, which `tests/landscape.test.js` holds every map to where it can:
 
 * Water is within sight of every station: each tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, measured from the nearest edge of its extent.
 * Something useful and harmless is at each wall, because creatures gather at the world's ends: water, within sight of where wanderers arrive at each end.

@@ -18,7 +18,7 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `drives` | Drives cells, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
 | `genome` | Encoding round trips, founder genes, stages, duplication and loss, mutation, inheritance, guidance |
 | `kin` | `Evo.kinOf` and `Evo.kinIndex` |
-| `landscape` | Every spec map in `Evo.MAPS` (classic is not one): the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |
+| `landscape` | Every map in `Evo.MAPS`: the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |
 | `learning` | The modulators, prediction error, credit assignment, stability, replay, dreams, the timing of pats (over eight seeds, as one seed's effect is noisy) |
 | `render` | The `poseOf` contract, item radii |
 | `text` | `Evo.text`: names, gene descriptions, the mutation list |

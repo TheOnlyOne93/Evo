@@ -1,9 +1,9 @@
 'use strict';
 
-// Guards for hand-authored maps: each test runs over every spec map in Evo.MAPS (classic, a legacy
-// { build() } map drawn at random, is not one), so an edit that breaks the layout fails here by name.
+// Guards for hand-authored maps: each test runs over every map in Evo.MAPS, so an edit that breaks
+// the layout fails here by name.
 
-const specMaps = Evo => Object.entries(Evo.MAPS).filter(([, m]) => !m.build).map(([name, spec]) => ({ name, spec, land: Evo.buildLandscape(spec) }));
+const specMaps = Evo => Object.entries(Evo.MAPS).map(([name, spec]) => ({ name, spec, land: Evo.buildLandscape(spec) }));
 
 // The largest |slope| of the ground over [x0, x1], sampled every px
 function steepest(terrain, x0, x1) {

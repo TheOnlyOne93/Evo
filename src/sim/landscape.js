@@ -1,18 +1,16 @@
 // The world's landscape as data: the terrain (a height field with ponds and cliffs), the features
 // standing on it (trees, rocks, logs...) and the platforms some of them make, built from a map.
-// Pure: it never touches the page. A spec map draws nothing at random; classic's draws come from
-// Evo.random, so a seed gives one landscape.
+// Pure: it never touches the page. A map is data with nothing random in it: every seed gets the
+// same landscape (only spawnX() draws, from Evo.random, when a founder is placed).
 (function (Evo) {
   'use strict';
-  const { clamp, TAU } = Evo.util;
+  const { clamp } = Evo.util;
 
-  // A pond's water stands belowRim px below its lower rim (classic's ponds are also at least minDepth
-  // px deep: a shallow dip is dug deeper, up to digPasses times)
-  const POND = { belowRim: 6, minDepth: 18, digPasses: 4 };
+  const POND_BELOW_RIM = 6; // px: a pond's water stands this far below its lower rim
   const SPACING = 8; // px between height samples
 
   // ---------- Terrain: a height field with ponds and cliffs ----------
-  // Only the ground and its queries; the map builds the pieces (terrainFromSpec, legacyTerrain)
+  // Only the ground and its queries; terrainFromSpec builds the pieces
   //   spacing  px between height samples           heights  Float32Array: ground surface y at x = i * spacing
   //   ponds    [{ x0, x1, level, bed }]: the water's ends, its surface y and the deepest ground y under it
   //   cliffs   { width, rise }: at each end of the world the land rises by up to `rise` px over the last
@@ -91,7 +89,7 @@
   // A spec's ground, sampled every SPACING px:
   //   y(x) = ground + sum of pond dips - cliff
   // A pond dips the ground `depth` px over a flat (x1 - x0) - 2 * bank px wide with `bank` px of slope
-  // on each side, so the dip ends at the rims x0 and x1. Water stands POND.belowRim below the lower rim.
+  // on each side, so the dip ends at the rims x0 and x1. Water stands POND_BELOW_RIM below the lower rim.
   function terrainFromSpec(spec) {
     const { width, cliffs, ponds: dips = [] } = spec;
     const n = Math.ceil(width / SPACING) + 1;
@@ -104,7 +102,7 @@
       for (const p of dips) y += p.depth * plateau(Math.abs(x - (p.x0 + p.x1) / 2), p.x1 - p.x0 - 2 * p.bank, p.bank);
       heights[i] = y - cliffRise(x, width, cliffs);
     }
-    for (const p of dips) ponds.push(pondWater(terrain, p.x0, p.x1, Math.max(terrain.groundY(p.x0), terrain.groundY(p.x1)) + POND.belowRim));
+    for (const p of dips) ponds.push(pondWater(terrain, p.x0, p.x1, Math.max(terrain.groundY(p.x0), terrain.groundY(p.x1)) + POND_BELOW_RIM));
     return terrain;
   }
 
@@ -129,82 +127,9 @@
     return { width: spec.width, height: spec.height, edge: spec.edge, terrain, features, ballX: spec.ball, spawnX: () => Evo.randRange(spec.spawn[0], spec.spawn[1]) };
   }
 
-  // ---------- Classic's terrain ----------
-  // Sines with random phases, a hill, cliffs at both ends, and ponds dug as sine dips that fill with
-  // water up to just below their lower rim. Where the land around a dip leaves too little water, its bed
-  // is dug deeper, in the same shape. Only classic uses it.
-  function legacyTerrain(width, layout, cliffs) {
-    const n = Math.ceil(width / SPACING) + 1;
-    const heights = new Float32Array(n);
-    const ponds = [];
-    const terrain = new Terrain({ spacing: SPACING, heights, ponds, cliffs });
-    const ph = [Evo.random() * TAU, Evo.random() * TAU, Evo.random() * TAU];
-    for (let i = 0; i < n; i++) {
-      const x = i * SPACING;
-      let h = 640 + 30 * Math.sin(x / 1400 * TAU + ph[0]) + 18 * Math.sin(x / 520 * TAU + ph[1]) + 7 * Math.sin(x / 170 * TAU + ph[2]);
-      // The hill with the warm rock
-      const hill = (x - layout.hill) / 260;
-      h -= 70 * Math.exp(-hill * hill);
-      // Cliffs at both ends; the walkable edge (World.edge) keeps creatures off them
-      h -= cliffRise(x, width, cliffs);
-      heights[i] = h;
-    }
-    for (const [x0, x1, depth] of layout.ponds) {
-      const dig = d => {
-        for (let i = 0; i < n; i++) {
-          const x = i * SPACING;
-          if (x > x0 && x < x1) heights[i] += d * Math.pow(Math.sin(Math.PI * (x - x0) / (x1 - x0)), 0.8);
-        }
-      };
-      dig(depth);
-      let level;
-      for (let pass = 0; ; pass++) {
-        level = Math.max(terrain.groundY(x0), terrain.groundY(x1)) + POND.belowRim;
-        const short = POND.minDepth - (bedBetween(terrain, x0, x1) - level);
-        if (short <= 0 || pass === POND.digPasses) break;
-        dig(short);
-      }
-      ponds.push(pondWater(terrain, x0, x1, level));
-    }
-    return terrain;
-  }
-
   // ---------- Maps ----------
-  // A map is a spec (see buildFromSpec) or, for classic only, { build() }; both give
-  // { width, height, edge, terrain, features, ballX, spawnX }.
+  // A map is a spec (see buildFromSpec).
   const MAPS = {
-    // Temporary: the pre-redesign world, kept only as the before-picture for the terrain redesign
-    // and deleted once the new map is accepted.
-    classic: {
-      build() {
-        const W = 3600, H = 900;
-        const jitter = f => (f + Evo.randRange(-0.015, 0.015)) * W;
-        const big = jitter(0.58), small = jitter(0.06);
-        const layout = { hill: jitter(0.31), ponds: [[big, big + 420, 80], [small, small + 170, 45]] };
-        const terrain = legacyTerrain(W, layout, { width: 140, rise: 260 });
-        const t = terrain;
-        const at = x => ({ x, y: t.groundY(x) });
-        let id = 0;
-        const feature = (kind, x, props) => ({ id: ++id, kind, ...at(x), ...props });
-        // A tree's species decides the item type it yields (renderers draw by species)
-        const tree = (x, species, props) => feature('tree', x, { species, yields: species, ...props });
-        const features = [
-          feature('thornbush', jitter(0.125), { radius: 22 }),
-          tree(jitter(0.16), 'fruit', { height: 210, canopy: 85, fruiting: 0.5 }),
-          tree(jitter(0.235), 'mimic', { height: 140, canopy: 55, fruiting: 0.4 }),
-          feature('rock', layout.hill + 30, { width: 96, height: 52, warm: 0 }),
-          feature('grass', jitter(0.41), { width: 230, height: 40, seeding: 0.4 }),
-          feature('log', jitter(0.49), { length: 150 }),
-          ...terrain.ponds.flatMap(p => [feature('reeds', p.x0 - 20, { width: 50 }), feature('reeds', p.x1 + 20, { width: 50 })]),
-          tree(jitter(0.79), 'fruit', { height: 230, canopy: 95, fruiting: 0.5 }),
-          feature('thornbush', jitter(0.84), { radius: 20 }),
-          feature('grass', jitter(0.905), { width: 210, height: 40, seeding: 0.4 }),
-          feature('thornbush', jitter(0.70), { radius: 18 })
-        ];
-        return { width: W, height: H, edge: 150, terrain, features, ballX: 0.45 * W, spawnX: () => Evo.randRange(0.2, 0.8) * W };
-      }
-    },
-
     // Left to right: the home meadow, the spring, the fruit tree, the warm rock, the log, the lake, the
     // east meadow with the mimic tree, and the east pool by the world's end. Every station is within sight
     // of water, and there is water at each end of the world (creatures gather at the ends); no thorn
@@ -246,7 +171,7 @@
   function buildLandscape(map = DEFAULT_MAP) {
     const m = typeof map === 'string' ? MAPS[map] : map;
     if (!m) throw new Error(`Unknown map: ${map}`);
-    const landscape = m.build ? m.build() : buildFromSpec(m);
+    const landscape = buildFromSpec(m);
     landscape.platforms = landscape.features.filter(f => FEATURE_KINDS[f.kind].platform)
       .map(f => ({ ...FEATURE_KINDS[f.kind].platform(f), kind: f.kind, featureId: f.id }));
     return landscape;

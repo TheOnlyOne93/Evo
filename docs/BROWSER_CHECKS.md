@@ -53,7 +53,7 @@ unseeded random numbers, so two whole frames never match pixel for pixel.
 A change to the static art (`src/render/painters/`, the sprite code in `world-view.js`) that is
 meant to draw the same thing can prove it. In `dev/world-lab.html`, `lab.paintHash(levels = [0, 2])` builds
 the terrain tiles and every feature's sprite (not the sky's layers), in every season, at 1× and 2×,
-and returns one hash of the pixels per kind the map has: `{ tiles, tree, rock, grass, log, reeds }`, and `thornbush` when a bush stands there (the game's map has none: load `?map=classic`).
+and returns one hash of the pixels per kind the map has: `{ tiles, tree, rock, grass, log, reeds }`, and `thornbush` when a bush stands there (the game's map has none: plant one first with `lab.world.addThornbush(x)`).
 `levels` index the sprite resolutions `[1, 1.5, 2, 3]`.
 
 1. Before the change, load the lab and note the hashes (the same browser gives the same hashes
@@ -75,7 +75,7 @@ season index 0–3.
   time of day, speed (❚❚, 1×, 4×, 20×, 120×), season, overlays, following, fitting the view, and the
   hand (grab, tickle, slap). Keys: arrows or WASD pan, `+` `-` zoom, `f` follows, Space pauses, and
   `1`–`4` pick the season. URL options (`dev/world-lab.js`
-  lists them): `?seed=11&map=classic&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1` (`map` names a landscape in `Evo.MAPS`; the game's when left out). `window.lab`
+  lists them): `?seed=11&map=valley&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1` (`map` names a landscape in `Evo.MAPS`; the game's when left out). `window.lab`
   is there for scripted checks: `world`, `view`, `state`, `hand`, `clock`, `focus`, `refresh`,
   `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n = 600)` (a promise of
   `{ frames, renderAvg, renderP95, frameAvg }`) and `paintHash()`.
