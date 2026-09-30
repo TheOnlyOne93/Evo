@@ -37,12 +37,28 @@ The game keeps nothing in localStorage or IndexedDB, so a reload is a full reset
 same every time from its seed (`?seed=11`), but the weather and the sky's shooting stars use
 unseeded random numbers, so two whole frames never match pixel for pixel.
 
+## A painter refactor: the same pixels
+
+A change to the static art (`src/render/painters/`, the sprite code in `world-view.js`) that is
+meant to draw the same thing can prove it. In `dev/world-lab.html`, `lab.paintHash()` builds every
+static sprite (the terrain tiles and each kind of feature, in every season, at two resolutions)
+and returns a hash of the pixels for each: `{ tiles, thornbush, tree, rock, grass, log, reeds }`.
+
+1. Before the change, load the lab and note the hashes (the same browser gives the same hashes
+   on every load).
+2. Make the change, load the lab fresh, and compare. A hash that moved names the painter.
+
+The default world has one log and one rock. When a painter has cases the world doesn't show (a
+log with no platform on it, say), paint those onto a scratch canvas with the painter itself
+(`Evo.Paint.paintLog(g, f, season, rec)`) and hash them the same way, before and after.
+
 ## The pages
 
 * `index.html`: the game. `Evo.app` holds the world, the view, the inspector and the frame clock.
 * `dev/world-lab.html`: the game's world drawn by the game's `WorldView`, with controls for the
   time of day, season, speed and overlays. URL options (`dev/world-lab.js` lists them):
   `?seed=11&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1`. `window.lab` is there for
-  scripted checks: `world`, `view`, `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n)`.
+  scripted checks: `world`, `view`, `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n)`,
+  `paintHash()`.
 * `dev/creature-lab.html`: the creature art at every life stage and state (`?t=S` freezes time,
   `?bounds` outlines the picking boxes).

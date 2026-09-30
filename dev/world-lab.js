@@ -164,9 +164,42 @@
     requestAnimationFrame(frame);
     refresh();
 
-    // For scripted checks (Playwright)
+    // A hash of every static sprite, by what it shows ('tiles', then each kind of feature), in
+    // every season at two of the view's resolutions. A painter refactor must leave every hash as
+    // it was (docs/BROWSER_CHECKS.md). Each sprite is built by the view's own sprite builder and
+    // dropped again, so the view's cache ends as it began.
+    function paintHash(levels = [0, 2]) {
+      const hashes = {};
+      const add = (key, rec) => {
+        let h = hashes[key] === undefined ? 0x811c9dc5 : hashes[key];
+        const perSeason = rec.sp.length / Evo.SEASON_COUNT;
+        for (let si = 0; si < Evo.SEASON_COUNT; si++) {
+          for (const li of levels) {
+            const idx = si * perSeason + li, cached = rec.sp[idx];
+            const sp = view._buildSprite(rec, si, li);
+            const canvas = sp.canvas;
+            const px = new Uint32Array(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+            h = Math.imul(h ^ canvas.width, 0x01000193);
+            for (let i = 0; i < px.length; i++) h = Math.imul(h ^ px[i], 0x01000193);
+            view.sprites.splice(view.sprites.indexOf(sp), 1);
+            view.spritePx -= sp.px;
+            canvas.width = canvas.height = 0;
+            rec.sp[idx] = cached && view.sprites.includes(cached) ? cached : null; // (building may have evicted it)
+          }
+        }
+        hashes[key] = h;
+      };
+      for (const rec of view.tiles) if (!rec.empty) add('tiles', rec);
+      for (const f of world.features) {
+        const rec = view._featRec(f);
+        if (rec) add(f.kind, rec);
+      }
+      return Object.fromEntries(Object.entries(hashes).map(([k, h]) => [k, (h >>> 0).toString(16).padStart(8, '0')]));
+    }
+
+    // For scripted checks (docs/BROWSER_CHECKS.md)
     window.lab = {
-      world, view, state, hand, clock, focus, refresh, setPhase,
+      world, view, state, hand, clock, focus, refresh, setPhase, paintHash,
       setSeason: s => { setSeason(s); refresh(); },
       step(n = 1) { for (let i = 0; i < n; i++) tick(); },
       measure(n = 600, opts = {}) {
