@@ -195,7 +195,7 @@ function attentionWinner(Evo, seed, drive) {
   for (let t = 0; t < 400; t++) {
     input[brain.lobes.sight[P.sightIndex('L', 'low', 'red')]] = 15;
     input[brain.lobes.sight[P.sightIndex('R', 'low', 'blue')]] = 15;
-    input[brain.lobes.needs[cell]] = 0.6 * 30;
+    input[brain.lobes.needs[cell]] = 0.6 * Evo.CREATURE.NEURAL_GAIN;
     brain.tick(input, opts);
     const a = t >= 100 && brain.attended();
     if (a) count[a.feature] = (count[a.feature] || 0) + 1;

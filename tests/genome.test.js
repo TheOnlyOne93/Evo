@@ -91,7 +91,7 @@ test('genome: heavy mutation keeps length in bounds and every trait finite', (Ev
   let g = Evo.Genome.founder();
   for (let gen = 0; gen < 300; gen++) {
     g = g.cloneWithMutation(0.03);
-    assert.ok(g.dna.length >= 256 && g.dna.length <= 3200, `length ${g.dna.length}`);
+    assert.ok(g.dna.length >= Evo.GENOME_LIMITS.MIN_LENGTH && g.dna.length <= Evo.GENOME_LIMITS.MAX_LENGTH, `length ${g.dna.length}`);
     const t = g.develop(Evo.STAGE.SENILE);
     for (const [k, v] of Object.entries(t)) if (typeof v === 'number') assert.ok(Number.isFinite(v), `${k} = ${v}`);
     for (const r of t.reactions) assert.ok(r.a < Evo.N_CHEM && Number.isFinite(r.rate));

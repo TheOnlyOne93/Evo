@@ -4,6 +4,8 @@
 'use strict';
 const { fork } = require('child_process');
 
+const SAMPLE_EVERY = 20;   // Ticks between samples of each creature
+
 if (process.argv[2] === '--child') {
   const Evo = require('../tests/load')();
   const [days, seed] = [Number(process.argv[3]), Number(process.argv[4])];
@@ -18,15 +20,16 @@ if (process.argv[2] === '--child') {
     `x ${Math.round(c.x)} water ${c.chem.get('water').toFixed(2)} thirst ${c.chem.get('thirst').toFixed(2)} glucose ${c.chem.get('glucose').toFixed(2)} temp ${c.bodyTemp.toFixed(2)}`));
   let creatureTicks = 0, asleep = 0, hunger = 0, thirst = 0, reward = 0, punish = 0;
   const zones = {};
+  const halfExtent = f => f.canopy || f.width / 2 || f.length / 2 || f.w / 2 || f.radius || 40;
   const zoneOf = c => {
     if (c.inWater) return 'water';
-    for (const f of world.features) if (Math.abs(c.x - f.x) < (f.canopy || f.width / 2 || f.length / 2 || f.w || f.radius || 40) + 20) return f.kind + (f.species ? ':' + f.species : '');
+    for (const f of world.features) if (Math.abs(c.x - f.x) < halfExtent(f) + 20) return f.kind + (f.species ? ':' + f.species : '');
     return 'open';
   };
   const t0 = Date.now();
   for (let t = 0; t < days * Evo.DAY_TICKS; t++) {
     world.step();
-    if (t % 20) continue;
+    if (t % SAMPLE_EVERY) continue;
     for (const c of world.creatures) {
       creatureTicks++;
       if (c.asleep) asleep++;

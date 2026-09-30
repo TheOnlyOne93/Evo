@@ -60,7 +60,8 @@ test('world: the clock runs day and night, and the seasons turn in order', (Evo,
     world.setTime(day, 0.5);  // Noon
     assert.ok(world.clock.light > 0.9, 'light at noon');
   }
-  assert.deepStrictEqual(seen, ['SUMMER', 'AUTUMN', 'WINTER', 'SPRING']);
+  const keys = Evo.SEASONS.map(s => s.key), from = keys.indexOf('SUMMER');
+  assert.deepStrictEqual(seen, keys.map((_, i) => keys[(from + i) % keys.length]));
 });
 
 test('world: it is colder in winter, at night, and in the water', (Evo, assert) => {
