@@ -156,9 +156,10 @@
       ];
       const rock = this.features.find(f => f.kind === 'rock');
       const log = this.features.find(f => f.kind === 'log');
+      // Each platform is the walkable top of a feature, named by featureId (renderers draw them as one)
       this.platforms = [
-        { x0: rock.x - rock.w / 2 + 6, x1: rock.x + rock.w / 2 - 6, y: rock.y - rock.h + 4, kind: 'rock' },
-        { x0: log.x - log.length / 2, x1: log.x + log.length / 2, y: log.y - 24, kind: 'log' }
+        { x0: rock.x - rock.w / 2 + 6, x1: rock.x + rock.w / 2 - 6, y: rock.y - rock.h + 4, kind: 'rock', featureId: rock.id },
+        { x0: log.x - log.length / 2, x1: log.x + log.length / 2, y: log.y - 24, kind: 'log', featureId: log.id }
       ];
     }
 

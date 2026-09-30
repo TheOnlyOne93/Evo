@@ -22,18 +22,16 @@
   function buildTerrain(world) {
     const T = world.terrain, W = world.width, H = world.height;
     const hs = T.heights, n = hs.length, step = T.step;
-    let minS = Infinity, maxS = -Infinity, sum = 0;
+    let minS = Infinity, sum = 0;
     for (let i = 0; i < n; i++) {
       const y = hs[i];
       if (y < minS) minS = y;
-      if (y > maxS) maxS = y;
       sum += y;
     }
     const surf = x => T.groundY(x), waterAt = x => T.waterLevelAt(x); // the world's own queries
     const wet = x => { const l = waterAt(x); return l !== null && surf(x) > l + 0.5; };
     const R = rng(9001 + n);
-    const sorted = Float32Array.from(hs).sort();
-    const info = { W, H, step, minS, maxS, meanS: sum / n, p85: sorted[Math.floor(n * 0.85)], surf, waterAt, wet };
+    const info = { W, H, step, minS, meanS: sum / n, surf, waterAt, wet };
     info.cliffTop = Math.max(-240, minS - 360);
 
     const pebbles = [];

@@ -77,7 +77,7 @@
       fruit.push({ x: c.x + Math.cos(a) * c.r * 0.62, y: c.y + Math.sin(a) * c.r * 0.55 + 2 });
     }
     fruit.sort((a, b) => a.y - b.y);
-    return { H, cr, cy, trunkTop, branches, clumps, dots, fruit, phase: R() * TAU };
+    return { H, cr, cy, trunkTop, branches, clumps, dots, fruit };
   }
 
   function paintTree(g, f, si, rec) {
@@ -256,7 +256,7 @@
     }
     // Show heads in a scattered order as `seeding` rises
     for (let k = heads.length - 1; k > 0; k--) { const j = (R() * (k + 1)) | 0; const t = heads[k]; heads[k] = heads[j]; heads[j] = t; }
-    return { w, h, blades, heads, phase: R() * TAU };
+    return { w, h, blades, heads };
   }
 
   const GRASS_COLS = [
@@ -298,7 +298,7 @@
     for (let k = 0; k < n; k++) leaves.push({ x: (R() - 0.5) * w, h: 34 + R() * 42, lean: (R() - 0.5) * 0.7 });
     const m = Math.round(w / 9) + 2;
     for (let k = 0; k < m; k++) stems.push({ x: (R() - 0.5) * w * 0.8, h: 52 + R() * 38, lean: (R() - 0.5) * 0.25 });
-    return { w, leaves, stems, phase: R() * TAU };
+    return { w, leaves, stems };
   }
 
   const REED_COLS = [['#5e9e48', '#7cba58'], ['#4a8a3c', '#66a64c'], ['#a89048', '#c4aa5c'], ['#b8a67c', '#d2c296']];
@@ -339,15 +339,15 @@
     const r = f.radius;
     const winter = si === WINTER;
     const leaf = DETAIL.thornLeaf[si];
-    const rx = r * 1.05, ry = r * 1.05;
+    const mr = r * 1.05; // the mound's radius
     // Canes rise from the base, arch over and come down beside the mound
     const canes = [];
     const n = winter ? 11 : 8;
     for (let k = 0; k < n; k++) {
       const side = k % 2 ? 1 : -1;
-      const sx = (R() - 0.5) * rx * 1.1, sy = -ry * (winter ? R() * 0.2 : 0.2 + R() * 0.3);
-      const ex = side * rx * (0.85 + R() * 0.55), ey = -ry * (0.08 + R() * 0.4);
-      canes.push({ sx, sy, cx: (sx + ex) / 2 + side * rx * 0.15, cy: -ry * (1.1 + R() * 0.45), ex, ey, back: k % 3 === 0, w: 1.5 + R() * 0.8 });
+      const sx = (R() - 0.5) * mr * 1.1, sy = -mr * (winter ? R() * 0.2 : 0.2 + R() * 0.3);
+      const ex = side * mr * (0.85 + R() * 0.55), ey = -mr * (0.08 + R() * 0.4);
+      canes.push({ sx, sy, cx: (sx + ex) / 2 + side * mr * 0.15, cy: -mr * (1.1 + R() * 0.45), ex, ey, back: k % 3 === 0, w: 1.5 + R() * 0.8 });
     }
     const P = [0, 0, 0];
     const caneAt = (c, u) => {
@@ -393,11 +393,11 @@
     if (winter) {
       // Dry leaves at the foot, the bare tangle, snow caught on top
       g.fillStyle = '#6a4a5e';
-      g.beginPath(); g.ellipse(0, 2, rx * 0.75, ry * 0.3, 0, Math.PI, TAU); g.fill();
+      g.beginPath(); g.ellipse(0, 2, mr * 0.75, mr * 0.3, 0, Math.PI, TAU); g.fill();
       drawCanes(false);
       g.fillStyle = SNOW.body;
       g.beginPath();
-      g.ellipse(0, 1, rx * 0.72, ry * 0.2, 0, Math.PI, TAU);
+      g.ellipse(0, 1, mr * 0.72, mr * 0.2, 0, Math.PI, TAU);
       for (const c of canes) { caneAt(c, 0.45); g.moveTo(P[0] + 4.5, P[1] - 0.5); g.ellipse(P[0], P[1] - 0.5, 4.5, 2, 0, Math.PI, TAU); }
       g.fill();
       return;
@@ -409,7 +409,7 @@
     for (let k = 0; k <= N; k++) {
       const a = Math.PI + (k / N) * Math.PI, tip = k % 2 === 1;
       const rr = (tip ? 1.06 : 0.9) + (R() - 0.5) * 0.08;
-      const x = Math.cos(a) * rx * rr, y = Math.min(2, Math.sin(a) * ry * rr);
+      const x = Math.cos(a) * mr * rr, y = Math.min(2, Math.sin(a) * mr * rr);
       if (!prev) mound.moveTo(x, 2);
       else {
         const mx = (prev[0] + x) / 2, my = (prev[1] + y) / 2;
@@ -419,7 +419,7 @@
       prev = [x, y];
     }
     mound.closePath();
-    const mg = g.createLinearGradient(0, -ry, 0, 2);
+    const mg = g.createLinearGradient(0, -mr, 0, 2);
     mg.addColorStop(0, rgb(leaf[1]));
     mg.addColorStop(1, rgb(scale(leaf[0], 0.8)));
     g.fillStyle = mg;
@@ -431,9 +431,9 @@
     for (let k = 0; k < 16; k++) {
       const u = R(), a = Math.PI * (1.1 + u * 0.8);
       const d = 0.35 + R() * 0.5;
-      const x = Math.cos(a) * rx * d, y = Math.sin(a) * ry * d - 2;
+      const x = Math.cos(a) * mr * d, y = Math.sin(a) * mr * d - 2;
       const b = a + (R() - 0.5) * 0.8, L = r * (0.22 + R() * 0.08), W = L * 0.42;
-      const top = clamp01(-y / ry);
+      const top = clamp01(-y / mr);
       g.fillStyle = rgb(mix(leaf[1], leaf[2], top * 0.8));
       g.beginPath();
       g.moveTo(x, y);
@@ -448,13 +448,13 @@
       g.fillStyle = '#eadbf8';
       g.beginPath();
       for (let k = 0; k < 4; k++) {
-        const a = Math.PI * (1.2 + k * 0.2), x = Math.cos(a) * rx * 0.6, y = Math.sin(a) * ry * 0.72;
+        const a = Math.PI * (1.2 + k * 0.2), x = Math.cos(a) * mr * 0.6, y = Math.sin(a) * mr * 0.72;
         flower(g, x, y, 1.4, 1.1, 0, PETAL_STEP);
       }
       g.fill();
       g.fillStyle = '#f7c948';
       g.beginPath();
-      for (let k = 0; k < 4; k++) { const a = Math.PI * (1.2 + k * 0.2); circle(g, Math.cos(a) * rx * 0.6, Math.sin(a) * ry * 0.72, 0.6); }
+      for (let k = 0; k < 4; k++) { const a = Math.PI * (1.2 + k * 0.2); circle(g, Math.cos(a) * mr * 0.6, Math.sin(a) * mr * 0.72, 0.6); }
       g.fill();
     }
     drawCanes(false);

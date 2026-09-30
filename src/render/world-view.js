@@ -1,11 +1,11 @@
 // WorldView: the camera, the sprite cache and the frame. Each frame it draws, back to front, the
-// sky and parallax scenery (sky.js), terrain tiles and plants, rocks and platforms (painters/*,
+// sky and parallax scenery (sky.js), terrain tiles and plants, rocks and logs (painters/*,
 // via Evo.Paint), items (item-art.js), creatures (Evo.CreatureArt), ponds (water.js) and weather
 // (weather.js), then day/night light, glows and the overlays: scent, senses, calls, creature cues
 // (cues.js: thought bubbles, reactions, name tags, attention) and the player's hand (hand-art.js).
 // Reads the world through the contract in DESIGN.md §6 and never changes it.
 //
-// Static art (terrain tiles, plants, rocks, platforms) is painted once into offscreen sprites at a
+// Static art (terrain tiles, plants, rocks, logs) is painted once into offscreen sprites at a
 // resolution matched to the zoom, per season, and blitted each frame. Only water, items,
 // creatures, particles and overlays are drawn as paths every frame.
 (function (Evo) {
@@ -31,10 +31,10 @@
   const NOTE_INK = 'rgba(30,24,44,0.75)';           // their dark outline
   const BODY_CENTRE_OFFSET = 15;        // world px from a creature's feet up to about the middle of its body
   const TREE_FRUIT_RADIUS = 4.3;        // the fruit drawn hanging on trees
-  const KIND = { TILE: 0, TREE: 1, GRASS: 2, LOG: 3, ROCK: 4, REEDS: 5, THORN: 6, PLAT_LOG: 7, PLAT_ROCK: 8 };
+  const KIND = { TILE: 0, TREE: 1, GRASS: 2, LOG: 3, ROCK: 4, REEDS: 5, THORN: 6 };
   const FEATURE_KIND = { tree: KIND.TREE, grass: KIND.GRASS, log: KIND.LOG, rock: KIND.ROCK, reeds: KIND.REEDS, thornbush: KIND.THORN };
   // Back-to-front passes over world.features; reeds stand in front of the water
-  const BACK_PASSES = [[KIND.TREE], null /* platforms */, [KIND.LOG, KIND.ROCK], [KIND.THORN], [KIND.GRASS]];
+  const BACK_PASSES = [[KIND.TREE], [KIND.LOG, KIND.ROCK], [KIND.THORN], [KIND.GRASS]];
   const FRONT_PASSES = [[KIND.REEDS]];
 
   // ---------------------------------------------------------------------------------------------
@@ -104,7 +104,6 @@
     }
 
     get following() { return this.target; }
-    get camera() { return this.cam; }
 
     // Match the canvas to its box
     resize() {
@@ -229,13 +228,12 @@
       if (this.w > 1) this._computeFit();
     }
 
-    // Forget every sprite and the feature, platform and scent records built from the old terrain
+    // Forget every sprite and the feature and scent records built from the old terrain
     _dropCaches() {
       for (const sp of this.sprites) sp.canvas.width = sp.canvas.height = 0;
       this.sprites = [];
       this.spritePx = 0;
       this.featRecs = new Map();
-      this.platRecs = [];
       this.scent = null;
     }
 
@@ -372,8 +370,6 @@
         case KIND.ROCK: Paint.paintRock(g, rec.f, si, rec); break;
         case KIND.REEDS: Paint.paintReeds(g, rec.f, si, rec); break;
         case KIND.THORN: Paint.paintThorn(g, rec.f, si, rec); break;
-        case KIND.PLAT_LOG: Paint.paintPlatformLog(g, rec.f, si, rec); break;
-        case KIND.PLAT_ROCK: Paint.paintPlatformRock(g, rec.f, si, rec); break;
       }
       const sp = { canvas, used: this.frameNo, px: canvas.width * canvas.height, rec, idx: si * NL + li };
       rec.sp[sp.idx] = sp;
@@ -402,10 +398,9 @@
       const kind = FEATURE_KIND[f.kind];
       if (kind === undefined) return null;
       // A rock or log may carry a platform (its walkable top): then it is shaped to that height
-      const plat = kind === KIND.LOG || kind === KIND.ROCK ? this._platformOn(f) : null;
+      const plat = kind === KIND.LOG || kind === KIND.ROCK ? this.world.platforms.find(p => p.featureId === f.id) : null;
       const top = plat ? Math.round(f.y - plat.y) : 0;
-      const sig = (f.height || 0) * 7 + (f.canopy || 0) * 13 + (f.width || 0) * 17 + (f.length || 0) * 19 + (f.w || 0) * 23 +
-        (f.h || 0) * 29 + (f.radius || 0) * 31 + (f.species === 'mimic' ? 1 : 0) + top * 37;
+      const sig = [f.height, f.canopy, f.width, f.length, f.w, f.h, f.radius, f.species, top].join();
       let rec = this.featRecs.get(f.id);
       if (rec && rec.sig === sig && rec.kind === kind) { rec.f = f; return rec; }
       rec = { kind, f, sig, top, sp: new Array(SEASON_COUNT * NL).fill(null), data: null, bx0: 0, by0: 0, bw: 1, bh: 1, phase: hash2(f.id | 0, 5) * TAU };
@@ -460,40 +455,6 @@
       return rec;
     }
 
-    // The rock or log feature whose top a platform is, if any
-    _platformOn(f) {
-      const ps = this.world.platforms;
-      const log = f.kind === 'log';
-      const reach = log ? f.length / 2 : f.w / 2;
-      const height = log ? 60 : f.h * 1.5 + 10;
-      for (let i = 0; i < ps.length; i++) {
-        const p = ps[i];
-        if (Math.abs((p.x0 + p.x1) / 2 - f.x) < 14 && p.x1 - p.x0 <= reach * 2 + 16 && p.y < f.y && p.y > f.y - height) return p;
-      }
-      return null;
-    }
-
-    _platRec(p, i) {
-      let rec = this.platRecs[i];
-      const fs = this.world.features;
-      const sig = p.x0 * 3 + p.x1 * 7 + p.y * 11 + (p.kind === 'rock' ? 1 : 2) + fs.length * 1e7;
-      if (rec && rec.sig === sig) { rec.f = p; return rec; }
-      // Platforms on top of a rock or log feature are drawn by that feature
-      let owned = false;
-      for (let k = 0; k < fs.length && !owned; k++) {
-        const f = fs[k];
-        if ((f.kind === 'rock' || f.kind === 'log') && this._platformOn(f) === p) owned = true;
-      }
-      const L = p.x1 - p.x0;
-      const rock = p.kind === 'rock';
-      const gap = rock ? this.info.surf((p.x0 + p.x1) / 2) - p.y : 0;
-      rec = { kind: rock ? KIND.PLAT_ROCK : KIND.PLAT_LOG, f: p, sig, owned, sp: new Array(SEASON_COUNT * NL).fill(null), data: { gap } };
-      rec.bx0 = rock ? -26 : -10; rec.bw = L + (rock ? 52 : 20);
-      rec.by0 = -12; rec.bh = rock ? Math.max(34, gap + 22) : 34;
-      this.platRecs[i] = rec;
-      return rec;
-    }
-
     // ---------------------------------------------------------------------------- the frame
 
     // Draw the whole scene. t = seconds.
@@ -508,8 +469,7 @@
       this._sync();
       if (this.w <= 1) this.resize();
       this._updateCamera(dt);
-      this.sky.update(world, t);
-      this.ss = this.sky.ss;
+      this.sky.update(world);
       this.wind = 0.65 + 0.35 * Math.sin(t * 0.21) + 0.15 * Math.sin(t * 0.53 + 1);
       this.buildsLeft = BUILDS_PER_FRAME;
       this._preparePoses();
@@ -589,11 +549,10 @@
       const passes = front ? FRONT_PASSES : BACK_PASSES;
       for (let pi = 0; pi < passes.length; pi++) {
         const kinds = passes[pi];
-        if (!kinds) { this._drawPlatforms(g); continue; }
         for (let i = 0; i < fs.length; i++) {
           const f = fs[i];
           const kind = FEATURE_KIND[f.kind];
-          if (kind !== kinds[0] && kind !== kinds[1]) continue;
+          if (!kinds.includes(kind)) continue;
           const rec = this._featRec(f);
           if (!rec || !this._visible(rec, f.x, f.y, 40)) continue;
           this._drawFeature(g, rec, f, t);
@@ -621,23 +580,6 @@
       if (rec.kind === KIND.TREE && f.fruiting > 0.01) this._drawTreeFruit(g, rec, f, t);
       else if (rec.kind === KIND.GRASS && f.seeding > 0.01) this._drawSeedHeads(g, rec, f);
       else if (rec.kind === KIND.ROCK && f.warm > 0.05) this._drawHeatShimmer(g, rec, f, t);
-    }
-
-    _drawPlatforms(g) {
-      const ps = this.world.platforms;
-      for (let i = 0; i < ps.length; i++) {
-        const p = ps[i];
-        const rec = this._platRec(p, i);
-        if (rec.owned || !this._visible(rec, p.x0, p.y, 20)) continue;
-        seasonPasses(this.ss, (si, a, first) => {
-          const sp = this._sprite(rec, si, first);
-          if (!sp || a < ALPHA_MIN) return;
-          this._setLocal(g, p.x0, p.y, 0, 0);
-          g.globalAlpha = a;
-          g.drawImage(sp.canvas, rec.bx0, rec.by0, rec.bw, rec.bh);
-        });
-        g.globalAlpha = 1;
-      }
     }
 
     _drawTreeFruit(g, rec, f, t) {
@@ -1017,30 +959,27 @@
             air[j * sc.cols + i] = y < this.info.surf(x) + sc.cell * 0.3 ? 1 : 0;
           }
         }
-        S = this.scent = { cols: sc.cols, rows: sc.rows, cell: sc.cell, nch: sc.channels.length, canvas, cg, img: cg.createImageData(sc.cols, sc.rows), colors, air, frame: -1 };
+        S = this.scent = { cols: sc.cols, rows: sc.rows, cell: sc.cell, nch: sc.channels.length, canvas, cg, img: cg.createImageData(sc.cols, sc.rows), colors, air };
       }
-      if (S.frame !== this.frameNo) {
-        S.frame = this.frameNo;
-        const px = S.img.data, colors = S.colors, chans = sc.channels, n = sc.cols * sc.rows;
-        for (let i = 0; i < n; i++) {
-          const o = i * 4;
-          if (!S.air[i]) { px[o + 3] = 0; continue; }
-          let R = 0, G = 0, B = 0, total = 0;
-          for (let ch = 0; ch < chans.length; ch++) {
-            const v = chans[ch][i];
-            if (v <= 0) continue;
-            const c = colors[ch];
-            R += c[0] * v; G += c[1] * v; B += c[2] * v; total += v;
-          }
-          if (total > 0.004) {
-            px[o] = R / total; px[o + 1] = G / total; px[o + 2] = B / total;
-            px[o + 3] = Math.min(140, Math.sqrt(total) * 105);
-          } else {
-            px[o + 3] = 0;
-          }
+      const px = S.img.data, colors = S.colors, chans = sc.channels, n = sc.cols * sc.rows;
+      for (let i = 0; i < n; i++) {
+        const o = i * 4;
+        if (!S.air[i]) { px[o + 3] = 0; continue; }
+        let R = 0, G = 0, B = 0, total = 0;
+        for (let ch = 0; ch < chans.length; ch++) {
+          const v = chans[ch][i];
+          if (v <= 0) continue;
+          const c = colors[ch];
+          R += c[0] * v; G += c[1] * v; B += c[2] * v; total += v;
         }
-        S.cg.putImageData(S.img, 0, 0);
+        if (total > 0.004) {
+          px[o] = R / total; px[o + 1] = G / total; px[o + 2] = B / total;
+          px[o + 3] = Math.min(140, Math.sqrt(total) * 105);
+        } else {
+          px[o + 3] = 0;
+        }
       }
+      S.cg.putImageData(S.img, 0, 0);
       g.imageSmoothingEnabled = true;
       g.globalAlpha = 1;
       g.drawImage(S.canvas, 0, 0, sc.cols * sc.cell, sc.rows * sc.cell);
@@ -1076,8 +1015,6 @@
 
     _note(g, x, y, s, high, alpha, col) {
       g.globalAlpha = alpha;
-      g.lineWidth = 1.1 * s;
-      g.strokeStyle = NOTE_INK;
       g.fillStyle = col;
       g.lineCap = 'round';
       // Stem and flag
@@ -1122,8 +1059,5 @@
     }
   }
 
-  WorldView.ZOOM_MIN = ZOOM_MIN;
-  WorldView.ZOOM_MAX = ZOOM_MAX;
-  WorldView.SOUND_LIFE = SOUND_LIFE;
   Evo.WorldView = WorldView;
 })(globalThis.Evo);

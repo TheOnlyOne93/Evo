@@ -16,9 +16,7 @@
   // Moss on wood and stone, per season (null in winter, when snow covers it)
   const MOSS = {
     log: ['#79b04a', '#5f9a3e', '#8f8a3c', null],                   // the grub log
-    ledge: ['#6aa446', '#6aa446', '#8f8a3c', null],                 // a log platform
     rock: ['rgba(96,150,62,0.8)', 'rgba(96,150,62,0.8)', 'rgba(150,140,60,0.75)', null],
-    outcrop: ['rgba(96,150,62,0.6)', 'rgba(96,150,62,0.6)', 'rgba(150,140,60,0.6)', null],
   };
   // Colours of small details, per season (null in a season that doesn't draw the detail)
   const DETAIL = {
@@ -38,7 +36,7 @@
     lilyFlower: ['#ffd3e4', '#fff5fa', null, null],
     seedHead: ['#b39a52', '#b39a52', '#b39a52', '#b5a882'],
   };
-  const SNOW = { top: '#f8fbff', body: '#e8f0f7', shade: '#bfd0e2', sparkle: '#ffffff' };
+  const SNOW = { top: '#f8fbff', body: '#e8f0f7', shade: '#bfd0e2' };
   const ROCK_TONES = [[160, 154, 146], [170, 150, 128], [150, 150, 156]];
 
   // Spring and summer: flowers, sprouts, pollen and fireflies

@@ -259,7 +259,8 @@ world.terrain = {
   ponds: [{ x0, x1, level }],        // water surface y over [x0, x1] where the ground is below it
   waterLevelAt(x)                    // pond surface y at x, or null
 }
-world.platforms = [{ x0, x1, y, kind }]            // one-way surfaces: 'log' | 'rock'
+world.platforms = [{ x0, x1, y, kind, featureId }] // one-way surfaces: 'log' | 'rock', each the walkable top
+                                                   // of the feature whose id is featureId (the feature draws it)
 world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
   //  'tree'      { height, canopy, species: 'fruit' | 'mimic', yields: item type, fruiting: 0..1 }
   //  'grass'     { width, height, seeding: 0..1 }       grain grows here

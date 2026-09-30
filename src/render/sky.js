@@ -503,7 +503,7 @@
     }
 
     // Compute the light palette for this frame from the clock and season
-    update(world, t) {
+    update(world) {
       const clock = world.clock;
       const e = clock.sunElevation;
       const morning = clock.phase < 0.5;
@@ -529,7 +529,6 @@
       pal.horCss = rgb(pal.hor);
       pal.ambCss = rgb(pal.amb);
       pal.hazeCss = rgb(pal.haze);
-      this.t = t;
       return pal;
     }
 
@@ -564,7 +563,7 @@
     drawBackdrop(g, v) {
       const ss = this.ss, pal = this.pal, dpr = v.dpr;
       const res = Math.min(2, Math.max(1, Math.round(v.fit.zoom * dpr * 4) / 4));
-      if (res !== this.layerRes) this.layerRes = res;
+      this.layerRes = res;
       this.builtThisFrame = false;
       // Drop sprites of seasons no longer needed
       if (this.layerSprites.size > LAYER_SPRITE_CAP) {
@@ -759,7 +758,5 @@
   }
 
   Evo.Sky = Sky;
-  Evo.Sky.seasonState = seasonState;
   Evo.Sky.seasonPasses = seasonPasses;
-  Evo.Sky.LAYERS = LAYERS;
 })(globalThis.Evo);

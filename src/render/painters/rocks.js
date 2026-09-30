@@ -1,14 +1,14 @@
-// Painters for wood and stone: the grub log, boulders (the warm rock) and the two kinds of
-// platform, a log ledge and a sandstone outcrop. Features draw with the origin at their base
-// (f.x, f.y); platforms at (p.x0, p.y), their walking surface. y up is negative.
+// Painters for wood and stone: the grub log and boulders (the warm rock), each shaped to carry
+// its platform when it has one. Features draw with the origin at their base (f.x, f.y). y up is
+// negative.
 (function (Evo) {
   'use strict';
   const { TAU, mulberry32: rng } = Evo.util;
   const { rgb, rgba, mix, scale } = Evo.color;
-  const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone, isWarm } = Evo.Paint;
+  const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
   const { AUTUMN, WINTER } = Evo.SEASON;
 
-  // ---- Pieces shared by the grub log and the log platform
+  // ---- Pieces of the grub log
 
   // A log's body lying from x0 to x1 between top and bottom, rounded at both ends (end radius rx),
   // lit from above: tone = [highlight mix, mid stop, shade scale, outline scale, outline width]
@@ -142,7 +142,7 @@
         pts.push([Math.cos(a) * w / 2 * (0.92 + R() * 0.1), -h * flat * (0.9 + R() * 0.12)]);
       }
     }
-    return { w, h, pts, tone: ROCK_TONES[(f.id | 0) % ROCK_TONES.length], R: R() };
+    return { w, h, pts, tone: ROCK_TONES[(f.id | 0) % ROCK_TONES.length] };
   }
 
   function rockPath(s) {
@@ -225,118 +225,5 @@
     g.stroke();
   }
 
-  // Platforms: origin at (x0, y) where y is the walking surface
-  function paintPlatformLog(g, p, si) {
-    const R = rng(8000 + Math.round(p.x0));
-    const L = p.x1 - p.x0, d = 18;
-    const bark = [112, 80, 54];
-    logBody(g, 0, L, -1, d - 1, d * 0.25, d, bark, [0.28, 0.45, 0.5, 0.4, 1.1]);
-    g.strokeStyle = rgba(scale(bark, 0.5), 0.6);
-    g.lineWidth = 0.9;
-    g.beginPath();
-    for (let k = 1; k < 4; k++) {
-      let x = 4 + R() * 8;
-      while (x < L - 8) { const len = 12 + R() * 24; g.moveTo(x, k * d / 4); g.lineTo(Math.min(L - 5, x + len), k * d / 4 + (R() - 0.5) * 2); x += len + 8; }
-    }
-    g.stroke();
-    for (const ex of [0, L]) cutEnd(g, ex, d / 2 - 1, d * 0.25, d / 2 - 1, [[d * 0.12, d / 4]]);
-    if (si === WINTER) {
-      snowCap(g, -2, L + 2, 1, 0, L, -3.5, 5, 0.4, 1);
-    } else {
-      g.fillStyle = MOSS.ledge[si];
-      mossDots(g, R, 6, L - 4, -0.5, 7, 9, 1.5, 2);
-      if (isWarm(si)) { // A sprout
-        const sx = L * 0.62;
-        g.strokeStyle = '#5a9a40';
-        g.lineWidth = 1.2;
-        g.beginPath(); g.moveTo(sx, 0); g.quadraticCurveTo(sx + 1, -5, sx - 1, -9); g.stroke();
-        g.fillStyle = '#7cc05a';
-        g.beginPath(); g.ellipse(sx - 3, -8, 3, 1.4, -0.5, 0, TAU); g.ellipse(sx + 2, -9, 3, 1.4, 0.5, 0, TAU); g.fill();
-      }
-    }
-  }
-
-  // A rock outcrop: a layered sandstone mass rising from the ground, its flat top the ledge
-  function paintPlatformRock(g, p, si, rec) {
-    const R = rng(8100 + Math.round(p.x0));
-    const L = p.x1 - p.x0, gap = rec.data.gap;
-    const tone = ROCK_TONES[1];
-    const grounded = gap > 8 && gap < 260;
-    // Silhouette: a flat top, flanks that bulge and tuck in, and a flared foot on the ground
-    const body = new Path2D();
-    body.moveTo(2, -2);
-    body.lineTo(L - 2, -2);
-    if (grounded) {
-      const G = gap + 8;
-      body.bezierCurveTo(L + 9, -2, L + 12, G * 0.2, L + 6, G * 0.38);
-      body.bezierCurveTo(L + 1, G * 0.52, L - 4, G * 0.62, L + 2, G * 0.78);
-      body.bezierCurveTo(L + 8, G * 0.9, L + 20, G * 0.96, L + 22, G);
-      body.lineTo(-22, G);
-      body.bezierCurveTo(-18, G * 0.94, -8, G * 0.88, -3, G * 0.74);
-      body.bezierCurveTo(2, G * 0.6, -4, G * 0.5, -8, G * 0.36);
-      body.bezierCurveTo(-12, G * 0.2, -9, -2, 2, -2);
-    } else {
-      body.quadraticCurveTo(L + 7, -1, L + 3, 9);
-      for (let x = L; x >= 0; x -= L / 6) body.lineTo(x, 13 + R() * 9);
-      body.quadraticCurveTo(-8, 8, 2, -2);
-    }
-    body.closePath();
-    const sg = g.createLinearGradient(-14, -2, L + 14, gap);
-    sg.addColorStop(0, rgb(mix(tone, [255, 242, 222], 0.28)));
-    sg.addColorStop(0.5, rgb(tone));
-    sg.addColorStop(1, rgb(scale(tone, 0.58)));
-    g.fillStyle = sg;
-    g.fill(body);
-    g.save();
-    g.clip(body);
-    // Layered sandstone: soft strata, a shaded underside to each band, a darker foot
-    g.lineWidth = 1;
-    for (let y = 9, k = 0; y < gap + 6; y += 9 + R() * 6, k++) {
-      g.strokeStyle = 'rgba(88,62,44,0.3)';
-      g.beginPath(); g.moveTo(-30, y); g.bezierCurveTo(L * 0.3, y + 3, L * 0.7, y - 2, L + 30, y + 1); g.stroke();
-      g.strokeStyle = 'rgba(255,240,215,0.25)';
-      g.beginPath(); g.moveTo(-30, y + 1.5); g.bezierCurveTo(L * 0.3, y + 4.5, L * 0.7, y - 0.5, L + 30, y + 2.5); g.stroke();
-    }
-    const ao = g.createLinearGradient(0, gap * 0.4, 0, gap + 8);
-    ao.addColorStop(0, 'rgba(40,26,20,0)');
-    ao.addColorStop(1, 'rgba(40,26,20,0.3)');
-    g.fillStyle = ao;
-    g.fillRect(-30, gap * 0.4, L + 60, gap);
-    g.fillStyle = 'rgba(40,26,20,0.2)';
-    g.beginPath(); g.ellipse(L * 0.5, 6, L * 0.62, 5, 0, 0, TAU); g.fill();
-    g.fillStyle = 'rgba(255,245,225,0.4)';
-    g.fillRect(-30, -2, L + 60, 2.5);
-    g.strokeStyle = 'rgba(60,40,30,0.45)';
-    g.lineWidth = 1.1;
-    g.beginPath();
-    g.moveTo(L * 0.3, 1); g.lineTo(L * 0.34, 12); g.lineTo(L * 0.28, 24);
-    g.moveTo(L * 0.72, 2); g.lineTo(L * 0.66, 16);
-    if (grounded) { g.moveTo(L * 0.55, gap * 0.5); g.lineTo(L * 0.6, gap * 0.7); g.lineTo(L * 0.52, gap * 0.9); }
-    g.stroke();
-    // Moss clinging to the flanks
-    if (si !== WINTER && grounded) {
-      g.fillStyle = MOSS.outcrop[si];
-      g.beginPath();
-      for (let k = 0; k < 6; k++) circle(g, -6 + R() * 10, gap * (0.3 + R() * 0.6), 2 + R() * 3);
-      g.fill();
-    }
-    g.restore();
-    g.strokeStyle = rgba(scale(tone, 0.45), 0.9);
-    g.lineWidth = 1.2;
-    g.stroke(body);
-    const gp = GROUND[si];
-    if (si === WINTER) {
-      snowCap(g, -5, L + 5, 1, -4, L + 4, -4.5, 5, 0.3, 1);
-    } else {
-      g.fillStyle = rgb(gp.grass);
-      g.fillRect(-2, -2.5, L + 4, 3);
-      g.strokeStyle = gp.tufts[0];
-      g.lineWidth = 1;
-      g.beginPath();
-      for (let x = 0; x < L; x += 3 + R() * 4) { g.moveTo(x, -1); g.lineTo(x + (R() - 0.5) * 3, -3 - R() * 4); }
-      g.stroke();
-    }
-  }
-
-  Object.assign(Evo.Paint, { paintLog, rockShape, paintRock, paintPlatformLog, paintPlatformRock });
+  Object.assign(Evo.Paint, { paintLog, rockShape, paintRock });
 })(globalThis.Evo);
