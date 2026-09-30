@@ -148,17 +148,6 @@
         d.anatomy(LOBE_ORDER[v.region], { shift: (v.shift - 0.5) * 0.3, lateral: 0.6 + v.lateral * 0.8, size: 0.6 + v.size * 0.9, count: 0.5 + v.count * 1.1 });
       },
       birthOnly: true },
-    { name: 'Region duplication', group: 'brain', fields: [['source', CODEC.lobe], u('depth'), u('lateral'), u('chemShift'), u('input')],
-      express(v, d) {
-        d.add('duplications', {
-          sourceLobeIdx: v.source,
-          depth: 0.45 + v.depth * 0.45,       // Where the copy sits, front (0) to back (1)
-          lateral: 0.6 + v.lateral * 0.8,     // Narrower or wider than the original
-          chemShift: (v.chemShift - 0.5) * 0.8, // How far its chemical identity drifts from the original
-          inputWeight: 0.3 + v.input * 0.6    // Strength of the in-register input from the original
-        });
-      },
-      birthOnly: true },
     { name: 'Axon guidance', group: 'brain', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction'), u('sx'), u('sy'), u('sr')],
       express(v, d) {
         d.add('axonGuidance', {
@@ -197,12 +186,11 @@
     { name: 'Stimulus', group: 'chemistry', fields: [['stimulus', CODEC.raw], ['chem1', CODEC.chem], ['amount1', CODEC.signed], ['chem2', CODEC.chem], ['amount2', CODEC.signed]],
       express(v, d) { d.add('stimuli', { stimulus: v.stimulus % STIMULI.length, chem1: v.chem1, amount1: v.amount1, chem2: v.chem2, amount2: v.amount2 }); } },
     // How a region's cells work together: they compete (each is held back by the others' recent
-    // firing), and a cell that fires keeps itself going for a while, until it tires. copy 0 is the
-    // region itself, k its k-th duplicate.
-    { name: 'Lobe dynamics', group: 'brain', fields: [['lobe', CODEC.lobe], ['copy', CODEC.raw], u('competition'), u('persistence'), u('tau'), u('fatigue')],
+    // firing), and a cell that fires keeps itself going for a while, until it tires.
+    { name: 'Lobe dynamics', group: 'brain', fields: [['lobe', CODEC.lobe], u('competition'), u('persistence'), u('tau'), u('fatigue')],
       express(v, d) {
         d.add('lobeDynamics', {
-          lobeIdx: v.lobe, copy: v.copy % 4,
+          lobeIdx: v.lobe,
           competition: R.competition.decode(v.competition), // mV of inhibition per unit of the others' activity
           persistence: R.persistence.decode(v.persistence), // mV of self-sustaining current added per spike (up to 3 spikes' worth)
           keep: 1 - 1 / (5 + 200 * v.tau),                  // How long that current lasts (per tick)
@@ -230,7 +218,7 @@
       habituationRate: 0.0015, noveltyGain: 8,
       insulation: 0.6, bodyHeat: 0.5,
       eggInvestment: 0.35, incubationTicks: 5400,
-      axonGuidance: [], pacemakers: [], duplications: [], lobeDynamics: [],
+      axonGuidance: [], pacemakers: [], lobeDynamics: [],
       reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [], stimuli: [],
       neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}
@@ -399,8 +387,8 @@
     }
 
     // Build the traits of a creature at a life stage: every gene whose switch-on stage has been
-    // reached (stages 0 and 1 are both "from birth"). Genes marked birthOnly (anatomy, region
-    // duplication, membrane, neurochemistry, lobe dynamics) still appear in later traits, but the
+    // reached (stages 0 and 1 are both "from birth"). Genes marked birthOnly (anatomy,
+    // membrane, neurochemistry, lobe dynamics) still appear in later traits, but the
     // brain only reads them when it is built, so a copy that switches on after birth has no effect.
     // Each list entry records the gene it came from (`gene`: its start offset, and its `stage`), so
     // callers can tell which ones are new at a later stage, and the gene's own dice (`dice`): a whole

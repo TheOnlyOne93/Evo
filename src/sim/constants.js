@@ -180,6 +180,7 @@
     { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true },
     { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true },
     { key: 'feelings', word: 'Feelings',     color: '#10b981' },
+    { key: 'attention', word: 'Attention',   color: '#22d3ee' },
     { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },
     { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell' },
     { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell' },
@@ -226,7 +227,6 @@
     MAX_POPULATION: 16,   // Performance ceiling; food and weather normally limit population first
     MAX_FOOD: 70,         // How much growing food the world holds at once
     SEED_BANK: 24,        // Proven breeders kept for wanderers and re-founding
-    MAX_NEURONS: 512,     // Most neurons one brain can build (about twice a founder's): a Region duplication that would pass this is skipped. Past it the innate synapse budget is spent anyway, and a build at the cap stays near 30 ms
     SYNAPSE_CAP: 3200,    // Most synapses one brain can hold
     INNATE_BUDGET: 2400,  // Synapses the genome grows before birth (the rest is room to learn)
     BACKGROUND_WIRING_EXTRA: 150 // The background wiring (weak links between neighbours) may go this far past the budget

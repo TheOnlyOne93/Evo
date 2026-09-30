@@ -15,7 +15,7 @@ console.log(`${sex}: ${brain.N} cells, ${brain.S} connections\n`);
 // The connections a brain has, as "source,target" pairs
 const pairsOf = b => { const out = new Set(); for (let s = 0; s < b.S; s++) out.add(`${b.sSrc[s]},${b.sDst[s]}`); return out; };
 
-// The brain with no wiring genes: the background wiring and region-copy links only. A gene's own
+// The brain with no wiring genes: the background wiring only. A gene's own
 // connections are the ones that appear when that gene is added.
 const base = pairsOf(new Evo.Brain({ ...traits, axonGuidance: [] }));
 

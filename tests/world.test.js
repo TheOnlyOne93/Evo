@@ -238,12 +238,14 @@ test('world: a life-history gene that switches on later changes the lifespan wit
 
 test('world: a brain-building gene that switches on after birth has no effect, even in a creature that starts grown', (Evo, assert) => {
   const world = emptyWorld(Evo);
-  const late = { gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
+  // Count 1 would make about 1.6 times the thinking cells if it took effect
+  const late = { gene: 'Anatomy', stage: Evo.STAGE.ADULT, region: 'cortex', shift: 0.5, lateral: 0.5, size: 0.5, count: 1 };
   const genome = Evo.Genome.founder('FEMALE', [...Evo.FOUNDER_GENOMES.FEMALE, late]);
   const baby = world.addCreature(genome, world.width / 2);
   const adult = world.addCreature(genome, world.width / 2, { ageTicks: Math.floor(baby.lifespan * 0.5), growth: 1 });
   assert.ok(adult.stage >= Evo.STAGE.ADULT, `stage ${adult.stage}`);
-  for (const c of [baby, adult]) assert.deepStrictEqual(c.brain.duplicateLobes, ['dup0_motor', 'dup1_sight']);
+  const plain = new Evo.Brain(Evo.Genome.founder('FEMALE').develop()).lobes.cortex.length;
+  for (const c of [baby, adult]) assert.strictEqual(c.brain.lobes.cortex.length, plain);
 });
 
 // Two adults side by side in a world of their own; swap puts the second one first in the array.

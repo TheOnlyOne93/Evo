@@ -10,28 +10,20 @@
   const { TAU } = Evo.util;
 
   // Regions labelled on the anatomy map (the rest are identified by tapping a neuron)
-  const LABELLED = ['sight', 'smell', 'touch', 'needs', 'feelings', 'cortex', 'side', 'central', 'motor', 'stem'];
+  const LABELLED = ['sight', 'smell', 'touch', 'needs', 'feelings', 'attention', 'cortex', 'side', 'central', 'motor', 'stem'];
   const GUTTER = 74; // Room for the region names on the left of the anatomy map
   const PAD = 16;    // Anatomy map margin
 
   // Regions view: which band of rows each region goes in, how many rows of cells it has, and which
   // regions keep their cells in gene order (the rest are laid out by where the cells sit: left on the left)
-  const BAND = { sight: 0, smell: 0, hearing: 0, touch: 0, taste: 0, near: 0, needs: 1, feelings: 1, cortex: 2, side: 2, central: 2, motor: 3, stem: 3 };
-  const ROWS = { sight: 2, smell: 2, hearing: 2, touch: 1, taste: 1, near: 1, needs: 3, feelings: 2, cortex: 3, side: 2, central: 4, motor: 1, stem: 2 };
+  const BAND = { sight: 0, smell: 0, hearing: 0, touch: 0, taste: 0, near: 0, needs: 1, feelings: 1, attention: 1, cortex: 2, side: 2, central: 2, motor: 3, stem: 3 };
+  const ROWS = { sight: 2, smell: 2, hearing: 2, touch: 1, taste: 1, near: 1, needs: 3, feelings: 2, attention: 2, cortex: 3, side: 2, central: 4, motor: 1, stem: 2 };
   const IN_ORDER = new Set(['needs', 'feelings', 'taste', 'near']);
   const TRAIL_TICKS = 20; // Ticks a used connection stays drawn
   const SCOPE_V_MIN = -80, SCOPE_V_MAX = 30; // the scope's range (mV): below rest up to a spike's peak
 
-  const parentOf = lobe => lobe.replace(/^dup\d+_/, '');
-  // A region's colour; a duplicated region (no entry of its own) takes the copy colour
-  const lobeColor = lobe => (LOBE_INFO[lobe] ? LOBE_INFO[lobe].color : Evo.theme.color('--copy'));
   // A canvas font in the UI's typeface
   const font = (size, weight = '') => `${weight ? weight + ' ' : ''}${size}px ${Evo.theme.color('--ui')}`;
-  const bandOf = lobe => {
-    if (LOBE_INFO[lobe]) return BAND[lobe];
-    const p = parentOf(lobe);
-    return LOBE_INFO[p] && LOBE_INFO[p].sensory ? 1 : p === 'motor' || p === 'stem' ? 3 : 2;
-  };
 
   class BrainView {
     constructor(canvas) {
@@ -75,8 +67,7 @@
       this.layoutMode = this.mode;
       this.screen = new Float32Array(b.N * 2);
       this.colors = new Array(b.N);
-      const copy = Evo.theme.color('--copy');
-      for (const n of b.neurons) this.colors[n.index] = n.copyOf !== null ? copy : LOBE_INFO[n.parentLobe].color;
+      for (const n of b.neurons) this.colors[n.index] = LOBE_INFO[n.lobe].color;
       if (this.mode === 'anatomy') this.layoutAnatomy(); else this.layoutRegions();
     }
 
@@ -94,12 +85,11 @@
       }
       this.cellR = 1.8;
       // Region names in the left margin, level with each region's middle, nudged apart so they never overlap
-      const attention = (b.duplicatesOf.sight || []).filter(l => Evo.text.isAttention(b, l));
-      this.labels = [...LABELLED, ...attention].filter(l => b.lobes[l]).map(l => {
+      this.labels = LABELLED.filter(l => b.lobes[l]).map(l => {
         const idx = b.lobes[l];
         let y = 0;
         for (const i of idx) y += this.screen[i * 2 + 1];
-        return { lobe: l, text: Evo.text.regionName(b, l), y: y / idx.length, color: lobeColor(l) };
+        return { lobe: l, text: Evo.text.regionName(b, l), y: y / idx.length, color: LOBE_INFO[l].color };
       }).sort((a, z) => a.y - z.y);
       for (let k = 1; k < this.labels.length; k++) this.labels[k].y = Math.max(this.labels[k].y, this.labels[k - 1].y + 13);
       this.boxes = null;
@@ -111,17 +101,17 @@
       const b = this.brain, ctx = this.ctx;
       ctx.font = font(10.5);
       const regions = Object.keys(b.lobes).map(lobe => {
-        const cells = b.lobes[lobe].slice(), parent = parentOf(lobe);
-        const rows = Math.max(1, Math.min(ROWS[parent] || 2, cells.length)), cols = Math.ceil(cells.length / rows);
+        const cells = b.lobes[lobe].slice();
+        const rows = Math.max(1, Math.min(ROWS[lobe], cells.length)), cols = Math.ceil(cells.length / rows);
         let order = cells;
-        if (!IN_ORDER.has(parent)) {
+        if (!IN_ORDER.has(lobe)) {
           const P = i => b.neurons[i].pos;
           const byY = cells.sort((i, j) => P(i)[1] - P(j)[1]);
           order = [];
           for (let r = 0; r < rows; r++) order.push(...byY.slice(r * cols, (r + 1) * cols).sort((i, j) => P(i)[0] - P(j)[0]));
         }
         const name = Evo.text.regionName(b, lobe);
-        return { lobe, name, order, rows, cols, band: bandOf(lobe), textW: ctx.measureText(name).width + 18, color: lobeColor(lobe) };
+        return { lobe, name, order, rows, cols, band: BAND[lobe], textW: ctx.measureText(name).width + 18, color: LOBE_INFO[lobe].color };
       }).sort((a, z) => a.band - z.band);
       const W = this.width - 8, H = this.height - 6, GAP = 6, TITLE = 15;
       const pack = p => {

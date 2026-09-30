@@ -29,8 +29,8 @@ test('text: every kind of gene describes itself in plain words', (Evo, assert) =
 });
 
 test('text: a brain-building gene that switches on after birth says it has no effect', (Evo, assert) => {
-  const g = Evo.Genome.founder('FEMALE', [{ gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 },
-    { gene: 'Region duplication', stage: 0, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 }]);
+  const anatomy = stage => ({ gene: 'Anatomy', stage, region: 'cortex', shift: 0.5, lateral: 0.5, size: 0.5, count: 1 });
+  const g = Evo.Genome.founder('FEMALE', [anatomy(Evo.STAGE.ADULT), anatomy(0)]);
   const [late, early] = g.findGenes().map(gene => Evo.text.describeGene(g, gene).text);
   assert.ok(/no effect/.test(late), late);
   assert.ok(!/no effect/.test(early), early);

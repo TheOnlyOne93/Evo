@@ -20,17 +20,17 @@ Coordinates: x runs from the creature's left (0) to its right (1) **in the world
 | Up close | 8: one per vision feature, the look of whatever is at the mouth |
 | Drives | 18 (`N_DRIVE_CELLS`): the founder feels drive k in cell k (`Evo.driveCell`); 2 are spare |
 | Feelings | 8: the reward cell, the punishment cell and 6 general cells |
+| Attention | 16: 2 sides × 8 vision features. Its cells compete; the winner is what the creature is looking at |
 | Thinking, Side lobes, Central lobe, Brainstem | 30, 24, 20 and 16 general-purpose cells (Anatomy genes change the counts) |
 | Movement | 9: walk left, walk right, jump, eat, grab or drop, rest, call, run, drink |
 
-The founder's brain has 247 neurons, counting its two region copies, and 1,693 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 512 neurons and 3,200 synapses, of which the genome may grow 2,400 before birth.
+The founder's brain has 222 neurons and 1,383 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
 
-`Evo.BRAIN_BODY_PLAN` defines the sensory layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and `sightCell(k)` and `smellCell(k)` decode it.
+`Evo.BRAIN_BODY_PLAN` defines the sensory layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and `sightCell(k)` and `smellCell(k)` decode it. The depths (tag z) of the muscle, Drives, Feelings and Attention cells are there too; Attention has the front-most depth (0), which the broad wiring genes don't reach.
 
 ## Wiring
 
-- **Axon guidance.** Each gene sends the axons of one region, and of its copies, toward a receptor chemistry. The target is fixed, or relative to each source cell's own tag (a topographic map, mirrored for a crossed one), and a source window can limit the gene to a few cells. A good match within reach almost always connects. Axons never target sensory cells. Candidates from all genes join one queue and take the innate budget in turn. A gene that switches on later grows its tract then.
-- **Region duplication** copies a region. Each original cell feeds its copy, and the copy inherits its parent's guidance genes. A copy that would take the brain past 512 neurons is skipped.
+- **Axon guidance.** Each gene sends the axons of one region toward a receptor chemistry. The target is fixed, or relative to each source cell's own tag (a topographic map, mirrored for a crossed one), and a source window can limit the gene to a few cells. A good match within reach almost always connects. Axons never target sensory cells. Candidates from all genes join one queue and take the innate budget in turn. A gene that switches on later grows its tract then.
 - **Background wiring** at birth: sparse, weak links between neighbours, scattered as if at random (by fixed dice, below).
 - **Pacemaker** genes give a region a steady current.
 - **Delay.** A spike arrives 1 to 20 ticks after it is fired, by the axon's length and its conduction speed.
@@ -43,30 +43,31 @@ A synapse keeps the sign it was born with (Dale's law). Weights run from −1.8 
 Every chance in growing the wiring is a roll of fixed dice, `Evo.util.fixedRoll(dice, from, to, which)` ([CORE.md](CORE.md)): the same four whole numbers always give the same number, and nothing is drawn from `Evo.random`. So the same genes always grow the same brain, and a birth leaves the world's dice (food, weather, firing noise) as they were.
 
 - `dice` is the gene's own number, carried by the tract entry `genome.develop()` makes for it ([GENOME.md](GENOME.md)). It comes from the gene's bytes and from how many identical genes came before it, so taking out or moving another gene leaves it as it was, and each copy of a doubled gene rolls its own dice (a copy can grow connections the first one did not).
-- `from` and `to` are the two cells' `stableId`: the region's number × 1024 + the cell's number within its region. A base region's number is its place in `Evo.LOBE_ORDER`; copy k's (`dup{k}_…`) is 13 + k. So a cell keeps its id when another region grows or shrinks (1024 is more cells than any region can hold).
-- `which` picks the roll: 0 whether it connects (the odds as always: how well the chemistry matches, and how far the target is against the gene's reach), 1 its strength (0.3 to 0.5 × the gene's weight), 2 its place in the queue for the budget. Where two genes want the same connection, the one first in the queue makes it.
-- The background wiring has no gene, so it rolls with a fixed number of its own (`BACKGROUND_DICE`). The in-register wiring of a region copy has no chance in it at all.
+- `from` and `to` are the two cells' `stableId`: the region's number × 1024 + the cell's number within its region. A region's number is its place in `Evo.LOBE_ORDER`. So a cell keeps its id when another region grows or shrinks (1024 is more cells than any region can hold).
+- `which` picks the roll: 0 whether it connects (the odds: how well the chemistry matches, and how far the target is against the gene's reach; a match within 0.01 of perfect counts as perfect, since what is left is only the byte rounding of a gene's address, so it connects whenever the target is within reach, and further off the odds fall with the square of how far the chemistry is from a match), 1 its strength (0.3 to 0.5 × the gene's weight), 2 its place in the queue for the budget. Where two genes want the same connection, the one first in the queue makes it.
+- The background wiring has no gene, so it rolls with a fixed number of its own (`BACKGROUND_DICE`).
 - A gene that switches on later in life rolls the same way when it grows.
 
-So changing one wiring gene changes only connections that gene could make, while the innate budget of 2,400 lasts (the founder uses 1,693): the rest of the brain stays as it was. The one exception: where the gene made a connection that another gene (or the background wiring) also wanted, the other one makes it once the gene is gone, with its own weight. Any change to a gene's bytes gives it new dice, so all of that gene's connections are rolled again, not only those its changed value touches.
+So changing one wiring gene changes only connections that gene could make, while the innate budget of 2,400 lasts (the founder uses 1,383): the rest of the brain stays as it was. The one exception: where the gene made a connection that another gene (or the background wiring) also wanted, the other one makes it once the gene is gone, with its own weight. Any change to a gene's bytes gives it new dice, so all of that gene's connections are rolled again, not only those its changed value touches.
 
 What happens while living still uses the world's dice: firing noise, sprouting new connections (morphogenesis), and which dream plays.
 
 ### The founder's wiring
 
-65 genes in `founder-brain.js`: 59 tracts, all excitatory, and six others.
+75 genes in `founder-brain.js`: 71 tracts, all excitatory, and four others.
 
 | Purpose | Genes |
 |---|---|
-| Orienting by sight | 7: walk toward red (strongest), yellow, green, blue, pink and other creatures; walk away from violet |
+| Orienting by sight | 14: walk toward red (strongest), yellow, green, blue, pink and other creatures; walk away from violet. The same 7 for Attention at full strength: it works like the midbrain's orienting map, so whatever wins its competition turns the creature hard toward it (away from violet), on top of what it merely sees |
 | Orienting by smell and hearing | 4: toward the side a smell or a call is stronger on; away from bitter and alarm |
 | Innate priors | 18, each from one Drives cell to one muscle: pain and fear → run; sleepiness, tiredness and nausea → rest; loneliness → call; hunger and protein hunger → eat; thirst → drink; anger → grab; boredom, crowdedness, hunger and thirst → walk |
 | Touch reflexes | 2: a touch cell excites the muscle that shares its address (mouth → eat, lips → drink, pain → run); a bump makes the opposite leg push |
-| Into the thinking regions | 7: what is up close, tastes, drives, sights (two of them side by side, for working memory) and smells |
+| Into the thinking regions | 10: what is up close, tastes, drives, sights and attention (two of each side by side, for working memory), smells, and what the muscles just did (Movement) |
+| Sight to Attention | 1: each sight cell feeds the attention cell of its side and colour (both heights feed the same cell) |
 | Out to the muscles | 3: from Thinking and the Central lobe |
 | Value | 4 cue tracts from sight and smell onto the reward and punishment cells, which learn what each predicts; 1 from the alarm odour to a Feelings cell that raises fear; 1 broad, fast projection from Feelings, which sets where learning happens |
-| Attention | 12: a drive's cell biases the sight copy toward what it needs |
-| Others | A pacemaker that keeps the muscles restless; copies of Movement and of Sight; three Lobe dynamics genes (below) |
+| Attention | 12: a drive's cell biases the attention cells toward what it needs |
+| Others | A pacemaker that keeps the muscles restless; three Lobe dynamics genes (below) |
 
 ## A tick
 
@@ -80,10 +81,10 @@ What happens while living still uses the world's dice: firing noise, sprouting n
 
 ## Lobe dynamics
 
-A Lobe dynamics gene (lobe, which copy, competition, persistence, tau, fatigue) makes the cells of one region work together. Each cell is held back in proportion to the others' recent firing. Cells that cross threshold in the same tick are resolved strongest first, each later one held back by those already firing. Each spike adds a self-sustaining current (up to 3 spikes' worth) that fades with tau. Fatigue slows recovery from adaptation. The founder uses it three times:
+A Lobe dynamics gene (lobe, competition, persistence, tau, fatigue) makes the cells of one region work together. Each cell is held back in proportion to the others' recent firing. Cells that cross threshold in the same tick are resolved strongest first, each later one held back by those already firing. Each spike adds a self-sustaining current (up to 3 spikes' worth) that fades with tau. Fatigue slows recovery from adaptation. The founder uses it three times:
 
 - **Movement**: weak competition, low persistence. The most strongly driven muscle wins and keeps going until it tires or a clearly stronger input takes over. `brain.decided()` is the winning muscle.
-- **The sight copy**: strong competition, so it settles on one thing. Guidance genes from single Drives cells bias the features each drive cares about (hunger: red, yellow, green; thirst: blue; loneliness: creatures; sex drive: pink). The copy inherits the sight lobe's approach tracts, so what is attended pulls hardest. `brain.attended()` gives `{ side, band, feature }` or null.
+- **Attention**: strong competition, so it settles on one thing. Sight feeds it, and guidance genes from single Drives cells bias the features each drive cares about (hunger: red, yellow, green; thirst: blue; loneliness: creatures; sex drive: pink). Its orienting genes are at full strength, so what is attended pulls hardest. `brain.attended()` gives `{ side, band, feature }` or null: attention knows what and on which side, and the eyes say how high (`band` is whichever of the two sight cells for that side and feature fires more).
 - **Thinking**: weak competition, strong persistence: working memory that outlasts what caused it. The colours of food and water on one side excite cells tagged for that side, Thinking cells above all, and those pull on that side's walk muscle, so a creature keeps heading where it saw food after it vanishes. The `memory:` reports in `tools/scenarios/learning.js` measure this, two against a knockout with no persistence and one against a control with no fruit.
 
 ## Learning

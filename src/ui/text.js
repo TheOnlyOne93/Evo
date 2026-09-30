@@ -30,18 +30,10 @@
   };
 
   // ---------- Brain regions and neurons ----------
-  // The sight copy whose cells compete (Lobe dynamics) is what the creature attends with
-  const isAttention = (brain, lobe) => !!(brain && brain.duplicatesOf && (brain.duplicatesOf.sight || [])[0] === lobe &&
-    brain.dynamics && brain.dynamics.some(d => d.lobe === lobe));
   const dynamicsOf = (brain, lobe) => (brain && brain.dynamics ? brain.dynamics.find(d => d.lobe === lobe) : null) || null;
 
-  // A region of this brain by its id in brain.lobes (duplicates: 'dup1_sight' and so on)
-  function regionName(brain, lobe) {
-    if (LOBE_INFO[lobe]) return LOBE_INFO[lobe].word;
-    if (isAttention(brain, lobe)) return 'Attention';
-    const parent = lobe.replace(/^dup\d+_/, '');
-    return `${LOBE_INFO[parent] ? LOBE_INFO[parent].word : parent} copy`;
-  }
+  // A region of this brain by its id in brain.lobes
+  const regionName = (brain, lobe) => LOBE_INFO[lobe].word;
 
   // What a region is for, in a sentence
   const REGION_ABOUT = {
@@ -53,6 +45,7 @@
     near: 'The look of whatever is right at its mouth.',
     needs: 'One cell per drive (hunger, thirst, fear…), driven by whichever chemicals its receptor genes attach.',
     feelings: 'The reward and punishment cells fire on surprises (better or worse than expected); that is what it learns from.',
+    attention: 'Its cells compete, so it settles on one thing at a time; what it needs biases which.',
     cortex: 'General cells that associate senses and drives.',
     side: 'General cells, one group on each side.',
     central: 'General cells in the middle.',
@@ -60,28 +53,22 @@
     stem: 'General cells at the back of the brain.'
   };
   function regionAbout(brain, lobe) {
-    if (isAttention(brain, lobe)) return 'A copy of sight whose cells compete, so it settles on one thing at a time; what it needs biases which.';
     const dyn = dynamicsOf(brain, lobe);
-    let text = REGION_ABOUT[lobe] || `A copy of the ${regionName(brain, lobe.replace(/^dup\d+_/, '')).toLowerCase()} region: each cell is fed by its original.`;
+    let text = REGION_ABOUT[lobe];
     if (dyn && lobe === 'cortex' && dyn.persistence > 1) text = 'Working memory: a cell that starts firing keeps going for a while, so what it just saw outlasts the sight.';
     else if (dyn && lobe === 'motor') text += ' The muscles compete, so one action wins and is held until it tires.';
     return text;
   }
 
-  function lobeName(brain, n) {
-    return n.copyOf !== null ? regionName(brain, n.lobe) : LOBE_INFO[n.parentLobe].word;
-  }
+  const lobeName = (brain, n) => regionName(brain, n.lobe);
 
   function neuronName(brain, n) {
-    if (n.copyOf !== null) {
-      const original = neuronName(brain, brain.neurons[n.copyOf]);
-      return isAttention(brain, n.lobe) ? `Attends: ${original.toLowerCase()}` : `Copy of ${original.toLowerCase()}`;
-    }
     const m = n.meta;
     switch (m.kind) {
       case 'sight': return `Sees ${FEATURE_WORDS[m.feature]} ${whereSeen(m, 'to')}`;
       case 'smell': return `Smells ${ODOUR_WORDS[m.odour]} (${SIDE[m.side]} antenna)`;
       case 'near': return `Sees ${FEATURE_WORDS[m.feature]} up close`;
+      case 'attention': return `Attends: ${FEATURE_WORDS[m.feature]} on the ${SIDE[m.side]}`;
       case 'hearing': return `Hears a ${m.pitch} call on the ${SIDE[m.side]}`;
       case 'motor': return `${MOTOR_WORDS[m.key]} muscle`;
       case 'cell': return `${LOBE_INFO[n.lobe].cell} ${m.index + 1}`;
@@ -98,9 +85,8 @@
     const m = n.meta;
     if (brain.modulator[n.index] === 0) return 'Fires when things turn out better than expected. Its inputs learn to predict reward, and its signal is what makes the brain learn.';
     if (brain.modulator[n.index] === 1) return 'Fires when things turn out worse than expected. Its inputs learn to predict trouble, and its signal teaches the brain to avoid it.';
-    if (isAttention(brain, n.lobe)) return 'An attention cell. It competes with the others in its region; when it wins, this is what the creature is looking at.';
-    if (n.copyOf !== null) return 'A copy of another cell, fed by it. Its own wiring can grow in a different direction.';
     switch (m.kind) {
+      case 'attention': return 'An attention cell. It competes with the others in its region; when it wins, this is what the creature is looking at.';
       case 'sight': case 'smell': case 'hearing': case 'near': return 'A sense cell: the world drives it directly.';
       case 'need': return 'A drive cell: the chemicals named above push current into it, so it fires more the stronger the drive.';
       case 'motor': return dynamicsOf(brain, n.lobe)
@@ -221,19 +207,18 @@
       }
       if (targets.length) senders.add(s.index);
     }
-    // Leave out copies whose original is in the set too (a duplicate region inherits its parent's wiring)
-    const originals = set => [...set].map(i => brain.neurons[i]).filter(n => n.copyOf === null || !set.has(n.copyOf));
+    const cellsOf = set => [...set].map(i => brain.neurons[i]);
     // Name the sending cells when only some of the region sends: by what they sense, or one by one
-    const lobeWord = LOBE_INFO[Evo.LOBE_ORDER[x.source.lobe]].word, sending = originals(senders);
+    const lobeWord = LOBE_INFO[Evo.LOBE_ORDER[x.source.lobe]].word, sending = cellsOf(senders);
     const what = s => (s.meta.feature ? `seeing ${FEATURE_WORDS[s.meta.feature]}` : s.meta.odour ? `the smell of ${ODOUR_WORDS[s.meta.odour]}` : neuronName(brain, s).toLowerCase());
     const kinds = [...new Set(sending.map(what))];
     const from = !senders.size ? `${lobeWord} (no cells match)`
       : senders.size === sources.length && !x.srcWindow ? lobeWord
         : kinds.length <= 2 ? kinds.join(' and ') : `${sending.length} ${lobeWord.toLowerCase()} cells`;
-    const reached = originals(cells);
-    const cellWord = d => (isAttention(brain, d.lobe) ? `attention to ${FEATURE_WORDS[d.meta.feature]} on the ${SIDE[d.meta.side]}` : neuronName(brain, d).toLowerCase());
+    const reached = cellsOf(cells);
+    const cellWord = d => (d.lobe === 'attention' ? `attention to ${FEATURE_WORDS[d.meta.feature]} on the ${SIDE[d.meta.side]}` : neuronName(brain, d).toLowerCase());
     const names = [...new Set(reached.map(cellWord))];
-    const regions = [...hits.entries()].filter(([l]) => !/^dup\d+_/.test(l) || !hits.has(l.replace(/^dup\d+_/, '')))
+    const regions = [...hits.entries()]
       .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([l]) => regionName(brain, l));
     const to = !cells.size ? 'nothing it can find' : names.length <= 2 ? names.join(' and ') : regions.join(' and ');
     return { from, to };
@@ -268,13 +253,9 @@
     Reinforcement: (v, x, w) => `Feels reward ×${w.num(x.joyGain)}, punishment ×${w.num(x.stressGain)}`,
     Curiosity: (v, x, w) => `Gets used to things at rate ${w.num(x.habituationRate, 4)}, loves novelty ×${w.num(x.noveltyGain, 1)}`,
     Anatomy: (v, x, w) => `${w.lobe(v.region)} region: ${w.percent(x.count)} cells, ${w.percent(x.size)} size`,
-    'Region duplication': (v, x, w) => `A copy of the ${w.lobe(v.source).toLowerCase()} region`,
-    'Lobe dynamics'(v, x, w, brain) {
-      const parent = Evo.LOBE_ORDER[x.lobeIdx];
-      const lobe = x.copy ? brain && (brain.duplicatesOf[parent] || [])[x.copy - 1] : parent;
-      const region = lobe ? regionName(brain, lobe) : `${LOBE_INFO[parent].word} copy ${x.copy} (not there)`;
+    'Lobe dynamics'(v, x, w) {
       const { compete, persist } = dynamicsWords(x);
-      return `${region}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
+      return `${w.lobe(x.lobeIdx)}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
     Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
@@ -328,7 +309,7 @@
   const GENE_KINDS = {
     brain: [
       { kind: 'How neurons work', genes: ['Membrane', 'Plasticity', 'Reinforcement', 'Curiosity', 'Neurochemistry'] },
-      { kind: 'Regions', genes: ['Anatomy', 'Region duplication', 'Lobe dynamics', 'Pacemaker'] },
+      { kind: 'Regions', genes: ['Anatomy', 'Lobe dynamics', 'Pacemaker'] },
       { kind: 'Wiring', genes: ['Axon guidance'], note: 'Axon guidance genes: which cells grow connections to which.' }
     ],
     chemistry: [
@@ -349,7 +330,6 @@
     let text = DESCRIBE[def.name](genome.decode(gene), genome.expressed(gene), geneWords(brain), brain, gene);
     // The brain is built once, at birth: a brain-building gene that switches on later does nothing
     if (def.birthOnly && gene.stage > 1) text += ' (only works from birth, so this late copy has no effect)';
-    else if (brain && brain.skippedDuplications.has(gene.start)) text += ' (not built: the brain was already at its size limit)';
     return { name: def.name, kind: GENE_KIND[def.name] || '', group: def.group, text };
   }
 
@@ -474,7 +454,7 @@
   Evo.text = {
     lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay,
     describeGene, describeInstinct, duration, ago, signed, level, dynamicsWords, GENE_KINDS,
-    geneChanges, fieldChanges, founderGenomes, traitWords, isAttention,
+    geneChanges, fieldChanges, founderGenomes, traitWords,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, whereSeen, STIMULUS_PAST
   };
 })(globalThis.Evo);

@@ -1,25 +1,28 @@
 // The founder genome: brain wiring genes (see founder.js).
 (function (Evo) {
   'use strict';
-  const { FEELING_TAGS, SIDES, sideX, MUSCLE_Z, FEELING_Z } = Evo.BRAIN_BODY_PLAN;
+  const { FEELING_TAGS, SIDES, sideX, MUSCLE_Z, FEELING_Z, ATTENTION_Z } = Evo.BRAIN_BODY_PLAN;
   const { approach, guide, prior, driveCell, FEATURES, ODOURS } = Evo.founderKit;
   // A drive's own cell in the Drives lobe, as a source window for a guidance gene
   const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[driveCell(key)], 0.05];
-  // Top-down attention: a drive's cell biases the sight copy's cells for one feature (either side)
+  // Top-down attention: a drive's cell biases the attention cells for one feature (either side)
   const attend = (drive, feature) => SIDES.map(sideX).map(x =>
-    guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, 0.22], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
+    guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, ATTENTION_Z], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
 
   Evo.founderBrain = [
     // ---------- Brain wiring ----------
     // Orienting. A sight cell's tag says which side (x) and which colour (y) it sees; the walk
     // muscles sit at y = 0.5. Each of these genes carries one colour's cells to walking toward
-    // (or, crossed, away from) the side they see it on. Food colours pull hardest. The sight copy
-    // inherits these genes: what it attends to pulls on top.
+    // (or, crossed, away from) the side they see it on. Food colours pull hardest.
     ...['red', 'yellow', 'green'].map(f => approach('sight', FEATURES, f, f === 'red' ? 0.42 : 0.35)),
     approach('sight', FEATURES, 'blue', 0.21),
     approach('sight', FEATURES, 'pink', 0.21),
     approach('sight', FEATURES, 'creature', 0.21),                    // Company
     approach('sight', FEATURES, 'violet', 0.5, true),                   // Thorny violet: walk away
+    // Attention is an orienting map, like the midbrain's: its cells have the same addresses as the
+    // sight cells, and whichever wins the competition turns the creature hard toward what it
+    // attends to (away from violet), on top of what it merely sees
+    ...FEATURES.filter(f => f !== 'motion').map(f => approach('attention', FEATURES, f, 1.0, f === 'violet')),
     // Every smell draws the creature toward the side it is stronger on; bitter and alarm push away
     guide('smell', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.3, relX: true }),
     approach('smell', ODOURS, 'bitter', 0.6, true),
@@ -50,10 +53,16 @@
     guide('feelings', [0.5, 0.5, 0.65], { radius: 0.8, weight: 0.2, conduction: 0.5 }),
     // Association: senses and needs into the thinking regions, and thinking regions to the muscles
     guide('needs', [0.5, 0.5, 0.55], { radius: 0.3, weight: 0.4, reach: 0.8 }),
-    guide('sight', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
-    // The colours of food and water (red to blue) on one side reach the thinking cells tagged for
-    // that side strongly enough to start working memory there
-    ...SIDES.map(sideX).map(x => guide('sight', [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] })),
+    // Sights, and what it attends to, reach the thinking regions
+    ...['sight', 'attention'].flatMap(lobe => [
+      guide(lobe, [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
+      // The colours of food and water (red to blue) on one side reach the thinking cells tagged for
+      // that side strongly enough to start working memory there
+      ...SIDES.map(sideX).map(x => guide(lobe, [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] }))
+    ]),
+    // Sight feeds attention: each sight cell to the attention cell of its side and colour (both heights
+    // feed the same cell). Full reach, so the cell is nearly always found.
+    guide('sight', [0.5, 0.5, ATTENTION_Z], { radius: 0.06, weight: 0.85, reach: 1.35, relX: true, relY: true }),
     guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     // …and each thinking cell also pulls on the walk muscle on its own side, so what working memory
@@ -61,21 +70,21 @@
     guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.2, weight: 0.7, reach: 0.8, relX: true }),
     guide('central', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
-    { gene: 'Region duplication', source: 'motor', depth: 1.0, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Efference copy
-    { gene: 'Region duplication', source: 'sight', depth: 0.69, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Orienting map
+    // What the body just did informs thinking
+    guide('motor', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
     // Action selection: the muscles compete, the most strongly driven one wins and keeps going
     // until it tires or something much more pressing comes up
-    { gene: 'Lobe dynamics', lobe: 'motor', copy: 0, competition: 0.2, persistence: 0.2, tau: 0.3, fatigue: 0.9 },
-    // Attention: the sight copy's cells compete, so it settles on one thing at a time, and what
+    { gene: 'Lobe dynamics', lobe: 'motor', competition: 0.2, persistence: 0.2, tau: 0.3, fatigue: 0.9 },
+    // Attention: the attention cells compete, so it settles on one thing at a time, and what
     // the creature needs biases which: hunger toward food colours, thirst toward water, loneliness
     // toward other creatures, desire toward the pink of a mate
-    { gene: 'Lobe dynamics', lobe: 'sight', copy: 1, competition: 1.0, persistence: 0.3, tau: 0.2, fatigue: 0.9 },
+    { gene: 'Lobe dynamics', lobe: 'attention', competition: 1.0, persistence: 0.3, tau: 0.2, fatigue: 0.9 },
     ...['red', 'yellow', 'green'].flatMap(f => attend('hunger', f)),
     ...attend('thirst', 'blue'),
     ...attend('loneliness', 'creature'),
     ...attend('sexDrive', 'pink'),
     // Working memory: thinking cells that fire keep themselves going for a while, so what was
     // just seen or felt outlasts it (until they tire or a rival takes over)
-    { gene: 'Lobe dynamics', lobe: 'cortex', copy: 0, competition: 0.1, persistence: 0.6, tau: 0.7, fatigue: 0.8 },
+    { gene: 'Lobe dynamics', lobe: 'cortex', competition: 0.1, persistence: 0.6, tau: 0.7, fatigue: 0.8 },
   ];
 })(globalThis.Evo);

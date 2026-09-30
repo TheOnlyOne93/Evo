@@ -7,12 +7,12 @@
 // set by axon length and myelination.
 //
 // Neuron state lives in typed arrays (one entry per neuron) and synapses in parallel typed arrays,
-// so a founder's brain (about 250 neurons and 1,700 synapses at birth) costs about 10 µs per tick.
+// so a founder's brain (about 220 neurons and 1,400 synapses at birth) costs about 10 µs per tick.
 // brain.neurons[i] describes neuron i (lobe, position, receptor tag) for the UI.
 (function (Evo) {
   'use strict';
   const { clamp, mean, TAU, fixedRoll } = Evo.util;
-  const { LOBE_ORDER, LOBE_COUNT, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS, TASTES } = Evo;
+  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS, TASTES } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -49,15 +49,16 @@
   const EPISODE_GAP = 20, EPISODE_INPUTS = 24; // Fewest ticks between remembered episodes; most senses one keeps
 
   // Axon conduction speed (distance per tick) of wiring no guidance gene sets
-  const CONDUCTION = { default: 0.12, inRegister: 0.3, local: 0.10, sprout: 0.10 };
+  const CONDUCTION = { default: 0.12, local: 0.10, sprout: 0.10 };
 
   // Growing the wiring rolls fixed dice (Evo.util.fixedRoll) for each connection a gene could make:
   // the gene's own dice, the two cells' stableIds, and which roll it is (does it connect, how
   // strong it is, its place in the queue for the budget). A neuron's stableId is its region's number
-  // × REGION_SPAN + its number within the region (a base region's number is its place in LOBE_ORDER,
-  // copy k's is LOBE_COUNT + k), so it stays the same when another region grows or shrinks.
+  // × REGION_SPAN + its number within the region (a region's number is its place in LOBE_ORDER),
+  // so it stays the same when another region grows or shrinks.
   const ROLL = { connect: 0, strength: 1, queue: 2 };
-  const REGION_SPAN = 1024;          // More cells than any region can hold (a whole brain holds at most LIMITS.MAX_NEURONS, 512)
+  const REGION_SPAN = 1024;          // More cells than any region can hold (a brain must stay under KEY_SPAN, 4096, cells in all)
+  const EXACT_MATCH = 0.01;           // A chemical match this close is perfect; the rest is only the byte rounding of a gene's address
   const BACKGROUND_DICE = 7919;      // The background wiring's own dice (it has no gene): any fixed whole number would do
 
   // Per-lobe neuron parameters (initNeurons). tau: membrane leak per tick; adaptInc: adaptation per
@@ -151,11 +152,12 @@
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
   // The x address of a sense's left or right side
   const sideX = s => (s === 'L' ? 0.1 : 0.9);
-  // The depth (tag z) of the muscle, Drives and Feelings cells
-  const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1;
+  // The depth (tag z) of the muscle, Drives and Feelings cells. Attention is the front-most depth,
+  // which the broad wiring genes (aimed at the middle depths) don't reach.
+  const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1, ATTENTION_Z = 0.0;
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
-  // constructor checks); LIMITS.MAX_NEURONS keeps neuron counts far below that.
+  // constructor checks).
   const KEY_SPAN = 4096;
   const synapseKey = (src, dst) => src * KEY_SPAN + dst;
 
@@ -220,10 +222,10 @@
       const neurons = this.neurons = [];
       const lobes = this.lobes = {};
       // label: the UI's name, for the kinds Evo.text.neuronName doesn't name itself (touch, taste,
-      // feelings). region: the region's number, for stableId (see REGION_SPAN)
-      const add = (lobe, tag, pos, meta, label = null, region = LOBE_ORDER.indexOf(lobe)) => {
+      // feelings). The stableId is the region's number and the cell's number within it (see REGION_SPAN)
+      const add = (lobe, tag, pos, meta, label = null) => {
         const members = lobes[lobe] = lobes[lobe] || [];
-        const n = { index: neurons.length, stableId: region * REGION_SPAN + members.length, label, lobe, parentLobe: lobe, tag, pos, meta, copyOf: null };
+        const n = { index: neurons.length, stableId: LOBE_ORDER.indexOf(lobe) * REGION_SPAN + members.length, label, lobe, tag, pos, meta };
         neurons.push(n);
         members.push(n.index);
         return n;
@@ -257,6 +259,13 @@
       for (let k = 0; k < N_LIMBIC; k++) {
         add('feelings', [...FEELING_TAGS[k], FEELING_Z], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
           k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`);
+      }
+      // Attention: one cell per side and vision feature (side first, then feature)
+      for (const side of SIDES) {
+        for (let fi = 0; fi < NF; fi++) {
+          add('attention', [sideX(side), (fi + 0.5) / NF, ATTENTION_Z], [side === 'R' ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045, 0.76],
+            { kind: 'attention', side, feature: VISION_FEATURES[fi].key });
+        }
       }
 
       // Anatomy genes grow or shrink the interior regions (always an even count for paired ones)
@@ -293,31 +302,6 @@
         }
       }
 
-      // Region duplications: each copy keeps its parent's layout and chemistry (shifted), sits at a new
-      // depth, and is a central (non-sensory) region. Its parent's guidance genes also grow its axons.
-      // Copies are budgeted: nothing else limits how many Region duplication genes a genome carries,
-      // and wiring a brain takes time with the square of its size, so a copy that would take the brain
-      // past LIMITS.MAX_NEURONS is skipped (its gene is noted in skippedDuplications, for the Genes tab).
-      this.duplicatesOf = {};
-      this.duplicateLobes = [];
-      this.skippedDuplications = new Set(); // Gene starts of the Region duplication genes not built
-      T.duplications.forEach((d, k) => {
-        const parentId = LOBE_ORDER[d.sourceLobeIdx];
-        const lobeId = `dup${k}_${parentId}`;
-        const parent = lobes[parentId].map(i => neurons[i]);
-        if (neurons.length + parent.length > LIMITS.MAX_NEURONS) { this.skippedDuplications.add(d.gene); return; }
-        const cy = mean(parent.map(n => n.pos[1]));
-        for (const src of parent) {
-          const tag = [src.tag[0], src.tag[1], clamp(src.tag[2] + d.chemShift, 0, 1)];
-          const pos = [clamp(0.5 + (src.pos[0] - 0.5) * d.lateral, 0.01, 0.99), clamp(d.depth + (src.pos[1] - cy), 0.005, 0.995)];
-          const n = add(lobeId, tag, pos, src.meta, null, LOBE_COUNT + k);
-          n.copyOf = src.index;
-          n.parentLobe = parentId;
-          n.copyWeight = d.inputWeight;
-        }
-        (this.duplicatesOf[parentId] = this.duplicatesOf[parentId] || []).push(lobeId);
-        this.duplicateLobes.push(lobeId);
-      });
       this.N = neurons.length;
     }
 
@@ -400,9 +384,8 @@
       // applyDynamics). Several genes for one region: the last one wins.
       const groups = new Map();
       for (const g of T.lobeDynamics) {
-        const parent = LOBE_ORDER[g.lobeIdx];
-        const lobe = g.copy ? (this.duplicatesOf[parent] || [])[g.copy - 1] : parent;
-        if (!lobe || !this.lobes[lobe]) continue;
+        const lobe = LOBE_ORDER[g.lobeIdx];
+        if (!this.lobes[lobe]) continue;
         const cells = Int32Array.from(this.lobes[lobe]);
         for (const i of cells) this.adaptKeep[i] = g.adaptKeep;
         groups.set(lobe, { lobe, cells, competition: g.competition, persistence: g.persistence, keep: g.keep,
@@ -453,16 +436,17 @@
       }
     }
 
-    // What the sight copy is attending to: { side, band, feature } of its most active cell, or null
-    // when it has no Lobe dynamics or nothing there is active
+    // What it is attending to: { side, band, feature } of the Attention region's winning cell, or
+    // null when that region has no Lobe dynamics or nothing there is active. Attention knows what
+    // and on which side; the eyes say how high.
     attended() {
-      const copy = (this.duplicatesOf.sight || [])[0];
-      const g = copy && this.dynamics.find(d => d.lobe === copy);
+      const g = this.dynamics.find(d => d.lobe === 'attention');
       if (!g) return null;
       const best = winner(g, DECISION_FLOOR);
       if (best < 0) return null;
-      const { side, band, feature } = this.neurons[g.cells[best]].meta;
-      return { side, band, feature };
+      const { side, feature } = this.neurons[g.cells[best]].meta;
+      const high = this.lobes.sight[sightIndex(side, 'high', feature)], low = this.lobes.sight[sightIndex(side, 'low', feature)];
+      return { side, band: this.rate[high] > this.rate[low] ? 'high' : 'low', feature };
     }
 
     // What it has decided to do: the index (into Evo.MOTORS) of the muscle whose cell is winning the
@@ -595,19 +579,12 @@
       const central = neurons.filter(n => !this.isSensory[n.index]);
       const candidates = [];
 
-      // A fresh duplicate is wired in register: each original neuron feeds its own copy
-      if (atBirth) {
-        for (const lobe of this.duplicateLobes) {
-          for (const i of this.lobes[lobe]) this.addSynapse(neurons[i].copyOf, i, neurons[i].copyWeight, { cap: budget, conduction: CONDUCTION.inRegister });
-        }
-      }
-
       for (const rule of fresh) {
         this.grownGenes.add(rule.gene);
         const r = rule.affinityRadius;
         for (const s of this.tractSources(rule)) {
           for (const [d, chemDist] of this.tractTargets(rule, s)) {
-            const chemMatch = (1.0 - chemDist / r) ** 2;
+            const chemMatch = (1.0 - Math.max(0, chemDist - EXACT_MATCH) / (r - EXACT_MATCH)) ** 2;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
             if (fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.connect) < chemMatch * Math.exp(-((dist / rule.reach) ** 4))) {
               const strength = 0.3 + fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.strength) * 0.2;
@@ -636,15 +613,13 @@
       this.rebuildAdjacency();
     }
 
-    // The cells a guidance rule sends axons from: its lobe and the lobe's duplicates (they inherit
-    // their parent's developmental program), within the rule's source window. Pure.
+    // The cells a guidance rule sends axons from: the cells of its lobe within the rule's source
+    // window. Pure.
     tractSources(rule) {
-      const parentId = LOBE_ORDER[rule.source.lobe], win = rule.srcWindow, out = [];
-      for (const lobe of [parentId, ...(this.duplicatesOf[parentId] || [])]) {
-        for (const si of this.lobes[lobe]) {
-          const s = this.neurons[si];
-          if (!win || Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) <= win.r) out.push(s);
-        }
+      const win = rule.srcWindow, out = [];
+      for (const si of this.lobes[LOBE_ORDER[rule.source.lobe]]) {
+        const s = this.neurons[si];
+        if (!win || Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) <= win.r) out.push(s);
       }
       return out;
     }
@@ -947,7 +922,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z,
+      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z, ATTENTION_Z,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

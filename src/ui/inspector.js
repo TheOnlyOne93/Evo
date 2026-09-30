@@ -283,9 +283,8 @@
 
     // The attention region's cell for what it is attending to, or -1
     attendedCell(b, att) {
-      const lobe = (b.duplicatesOf.sight || [])[0];
-      if (!att || !lobe) return -1;
-      const i = b.lobes[lobe].find(k => { const m = b.neurons[k].meta; return m.side === att.side && m.band === att.band && m.feature === att.feature; });
+      if (!att) return -1;
+      const i = b.lobes.attention.find(k => { const m = b.neurons[k].meta; return m.side === att.side && m.feature === att.feature; });
       return i === undefined ? -1 : i;
     }
 
@@ -296,8 +295,8 @@
       const tick = this.app.world.clock.tick;
 
       // Attention
-      const att = b.attended(), hasAttention = (b.duplicatesOf.sight || []).some(l => T.isAttention(b, l));
-      row('Looking at', !hasAttention ? '<span class="muted">nothing: it has no attention region (a gene is missing)</span>'
+      const att = b.attended(), hasAttention = b.dynamics.some(d => d.lobe === 'attention');
+      row('Looking at', !hasAttention ? '<span class="muted">nothing: its attention cells do not compete (a gene is missing)</span>'
         : c.asleep ? '<span class="muted">nothing (asleep)</span>'
           : att ? `<b>${esc(T.FEATURE_WORDS[att.feature])}</b> ${T.whereSeen(att)}`
             : '<span class="muted">nothing in particular</span>');
