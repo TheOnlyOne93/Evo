@@ -23,20 +23,34 @@ Coordinates: x runs from the creature's left (0) to its right (1) **in the world
 | Thinking, Side lobes, Central lobe, Brainstem | 30, 24, 20 and 16 general-purpose cells (Anatomy genes change the counts) |
 | Movement | 9: walk left, walk right, jump, eat, grab or drop, rest, call, run, drink |
 
-The founder's brain has 247 neurons, counting its two region copies, and about 1,660 synapses at birth. `Evo.LIMITS` caps a brain at 512 neurons and 3,200 synapses, of which the genome may grow 2,400 before birth.
+The founder's brain has 247 neurons, counting its two region copies, and 1,693 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 512 neurons and 3,200 synapses, of which the genome may grow 2,400 before birth.
 
 `Evo.BRAIN_BODY_PLAN` defines the sensory layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and `sightCell(k)` and `smellCell(k)` decode it.
 
 ## Wiring
 
-- **Axon guidance.** Each gene sends the axons of one region, and of its copies, toward a receptor chemistry. The target is fixed, or relative to each source cell's own tag (a topographic map, mirrored for a crossed one), and a source window can limit the gene to a few cells. A good match within reach almost always connects. Axons never target sensory cells. Candidates from all genes compete for the innate budget. A gene that switches on later grows its tract then.
+- **Axon guidance.** Each gene sends the axons of one region, and of its copies, toward a receptor chemistry. The target is fixed, or relative to each source cell's own tag (a topographic map, mirrored for a crossed one), and a source window can limit the gene to a few cells. A good match within reach almost always connects. Axons never target sensory cells. Candidates from all genes join one queue and take the innate budget in turn. A gene that switches on later grows its tract then.
 - **Region duplication** copies a region. Each original cell feeds its copy, and the copy inherits its parent's guidance genes. A copy that would take the brain past 512 neurons is skipped.
-- **Background wiring** at birth: sparse, weak, random links between neighbours.
+- **Background wiring** at birth: sparse, weak links between neighbours, scattered as if at random (by fixed dice, below).
 - **Pacemaker** genes give a region a steady current.
 - **Delay.** A spike arrives 1 to 20 ticks after it is fired, by the axon's length and its conduction speed.
 - **Morphogenesis**, every 80 ticks. An active cell may sprout one weak synapse to a depolarised neighbour. A sprout that stays weak is pruned; innate tracts are never pruned. Synaptic scaling turns a cell's excitatory inputs down when it fires far too much, and up when it has fallen silent.
 
 A synapse keeps the sign it was born with (Dale's law). Weights run from −1.8 to 2.0.
+
+### The same genes grow the same brain
+
+Every chance in growing the wiring is a roll of fixed dice, `Evo.util.fixedRoll(dice, from, to, which)` ([CORE.md](CORE.md)): the same four whole numbers always give the same number, and nothing is drawn from `Evo.random`. So the same genes always grow the same brain, and a birth leaves the world's dice (food, weather, firing noise) as they were.
+
+- `dice` is the gene's own number, carried by the tract entry `genome.develop()` makes for it ([GENOME.md](GENOME.md)). It comes from the gene's bytes and from how many identical genes came before it, so taking out or moving another gene leaves it as it was, and each copy of a doubled gene rolls its own dice (a copy can grow connections the first one did not).
+- `from` and `to` are the two cells' `stableId`: the region's number × 1024 + the cell's number within its region. A base region's number is its place in `Evo.LOBE_ORDER`; copy k's (`dup{k}_…`) is 13 + k. So a cell keeps its id when another region grows or shrinks (1024 is more cells than any region can hold).
+- `which` picks the roll: 0 whether it connects (the odds as always: how well the chemistry matches, and how far the target is against the gene's reach), 1 its strength (0.3 to 0.5 × the gene's weight), 2 its place in the queue for the budget. Where two genes want the same connection, the one first in the queue makes it.
+- The background wiring has no gene, so it rolls with a fixed number of its own (`BACKGROUND_DICE`). The in-register wiring of a region copy has no chance in it at all.
+- A gene that switches on later in life rolls the same way when it grows.
+
+So changing one wiring gene changes only connections that gene could make, while the innate budget of 2,400 lasts (the founder uses 1,693): the rest of the brain stays as it was. The one exception: where the gene made a connection that another gene (or the background wiring) also wanted, the other one makes it once the gene is gone, with its own weight. Any change to a gene's bytes gives it new dice, so all of that gene's connections are rolled again, not only those its changed value touches.
+
+What happens while living still uses the world's dice: firing noise, sprouting new connections (morphogenesis), and which dream plays.
 
 ### The founder's wiring
 

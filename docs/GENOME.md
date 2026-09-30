@@ -47,6 +47,8 @@ Several copies of a trait gene average their values. Genes that add to a list (t
 
 `genome.develop(stage)` builds the traits for a life stage: fallback values for any trait whose gene is missing, then every gene whose switch-on stage has been reached. A creature develops again on entering each stage. The genes that switch on then join its biochemistry (a new Initial concentration gene sets its chemical once), new tracts and pacemakers grow in the brain, and a later Life history gene joins the average that sets the lifespan. Stages only move forward.
 
+Each entry a gene adds to a list (a tract, a reaction, an instinct…) also records the gene it came from: `gene` (where it starts in the DNA), `stage`, and `dice`, the gene's own whole number for whatever it builds by chance. The dice are made with `Evo.util.fixedNumber` from the gene's bytes (the header and the values, not where it sits) and from how many identical genes came before it. So moving the gene or changing another gene leaves them as they were, and each copy of a doubled gene gets dice of its own. The brain rolls them to grow a wiring gene's connections ([BRAIN.md](BRAIN.md)); nothing else uses them yet.
+
 ## Mutation and recombination
 
 Both work on raw bytes.

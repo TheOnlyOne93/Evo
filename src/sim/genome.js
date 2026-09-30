@@ -9,7 +9,7 @@
 // broken simulation. Sex is carried on its own chromosome (X or Y), outside the mutable gene string.
 (function (Evo) {
   'use strict';
-  const { mean, clamp, hash2 } = Evo.util;
+  const { mean, clamp, hash2, fixedNumber } = Evo.util;
   const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS, NEUROCHEMS, STIMULI } = Evo;
 
   const PROMOTER = 0xA5;
@@ -403,7 +403,11 @@
     // duplication, membrane, neurochemistry, lobe dynamics) still appear in later traits, but the
     // brain only reads them when it is built, so a copy that switches on after birth has no effect.
     // Each list entry records the gene it came from (`gene`: its start offset, and its `stage`), so
-    // callers can tell which ones are new at a later stage.
+    // callers can tell which ones are new at a later stage, and the gene's own dice (`dice`): a whole
+    // number for whatever it builds by chance (the brain grows a wiring gene's connections with it).
+    // The dice are made from the gene's bytes (its header and values), not from where it sits, so
+    // moving it or changing another gene leaves them as they were, and from how many identical genes
+    // came before it, so each copy of a doubled gene rolls its own dice.
     develop(stage = 1) {
       const sex = this.sexChrom === 'Y' ? 'MALE' : 'FEMALE';
       const F = sex === 'FEMALE';
@@ -412,12 +416,17 @@
 
       const acc = {}, chemAcc = {}, anatomyAcc = {};
       const push = (table, key, v) => { (table[key] = table[key] || []).push(v); };
+      const copies = new Map(); // How many genes with these exact bytes so far, by their bytes
       for (const gene of this.findGenes()) {
         if (gene.stage > Math.max(1, stage)) continue;
+        const bytes = this.dna.subarray(gene.start + 1, gene.end), key = bytes.join(',');
+        const before = copies.get(key) || 0;
+        copies.set(key, before + 1);
+        const dice = fixedNumber([before, ...bytes]);
         GENES[gene.type].express(this.decode(gene), {
           F,
           set: (name, v) => push(acc, name, v),
-          add: (list, entry) => traits[list].push({ ...entry, gene: gene.start, stage: gene.stage }),
+          add: (list, entry) => traits[list].push({ ...entry, gene: gene.start, stage: gene.stage, dice }),
           neurochem: (name, v) => push(chemAcc, name, v),
           anatomy: (region, v) => push(anatomyAcc, region, v),
           halfLife: (chem, ticks) => { traits.halfLives[chem] = ticks; }

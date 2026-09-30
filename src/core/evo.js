@@ -26,7 +26,8 @@
   const countBy = (arr, key) => arr.reduce((acc, x) => { const k = key(x); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
 
   // Seedable PRNG (mulberry32). All simulation randomness goes through Evo.random, so a run can
-  // be reproduced exactly by seeding it (the tests do).
+  // be reproduced exactly by seeding it (the tests do). Growing a brain is the exception: it rolls
+  // fixed dice (fixedRoll, below), so the same genes always grow the same brain.
   function mulberry32(seed) {
     let a = seed >>> 0;
     return function () {
@@ -53,13 +54,6 @@
   Evo.randInt = n => Math.floor(rng() * n);
   Evo.chance = p => rng() < p;
   Evo.pick = arr => arr[Evo.randInt(arr.length)];
-  Evo.shuffle = arr => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Evo.randInt(i + 1);
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
 
   // Integer hash of two ints -> [0, 1), for stable per-place decoration
   function hash2(a, b) {
@@ -67,6 +61,31 @@
     x = Math.imul(x ^ (x >>> 13), 1274126177);
     return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
   }
+
+  // Fixed dice: the same "random" number for the same inputs, and no draw from Evo.random. The inputs
+  // are whole numbers, each read as 32 bits: any from -2^31 to 2^31 - 1 (or from 0 to 2^32 - 1) is
+  // told apart from the others, and a fraction is cut down to a whole number. The steps are
+  // MurmurHash3's, a well-tried way to mix numbers: mixIn stirs one more number into the running mix,
+  // and settle spreads every bit of the mix across the result, so changing any input, even by 1,
+  // gives an unrelated result.
+  const FIXED_START = 0x2545F491;
+  function mixIn(h, v) {
+    let k = Math.imul(v | 0, 0xCC9E2D51);
+    k = Math.imul((k << 15) | (k >>> 17), 0x1B873593);
+    h ^= k;
+    h = (h << 13) | (h >>> 19);
+    return (Math.imul(h, 5) + 0xE6546B64) | 0;
+  }
+  function settle(h) {
+    h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B);
+    h = Math.imul(h ^ (h >>> 13), 0xC2B2AE35);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  // A number from 0 up to (not including) 1, always the same for the same four whole numbers
+  const fixedRoll = (a, b, c, d) => settle(mixIn(mixIn(mixIn(mixIn(FIXED_START, a), b), c), d)) / 4294967296;
+  // A whole number from 0 up to (not including) 2^32, always the same for the same list of whole
+  // numbers (of any length)
+  const fixedNumber = numbers => settle(numbers.reduce(mixIn, FIXED_START));
 
   // Unique, increasing ids (never reused within a session)
   let lastId = 0;
@@ -81,6 +100,6 @@
     emit(type, payload) { const h = this.handlers[type]; if (h) for (const fn of h) fn(payload); }
   }
 
-  Evo.util = { clamp, clamp01, lerp, mean, maxBy, minBy, countBy, TAU, smoothstep, mulberry32, hash2 };
+  Evo.util = { clamp, clamp01, lerp, mean, maxBy, minBy, countBy, TAU, smoothstep, mulberry32, hash2, fixedRoll, fixedNumber };
   Evo.EventBus = EventBus;
 })(globalThis);

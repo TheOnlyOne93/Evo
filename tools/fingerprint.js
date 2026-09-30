@@ -114,9 +114,8 @@ const workers = Object.keys(RUNS).map(name => new Promise((resolve, reject) => {
   child.on('message', r => { got = r; });
   child.on('exit', code => (got ? resolve(got) : reject(new Error(`${name} exited ${code} without a result`))));
 }));
-// Meanwhile: the first female's genome, with a brain built from it (the brain draws random numbers: seed them)
+// Meanwhile: the first female's genome, with a brain built from it (neither draws random numbers)
 const t0 = Date.now();
-Evo.seed(4);
 const founder = Evo.Genome.founder('FEMALE');
 const founderTraits = founder.develop();
 describe(founder, new Evo.Brain(founderTraits), founderTraits);

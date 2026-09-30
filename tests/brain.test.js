@@ -81,24 +81,98 @@ test('brain: region copies stop at the neuron budget, however many genes ask for
   assert.ok(!/not built/.test(Evo.text.describeGene(genome, copies[0], brain).text));
 });
 
-test('brain: founders are born with their reflex arcs', (Evo, assert) => {
+// A brain's connections, to compare two brains: sources, targets, weights, delays and flags, in order
+const wiringOf = brain => Object.fromEntries(['sSrc', 'sDst', 'sW', 'sDelay', 'sFlags'].map(name => [name, Array.from(brain[name].subarray(0, brain.S))]));
+// A brain's connections by source and target: key -> [weight, delay]
+const connections = brain => {
+  const out = new Map();
+  for (let s = 0; s < brain.S; s++) out.set(`${brain.sSrc[s]}>${brain.sDst[s]}`, [brain.sW[s], brain.sDelay[s]]);
+  return out;
+};
+const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+test('brain: growing a brain rolls fixed dice and draws none from the world', (Evo, assert) => {
+  try {
+    Evo.useRandomSource(() => { throw new Error('growing a brain asked the world for a random number'); });
+    new Evo.Brain(Evo.Genome.founder('FEMALE').develop());
+    new Evo.Brain(Evo.Genome.founder('MALE').develop());
+    // Wiring genes that switch on later in life grow the same way
+    const traits = Evo.Genome.founder('FEMALE').develop(), rules = traits.axonGuidance;
+    traits.axonGuidance = [];
+    new Evo.Brain(traits).growTracts(rules);
+  } finally {
+    Evo.seed(1);
+  }
+});
+
+test('brain: the same genes grow the same brain, whatever the seed', (Evo, assert) => {
+  Evo.seed(1);
+  const first = founderBrain(Evo);
+  Evo.seed(5);
+  const second = founderBrain(Evo);
+  assert.ok(first.S > 1000, `${first.S} connections`);
+  assert.deepStrictEqual(wiringOf(second), wiringOf(first));
+});
+
+test('brain: the first female and male grow the same brain (their genes differ only in looks and voice)', (Evo, assert) => {
+  const she = founderBrain(Evo, 'FEMALE'), he = founderBrain(Evo, 'MALE');
+  assert.strictEqual(he.N, she.N);
+  assert.deepStrictEqual(wiringOf(he), wiringOf(she));
+});
+
+test('brain: taking out one wiring gene changes only the connections that gene reaches', (Evo, assert) => {
+  const genes = Evo.FOUNDER_GENOMES.FEMALE;
+  const traits = Evo.Genome.founder('FEMALE', genes).develop();
+  const old = new Evo.Brain(traits), was = connections(old);
+  // The founder's innate budget is not used up, so a gene taken out frees no room for others' connections
+  assert.ok(old.S < Evo.LIMITS.INNATE_BUDGET, `${old.S} connections of a budget of ${Evo.LIMITS.INNATE_BUDGET}`);
+  // The k-th Axon guidance gene is traits.axonGuidance[k] (every founder wiring gene adds its entry)
+  const wiring = genes.flatMap((g, i) => (g.gene === 'Axon guidance' ? [i] : []));
+  assert.strictEqual(wiring.length, traits.axonGuidance.length);
+  let gone = 0;
+  wiring.forEach((at, k) => {
+    const rule = traits.axonGuidance[k];
+    // Every connection the gene could make: its source cells to the cells whose chemistry matches
+    const reach = new Set(old.tractSources(rule).flatMap(s => old.tractTargets(rule, s).map(([d]) => `${s.index}>${d.index}`)));
+    const now = connections(new Evo.Brain(Evo.Genome.founder('FEMALE', genes.filter((_, j) => j !== at)).develop()));
+    for (const [key, wd] of now) {
+      assert.ok(was.has(key), `without gene ${at}, the new connection ${key}`);
+      // Where another gene (or the background wiring) wanted the same connection but came later in
+      // the queue, it makes that connection now, with its own weight
+      if (!same(was.get(key), wd)) assert.ok(reach.has(key), `without gene ${at}, ${key} changed but the gene does not reach it`);
+    }
+    for (const key of was.keys()) if (!now.has(key)) { gone++; assert.ok(reach.has(key), `without gene ${at}, ${key} is gone but the gene does not reach it`); }
+  });
+  assert.ok(gone > old.S / 2, `${gone} of ${old.S} connections went with their genes`);
+});
+
+test('brain: a doubled wiring gene grows more connections than one copy (the copy rolls its own dice)', (Evo, assert) => {
+  const genes = Evo.FOUNDER_GENOMES.FEMALE;
+  // Tastes into the thinking regions: a broad tract, where many connections are a matter of chance
+  const at = genes.findIndex(g => g.gene === 'Axon guidance' && g.source.lobe === 'taste');
+  const doubledGenes = [...genes.slice(0, at + 1), genes[at], ...genes.slice(at + 1)];
+  const doubled = Evo.Genome.founder('FEMALE', doubledGenes).develop();
+  const [first, copy] = doubled.axonGuidance.filter(r => r.source.lobe === Evo.LOBE_ORDER.indexOf('taste'));
+  assert.notStrictEqual(copy.dice, first.dice, 'the copy has dice of its own');
+  const one = founderBrain(Evo), two = new Evo.Brain(doubled);
+  assert.ok(two.S > one.S, `one copy grows ${one.S} connections in all, two copies ${two.S}`);
+  const had = connections(one), has = connections(two);
+  for (const key of had.keys()) assert.ok(has.has(key), `the doubled brain keeps ${key}`);
+});
+
+test('brain: the first female and male are born with their reflex arcs', (Evo, assert) => {
   const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
   const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);
-  const arcs = { painRun: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, sleepyRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
-  const trials = 40;
-  for (let i = 0; i < trials; i++) {
-    const b = founderBrain(Evo, i % 2 ? 'FEMALE' : 'MALE');
+  for (const sex of ['FEMALE', 'MALE']) {
+    const b = founderBrain(Evo, sex);
     const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)], D = k => b.lobes.needs[Evo.driveCell(k)];
-    if (b.hasSynapse(D('pain'), M('run'))) arcs.painRun++;
-    if (b.hasSynapse(T('mouthL'), M('eat'))) arcs.mouthEatL++;
-    if (b.hasSynapse(T('mouthR'), M('eat'))) arcs.mouthEatR++;
-    if (b.hasSynapse(T('lips'), M('drink'))) arcs.lipsDrink++;
-    if (b.hasSynapse(D('sleepiness'), M('rest'))) arcs.sleepyRest++;
-    if (b.hasSynapse(T('contactL'), M('walkR'))) arcs.bumpTurnL++;
-    if (b.hasSynapse(T('contactR'), M('walkL'))) arcs.bumpTurnR++;
+    const arcs = {
+      painRun: [D('pain'), M('run')], mouthEatL: [T('mouthL'), M('eat')], mouthEatR: [T('mouthR'), M('eat')],
+      lipsDrink: [T('lips'), M('drink')], sleepyRest: [D('sleepiness'), M('rest')],
+      bumpTurnL: [T('contactL'), M('walkR')], bumpTurnR: [T('contactR'), M('walkL')]
+    };
+    for (const [arc, [from, to]] of Object.entries(arcs)) assert.ok(b.hasSynapse(from, to), `${sex}: ${arc}`);
   }
-  // Development is stochastic: most founders are born with each arc, and learning covers the rest
-  for (const [arc, n] of Object.entries(arcs)) assert.ok(n >= trials * 0.6, `${arc}: ${n}/${trials}`);
 });
 
 test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert) => {

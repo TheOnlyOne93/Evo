@@ -11,8 +11,8 @@
 // brain.neurons[i] describes neuron i (lobe, position, receptor tag) for the UI.
 (function (Evo) {
   'use strict';
-  const { clamp, mean, TAU } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
+  const { clamp, mean, TAU, fixedRoll } = Evo.util;
+  const { LOBE_ORDER, LOBE_COUNT, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -50,6 +50,15 @@
 
   // Axon conduction speed (distance per tick) of wiring no guidance gene sets
   const CONDUCTION = { default: 0.12, inRegister: 0.3, local: 0.10, sprout: 0.10 };
+
+  // Growing the wiring rolls fixed dice (Evo.util.fixedRoll) for each connection a gene could make:
+  // the gene's own dice, the two cells' stableIds, and which roll it is (does it connect, how
+  // strong it is, its place in the queue for the budget). A neuron's stableId is its region's number
+  // × REGION_SPAN + its number within the region (a base region's number is its place in LOBE_ORDER,
+  // copy k's is LOBE_COUNT + k), so it stays the same when another region grows or shrinks.
+  const ROLL = { connect: 0, strength: 1, queue: 2 };
+  const REGION_SPAN = 1024;          // More cells than any region can hold (a whole brain holds at most LIMITS.MAX_NEURONS, 512)
+  const BACKGROUND_DICE = 7919;      // The background wiring's own dice (it has no gene): any fixed whole number would do
 
   // Per-lobe neuron parameters (initNeurons). tau: membrane leak per tick; adaptInc: adaptation per
   // spike; adaptKeep: share of adaptation kept per tick (Lobe dynamics genes override it);
@@ -213,11 +222,13 @@
       const T = this.traits, A = T.anatomy;
       const neurons = this.neurons = [];
       const lobes = this.lobes = {};
-      // label: the UI's name, for the kinds Evo.text.neuronName doesn't name itself (touch, taste, feelings)
-      const add = (lobe, tag, pos, meta, label = null) => {
-        const n = { index: neurons.length, label, lobe, parentLobe: lobe, tag, pos, meta, copyOf: null };
+      // label: the UI's name, for the kinds Evo.text.neuronName doesn't name itself (touch, taste,
+      // feelings). region: the region's number, for stableId (see REGION_SPAN)
+      const add = (lobe, tag, pos, meta, label = null, region = LOBE_ORDER.indexOf(lobe)) => {
+        const members = lobes[lobe] = lobes[lobe] || [];
+        const n = { index: neurons.length, stableId: region * REGION_SPAN + members.length, label, lobe, parentLobe: lobe, tag, pos, meta, copyOf: null };
         neurons.push(n);
-        (lobes[lobe] = lobes[lobe] || []).push(n.index);
+        members.push(n.index);
         return n;
       };
 
@@ -302,7 +313,7 @@
         for (const src of parent) {
           const tag = [src.tag[0], src.tag[1], clamp(src.tag[2] + d.chemShift, 0, 1)];
           const pos = [clamp(0.5 + (src.pos[0] - 0.5) * d.lateral, 0.01, 0.99), clamp(d.depth + (src.pos[1] - cy), 0.005, 0.995)];
-          const n = add(lobeId, tag, pos, src.meta);
+          const n = add(lobeId, tag, pos, src.meta, null, LOBE_COUNT + k);
           n.copyOf = src.index;
           n.parentLobe = parentId;
           n.copyWeight = d.inputWeight;
@@ -572,9 +583,13 @@
     // PURE BOTTOM-UP WIRING. Each guidance gene sends the axons of one lobe looking for a chemical
     // receptor match. The target may be fixed, or relative to each source cell's own tag (so every
     // cell finds its own partner: a topographic map), and axons can only grow so far: a good match
-    // within reach almost always connects, and beyond it the growth cones soon give out. Sensory cells are driven by the body and world, so central axons
-    // never target them. Candidates from all genes compete fairly for the budget, leaving headroom
-    // for activity-dependent sprouting. Genes that switch on later in life grow their tracts then.
+    // within reach almost always connects, and beyond it the growth cones soon give out. Sensory
+    // cells are driven by the body and world, so central axons never target them. Candidates from all
+    // genes join one queue in a shuffled order and take the budget in turn, leaving headroom for
+    // activity-dependent sprouting. Genes that switch on later in life grow their tracts then.
+    // Every chance here is a fixed roll (see ROLL), never the world's dice (Evo.random), so the same
+    // genes always grow the same wiring, and changing one gene changes only connections that gene
+    // could make (while the budget lasts: once it runs short, a gene that takes less leaves more room).
     growTracts(rules, atBirth = false) {
       const fresh = rules.filter(r => !this.grownGenes.has(r.gene));
       if (!fresh.length && !atBirth) return;
@@ -597,13 +612,16 @@
           for (const [d, chemDist] of this.tractTargets(rule, s)) {
             const chemMatch = (1.0 - chemDist / r) ** 2;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
-            if (Evo.chance(chemMatch * Math.exp(-((dist / rule.reach) ** 4)))) {
-              candidates.push([s.index, d.index, (0.3 + Evo.random() * 0.2) * rule.weightSign, rule.conduction]);
+            if (fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.connect) < chemMatch * Math.exp(-((dist / rule.reach) ** 4))) {
+              const strength = 0.3 + fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.strength) * 0.2;
+              candidates.push([s.index, d.index, strength * rule.weightSign, rule.conduction, fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.queue)]);
             }
           }
         }
       }
-      for (const [s, d, w, cond] of Evo.shuffle(candidates)) this.addSynapse(s, d, w, { cap: budget, conduction: cond });
+      // When two genes want the same connection, the one first in the queue makes it
+      candidates.sort((a, b) => a[4] - b[4]);
+      for (const [s, d, w, cond] of candidates) this.addSynapse(s, d, w, { cap: budget, conduction: cond });
 
       // Local background wiring (at birth): neighbours are likelier to connect (unmyelinated, slow)
       if (atBirth) {
@@ -611,8 +629,9 @@
           for (const d of central) {
             if (s === d) continue;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
-            if (Evo.chance(0.03 * Math.exp(-((dist / 0.18) ** 2)))) {
-              this.addSynapse(s.index, d.index, (Evo.random() - 0.5) * 0.25, { cap: budget + LIMITS.BACKGROUND_WIRING_EXTRA, conduction: CONDUCTION.local });
+            if (fixedRoll(BACKGROUND_DICE, s.stableId, d.stableId, ROLL.connect) < 0.03 * Math.exp(-((dist / 0.18) ** 2))) {
+              const w = (fixedRoll(BACKGROUND_DICE, s.stableId, d.stableId, ROLL.strength) - 0.5) * 0.25;
+              this.addSynapse(s.index, d.index, w, { cap: budget + LIMITS.BACKGROUND_WIRING_EXTRA, conduction: CONDUCTION.local });
             }
           }
         }

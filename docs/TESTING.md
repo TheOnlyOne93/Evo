@@ -13,7 +13,7 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | File | Covers |
 |---|---|
 | `biochem` | Reactions, catalysts, emitters, half-lives, receptors and damage blame, the founder's hunger, thirst and reward, staged initial concentrations |
-| `brain` | Wiring, weight bounds, region copies and the neuron budget, reflexes, delays, muscle competition, attention, working memory |
+| `brain` | Wiring, weight bounds, region copies and the neuron budget; growing the same brain every time (no random numbers drawn, the same wiring whatever the seed, the same for the first female and male, taking out any one wiring gene changes only connections it could make, a doubled wiring gene grows more); the founders' reflexes, delays, muscle competition, attention, working memory |
 | `clock` | The frame clock: rate, pause, the hitch cap, the budget |
 | `drives` | Drives cells, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
 | `genome` | Encoding round trips, founder genes, the founders (the same bytes every time, no random numbers drawn, differing only in looks and voice), stages, duplication and loss, mutation, inheritance, guidance |
@@ -41,7 +41,7 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `node tools/simulate.js [days=2] [seed=1] [reportsPerDay=4]` | One run with a running report |
 | `node tools/serve.js [port=8123]` | A no-cache static server on 127.0.0.1 for browser checks. Stop it when done |
 
-**The lab.** `lab(seed)` is a quiet world with one creature on open ground: it takes the landscape's features and platforms away (no tree, rock, log, reeds or thorn bush, so no shade, warmth, sight, scent or footing from them; a scenario adds the few things it needs, as the thorn scenario adds its bush) and stands the creature at the dry spot midway across the widest gap between two ponds, about 500 px from the water on each side. It throws if a pond is in sight of that spot. The pond scenarios use `ponds[0]` (the lake: dry ground to its west, a bank to drink from 12 px inside its water) and `ponds[1]` (the small east pool: one scenario stands at the world's east edge facing it, one 200 px west of it).
+**The lab.** `lab(seed)` is a quiet world with one creature on open ground: it takes the landscape's features and platforms away (no tree, rock, log, reeds or thorn bush, so no shade, warmth, sight, scent or footing from them; a scenario adds the few things it needs, as the thorn scenario adds its bush) and stands the creature at the dry spot midway across the widest gap between two ponds, about 500 px from the water on each side. It throws if a pond is in sight of that spot. Every seed's creature has the same brain (the same genes always grow the same one: [BRAIN.md](BRAIN.md)), so the seeds differ only in what happens to it: its firing noise and the world's dice. The pond scenarios use `ponds[0]` (the lake: dry ground to its west, a bank to drink from 12 px inside its water) and `ponds[1]` (the small east pool: one scenario stands at the world's east edge facing it, one 200 px west of it).
 
 **Scenarios.** Each `tools/scenarios/*.js` exports `({ Evo, lab, session, run, trial, avoids }) => ({ scenarios, reports })`. A scenario maps a seed to the tick it passed (null for a fail). A report maps a seed to a number; reports run only with `--report`, and those named `cost:` run on their own after the rest.
 
