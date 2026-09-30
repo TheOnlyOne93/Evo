@@ -25,7 +25,7 @@ test('world: runs headless for a while with everything finite and inside the wor
     for (const k of ['x', 'y', 'vx', 'vy', 'bodyTemp', 'health', 'growth']) assert.ok(Number.isFinite(c[k]), `${c.name}.${k} = ${c[k]}`);
     for (let i = 1; i < Evo.N_CHEM; i++) assert.ok(c.chem.c[i] >= 0 && c.chem.c[i] <= 1, `chemical ${i}`);
     assert.ok(c.x >= world.edge && c.x <= world.width - world.edge, `${c.name} at x ${c.x}`);
-    assert.ok(c.y <= world.terrain.groundY(c.x) + c.size, `${c.name} is not underground`);
+    assert.ok(c.y <= world.terrain.groundY(c.x) + 1, `${c.name} is not underground`);
   }
   for (const item of world.items) {
     assert.ok(Number.isFinite(item.x) && Number.isFinite(item.y));

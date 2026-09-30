@@ -100,7 +100,8 @@ test('learning: reward credits the synapse that made its target fire, not its ne
 });
 
 test('learning: punishment weakens the synapse that made its target fire, not its neighbour', (Evo, assert) => {
-  const { dx, dy } = creditTrial(Evo, 1, 0.7);
+  const { dx, dy, fieldX } = creditTrial(Evo, 1, 0.7);
+  assert.ok(fieldX > 0.5, `the target sits in the punishment cell's field (${fieldX.toFixed(2)})`);
   // (Weakening is gentler: the soft bound scales it by how far the weight is from 0)
   assert.ok(dx < -0.01, `A->X weakens: ${dx.toFixed(4)}`);
   assert.ok(Math.abs(dy) < 0.1 * -dx, `A->Y stays: ${dy.toFixed(4)}`);
@@ -223,7 +224,7 @@ function patAfterCall(Evo, seed, lag) {
   return inputs() - w0;
 }
 
-test('learning: a pat just after an action strengthens what drove it; the same pat much later does not', (Evo, assert) => {
+test('learning: a pat just after an action strengthens the synapses into its muscle; the same pat much later does not', (Evo, assert) => {
   let soon = 0, late = 0;
   for (let seed = 1; seed <= 3; seed++) { soon += patAfterCall(Evo, seed, 10); late += patAfterCall(Evo, seed, 150); }
   assert.ok(soon > late + 0.3, `inputs to the call muscle grow by ${soon.toFixed(2)} patted just after calling, ${late.toFixed(2)} patted 150 ticks later`);

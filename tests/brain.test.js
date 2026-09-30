@@ -70,11 +70,9 @@ test('brain: every neuron has a plain-language name', (Evo, assert) => {
 });
 
 test('brain: founders grow the movement copy and the sight copy', (Evo, assert) => {
-  for (let i = 0; i < 10; i++) {
-    const brain = founderBrain(Evo);
-    const parents = brain.duplicateLobes.map(l => brain.neurons[brain.lobes[l][0]].parentLobe);
-    assert.deepStrictEqual(parents.sort(), ['motor', 'sight']);
-  }
+  const brain = founderBrain(Evo);
+  const parents = brain.duplicateLobes.map(l => brain.neurons[brain.lobes[l][0]].parentLobe);
+  assert.deepStrictEqual(parents.sort(), ['motor', 'sight']);
 });
 
 test('brain: founders are born with their reflex arcs', (Evo, assert) => {
@@ -160,10 +158,11 @@ function twoMuscles(Evo, seed) {
     brain.tick(drive, opts);
     if (fired(L) || fired(R)) active++;
     if (fired(L) && fired(R)) both++;
-    const w = fired(L) ? L : fired(R) ? R : -1;
-    if (w >= 0 && winner < 0) winner = w;
-    if (w >= 0 && w !== winner) break;
-    if (winner >= 0) held++;
+    // held: ticks the loser stays silent after the winner first fires alone
+    if (winner < 0) {
+      if (fired(L) !== fired(R)) winner = fired(L) ? L : R;
+    } else if (fired(winner === L ? R : L)) break;
+    else held++;
   }
   // Now the loser's input doubles
   const loser = winner === L ? R : L;

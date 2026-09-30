@@ -59,7 +59,7 @@ test('drives: a stimulus gene survives encoding and decodes to its event and amo
   assert.ok(Evo.CODEC.signed.decode(0) === -0.5 && Evo.CODEC.signed.decode(128) === 0);
 });
 
-test('drives: the world raises stimuli where they physically happen', (Evo, assert) => {
+test('drives: each thing the world does raises its stimulus on the right creature', (Evo, assert) => {
   const world = new Evo.World();
   const [a, b] = world.creatures;
   const seen = [];

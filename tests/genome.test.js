@@ -163,10 +163,9 @@ test('genome: a windowed guidance gene grows synapses only from the cells in its
     brain.growTracts(rules);
     return { brain, from: new Set(Array.from(brain.sSrc.subarray(before, brain.S))) };
   };
-  const { brain } = sourcesOf({});
-  const k = 10, cell = brain.lobes.needs[k];
-  const [tx, ty] = brain.neurons[cell].tag;
   const open = sourcesOf({});
+  const k = 10, cell = open.brain.lobes.needs[k];
+  const [tx, ty] = open.brain.neurons[cell].tag;
   assert.ok(open.from.size > 1, 'without a window many need cells send axons');
   const windowed = sourcesOf({ sx: tx, sy: ty, sr: (0.05 - 0.02) / 0.5 });
   assert.ok(windowed.from.size > 0, 'the windowed cell grew synapses');
