@@ -75,19 +75,21 @@ const showReport = args.includes('--report');
 const trialsArg = args.find(a => /^\d+$/.test(a));
 const filter = args.find(a => !a.startsWith('-') && a !== trialsArg) || '';
 const trials = Number(trialsArg || 12);
+const nameWidth = Math.max(...Object.keys(SCENARIOS).map(n => n.length));
 for (const [name, scenario] of Object.entries(SCENARIOS)) {
   if (!name.includes(filter)) continue;
   const times = [];
   for (let seed = 1; seed <= trials; seed++) times.push(scenario(seed));
   const ok = times.filter(t => t !== null);
   const median = ok.length ? ok.sort((a, b) => a - b)[Math.floor(ok.length / 2)] : null;
-  console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(48)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
+  console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(nameWidth)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
 }
+const reportWidth = Math.max(...Object.keys(REPORTS).map(n => n.length));
 if (showReport) {
   for (const [name, metric] of Object.entries(REPORTS)) {
     if (!name.includes(filter)) continue;
     let sum = 0;
     for (let seed = 1; seed <= trials; seed++) sum += metric(seed);
-    console.log(`  ~  ${name.padEnd(48)} mean ${(sum / trials).toFixed(3)}`);
+    console.log(`  ~  ${name.padEnd(reportWidth)} mean ${(sum / trials).toFixed(3)}`);
   }
 }

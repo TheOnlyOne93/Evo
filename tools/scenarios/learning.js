@@ -55,10 +55,11 @@ module.exports = ({ Evo, lab, session, trial }) => {
 
   // Microseconds of brain (tick + morphogenesis) and senses per creature-tick, and milliseconds per
   // world tick, in a full world
+  const COST_WARMUP = 300, COST_TICKS = 900;   // Ticks before timing starts, and in all
   const cost = cached(seed => {
     Evo.seed(seed);
     const world = new Evo.World();
-    // A full world: 16 creatures (the population ceiling)
+    // A full world: MAX_POPULATION creatures (the population ceiling)
     while (world.creatures.length < Evo.LIMITS.MAX_POPULATION) world.addAdult(Evo.chance(0.5) ? 'FEMALE' : 'MALE');
     world.maybeWanderer = () => {};
     const B = Evo.Brain.prototype, C = Evo.Creature.prototype;
@@ -69,11 +70,11 @@ module.exports = ({ Evo, lab, session, trial }) => {
     B.runMorphogenesis = timed(runMorphogenesis, d => { brainNs += d; });
     C.sense = timed(sense, d => { senseNs += d; });
     try {
-      for (let t = 0; t < 900; t++) {
-        if (t === 300) { brainNs = 0n; senseNs = 0n; creatureTicks = 0; t0 = process.hrtime.bigint(); }
+      for (let t = 0; t < COST_TICKS; t++) {
+        if (t === COST_WARMUP) { brainNs = 0n; senseNs = 0n; creatureTicks = 0; t0 = process.hrtime.bigint(); }
         world.step();
       }
-      worldMs = Number(process.hrtime.bigint() - t0) / 1e6 / 600;
+      worldMs = Number(process.hrtime.bigint() - t0) / 1e6 / (COST_TICKS - COST_WARMUP);
     } finally {
       Object.assign(B, { tick, runMorphogenesis }); C.sense = sense;
     }
@@ -264,7 +265,7 @@ module.exports = ({ Evo, lab, session, trial }) => {
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
       'cost: brain us per creature-tick': seed => cost(seed).brain,
       'cost: senses us per creature-tick': seed => cost(seed).senses,
-      'cost: ms per world tick (16 creatures)': seed => cost(seed).worldMs,
+      [`cost: ms per world tick (${Evo.LIMITS.MAX_POPULATION} creatures)`]: seed => cost(seed).worldMs,
       ...memoryReports
     }
   };

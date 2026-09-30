@@ -44,6 +44,7 @@ module.exports = ({ lab, trial, avoids }) => ({
       s.c.y = s.world.terrain.groundY(s.c.x);
       let drinks = 0;
       s.world.events.on('drink', () => { drinks++; });
+      // A sip or two is fine; more than 8 in 900 ticks is drinking without thirst
       return avoids(s, 900, () => drinks > 8);
     },
     'sleepy at night -> falls asleep': seed => {
