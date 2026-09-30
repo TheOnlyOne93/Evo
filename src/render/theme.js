@@ -21,13 +21,11 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
-  // [r, g, b] for a token
-  const rgb = token => hexRgb(color(token));
+  // [r, g, b] for a token (Evo.color.rgb turns an array into a CSS string)
+  const rgbOf = token => hexRgb(color(token));
 
-  function rgba(token, alpha) {
-    const [r, g, b] = rgb(token);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
+  // A token's colour at an alpha, as a CSS string
+  const rgba = (token, alpha) => Evo.color.rgba(rgbOf(token), alpha);
 
   // Helpers on [r, g, b] arrays; mixInto writes into `out` so per-frame code need not allocate
   function mixInto(out, a, b, t) {
@@ -44,5 +42,5 @@
     scale: (c, k) => [Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)],
   };
 
-  Evo.theme = { color, hexRgb, rgb, rgba };
+  Evo.theme = { color, hexRgb, rgbOf, rgba };
 })(globalThis.Evo);

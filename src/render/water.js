@@ -4,9 +4,9 @@
 (function (Evo) {
   'use strict';
   const { TAU, hash2 } = Evo.util;
-  const { rgba, mix } = Evo.Sky.util;
-  const { SNOW } = Evo.Paint;
-  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
+  const { rgba, mix } = Evo.color;
+  const { SNOW, DETAIL, circle, isWarm } = Evo.Paint;
+  const { WINTER } = Evo.SEASON;
 
   // How frozen the ponds are: 1 in winter, easing in and out with the season blend
   function iceAmount(ss) {
@@ -24,7 +24,7 @@
 
   let colors = null; // read from the CSS theme on first use
   function waterColors() {
-    if (!colors) colors = { water: Evo.theme.rgb('--water') };
+    if (!colors) colors = { water: Evo.theme.rgbOf('--water') };
     return colors;
   }
 
@@ -80,7 +80,7 @@
           const by = surf(bx0) + (L - surf(bx0)) * u;
           const bx = bx0 + Math.sin(u * 12 + k) * 2;
           const r = 0.8 + u * 1.3;
-          g.moveTo(bx + r, by); g.arc(bx, by, r, 0, TAU);
+          circle(g, bx, by, r);
         }
         g.stroke();
       }
@@ -142,12 +142,12 @@
       const x = p.x0 + (p.x1 - p.x0) * (0.12 + 0.76 * hash2(pi * 31 + k, 11)) + Math.sin(t * 0.2 + k) * 3;
       const y = p.level + wave(x, t, amp) - 0.5;
       const r = 6 + hash2(k, pi) * 4;
-      g.fillStyle = si === AUTUMN ? '#a8a04a' : '#3f8f4a';
+      g.fillStyle = DETAIL.lilyPad[si];
       g.beginPath(); g.ellipse(x, y, r, r * 0.3, 0, 0.25, TAU - 0.1); g.lineTo(x, y); g.closePath(); g.fill();
-      g.fillStyle = si === AUTUMN ? '#c6b85c' : '#62b060';
+      g.fillStyle = DETAIL.lilyPadLight[si];
       g.beginPath(); g.ellipse(x - r * 0.15, y - 0.6, r * 0.7, r * 0.16, 0, 0, TAU); g.fill();
-      if (k % 2 === 0 && si <= SUMMER) {
-        g.fillStyle = si === SPRING ? '#ffd3e4' : '#fff5fa';
+      if (k % 2 === 0 && isWarm(si)) {
+        g.fillStyle = DETAIL.lilyFlower[si];
         g.beginPath();
         g.moveTo(x - 3.6, y - 1); g.lineTo(x - 2.2, y - 5.5); g.lineTo(x - 0.8, y - 2.4); g.lineTo(x, y - 6.5);
         g.lineTo(x + 0.8, y - 2.4); g.lineTo(x + 2.2, y - 5.5); g.lineTo(x + 3.6, y - 1); g.closePath();

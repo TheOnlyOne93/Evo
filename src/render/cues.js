@@ -7,6 +7,7 @@
 (function (Evo) {
   'use strict';
   const { TAU, clamp, clamp01 } = Evo.util;
+  const { circle, sparkle } = Evo.Paint;
 
   const HEARTS = { patted: 3, wasNuzzled: 2, mated: 4 };
   const BURSTS = { slapped: '#ffe27a', pricked: '#f28bc0', fell: '#e8dcc8' };
@@ -167,7 +168,7 @@
       g.beginPath();
       if (dream) {
         // A cloud: a few overlapping puffs
-        for (let j = 0; j < 6; j++) { const a = j / 6 * TAU; g.moveTo(bx + Math.cos(a) * R * 0.62 + R * 0.46, by + Math.sin(a) * R * 0.5); g.arc(bx + Math.cos(a) * R * 0.62, by + Math.sin(a) * R * 0.5, R * 0.46, 0, TAU); }
+        for (let j = 0; j < 6; j++) { const a = j / 6 * TAU; circle(g, bx + Math.cos(a) * R * 0.62, by + Math.sin(a) * R * 0.5, R * 0.46); }
         g.stroke(); g.fill();
       } else {
         g.arc(bx, by, R, 0, TAU); g.fill(); g.stroke();
@@ -176,7 +177,7 @@
       g.drawImage(this._icon(icon), bx - s / 2, by - s / 2 + bob, s, s);
       if (dream) {
         g.fillStyle = '#fff4b0';
-        for (let j = 0; j < 2; j++) sparkle(g, bx + (j ? -1 : 1) * R * 0.95, by - R * (j ? 0.5 : 0.75), (1.8 + Math.sin(t * 4 + j * 2)) * z);
+        for (let j = 0; j < 2; j++) { sparkle(g, bx + (j ? -1 : 1) * R * 0.95, by - R * (j ? 0.5 : 0.75), (1.8 + Math.sin(t * 4 + j * 2)) * z); g.fill(); }
       }
       g.globalAlpha = 1;
     }
@@ -219,7 +220,7 @@
     _icon(ch) {
       let cv = this.icons.get(ch);
       if (!cv) {
-        cv = Evo.Sky.util.makeCanvas(64, 64);
+        cv = Evo.makeCanvas(64, 64);
         const x = cv.getContext('2d');
         x.font = `46px ${EMOJI_FONT}`;
         x.textAlign = 'center'; x.textBaseline = 'middle';
@@ -257,13 +258,6 @@
     g.closePath();
     g.fillStyle = fill; g.fill();
     g.strokeStyle = INK; g.lineWidth = 1.6; g.stroke();
-  }
-
-  function sparkle(g, x, y, s) {
-    g.beginPath();
-    g.moveTo(x, y - s); g.quadraticCurveTo(x, y, x + s, y); g.quadraticCurveTo(x, y, x, y + s);
-    g.quadraticCurveTo(x, y, x - s, y); g.quadraticCurveTo(x, y, x, y - s);
-    g.fill();
   }
 
   Evo.CreatureCues = CreatureCues;

@@ -11,9 +11,10 @@
 (function (Evo) {
   'use strict';
   const { TAU, clamp, clamp01, hash2 } = Evo.util;
-  const { makeCanvas, rgb, rgba, scale } = Evo.Sky.util;
+  const { makeCanvas } = Evo;
+  const { rgb, rgba, scale } = Evo.color;
   const Paint = Evo.Paint;
-  const { WINTER } = Evo.SEASON;
+  const { seasonPasses } = Evo.Sky;
   const SEASON_COUNT = Evo.SEASON_COUNT;
 
   const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;
@@ -24,7 +25,10 @@
   const TILE = 256;                     // terrain tile size (world px)
   const SPRITE_BUDGET = 24e6;           // cached sprite pixels before old ones are dropped
   const BUILDS_PER_FRAME = 3;           // sprite upgrades per frame (missing ones are always built)
+  const ALPHA_MIN = 0.002;              // in the season crossfade, sprites fainter than this aren't drawn
   const SOUND_LIFE = Evo.WORLD.SOUND_LIFE; // ticks a call stays visible (world.sounds[].age is in ticks)
+  const NOTE_HIGH = '#bff3ff', NOTE_LOW = '#ffe2a8'; // a call's music notes, by pitch
+  const NOTE_INK = 'rgba(30,24,44,0.75)';           // their dark outline
   const KIND = { TILE: 0, TREE: 1, GRASS: 2, LOG: 3, ROCK: 4, REEDS: 5, THORN: 6, PLAT_LOG: 7, PLAT_ROCK: 8 };
   const FEATURE_KIND = { tree: KIND.TREE, grass: KIND.GRASS, log: KIND.LOG, rock: KIND.ROCK, reeds: KIND.REEDS, thornbush: KIND.THORN };
   // Back-to-front passes over world.features; reeds stand in front of the water
@@ -90,13 +94,8 @@
     setWorld(world) {
       this.world = world;
       this.heights = null;
-      this.featRecs = new Map();
-      this.platRecs = [];
       this.tiles = [];
-      for (const sp of this.sprites) sp.canvas.width = sp.canvas.height = 0;
-      this.sprites = [];
-      this.spritePx = 0;
-      this.scent = null;
+      this._dropCaches();
       this.camReady = false;
       this.weather.clear();
       if (world) this._sync();
@@ -224,13 +223,18 @@
           this.tiles[j * cols + i] = { kind: KIND.TILE, empty, bx0: x0, by0: j * TILE, bw: TILE, bh: TILE, sp: new Array(SEASON_COUNT * NL).fill(null) };
         }
       }
+      this._dropCaches();
+      if (this.w > 1) this._computeFit();
+    }
+
+    // Forget every sprite and the feature, platform and scent records built from the old terrain
+    _dropCaches() {
       for (const sp of this.sprites) sp.canvas.width = sp.canvas.height = 0;
       this.sprites = [];
       this.spritePx = 0;
-      this.featRecs.clear();
+      this.featRecs = new Map();
       this.platRecs = [];
       this.scent = null;
-      if (this.w > 1) this._computeFit();
     }
 
     // Default zoom: the view's height holds SKY_ROOM of scenery above the ground line (trees and
@@ -555,23 +559,21 @@
       const cols = this.tileCols, rows = this.tileRows;
       const i0 = Math.max(0, Math.floor(this.vx0 / TILE)), i1 = Math.min(cols - 1, Math.floor(this.vx1 / TILE));
       const j0 = Math.max(0, Math.floor(this.vy0 / TILE)), j1 = Math.min(rows - 1, Math.floor(this.vy1 / TILE));
-      const ss = this.ss, k = this.k;
-      for (let pass = 0; pass < 2; pass++) {
-        if (pass && ss.blend <= 0.001 && !ss.prefetch) break;
-        const si = pass ? ss.next : ss.cur;
-        g.globalAlpha = pass ? ss.blend : 1;
+      const k = this.k;
+      seasonPasses(this.ss, (si, a, first) => {
+        g.globalAlpha = a;
         for (let j = j0; j <= j1; j++) {
           for (let i = i0; i <= i1; i++) {
             const rec = this.tiles[j * cols + i];
             if (rec.empty) continue;
-            const sp = this._sprite(rec, si, !pass);
-            if (!sp || g.globalAlpha < 0.002) continue;
+            const sp = this._sprite(rec, si, first);
+            if (!sp || a < ALPHA_MIN) continue;
             const dx0 = Math.round(rec.bx0 * k + this.ox), dx1 = Math.round((rec.bx0 + TILE) * k + this.ox);
             const dy0 = Math.round(rec.by0 * k + this.oy), dy1 = Math.round((rec.by0 + TILE) * k + this.oy);
             g.drawImage(sp.canvas, dx0, dy0, dx1 - dx0, dy1 - dy0);
           }
         }
-      }
+      });
       g.globalAlpha = 1;
     }
 
@@ -598,7 +600,6 @@
     }
 
     _drawFeature(g, rec, f, t) {
-      const ss = this.ss;
       let rot = 0, skew = 0;
       const w = this.wind;
       switch (rec.kind) {
@@ -606,16 +607,13 @@
         case KIND.GRASS: skew = -(0.05 * w + 0.07 * Math.sin(t * 1.5 + rec.phase) + 0.02 * Math.sin(t * 3.7 + rec.phase)); break;
         case KIND.REEDS: skew = -(0.04 * w + 0.05 * Math.sin(t * 1.2 + rec.phase)); break;
       }
-      for (let pass = 0; pass < 2; pass++) {
-        if (pass && ss.blend <= 0.001 && !ss.prefetch) break;
-        const si = pass ? ss.next : ss.cur;
-        const sp = this._sprite(rec, si, !pass);
-        const a = pass ? ss.blend : 1;
-        if (!sp || a < 0.002) continue;
+      seasonPasses(this.ss, (si, a, first) => {
+        const sp = this._sprite(rec, si, first);
+        if (!sp || a < ALPHA_MIN) return;
         this._setLocal(g, f.x, f.y, rot, skew);
         g.globalAlpha = a;
         g.drawImage(sp.canvas, rec.bx0, rec.by0, rec.bw, rec.bh);
-      }
+      });
       g.globalAlpha = 1;
       // Live parts on top, in the same swaying frame
       if (rec.kind === KIND.TREE && f.fruiting > 0.01) this._drawTreeFruit(g, rec, f, t);
@@ -625,20 +623,17 @@
 
     _drawPlatforms(g) {
       const ps = this.world.platforms;
-      const ss = this.ss;
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i];
         const rec = this._platRec(p, i);
         if (rec.owned || !this._visible(rec, p.x0, p.y, 20)) continue;
-        for (let pass = 0; pass < 2; pass++) {
-          if (pass && ss.blend <= 0.001 && !ss.prefetch) break;
-          const sp = this._sprite(rec, pass ? ss.next : ss.cur, !pass);
-          const a = pass ? ss.blend : 1;
-          if (!sp || a < 0.002) continue;
+        seasonPasses(this.ss, (si, a, first) => {
+          const sp = this._sprite(rec, si, first);
+          if (!sp || a < ALPHA_MIN) return;
           this._setLocal(g, p.x0, p.y, 0, 0);
           g.globalAlpha = a;
           g.drawImage(sp.canvas, rec.bx0, rec.by0, rec.bw, rec.bh);
-        }
+        });
         g.globalAlpha = 1;
       }
     }
@@ -649,7 +644,7 @@
       const it = this.fake;
       it.type = f.species === 'mimic' ? 'mimic' : 'fruit';
       it.radius = 4.3;
-      const lift = it.radius * (Evo.ItemArt.LIFT[it.type] || 1);
+      const lift = Evo.ItemArt.liftOf(it);
       for (let k = 0; k < n; k++) {
         it.id = k;
         it.x = pts[k].x;
@@ -664,7 +659,7 @@
       const n = Math.min(heads.length, Math.round(f.seeding * heads.length));
       if (!n) return;
       const IC = this._itemColors();
-      g.strokeStyle = this.ss.cur === WINTER ? '#b5a882' : '#b39a52';
+      g.strokeStyle = Paint.DETAIL.seedHead[this.ss.cur];
       g.lineWidth = 1;
       g.beginPath();
       for (let k = 0; k < n; k++) {
@@ -1012,7 +1007,7 @@
         const cg = canvas.getContext('2d');
         const colors = [];
         for (let ch = 0; ch < sc.channels.length; ch++) {
-          colors.push(Evo.theme.rgb(Evo.SCENTS[ch].token));
+          colors.push(Evo.theme.rgbOf(Evo.SCENTS[ch].token));
         }
         const air = new Uint8Array(sc.cols * sc.rows);
         for (let j = 0; j < sc.rows; j++) {
@@ -1065,14 +1060,14 @@
         if (a < 0 || a >= 1 || s.x < this.vx0 - 40 || s.x > this.vx1 + 40) continue;
         const loud = clamp01(s.loudness);
         const alpha = Math.min(1, a * 8) * Math.pow(1 - a, 1.2);
-        const high = s.pitch >= 0.5;
+        const high = s.pitch >= 0.5, col = high ? NOTE_HIGH : NOTE_LOW;
         const size = 0.8 + loud * 0.5;
         const x = s.x + Math.sin(a * 6 + (s.sourceId | 0)) * 5;
         const y = s.y - 6 - a * 42;
-        this._note(g, x, y, size, high, alpha, high ? '#bff3ff' : '#ffe2a8');
+        this._note(g, x, y, size, high, alpha, col);
         if (loud > 0.45 && a > 0.12) {
           const b = a - 0.12;
-          this._note(g, s.x + 9 + Math.sin(b * 6) * 4, s.y - 2 - b * 42, size * 0.8, high, Math.min(1, b * 8) * Math.pow(1 - a, 1.2), high ? '#bff3ff' : '#ffe2a8');
+          this._note(g, s.x + 9 + Math.sin(b * 6) * 4, s.y - 2 - b * 42, size * 0.8, high, Math.min(1, b * 8) * Math.pow(1 - a, 1.2), col);
         }
       }
       g.globalAlpha = 1;
@@ -1081,7 +1076,7 @@
     _note(g, x, y, s, high, alpha, col) {
       g.globalAlpha = alpha;
       g.lineWidth = 1.1 * s;
-      g.strokeStyle = 'rgba(30,24,44,0.75)';
+      g.strokeStyle = NOTE_INK;
       g.fillStyle = col;
       g.lineCap = 'round';
       // Stem and flag
@@ -1092,7 +1087,7 @@
         if (high) g.quadraticCurveTo(x + 7 * s, y - 7 * s, x + 6.5 * s, y - 3 * s);
         else { g.lineTo(x + 10 * s, y - 11 * s); g.lineTo(x + 10 * s, y - 2 * s); }
         g.lineWidth = (pass ? 1.3 : 3) * s;
-        g.strokeStyle = pass ? col : 'rgba(30,24,44,0.75)';
+        g.strokeStyle = pass ? col : NOTE_INK;
         g.stroke();
         g.beginPath();
         g.ellipse(x, y, 3.2 * s, 2.3 * s, -0.35, 0, TAU);

@@ -3,10 +3,10 @@
 // fixed decoration lists from world.terrain once; paintTile() draws a tile from them per season.
 (function (Evo) {
   'use strict';
-  const { TAU, clamp, hash2 } = Evo.util;
-  const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
-  const { GROUND, SNOW, ROCK_TONES, circle } = Evo.Paint;
-  const { AUTUMN, WINTER } = Evo.SEASON;
+  const { TAU, clamp, hash2, mulberry32: rng } = Evo.util;
+  const { rgb, rgba, mix, scale } = Evo.color;
+  const { GROUND, DETAIL, SNOW, ROCK_TONES, circle, flower } = Evo.Paint;
+  const { WINTER } = Evo.SEASON;
 
   const SOIL = {
     grad: [[118, 80, 52], [96, 64, 43], [70, 47, 32], [50, 34, 25]],
@@ -224,7 +224,7 @@
     g.lineWidth = 1.2;
     g.stroke();
     if (si !== WINTER) {
-      g.strokeStyle = si === AUTUMN ? '#6f7a3a' : '#3f7a4a';
+      g.strokeStyle = DETAIL.pondWeed[si];
       g.lineWidth = 1.4;
       g.beginPath();
       for (const wd of info.weeds) {
@@ -277,24 +277,20 @@
         g.fill();
       }
     } else {
+      // The turf's ragged underside, filled to and then outlined
+      const edgeY = x => surf(x) + 5 + 1.4 * Math.sin(x * 0.31) + 0.8 * Math.sin(x * 0.9);
       for (const xs of runs) {
         g.beginPath();
         g.moveTo(xs[0], surf(xs[0]) - 1);
         for (const x of xs) g.lineTo(x, surf(x) - 1);
-        for (let k = xs.length - 1; k >= 0; k--) {
-          const x = xs[k];
-          g.lineTo(x, surf(x) + 5 + 1.4 * Math.sin(x * 0.31) + 0.8 * Math.sin(x * 0.9));
-        }
+        for (let k = xs.length - 1; k >= 0; k--) g.lineTo(xs[k], edgeY(xs[k]));
         g.closePath();
         g.fillStyle = rgb(pal.grass);
         g.fill();
         g.strokeStyle = rgba(pal.dark, 0.8);
         g.lineWidth = 1.2;
         g.beginPath();
-        for (const x of xs) {
-          const y = surf(x) + 5 + 1.4 * Math.sin(x * 0.31) + 0.8 * Math.sin(x * 0.9);
-          x === xs[0] ? g.moveTo(x, y) : g.lineTo(x, y);
-        }
+        for (const x of xs) x === xs[0] ? g.moveTo(x, edgeY(x)) : g.lineTo(x, edgeY(x));
         g.stroke();
         g.strokeStyle = rgb(pal.light);
         g.lineWidth = 1.5;
@@ -332,12 +328,7 @@
         g.lineWidth = 0.9;
         g.beginPath(); g.moveTo(f.x, y + 1); g.quadraticCurveTo(f.x - 1, y - f.h * 0.5, f.x + 0.5, y - f.h); g.stroke();
         g.fillStyle = pal.flowers[f.c];
-        g.beginPath();
-        for (let p = 0; p < 5; p++) {
-          const a = p * TAU / 5;
-          circle(g, f.x + 0.5 + Math.cos(a) * f.r, y - f.h + Math.sin(a) * f.r, f.r * 0.75);
-        }
-        g.fill();
+        g.beginPath(); flower(g, f.x + 0.5, y - f.h, f.r, f.r * 0.75); g.fill();
         g.fillStyle = f.c === 1 ? '#f59e0b' : '#ffd24a';
         g.beginPath(); circle(g, f.x + 0.5, y - f.h, f.r * 0.6); g.fill();
       }
@@ -402,7 +393,7 @@
     face.lineTo(out, top - 10);
     face.closePath();
     // Dark joints behind everything, then each block as its own rounded stone
-    const stone = si === WINTER ? [156, 152, 152] : [166, 150, 130];
+    const stone = DETAIL.cliffStone[si];
     g.fillStyle = rgb(scale(stone, 0.38));
     g.fill(face);
     for (let i = 0; i < blocks.length; i++) {
@@ -478,20 +469,20 @@
         g.stroke();
       }
       if (b.vine && si !== WINTER) {
-        g.strokeStyle = si === AUTUMN ? '#a0703a' : '#4f8c3e';
+        g.strokeStyle = DETAIL.cliffVine[si];
         g.lineWidth = 1.2;
         g.beginPath();
         const vx = X(b.d1 - 2);
         g.moveTo(vx, y);
         for (let k = 1; k <= 6; k++) g.lineTo(vx + Math.sin(k * 1.3) * 2, y + k * 6);
         g.stroke();
-        g.fillStyle = si === AUTUMN ? '#c8783a' : '#6cae4e';
+        g.fillStyle = DETAIL.cliffVineLeaf[si];
         g.beginPath();
         for (let k = 1; k <= 6; k++) { const lx = vx + Math.sin(k * 1.3) * 2 + (k % 2 ? 2 : -2); g.moveTo(lx, y + k * 6); g.ellipse(lx, y + k * 6, 2, 1.1, k, 0, TAU); }
         g.fill();
       }
       if (b.fern && si !== WINTER && lip > 3) {
-        g.strokeStyle = si === AUTUMN ? '#a88a3e' : '#5a9a48';
+        g.strokeStyle = DETAIL.cliffFern[si];
         g.lineWidth = 1;
         g.beginPath();
         const fx = (lx0 + lx1) / 2;
@@ -513,7 +504,7 @@
     g.fill();
     // A bush on the brink
     const bx = X(last.d1 * 0.45), by = top - 12;
-    const bush = si === WINTER ? [[120, 108, 100], [140, 128, 118]] : si === AUTUMN ? [[176, 96, 48], [214, 150, 64]] : [[62, 128, 64], [96, 162, 80]];
+    const bush = DETAIL.cliffBush[si];
     for (let k = 0; k < 2; k++) {
       g.fillStyle = rgb(bush[k]);
       g.beginPath();

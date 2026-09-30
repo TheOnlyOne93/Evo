@@ -4,10 +4,11 @@
 // at the plant's base (f.x, f.y), y up is negative.
 (function (Evo) {
   'use strict';
-  const { TAU, clamp01 } = Evo.util;
-  const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
-  const { GROUND, SNOW, circle } = Evo.Paint;
-  const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
+  const { TAU, clamp01, mulberry32: rng } = Evo.util;
+  const { rgb, rgba, mix, scale } = Evo.color;
+  const { GROUND, DETAIL, SNOW, circle, isWarm, flower } = Evo.Paint;
+  const { SPRING, AUTUMN, WINTER } = Evo.SEASON;
+  const PETAL_STEP = 1.2566; // the angle between petals (see Evo.Paint.flower)
 
   const CANOPY = { // [base, dark, light] per season; autumn picks per clump
     fruit: [
@@ -160,7 +161,7 @@
     // The crown as one mass: a dark underlayer for depth, the clumps in their own colours,
     // then one sweep of light from the upper left and shade to the lower right across it all.
     const crown = new Path2D();
-    for (const c of clumps) { crown.moveTo(c.x + c.r, c.y); crown.arc(c.x, c.y, c.r, 0, TAU); }
+    for (const c of clumps) circle(crown, c.x, c.y, c.r);
     g.fillStyle = rgb(autumn ? scale(autumnCols[2], 0.45) : scale(cols[1], 0.7));
     g.save();
     g.translate(1.5, 3);
@@ -204,24 +205,25 @@
       g.fill();
     }
     if (si === SPRING) { // Blossom: small five-petalled flowers, thicker towards the sunny top
-      const bl = BLOSSOM[kind];
+      const bl = BLOSSOM[kind], low = cy + cr * 0.3; // none below low
+      const open = []; // indices of the dots in flower; dot k takes colour k % 3
+      for (let k = 0; k < s.dots.length; k++) {
+        const d = s.dots[k];
+        if (d.y <= low && d.k <= 0.35 + (low - d.y) / (cr * 2.2)) open.push(k);
+      }
       for (let c = 0; c < 3; c++) {
         g.fillStyle = bl[c];
         g.beginPath();
-        for (let k = c; k < s.dots.length; k += 3) {
-          const d = s.dots[k];
-          if (d.y > cy + cr * 0.3 || d.k > 0.35 + (cy + cr * 0.3 - d.y) / (cr * 2.2)) continue;
-          const pr = 0.75 + d.r * 0.28;
-          for (let q = 0; q < 5; q++) circle(g, d.x + Math.cos(d.a + q * 1.2566) * pr, d.y - 1 + Math.sin(d.a + q * 1.2566) * pr, pr * 0.8);
+        for (const k of open) {
+          if (k % 3 !== c) continue;
+          const d = s.dots[k], pr = 0.75 + d.r * 0.28;
+          flower(g, d.x, d.y - 1, pr, pr * 0.8, d.a, PETAL_STEP);
         }
         g.fill();
       }
       g.fillStyle = '#f7c948';
       g.beginPath();
-      for (let k = 0; k < s.dots.length; k++) {
-        const d = s.dots[k];
-        if (d.y <= cy + cr * 0.3 && d.k <= 0.35 + (cy + cr * 0.3 - d.y) / (cr * 2.2)) circle(g, d.x, d.y - 1, 0.55);
-      }
+      for (const k of open) circle(g, s.dots[k].x, s.dots[k].y - 1, 0.55);
       g.fill();
     }
     // Tufts where the trunk meets the ground
@@ -322,7 +324,7 @@
       g.beginPath(); g.moveTo(st.x, 3); g.quadraticCurveTo(st.x, -st.h * 0.5, tx, -st.h - 7); g.stroke();
       // Cattail head
       const hx = st.x + (tx - st.x) * 0.85, hy = -st.h * 0.86;
-      g.fillStyle = si === WINTER ? '#9a7a5c' : '#7a4a2a';
+      g.fillStyle = DETAIL.cattail[si];
       g.beginPath(); g.ellipse(hx, hy, 2.6, 7.5, st.lean * 0.8, 0, TAU); g.fill();
       g.fillStyle = 'rgba(255,230,200,0.25)';
       g.beginPath(); g.ellipse(hx - 0.8, hy - 1.5, 0.9, 4.5, st.lean * 0.8, 0, TAU); g.fill();
@@ -335,8 +337,8 @@
   function paintThorn(g, f, si, rec) {
     const R = rng(7000 + (f.id | 0) * 23);
     const r = f.radius;
-    const winter = si === WINTER, autumn = si === AUTUMN;
-    const leaf = autumn ? [[84, 30, 52], [134, 46, 70], [196, 96, 104]] : [[44, 38, 60], [74, 58, 96], [126, 102, 158]];
+    const winter = si === WINTER;
+    const leaf = DETAIL.thornLeaf[si];
     const rx = r * 1.05, ry = r * 1.05;
     // Canes rise from the base, arch over and come down beside the mound
     const canes = [];
@@ -442,12 +444,12 @@
       g.lineWidth = 0.6;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(b) * L * 0.8, y + Math.sin(b) * L * 0.8); g.stroke();
     }
-    if (si <= SUMMER) { // a few pale violet flowers
+    if (isWarm(si)) { // a few pale violet flowers
       g.fillStyle = '#eadbf8';
       g.beginPath();
       for (let k = 0; k < 4; k++) {
         const a = Math.PI * (1.2 + k * 0.2), x = Math.cos(a) * rx * 0.6, y = Math.sin(a) * ry * 0.72;
-        for (let q = 0; q < 5; q++) circle(g, x + Math.cos(q * 1.2566) * 1.4, y + Math.sin(q * 1.2566) * 1.4, 1.1);
+        flower(g, x, y, 1.4, 1.1, 0, PETAL_STEP);
       }
       g.fill();
       g.fillStyle = '#f7c948';

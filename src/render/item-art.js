@@ -6,32 +6,38 @@
 (function (Evo) {
   'use strict';
   const { TAU } = Evo.util;
+  const { circle } = Evo.Paint;
+  const { rgb, rgba, scale, mix: tint } = Evo.color;
 
   const RADIUS = Object.fromEntries(Object.entries(Evo.ITEM_TYPES).map(([k, v]) => [k, v.radius]));
   // How far above (item.x, item.y) each body's centre sits, in radii (so it rests on its lowest point)
   const LIFT = { fruit: 0.92, mimic: 0.92, grain: 0.72, dew: 1.26, grub: 0.98, bug: 0.95, lure: 0.84, carrion: 0.9, egg: 1, ball: 1 };
+  const radiusOf = item => item.radius || RADIUS[item.type] || 5;
+  const liftOf = item => radiusOf(item) * (LIFT[item.type] || 1);
+  // The centre of an item's body in world coordinates (y only; x is item.x)
+  const centerY = item => item.y - liftOf(item);
 
-  const css = (c, k, a) => {
-    const r = Math.min(255, c[0] * k) | 0, g = Math.min(255, c[1] * k) | 0, b = Math.min(255, c[2] * k) | 0;
-    return a === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a})`;
-  };
-  const tint = Evo.color.mix;
+  // Outlines and strokes scale with the item's radius r (k per unit of radius) but stay at least
+  // MIN_LINE wide, or a site's own floor
+  const MIN_LINE = 0.4;
+  const lineW = (r, k, min = MIN_LINE) => Math.max(min, r * k);
+
   const WHITE = [255, 255, 255];
 
   let C = null;
   function colors() {
     if (C) return C;
-    const tok = Evo.theme.rgb;
+    const tok = Evo.theme.rgbOf;
     const fruit = tok('--fruit'), grain = tok('--grain'), water = tok('--water'), protein = tok('--protein');
     const grub = tok('--grub'), carrion = tok('--carrion'), spot = tok('--mimic-spot'), female = tok('--female');
     C = {
-      fruit: css(fruit, 1), fruitDark: css(fruit, 0.55), fruitShade: css(fruit, 0.62, 0.42), leaf: '#5fa04a', leafMimic: '#4f8f58',
-      stem: '#6b4a2f', spot: css(spot, 1), spotRim: css(tint(spot, WHITE, 0.35), 1, 0.7),
-      grain: css(grain, 1), grainDark: css(grain, 0.58), grainLight: css(tint(grain, WHITE, 0.45), 1), stalk: css(tint(grain, [120, 110, 60], 0.5), 1),
-      water: css(water, 1, 0.72), waterDark: css(water, 0.55, 0.85), waterLight: css(tint(water, WHITE, 0.7), 1, 0.95),
-      grub: css(grub, 1), grubDark: css(grub, 0.66), grubLight: css(tint(grub, WHITE, 0.5), 1), grubHead: '#a8683a',
-      bug: css(protein, 1), bugDark: css(protein, 0.52), bugLight: css(tint(protein, WHITE, 0.55), 1), bugLeg: css(protein, 0.3),
-      lure: css(female, 1), lureDark: css(female, 0.6), lureLight: css(tint(female, WHITE, 0.55), 1), lurePuff: tint(female, WHITE, 0.35).map(Math.round),
+      fruit: rgb(fruit), fruitDark: rgb(scale(fruit, 0.55)), fruitShade: rgba(scale(fruit, 0.62), 0.42), leaf: '#5fa04a', leafMimic: '#4f8f58',
+      stem: '#6b4a2f', spot: rgb(spot), spotRim: rgba(tint(spot, WHITE, 0.35), 0.7),
+      grain: rgb(grain), grainDark: rgb(scale(grain, 0.58)), grainLight: rgb(tint(grain, WHITE, 0.45)), stalk: rgb(tint(grain, [120, 110, 60], 0.5)),
+      water: rgba(water, 0.72), waterDark: rgba(scale(water, 0.55), 0.85), waterLight: rgba(tint(water, WHITE, 0.7), 0.95),
+      grub: rgb(grub), grubDark: rgb(scale(grub, 0.66)), grubLight: rgb(tint(grub, WHITE, 0.5)), grubHead: '#a8683a',
+      bug: rgb(protein), bugDark: rgb(scale(protein, 0.52)), bugLight: rgb(tint(protein, WHITE, 0.55)), bugLeg: rgb(scale(protein, 0.3)),
+      lure: rgb(female), lureDark: rgb(scale(female, 0.6)), lureLight: rgb(tint(female, WHITE, 0.55)), lurePuff: tint(female, WHITE, 0.35).map(Math.round),
       carrionRgb: carrion,
       outline: 'rgba(40,24,20,0.55)',
     };
@@ -67,7 +73,7 @@
     g.closePath();
     g.fillStyle = c.fruit;
     g.fill();
-    g.lineWidth = Math.max(0.5, r * 0.13);
+    g.lineWidth = lineW(r, 0.13, 0.5);
     g.strokeStyle = c.fruitDark;
     g.stroke();
     g.fillStyle = c.fruitShade;
@@ -96,7 +102,7 @@
     g.beginPath(); g.moveTo(-r * 1.7, r * 0.35); g.quadraticCurveTo(-r * 0.4, r * 0.1, r * 1.3, -r * 0.1); g.stroke();
     // Awns
     g.strokeStyle = c.grainDark;
-    g.lineWidth = Math.max(0.35, r * 0.06);
+    g.lineWidth = lineW(r, 0.06, 0.35);
     g.beginPath();
     for (let k = 0; k < 4; k++) {
       const u = -r * 0.5 + k * r * 0.5;
@@ -108,7 +114,7 @@
     // Kernels in a chevron
     g.fillStyle = c.grain;
     g.strokeStyle = c.grainDark;
-    g.lineWidth = Math.max(0.4, r * 0.08);
+    g.lineWidth = lineW(r, 0.08);
     g.beginPath();
     for (let k = 0; k < 4; k++) {
       const u = -r * 0.75 + k * r * 0.52;
@@ -125,8 +131,7 @@
     g.beginPath();
     for (let k = 0; k < 4; k++) {
       const u = -r * 0.8 + k * r * 0.52;
-      g.moveTo(u + r * 0.12, -r * 0.3);
-      g.arc(u, -r * 0.3, r * 0.12, 0, TAU);
+      circle(g, u, -r * 0.3, r * 0.12);
     }
     g.fill();
   }
@@ -140,7 +145,7 @@
     g.closePath();
     g.fillStyle = c.water;
     g.fill();
-    g.lineWidth = Math.max(0.4, r * 0.1);
+    g.lineWidth = lineW(r, 0.1);
     g.strokeStyle = c.waterDark;
     g.stroke();
     g.fillStyle = c.waterLight;
@@ -151,7 +156,7 @@
     if (s > 0.85) {
       const k = (s - 0.85) / 0.15 * r * 0.8;
       g.strokeStyle = 'rgba(255,255,255,0.9)';
-      g.lineWidth = Math.max(0.4, r * 0.1);
+      g.lineWidth = lineW(r, 0.1);
       g.beginPath();
       g.moveTo(-r * 0.35 - k, -r * 0.55); g.lineTo(-r * 0.35 + k, -r * 0.55);
       g.moveTo(-r * 0.35, -r * 0.55 - k); g.lineTo(-r * 0.35, -r * 0.55 + k);
@@ -171,7 +176,7 @@
       const sr = r * (0.34 + 0.12 * Math.sin(u * Math.PI)) ;
       g.fillStyle = c.grub;
       g.strokeStyle = c.grubDark;
-      g.lineWidth = Math.max(0.4, r * 0.09);
+      g.lineWidth = lineW(r, 0.09);
       g.beginPath(); g.arc(x, y, sr, 0, TAU); g.fill(); g.stroke();
       g.fillStyle = c.grubLight;
       g.beginPath(); g.arc(x - sr * 0.3, y - sr * 0.35, sr * 0.35, 0, TAU); g.fill();
@@ -196,7 +201,7 @@
     const moving = Math.abs(item.vx || 0) > 0.01 ? 1 : 0.15;
     g.scale(dir, 1);
     g.strokeStyle = c.bugLeg;
-    g.lineWidth = Math.max(0.45, r * 0.13);
+    g.lineWidth = lineW(r, 0.13, 0.45);
     g.lineCap = 'round';
     g.beginPath();
     for (let k = 0; k < 3; k++) {
@@ -210,7 +215,7 @@
     }
     g.stroke();
     // Antennae
-    g.lineWidth = Math.max(0.35, r * 0.08);
+    g.lineWidth = lineW(r, 0.08, 0.35);
     g.beginPath();
     g.moveTo(r * 1.1, -r * 0.05); g.quadraticCurveTo(r * 1.5, -r * 0.8, r * 1.85, -r * 0.7);
     g.moveTo(r * 1.05, -r * 0.1); g.quadraticCurveTo(r * 1.25, -r * 0.9, r * 1.55, -r * 0.95);
@@ -228,7 +233,7 @@
     g.closePath();
     g.fillStyle = c.bug;
     g.fill();
-    g.lineWidth = Math.max(0.4, r * 0.1);
+    g.lineWidth = lineW(r, 0.1);
     g.strokeStyle = c.bugDark;
     g.stroke();
     g.beginPath(); g.moveTo(-r * 0.98, r * 0.18); g.quadraticCurveTo(-r * 0.1, r * 0.02, r * 0.74, r * 0.2); g.stroke();
@@ -254,7 +259,7 @@
     const pulse = 1 + Math.sin(t * 2.4 + id) * 0.05;
     g.fillStyle = c.lure;
     g.strokeStyle = c.lureDark;
-    g.lineWidth = Math.max(0.4, r * 0.1);
+    g.lineWidth = lineW(r, 0.1);
     g.beginPath();
     g.moveTo(0, -r * 0.95 * pulse);
     g.bezierCurveTo(r * 0.95 * pulse, -r * 0.6, r * 0.85, r * 0.75, 0, r * 0.72);
@@ -280,7 +285,7 @@
     let s = carrionCache.get(key);
     if (!s) {
       const base = hue === undefined ? c.carrionRgb : tint(c.carrionRgb, hslRgb(key * 10, 0.35, 0.55), 0.28);
-      s = { body: css(base, 1), dark: css(base, 0.62), light: css(tint(base, WHITE, 0.35), 1), line: css(base, 0.45) };
+      s = { body: rgb(base), dark: rgb(scale(base, 0.62)), light: rgb(tint(base, WHITE, 0.35)), line: rgb(scale(base, 0.45)) };
       carrionCache.set(key, s);
     }
     return s;
@@ -301,7 +306,7 @@
     g.ellipse(r * 0.82, r * 0.42, r * 0.42, r * 0.38, 0.2, 0, TAU);
     g.fillStyle = s.body;
     g.fill();
-    g.lineWidth = Math.max(0.5, r * 0.1);
+    g.lineWidth = lineW(r, 0.1, 0.5);
     g.strokeStyle = s.line;
     g.stroke();
     g.fill(); // hide the inner seam
@@ -313,7 +318,7 @@
     g.beginPath(); g.ellipse(-r * 0.3, -r * 0.08, r * 0.55, r * 0.16, -0.12, 0, TAU); g.fill();
     // Ruffled fur
     g.strokeStyle = s.dark;
-    g.lineWidth = Math.max(0.4, r * 0.07);
+    g.lineWidth = lineW(r, 0.07);
     g.beginPath();
     for (let k = 0; k < 4; k++) {
       const x = -r * 0.8 + k * r * 0.42;
@@ -370,7 +375,7 @@
     }
     g.fill();
     g.restore();
-    g.lineWidth = Math.max(0.5, r * 0.08);
+    g.lineWidth = lineW(r, 0.08, 0.5);
     g.strokeStyle = hs.line;
     g.stroke();
     g.fillStyle = 'rgba(255,255,255,0.7)';
@@ -379,7 +384,7 @@
     if (p > 0.82) {
       const k = Math.min(1, (p - 0.82) / 0.15);
       g.strokeStyle = 'rgba(60,40,30,0.75)';
-      g.lineWidth = Math.max(0.5, r * 0.08);
+      g.lineWidth = lineW(r, 0.08, 0.5);
       g.beginPath();
       const n = 2 + Math.round(k * 4);
       g.moveTo(-rx * 0.7, -ry * 0.3);
@@ -402,7 +407,7 @@
     g.beginPath(); g.arc(0, 0, r, 0.1, Math.PI - 0.1); g.arc(r * 0.05, -r * 0.3, r * 1.02, Math.PI - 0.35, 0.35, true); g.fill();
     g.fillStyle = 'rgba(255,255,255,0.75)';
     g.beginPath(); g.ellipse(-r * 0.4, -r * 0.45, r * 0.26, r * 0.15, -0.6, 0, TAU); g.fill();
-    g.lineWidth = Math.max(0.5, r * 0.08);
+    g.lineWidth = lineW(r, 0.08, 0.5);
     g.strokeStyle = 'rgba(40,30,60,0.5)';
     g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
   }
@@ -412,10 +417,10 @@
   function draw(g, item, t, dy) {
     const c = colors();
     const type = item.type;
-    const r = item.radius || RADIUS[type] || 5;
+    const r = radiusOf(item);
     const id = item.id | 0;
     g.save();
-    g.translate(item.x, item.y - r * (LIFT[type] || 1) + (dy || 0));
+    g.translate(item.x, centerY(item) + (dy || 0));
     // item.rot is any angle (the simulation spins things as they fall or roll). Things lying on
     // the ground keep only a small tilt from it; round things and falling things turn freely.
     const rot = item.rot || 0, lying = item.onGround !== false;
@@ -461,21 +466,15 @@
     g.restore();
   }
 
-  // The centre of an item's body in world coordinates (y only; x is item.x)
-  function centerY(item) {
-    const r = item.radius || RADIUS[item.type] || 5;
-    return item.y - r * (LIFT[item.type] || 1);
-  }
-
   // Draw an item type centred in a box of `size` CSS px (toolbar swatches, cards)
   const iconItem = { id: 7, type: 'fruit', x: 0, y: 0, radius: 5, rot: 0, vx: 0, onGround: true, hue: 40, accentHue: 220, progress: 0.3 };
   function drawIcon(g, type, x, y, size, t) {
     iconItem.type = type;
     iconItem.x = x;
     iconItem.radius = size * (type === 'grain' ? 0.22 : type === 'lure' ? 0.26 : 0.34);
-    iconItem.y = y + (type === 'lure' ? size * 0.12 : 0) + iconItem.radius * (LIFT[type] || 1);
+    iconItem.y = y + (type === 'lure' ? size * 0.12 : 0) + liftOf(iconItem);
     draw(g, iconItem, t || 0);
   }
 
-  Evo.ItemArt = { draw, centerY, drawIcon, LIFT };
+  Evo.ItemArt = { draw, centerY, liftOf, drawIcon };
 })(globalThis.Evo);

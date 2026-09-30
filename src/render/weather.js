@@ -5,12 +5,15 @@
   'use strict';
   const { TAU, clamp } = Evo.util;
   const { SPRING, SUMMER, AUTUMN, WINTER } = Evo.SEASON;
+  const { GROUND, circle, isWarm } = Evo.Paint;
 
   const MAX_PARTICLES = 360;
   // Particle kinds (the pool's kind array)
   const LEAF = 0, SNOW = 1, PETAL = 2, POLLEN = 3, FIREFLY = 4;
   const FALLS = [true, true, true, false, false]; // by kind: drifts down and settles or melts on landing
-  const LEAF_COLORS = ['#d8742e', '#c2452d', '#e2a93b', '#a8552a', '#f2c9dc', '#ffffff']; // particle col: 0-3 leaves, 4-5 petals
+  // A leaf or petal particle's col indexes its kind's colours (snow, pollen and fireflies have none)
+  const LEAF_COLORS = GROUND[AUTUMN].litter;  // the same as the fallen leaves on the ground
+  const PETAL_COLORS = ['#f2c9dc', '#ffffff'];
 
   class Weather {
     constructor() {
@@ -27,7 +30,7 @@
     // Drop every particle (a new world)
     clear() { this.p.n = 0; }
 
-    spawn(kind, x, y, col) {
+    spawn(kind, x, y, col = 0) {
       const P = this.p;
       if (P.n >= MAX_PARTICLES) return -1;
       const i = P.n++;
@@ -57,7 +60,7 @@
       if (fresh) { // drop the last season's weather at once
         for (let i = 0; i < P.n; i++) {
           const k = P.kind[i];
-          const keep = (k === SNOW && si === WINTER) || (k === LEAF && si === AUTUMN) || (k === PETAL && si === SPRING) || ((k === POLLEN || k === FIREFLY) && si <= SUMMER);
+          const keep = (k === SNOW && si === WINTER) || (k === LEAF && si === AUTUMN) || (k === PETAL && si === SPRING) || ((k === POLLEN || k === FIREFLY) && isWarm(si));
           if (!keep) this.kill(i--);
         }
       }
@@ -69,11 +72,11 @@
         for (let i = 0; i < P.n; i++) if (P.kind[i] === SNOW) count++;
         let need = target - count;
         while (need-- > 0) {
-          const i = this.spawn(SNOW, x0 - 60 + R() * (vw + 120), fresh ? y0 + R() * vh : y0 - 10 - R() * 40, 5);
+          const i = this.spawn(SNOW, x0 - 60 + R() * (vw + 120), fresh ? y0 + R() * vh : y0 - 10 - R() * 40);
           if (i < 0) break;
         }
       } else if (si === AUTUMN || si === SPRING) { // leaves from the trees in autumn, petals in spring
-        const kind = si === AUTUMN ? LEAF : PETAL;
+        const kind = si === AUTUMN ? LEAF : PETAL, colors = kind === LEAF ? LEAF_COLORS : PETAL_COLORS;
         this.spawnTimer += dt;
         const fs = v.world.features;
         if (this.spawnTimer > 0.12) {
@@ -88,21 +91,21 @@
               if (R() > (si === AUTUMN ? 0.26 : 0.1)) continue;
               const d = rec.data;
               const a = R() * TAU;
-              this.spawn(kind, f.x + Math.cos(a) * d.cr * 0.9, f.y + d.cy + Math.sin(a) * d.cr * 0.6, kind === LEAF ? (R() * 4) | 0 : 4 + ((R() * 2) | 0));
+              this.spawn(kind, f.x + Math.cos(a) * d.cr * 0.9, f.y + d.cy + Math.sin(a) * d.cr * 0.6, (R() * colors.length) | 0);
             }
-            if (si === AUTUMN && R() < 0.35) this.spawn(LEAF, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * 4) | 0);
+            if (si === AUTUMN && R() < 0.35) this.spawn(LEAF, x0 - 40 + R() * (vw + 80), y0 - 10, (R() * LEAF_COLORS.length) | 0);
           }
         }
       }
-      if (si === SPRING || si === SUMMER) { // pollen motes by day, fireflies on summer nights
+      if (isWarm(si)) { // pollen motes by day, fireflies on summer nights
         let pollen = 0, flies = 0;
         for (let i = 0; i < P.n; i++) { if (P.kind[i] === POLLEN) pollen++; else if (P.kind[i] === FIREFLY) flies++; }
         const wantPollen = Math.round(area * 18 * pal.day);
-        for (let k = pollen; k < wantPollen; k++) this.spawn(POLLEN, x0 + R() * vw, v.info.meanS - 20 - R() * 160, 0);
+        for (let k = pollen; k < wantPollen; k++) this.spawn(POLLEN, x0 + R() * vw, v.info.meanS - 20 - R() * 160);
         const wantFlies = si === SUMMER ? Math.round(area * 26 * pal.night) : 0;
         for (let k = flies; k < wantFlies; k++) {
           const x = x0 + R() * vw;
-          this.spawn(FIREFLY, x, v.info.surf(x) - 8 - R() * 70, 0);
+          this.spawn(FIREFLY, x, v.info.surf(x) - 8 - R() * 70);
         }
       }
       // Motion
@@ -164,22 +167,23 @@
     draw(g) {
       const P = this.p;
       if (!P.n) return;
-      // Leaves and petals, batched by colour
-      for (let c = 0; c < LEAF_COLORS.length; c++) {
-        let any = false;
-        for (let i = 0; i < P.n; i++) {
-          const k = P.kind[i];
-          if ((k !== LEAF && k !== PETAL) || P.col[i] !== c) continue;
-          if (!any) { g.beginPath(); any = true; }
-          const s = P.size[i];
-          const flip = Math.abs(Math.cos(P.rot[i] * 0.7)) * 0.7 + 0.3; // tumbling
-          g.moveTo(P.x[i] + s, P.y[i]);
-          g.ellipse(P.x[i], P.y[i], s, s * 0.5 * flip, P.rot[i], 0, TAU);
-        }
-        if (any) {
-          g.fillStyle = LEAF_COLORS[c];
-          g.globalAlpha = 1;
-          g.fill();
+      // Leaves, then petals, batched by colour
+      for (const [kind, colors] of [[LEAF, LEAF_COLORS], [PETAL, PETAL_COLORS]]) {
+        for (let c = 0; c < colors.length; c++) {
+          let any = false;
+          for (let i = 0; i < P.n; i++) {
+            if (P.kind[i] !== kind || P.col[i] !== c) continue;
+            if (!any) { g.beginPath(); any = true; }
+            const s = P.size[i];
+            const flip = Math.abs(Math.cos(P.rot[i] * 0.7)) * 0.7 + 0.3; // tumbling
+            g.moveTo(P.x[i] + s, P.y[i]);
+            g.ellipse(P.x[i], P.y[i], s, s * 0.5 * flip, P.rot[i], 0, TAU);
+          }
+          if (any) {
+            g.fillStyle = colors[c];
+            g.globalAlpha = 1;
+            g.fill();
+          }
         }
       }
       // Snow, in two sizes
@@ -188,8 +192,7 @@
         for (let i = 0; i < P.n; i++) {
           if (P.kind[i] !== SNOW || (P.size[i] > 1.4) !== !!pass) continue;
           if (!any) { g.beginPath(); any = true; }
-          g.moveTo(P.x[i] + P.size[i], P.y[i]);
-          g.arc(P.x[i], P.y[i], P.size[i], 0, TAU);
+          circle(g, P.x[i], P.y[i], P.size[i]);
         }
         if (any) {
           g.fillStyle = pass ? 'rgba(255,255,255,0.95)' : 'rgba(240,246,255,0.8)';
@@ -201,8 +204,7 @@
       for (let i = 0; i < P.n; i++) {
         if (P.kind[i] !== POLLEN) continue;
         if (!any) { g.beginPath(); any = true; }
-        g.moveTo(P.x[i] + P.size[i], P.y[i]);
-        g.arc(P.x[i], P.y[i], P.size[i], 0, TAU);
+        circle(g, P.x[i], P.y[i], P.size[i]);
       }
       if (any) { g.fillStyle = 'rgba(255,244,190,0.7)'; g.fill(); }
       g.globalAlpha = 1;

@@ -6,6 +6,10 @@
   const { TAU } = Evo.util;
 
   const SKIN = '#f6d6b6', SKIN_SHADE = '#e2b48f', INK = '#6e4535', CUFF = '#9be3c8', CUFF_DARK = '#4fa586';
+  const OUTLINE = 2.6;     // the ink outline (and the shadow) is this much wider than each finger
+  const SLAP_TILT = -0.42; // the slapping hand (and its shadow) tilts by this angle
+  // The patting hand bobs up and down
+  const patBob = t => -2.5 - Math.abs(Math.sin(t * 5)) * 3;
 
   function handOutlineAndFill(g, parts, palm) {
     // parts: [x0, y0, x1, y1, width] capsules; palm: [x, y, w, h, r]
@@ -13,7 +17,7 @@
     for (let pass = 0; pass < 2; pass++) {
       g.strokeStyle = pass ? SKIN : INK;
       for (let i = 0; i < parts.length; i += 5) {
-        g.lineWidth = parts[i + 4] + (pass ? 0 : 2.6);
+        g.lineWidth = parts[i + 4] + (pass ? 0 : OUTLINE);
         g.beginPath(); g.moveTo(parts[i], parts[i + 1]); g.lineTo(parts[i + 2], parts[i + 3]); g.stroke();
       }
       if (palm) {
@@ -47,7 +51,7 @@
   function drawHandShape(g, mode, holding, t) {
     if (mode === 'pat') {
       // Palm down, fingers to the left; bobs as if patting
-      g.translate(0, -2.5 - Math.abs(Math.sin(t * 5)) * 3);
+      g.translate(0, patBob(t));
       drawCuff(g, 14.5, -6, 7, 13, 0);
       handOutlineAndFill(g, [-2, -11.2, 3.5, -11.5, 5.2], [-19, -9, 28, 9, 4.5]);
       g.strokeStyle = SKIN_SHADE;
@@ -61,13 +65,13 @@
       return;
     }
     if (mode === 'slap') {
-      g.rotate(-0.42);
+      g.rotate(SLAP_TILT);
       drawCuff(g, 0, 16, 18, 7, 0);
       handOutlineAndFill(g, SLAP_HAND, [-9.5, -6.5, 19, 16, 6]);
       g.strokeStyle = SKIN_SHADE;
       g.lineWidth = 1;
       g.beginPath(); g.moveTo(-3, -1); g.quadraticCurveTo(1, 3, 5, 0); g.stroke();
-      g.rotate(0.42);
+      g.rotate(-SLAP_TILT);
       // Motion lines
       g.strokeStyle = 'rgba(255,255,255,0.85)';
       g.lineWidth = 2;
@@ -112,16 +116,16 @@
     g.strokeStyle = '#1a1020';
     g.lineCap = 'round';
     if (mode === 'pat') {
-      g.translate(0, -2.5 - Math.abs(Math.sin(t * 5)) * 3);
+      g.translate(0, patBob(t));
       g.beginPath(); g.roundRect(-20, -10, 38, 11, 5); g.fill();
       return;
     }
-    if (mode === 'slap') g.rotate(-0.42);
+    if (mode === 'slap') g.rotate(SLAP_TILT);
     g.beginPath(); g.roundRect(-10.5, -8, 21, 26, 7); g.fill();
     if (!holding) {
       const parts = mode === 'slap' ? SLAP_HAND : OPEN_HAND;
       for (let i = 0; i < parts.length; i += 5) {
-        g.lineWidth = parts[i + 4] + 2.6;
+        g.lineWidth = parts[i + 4] + OUTLINE;
         g.beginPath(); g.moveTo(parts[i], parts[i + 1]); g.lineTo(parts[i + 2], parts[i + 3]); g.stroke();
       }
     }

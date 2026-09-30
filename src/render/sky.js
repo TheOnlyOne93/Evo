@@ -10,13 +10,8 @@
   // consume the simulation's random numbers. Transient effects (shooting stars; weather.js) use
   // unseeded Math.random instead.
   const rng = Evo.util.mulberry32;
-
-  function makeCanvas(w, h) {
-    const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.ceil(w));
-    c.height = Math.max(1, Math.ceil(h));
-    return c;
-  }
+  const { makeCanvas } = Evo;
+  const { circle } = Evo.Paint;
 
   // Colours are [r, g, b] arrays (see Evo.color)
   const { rgb, rgba, mix, mixInto, scale } = Evo.color;
@@ -28,6 +23,15 @@
     out.blend = smooth(0.9, 1, season.progress);
     out.prefetch = season.progress > 0.8;
     return out;
+  }
+
+  // The season crossfade, as draw(season, alpha, first) calls: the current season at full strength,
+  // then the next one at ss.blend once the fade has begun (above BLEND_MIN), or earlier, near the
+  // season's end (ss.prefetch), so its sprites are built before they show
+  const BLEND_MIN = 0.001;
+  function seasonPasses(ss, draw) {
+    draw(ss.cur, 1, true);
+    if (ss.blend > BLEND_MIN || ss.prefetch) draw(ss.next, ss.blend, false);
   }
 
   // ---- Sky colour keyframes along the sun's elevation (-1 midnight .. 1 noon) ----
@@ -56,6 +60,7 @@
   ];
   const MOON_STEPS = 48; // phases the moon sprite is painted in
   const STOP_E = [-1, -0.3, -0.13, -0.01, 0.12, 0.34, 1];
+  const COLOR_KEYS = ['top', 'mid', 'hor', 'amb', 'lit', 'shd', 'sun']; // the keyframes' colours
   // STOPS[season][0 morning | 1 evening] = keyframes at STOP_E
   const STOPS = Evo.SEASONS.map((_, si) => [0, 1].map(m => {
     const tw = TWILIGHT[m];
@@ -63,9 +68,8 @@
   }));
 
   function makePalette() {
-    const c3 = () => [0, 0, 0];
     return {
-      top: c3(), mid: c3(), hor: c3(), amb: c3(), lit: c3(), shd: c3(), sun: c3(), haze: c3(),
+      ...Object.fromEntries(COLOR_KEYS.map(key => [key, [0, 0, 0]])), haze: [0, 0, 0],
       ambA: 0, night: 0, day: 1, twilight: 0, stars: 0, elevation: 1, morning: true,
       topCss: '', midCss: '', horCss: '', ambCss: '', hazeCss: '', sunCss: '',
     };
@@ -75,16 +79,9 @@
     const stops = STOPS[si][morning ? 0 : 1];
     let k = 0;
     while (k < STOP_E.length - 2 && e > STOP_E[k + 1]) k++;
-    let u = clamp01((e - STOP_E[k]) / (STOP_E[k + 1] - STOP_E[k]));
-    u = u * u * (3 - 2 * u);
+    const u = smooth(STOP_E[k], STOP_E[k + 1], e);
     const a = stops[k], b = stops[k + 1];
-    mixInto(pal.top, a.top, b.top, u);
-    mixInto(pal.mid, a.mid, b.mid, u);
-    mixInto(pal.hor, a.hor, b.hor, u);
-    mixInto(pal.amb, a.amb, b.amb, u);
-    mixInto(pal.lit, a.lit, b.lit, u);
-    mixInto(pal.shd, a.shd, b.shd, u);
-    mixInto(pal.sun, a.sun, b.sun, u);
+    for (const key of COLOR_KEYS) mixInto(pal[key], a[key], b[key], u);
     pal.ambA = a.ambA + (b.ambA - a.ambA) * u;
   }
 
@@ -184,24 +181,24 @@
         for (let x = p.x - 24; x <= p.x + 24; x += 1) { const y = topAt(((x % P) + P) % P); if (y < by) { by = y; bx = x; } }
         p.ax = bx; p.ay = by;
       }
-      // The ridge line runs from the apex down and a little to the right; beyond it the face is in shade
-      const ridge = (ax, ay, p) => {
+      // The shaded face of a peak with its apex at (ax, ay), as a new path reaching `top` above the
+      // apex: beyond the ridge line, which runs from the apex down and a little to the right
+      const shadeFace = (ax, ay, p, top) => {
+        g.beginPath();
+        g.moveTo(ax + p.w * 0.2, H + 4);
+        g.lineTo(ax + p.w * 1.2, H + 4);
+        g.lineTo(ax + p.w * 1.2, ay - top);
+        g.lineTo(ax + 0.5, ay - top);
+        g.lineTo(ax + 0.5, ay);
         g.lineTo(ax + p.w * 0.12, ay + p.h * 0.28);
         g.lineTo(ax + p.w * 0.04, ay + p.h * 0.52);
         g.lineTo(ax + p.w * 0.2, H + 4);
+        g.closePath();
       };
       g.fillStyle = rgb(range ? pal.frontShade : pal.backShade);
       for (const p of peaks) {
         wrapped(P, p.x, p.w * 1.2, x => {
-          const ax = p.ax + (x - p.x), ay = p.ay;
-          g.beginPath();
-          g.moveTo(ax + p.w * 0.2, H + 4);
-          g.lineTo(ax + p.w * 1.2, H + 4);
-          g.lineTo(ax + p.w * 1.2, ay - 30);
-          g.lineTo(ax + 0.5, ay - 30);
-          g.lineTo(ax + 0.5, ay);
-          ridge(ax, ay, p);
-          g.closePath();
+          shadeFace(p.ax + (x - p.x), p.ay, p, 30);
           g.fill();
         });
       }
@@ -244,14 +241,7 @@
           g.fillStyle = rgb(pal.snow);
           g.fill(cap);
           g.save();
-          g.beginPath();
-          g.moveTo(ax + p.w * 0.2, H + 4);
-          g.lineTo(ax + p.w * 1.2, H + 4);
-          g.lineTo(ax + p.w * 1.2, ay - 40);
-          g.lineTo(ax + 0.5, ay - 40);
-          g.lineTo(ax + 0.5, ay);
-          ridge(ax, ay, p);
-          g.closePath();
+          shadeFace(ax, ay, p, 40);
           g.clip();
           g.fillStyle = rgb(pal.snowShade);
           g.fill(cap);
@@ -316,7 +306,7 @@
     // A soft sunlit side, clipped to the crown
     g.save();
     g.beginPath();
-    for (const [px, py, pr] of pts) { g.moveTo(px - pr * 0.08 + pr * 0.88, py - pr * 0.08); g.arc(px - pr * 0.08, py - pr * 0.08, pr * 0.88, 0, TAU); }
+    for (const [px, py, pr] of pts) circle(g, px - pr * 0.08, py - pr * 0.08, pr * 0.88);
     g.clip();
     g.fillStyle = rgba(mix(col, [255, 250, 225], 0.3), 0.55);
     g.beginPath(); g.ellipse(x - cr * 0.55, cy - cr * 0.5, cr * 0.75, cr * 0.6, -0.4, 0, TAU); g.fill();
@@ -517,7 +507,7 @@
       if (ss.blend > 0) {
         const tmp = this.tmp;
         evalStops(tmp, ss.next, morning, e);
-        for (const k of ['top', 'mid', 'hor', 'amb', 'lit', 'shd', 'sun']) mixInto(pal[k], pal[k], tmp[k], ss.blend);
+        for (const k of COLOR_KEYS) mixInto(pal[k], pal[k], tmp[k], ss.blend);
         pal.ambA += (tmp.ambA - pal.ambA) * ss.blend;
       }
       mixInto(pal.haze, pal.hor, pal.mid, 0.3);
@@ -585,9 +575,10 @@
         const baseY = this.layerBaseY(v, L);
         const topY = baseY - L.height * s;
         if (topY * dpr > Hd) continue;
-        this._drawLayer(g, v, li, ss.cur, 1, s, baseY, true);
-        if (ss.blend > 0.001) this._drawLayer(g, v, li, ss.next, ss.blend, s, baseY, false);
-        else if (ss.prefetch) this._layerSprite(li, ss.next, false);
+        seasonPasses(ss, (si, alpha, first) => {
+          if (alpha > BLEND_MIN) this._drawLayer(g, v, li, si, alpha, s, baseY, first);
+          else this._layerSprite(li, si, false); // only build it, ahead of the fade
+        });
         // Aerial perspective: tint everything drawn so far towards the horizon colour. The whole
         // canvas is filled (source-atop touches only existing pixels), so farther layers collect
         // more haze without seams.
@@ -763,7 +754,6 @@
 
   Evo.Sky = Sky;
   Evo.Sky.seasonState = seasonState;
+  Evo.Sky.seasonPasses = seasonPasses;
   Evo.Sky.LAYERS = LAYERS;
-  // Shared by the renderers (not part of the simulation)
-  Evo.Sky.util = { rng, makeCanvas, mixInto, rgb, rgba, mix, scale, smooth, clamp01 };
 })(globalThis.Evo);

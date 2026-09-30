@@ -9,6 +9,7 @@
   const { TAU } = Evo.util;
   const PI = Math.PI;
   const { clamp01, clamp, lerp } = Evo.util;
+  const { circle, sparkle } = Evo.Paint;
   const smooth = u => Evo.util.smoothstep(0, 1, u);
   const num = (v, d) => (typeof v === 'number' && v === v ? v : d);
   const EMPTY = {};
@@ -50,7 +51,7 @@
         twitchP: 4 + rnd() * 3.5, twitchO: rnd() * 10,
         spots: new Float32Array(30), stripes: new Float32Array(6), patches: new Float32Array(12),
         eyePatch: rnd() < 0.55, key: new Float32Array(8).fill(-1), pal: {}, palVer: 0, wp: 0, legPh: 0,
-        bodyG: null, bodyV: -1, bodyK: 0, headG: null, headV: -1, headK: 0
+        body: null, head: null // cached shading gradients (cachedGradient)
       };
       for (let i = 0; i < 30; i += 3) { e.spots[i] = rnd(); e.spots[i + 1] = rnd(); e.spots[i + 2] = rnd(); }
       for (let i = 0; i < 6; i++) e.stripes[i] = rnd() - 0.5;
@@ -119,7 +120,7 @@
   function sexHue(female) {
     const key = female ? '--female' : '--male';
     if (SEX_HUE[key] === undefined) {
-      const [r, g, b] = Evo.theme.rgb(key).map(v => v / 255);
+      const [r, g, b] = Evo.theme.rgbOf(key).map(v => v / 255);
       const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
       const h = !d ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
       SEX_HUE[key] = (h * 60 + 360) % 360;
@@ -416,9 +417,8 @@
     ctx.moveTo(R * 0.78 + R * 0.34, R * 0.3);
     ctx.ellipse(R * 0.78, R * 0.3, R * 0.34, R * 0.29, -0.12, 0, TAU);
     for (let i = 0; i < 3; i++) {
-      const a = 1.95 + i * 0.36, cx = Math.cos(a) * R * 0.88, cy = Math.sin(a) * R * 0.82;
-      ctx.moveTo(cx + cheek, cy);
-      ctx.arc(cx, cy, cheek, 0, TAU);
+      const a = 1.95 + i * 0.36;
+      circle(ctx, Math.cos(a) * R * 0.88, Math.sin(a) * R * 0.82, cheek);
     }
   }
 
@@ -446,9 +446,7 @@
     const T = r.tail;
     ctx.beginPath();
     for (let i = from; i < to; i++) {
-      const x = T[i * 3], y = T[i * 3 + 1], rad = T[i * 3 + 2] + grow;
-      ctx.moveTo(x + rad, y);
-      ctx.arc(x, y, rad, 0, TAU);
+      circle(ctx, T[i * 3], T[i * 3 + 1], T[i * 3 + 2] + grow);
     }
   }
 
@@ -488,9 +486,7 @@
       const T = r.tail;
       ctx.beginPath();
       for (let i = 1; i < n - 2; i++) {
-        const x = T[i * 3] + T[i * 3 + 2] * 0.12, y = T[i * 3 + 1] - T[i * 3 + 2] * 0.28, rad = T[i * 3 + 2] * 0.62;
-        ctx.moveTo(x + rad, y);
-        ctx.arc(x, y, rad, 0, TAU);
+        circle(ctx, T[i * 3] + T[i * 3 + 2] * 0.12, T[i * 3 + 1] - T[i * 3 + 2] * 0.28, T[i * 3 + 2] * 0.62);
       }
       ctx.fillStyle = pal.fur; ctx.fill();
     }
@@ -499,9 +495,7 @@
       const T = r.tail;
       ctx.beginPath();
       for (let i = 2; i < n - 2; i += 2) {
-        const x = T[i * 3], y = T[i * 3 + 1], rad = T[i * 3 + 2] * 0.92;
-        ctx.moveTo(x + rad, y);
-        ctx.arc(x, y, rad, 0, TAU);
+        circle(ctx, T[i * 3], T[i * 3 + 1], T[i * 3 + 2] * 0.92);
       }
       ctx.fillStyle = pal.mark; ctx.fill();
     }
@@ -535,19 +529,18 @@
     ctx.translate(r.bx, r.by); ctx.rotate(r.ang);
     const rxF = r.rxF, rxB = r.rxB, ryT = r.ryT, ryB = r.ryB;
     // Soft top-lit shading, cached until the colours or proportions change
-    if (e.bodyV !== e.palVer || e.bodyK !== rxF + ryT * 1e3) {
-      const g = e.bodyG = ctx.createRadialGradient(rxF * 0.2, -ryT * 0.6, 0, rxF * 0.05, -ryT * 0.2, rxB * 1.25);
+    const shading = cachedGradient(e, 'body', rxF + ',' + ryT, () => {
+      const g = ctx.createRadialGradient(rxF * 0.2, -ryT * 0.6, 0, rxF * 0.05, -ryT * 0.2, rxB * 1.25);
       g.addColorStop(0, pal.hi); g.addColorStop(0.5, pal.fur); g.addColorStop(1, pal.lo);
-      e.bodyV = e.palVer; e.bodyK = rxF + ryT * 1e3;
-    }
+      return g;
+    });
     ctx.beginPath(); bodyPath(ctx, r);
-    ctx.fillStyle = e.bodyG; ctx.fill();
+    ctx.fillStyle = shading; ctx.fill();
     ctx.clip();
     // Pale belly and chest bib
     ctx.beginPath();
     ctx.ellipse(rxF * 0.05, ryB * 0.8, rxF * 0.95, ryB * 0.55, 0, 0, TAU);
-    ctx.moveTo(rxF * 0.8 + ryB * 0.62, ryB * 0.15);
-    ctx.arc(rxF * 0.8, ryB * 0.15, ryB * 0.62, 0, TAU);
+    circle(ctx, rxF * 0.8, ryB * 0.15, ryB * 0.62);
     ctx.fillStyle = pal.belly; ctx.fill();
     if (r.lod > 0) bodyPattern(ctx, r, e, pal);
     // Haunch: a soft crease that gives the near hind leg a thigh
@@ -602,9 +595,7 @@
         const cx = j ? rxF * (0.1 + 0.3 * P[0]) : -rxB * (0.35 + 0.3 * P[1]), cy = -ryT * (0.35 + 0.35 * P[2 + j]);
         for (let i = 0; i < 3; i++) {
           const a = P[4 + j * 3 + i] * TAU, d = size * 0.55, rr = size * (0.62 + 0.3 * P[(5 + i + j) % 12]);
-          const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.7;
-          ctx.moveTo(x + rr, y);
-          ctx.arc(x, y, rr, 0, TAU);
+          circle(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.7, rr);
         }
       }
       ctx.fillStyle = pal.patch; ctx.fill();
@@ -692,7 +683,10 @@
         ctx.lineWidth = ol * 0.9; ctx.strokeStyle = pal.crestHi; ctx.stroke();
       }
     }
-    if (r.heat > 0.7 && r.lod > 0) sparkle(ctx, cs * 0.95, -cs * 1.35, cs * 0.26 * (r.heat - 0.6) * 2.5, '#ffffff');
+    if (r.heat > 0.7 && r.lod > 0) {
+      sparkle(ctx, cs * 0.95, -cs * 1.35, cs * 0.26 * (r.heat - 0.6) * 2.5);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -710,11 +704,12 @@
     ctx.closePath();
   }
 
-  function sparkle(ctx, x, y, s, color) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - s); ctx.quadraticCurveTo(x, y, x + s, y); ctx.quadraticCurveTo(x, y, x, y + s);
-    ctx.quadraticCurveTo(x, y, x - s, y); ctx.quadraticCurveTo(x, y, x, y - s);
-    ctx.fillStyle = color; ctx.fill();
+  // A shading gradient cached on the creature's entry in e[slot], rebuilt by make() when the
+  // colours (palVer) or the proportions (key) change
+  function cachedGradient(e, slot, key, make) {
+    let c = e[slot];
+    if (!c || c.ver !== e.palVer || c.key !== key) c = e[slot] = { grad: make(), ver: e.palVer, key };
+    return c.grad;
   }
 
   function drawHead(ctx, r, e, pal) {
@@ -726,12 +721,12 @@
 
     headPath(ctx, r);
     ctx.lineWidth = ol * 2; ctx.strokeStyle = pal.line; ctx.stroke();
-    if (e.headV !== e.palVer || e.headK !== R) {
-      const g = e.headG = ctx.createRadialGradient(R * 0.25, -R * 0.45, 0, R * 0.1, -R * 0.1, R * 1.25);
+    ctx.fillStyle = cachedGradient(e, 'head', R, () => {
+      const g = ctx.createRadialGradient(R * 0.25, -R * 0.45, 0, R * 0.1, -R * 0.1, R * 1.25);
       g.addColorStop(0, pal.hi); g.addColorStop(0.55, pal.fur); g.addColorStop(1, pal.lo);
-      e.headV = e.palVer; e.headK = R;
-    }
-    ctx.fillStyle = e.headG; ctx.fill();
+      return g;
+    });
+    ctx.fill();
     ctx.save();
     ctx.clip();
     // Pale muzzle and chin
@@ -770,7 +765,7 @@
     } else if (r.pattern === 2) {
       // A few spots on the brow and cheek
       const rr = R * lerp(0.07, 0.11, sc);
-      ctx.beginPath();
+      ctx.beginPath(); // each subpath starts rr right of its centre, whatever its radius
       ctx.moveTo(-R * 0.08 + rr, -R * 0.62); ctx.arc(-R * 0.08, -R * 0.62, rr, 0, TAU);
       ctx.moveTo(R * 0.14 + rr, -R * 0.7); ctx.arc(R * 0.14, -R * 0.7, rr * 0.8, 0, TAU);
       ctx.moveTo(-R * 0.5 + rr, R * 0.1); ctx.arc(-R * 0.5, R * 0.1, rr * 0.9, 0, TAU);
@@ -1147,10 +1142,10 @@
     return g;
   }
 
-  // world: drawn in the world (ground ring, advancing gait) rather than on a card
-  function render(ctx, pose, t, world) {
+  // inWorld: drawn in the world (ground ring, advancing gait) rather than on a card
+  function render(ctx, pose, t, inWorld) {
     const e = entryFor(pose), r = rig;
-    computeRig(pose, t, e, r, world);
+    computeRig(pose, t, e, r, inWorld);
     const pal = paletteFor(e, pose, r);
     const m = ctx.getTransform();
     r.pxScale = Math.sqrt(m.a * m.a + m.b * m.b) || 1;
@@ -1161,8 +1156,7 @@
     ctx.save();
     ctx.translate(pose.x, pose.y);
     ctx.scale(r.k, r.k);
-    if (world) drawGround(ctx, r, pose, gradients(ctx).shadow);
-    else if (r.shadow > 0) drawGround(ctx, r, EMPTY, gradients(ctx).shadow);
+    drawGround(ctx, r, inWorld ? pose : EMPTY, gradients(ctx).shadow);
     ctx.scale(r.facing, 1);
     if (r.swing) { ctx.translate(0, GRIP_Y); ctx.rotate(r.swing); ctx.translate(0, -GRIP_Y); }
     ctx.translate(r.offX, 0);
@@ -1221,40 +1215,34 @@
     return { x0: a, y0: pose.y + x[1] * k, x1: b, y1: pose.y + x[3] * k };
   }
 
-  // A calm copy of a pose for UI cards, standing (or resting) and facing right, looking out at
-  // the viewer. It keeps the face and the states (sick, wet, asleep…) but not walking, being
-  // held or the head-down eating pose.
-  const still = { looks: null, motion: { vx: 0, airborne: false, walkPhase: 0, lying: 0 }, face: {}, state: {} };
-  const calm = { looks: null, motion: still.motion, face: EMPTY, state: { dead: false, asleep: false, pregnant: 0 } };
+  // A calm copy of a pose for UI cards (still), standing (or resting) and facing right, looking
+  // out at the viewer. It keeps the face and the states (sick, wet, asleep…) but not walking,
+  // being held or the head-down eating pose. Also the pose the card is framed from (calm).
   function portraitPose(pose, t, phase) {
     const F = pose.face || EMPTY, S = pose.state || EMPTY, M = pose.motion || EMPTY;
-    still.id = pose.id; still.stage = pose.stage; still.sex = pose.sex; still.looks = pose.looks;
-    still.x = 0; still.y = 0; still.facing = 1; still.size = UNITS; still.focused = false; still.hovered = false;
-    still.motion.lying = S.dead ? 1 : num(M.lying, S.asleep ? 1 : 0);
-    const f = still.face;
-    f.eyesClosed = F.eyesClosed; f.mouthOpen = F.mouthOpen; f.smile = F.smile; f.earDroop = F.earDroop; f.blush = F.blush;
-    f.happy = F.happy; f.worry = F.worry; f.yawn = F.yawn; f.lick = F.lick;
+    const base = { id: pose.id, stage: pose.stage, sex: pose.sex, looks: pose.looks, x: 0, y: 0, facing: 1, size: UNITS };
+    const motion = { vx: 0, airborne: false, walkPhase: 0, lying: S.dead ? 1 : num(M.lying, S.asleep ? 1 : 0) };
     // Mostly look at the viewer, with the occasional glance at what it was watching (pupilX is in
     // world terms, and the card always faces right)
     const glance = Math.sin(t * 0.37 + phase) > 0.55 ? 0.6 : 0;
     const lookX = num(F.pupilX, 0) * (pose.facing < 0 ? -1 : 1);
-    f.pupilX = lerp(-0.45, lookX, glance); f.pupilY = lerp(0.05, num(F.pupilY, 0), glance);
-    const s = still.state;
-    for (const key in s) s[key] = undefined;
-    for (const key in S) s[key] = S[key];
-    s.held = false; s.eating = false;
-    // The framing comes from the calm pose alone, so a call or a flinch doesn't zoom the card
-    calm.id = pose.id; calm.stage = pose.stage; calm.sex = pose.sex; calm.looks = pose.looks;
-    calm.size = UNITS; calm.facing = 1; calm.x = 0; calm.y = 0;
-    calm.state.dead = !!S.dead; calm.state.asleep = !!S.asleep; calm.state.pregnant = S.pregnant;
-    return still;
+    const face = {
+      eyesClosed: F.eyesClosed, mouthOpen: F.mouthOpen, smile: F.smile, earDroop: F.earDroop, blush: F.blush,
+      happy: F.happy, worry: F.worry, yawn: F.yawn, lick: F.lick,
+      pupilX: lerp(-0.45, lookX, glance), pupilY: lerp(0.05, num(F.pupilY, 0), glance),
+    };
+    return {
+      still: { ...base, motion, face, state: { ...S, held: false, eating: false }, focused: false, hovered: false },
+      // The framing comes from the calm pose alone, so a call or a flinch doesn't zoom the card
+      calm: { ...base, motion, face: EMPTY, state: { dead: !!S.dead, asleep: !!S.asleep, pregnant: S.pregnant } },
+    };
   }
 
   // framing: 'body' (the whole creature), 'face' (head and shoulders, cropped at the box edge) or
   // 'auto' (the default: the face in boxes under 100 px, where a whole body would be too small)
   function drawPortrait(ctx, pose, w, h, t, framing) {
     t = t || 0;
-    const e = entryFor(pose), p = portraitPose(pose, t, e.phase), r = rig;
+    const e = entryFor(pose), { still: p, calm } = portraitPose(pose, t, e.phase), r = rig;
     computeRig(calm, 0, e, r);
     const face = framing === 'face' || (framing !== 'body' && Math.min(w, h) < 100);
     let scale;

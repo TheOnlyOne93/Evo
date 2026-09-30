@@ -20,8 +20,13 @@
   const ROWS = { sight: 2, smell: 2, hearing: 2, touch: 1, taste: 1, near: 1, needs: 3, feelings: 2, cortex: 3, side: 2, central: 4, motor: 1, stem: 2 };
   const IN_ORDER = new Set(['needs', 'feelings', 'taste', 'near']);
   const RECENT = 20; // Ticks a used connection stays drawn
+  const SCOPE_V_MIN = -80, SCOPE_V_MAX = 30; // the scope's range (mV): below rest up to a spike's peak
 
   const parentOf = lobe => lobe.replace(/^dup\d+_/, '');
+  // A region's colour; a duplicated region (no entry of its own) takes the copy colour
+  const lobeColor = lobe => (LOBE_INFO[lobe] ? LOBE_INFO[lobe].color : Evo.theme.color('--copy'));
+  // A canvas font in the UI's typeface
+  const font = (size, weight = '') => `${weight ? weight + ' ' : ''}${size}px ${Evo.theme.color('--ui')}`;
   const bandOf = lobe => {
     if (LOBE_INFO[lobe]) return BAND[lobe];
     const p = parentOf(lobe);
@@ -75,12 +80,17 @@
       if (this.mode === 'anatomy') this.layoutAnatomy(); else this.layoutRegions();
     }
 
+    // Where the anatomy map sits on the canvas
+    mapRect() {
+      return { x: GUTTER + PAD, y: PAD + 8, w: this.width - PAD * 2 - GUTTER, h: this.height - PAD * 2 - 10 };
+    }
+
     // Brain coordinates to the canvas: x across, y (front to back) downward
     layoutAnatomy() {
-      const b = this.brain, w = this.width - PAD * 2 - GUTTER, h = this.height - PAD * 2 - 10;
+      const b = this.brain, m = this.map = this.mapRect();
       for (const n of b.neurons) {
-        this.screen[n.index * 2] = GUTTER + PAD + n.pos[0] * w;
-        this.screen[n.index * 2 + 1] = PAD + 8 + n.pos[1] * h;
+        this.screen[n.index * 2] = m.x + n.pos[0] * m.w;
+        this.screen[n.index * 2 + 1] = m.y + n.pos[1] * m.h;
       }
       this.cellR = 1.8;
       // Region names in the left margin, level with each region's middle, nudged apart so they never overlap
@@ -89,7 +99,7 @@
         const idx = b.lobes[l];
         let y = 0;
         for (const i of idx) y += this.screen[i * 2 + 1];
-        return { lobe: l, text: Evo.text.regionName(b, l), y: y / idx.length, color: LOBE_INFO[l] ? LOBE_INFO[l].color : Evo.theme.color('--copy') };
+        return { lobe: l, text: Evo.text.regionName(b, l), y: y / idx.length, color: lobeColor(l) };
       }).sort((a, z) => a.y - z.y);
       for (let k = 1; k < this.labels.length; k++) this.labels[k].y = Math.max(this.labels[k].y, this.labels[k - 1].y + 13);
       this.boxes = null;
@@ -99,7 +109,7 @@
     // and attention; thinking; movement), with the cell spacing chosen so everything fits
     layoutRegions() {
       const b = this.brain, ctx = this.ctx;
-      ctx.font = "10.5px 'Atkinson Hyperlegible', system-ui, sans-serif";
+      ctx.font = font(10.5);
       const regions = Object.keys(b.lobes).map(lobe => {
         const cells = b.lobes[lobe].slice(), parent = parentOf(lobe);
         const rows = Math.max(1, Math.min(ROWS[parent] || 2, cells.length)), cols = Math.ceil(cells.length / rows);
@@ -111,8 +121,7 @@
           for (let r = 0; r < rows; r++) order.push(...byY.slice(r * cols, (r + 1) * cols).sort((i, j) => P(i)[0] - P(j)[0]));
         }
         const name = Evo.text.regionName(b, lobe);
-        return { lobe, name, order, rows, cols, band: bandOf(lobe), textW: ctx.measureText(name).width + 18,
-          color: LOBE_INFO[lobe] ? LOBE_INFO[lobe].color : Evo.theme.color('--copy') };
+        return { lobe, name, order, rows, cols, band: bandOf(lobe), textW: ctx.measureText(name).width + 18, color: lobeColor(lobe) };
       }).sort((a, z) => a.band - z.band);
       const W = this.width - 8, H = this.height - 6, GAP = 6, TITLE = 15;
       const pack = p => {
@@ -187,7 +196,7 @@
         this.chemCanvas.width = n; this.chemCanvas.height = n;
         this.chemCtx = this.chemCanvas.getContext('2d');
         this.chemImage = this.chemCtx.createImageData(n, n);
-        this.chemColors = ['--joy', '--stress'].map(t => Evo.theme.rgb(t));
+        this.chemColors = ['--joy', '--stress'].map(t => Evo.theme.rgbOf(t));
       }
       const px = this.chemImage.data, [cDA, cST] = this.chemColors;
       const [DA, ST] = b.chemImages;
@@ -200,7 +209,8 @@
       }
       this.chemCtx.putImageData(this.chemImage, 0, 0);
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.chemCanvas, GUTTER + PAD, PAD + 8, this.width - PAD * 2 - GUTTER, this.height - PAD * 2 - 10);
+      const m = this.map;
+      ctx.drawImage(this.chemCanvas, m.x, m.y, m.w, m.h);
     }
 
     drawTissue(ctx) {
@@ -209,7 +219,7 @@
       ctx.strokeStyle = 'rgba(64, 96, 104, 0.6)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x0, pad, this.width - pad - x0, this.height - pad * 2, 26) : ctx.rect(x0, pad, this.width - pad - x0, this.height - pad * 2);
+      ctx.roundRect(x0, pad, this.width - pad - x0, this.height - pad * 2, 26);
       ctx.fill(); ctx.stroke();
       ctx.setLineDash([3, 5]);
       ctx.beginPath(); ctx.moveTo(mid, pad + 4); ctx.lineTo(mid, this.height - pad - 4); ctx.stroke();
@@ -224,13 +234,13 @@
         ctx.strokeStyle = on ? bx.color : T.rgba('--line', 1);
         ctx.lineWidth = on ? 1.5 : 1;
         ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(bx.x, bx.y, bx.w, bx.h, 7) : ctx.rect(bx.x, bx.y, bx.w, bx.h);
+        ctx.roundRect(bx.x, bx.y, bx.w, bx.h, 7);
         ctx.fill(); ctx.stroke();
       }
     }
 
     drawTitles(ctx, T) {
-      ctx.font = "10.5px 'Atkinson Hyperlegible', system-ui, sans-serif";
+      ctx.font = font(10.5);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       if (this.boxes) {
@@ -241,7 +251,7 @@
           ctx.fillText(bx.name, bx.x + 13, bx.y + 8.5);
         }
       } else {
-        ctx.font = "11px 'Atkinson Hyperlegible', system-ui, sans-serif";
+        ctx.font = font(11);
         for (const l of this.labels) {
           ctx.fillStyle = l.color;
           ctx.beginPath(); ctx.arc(8, l.y, 3, 0, TAU); ctx.fill();
@@ -318,12 +328,12 @@
       ctx.strokeStyle = T.color(token); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
       if (!word) return;
-      ctx.font = "700 10.5px 'Atkinson Hyperlegible', system-ui, sans-serif";
+      ctx.font = font(10.5, 700);
       const w = ctx.measureText(word).width + 8, right = x + r + 3 + w < this.width;
       const lx = right ? x + r + 3 : x - r - 3 - w;
       ctx.fillStyle = 'rgba(10, 22, 25, 0.88)';
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(lx, y - 7, w, 14, 7) : ctx.rect(lx, y - 7, w, 14);
+      ctx.roundRect(lx, y - 7, w, 14, 7);
       ctx.fill();
       ctx.fillStyle = T.color(token);
       ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -382,7 +392,7 @@
     constructor(canvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
-      this.history = new Float32Array(120).fill(-70);
+      this.history = new Float32Array(120).fill(Evo.BRAIN.V_REST);
       this.head = 0;
       this.resize();
     }
@@ -394,7 +404,7 @@
     }
 
     clear() {
-      this.history.fill(-70);
+      this.history.fill(Evo.BRAIN.V_REST);
     }
 
     push(v) {
@@ -402,10 +412,10 @@
       this.head = (this.head + 1) % this.history.length;
     }
 
-    // -80 mV at the bottom, +30 mV (a spike) at the top; the dashed line is the firing threshold
+    // SCOPE_V_MIN at the bottom, SCOPE_V_MAX (a spike) at the top; the dashed line is the firing threshold
     render(threshold) {
       const ctx = this.ctx, pad = 3, h = this.height - pad * 2, n = this.history.length;
-      const y = v => pad + h - Math.max(0, Math.min(h, ((v + 80) / 110) * h));
+      const y = v => pad + h - Math.max(0, Math.min(h, ((v - SCOPE_V_MIN) / (SCOPE_V_MAX - SCOPE_V_MIN)) * h));
       ctx.clearRect(0, 0, this.width, this.height);
       if (threshold !== undefined) {
         ctx.strokeStyle = Evo.theme.rgba('--muted', 0.5); ctx.setLineDash([3, 4]); ctx.lineWidth = 1;

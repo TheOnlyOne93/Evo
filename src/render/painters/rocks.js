@@ -3,10 +3,10 @@
 // (f.x, f.y); platforms at (p.x0, p.y), their walking surface. y up is negative.
 (function (Evo) {
   'use strict';
-  const { TAU } = Evo.util;
-  const { rng, rgb, rgba, mix, scale } = Evo.Sky.util;
-  const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
-  const { SUMMER, AUTUMN, WINTER } = Evo.SEASON;
+  const { TAU, mulberry32: rng } = Evo.util;
+  const { rgb, rgba, mix, scale } = Evo.color;
+  const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone, isWarm } = Evo.Paint;
+  const { AUTUMN, WINTER } = Evo.SEASON;
 
   // ---- Pieces shared by the grub log and the log platform
 
@@ -245,7 +245,7 @@
     } else {
       g.fillStyle = MOSS.ledge[si];
       mossDots(g, R, 6, L - 4, -0.5, 7, 9, 1.5, 2);
-      if (si <= SUMMER) { // A sprout
+      if (isWarm(si)) { // A sprout
         const sx = L * 0.62;
         g.strokeStyle = '#5a9a40';
         g.lineWidth = 1.2;

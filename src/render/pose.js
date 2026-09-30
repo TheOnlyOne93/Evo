@@ -129,7 +129,7 @@
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
         mouthOpen: c.callTimer > 20 ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : yawn,
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
-        earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6, c.stage >= Evo.STAGE.SENILE ? 0.6 : 0)), 0.05),
+        earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6)), 0.05), // the art droops old ears itself
         blush: ease(s, 'blush', clamp01(c.stim.gentle + get('endorphin')), 0.1),
         happy: ease(s, 'happy', awake ? clamp01(c.stim.gentle * 1.5 - c.stim.flinch * 2) : 0, 0.2),
         worry: ease(s, 'worry', awake ? clamp01(Math.max(get('pain'), get('loneliness') * 0.8, get('boredom') * 0.4)) : 0, 0.08),
