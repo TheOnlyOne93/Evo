@@ -33,11 +33,6 @@
       canvas.addEventListener('contextmenu', e => e.preventDefault());
     }
 
-    setWorld(world) {
-      this.world = world;
-      this.press = null;
-    }
-
     local(e) {
       const r = this.canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };

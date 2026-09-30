@@ -17,7 +17,7 @@
     const view = new Evo.WorldView(world, canvas);
     const synth = new Evo.BioSynthesizer();
     const app = { world, view, synth, focus: null, following: true, tool: 'grab', speed: 1, paused: false };
-    Evo.app = app;
+    Evo.app = app;   // console and debugging handle
     Evo.connectAudio(synth, world, c => c === app.focus);
     app.inspector = new Evo.Inspector(app);
     const { inspector } = app;
@@ -39,8 +39,8 @@
       const old = app.focus;
       if (old && world.creatures.includes(old)) return;
       const next = old ? minBy(world.creatures, c => Math.abs(c.x - old.x)) : world.creatures[0];
+      if (!next && !old) return;   // an empty world with nothing focused: already at "nothing selected"
       app.select(next || null, true);
-      if (!next) view.follow(null);
     };
 
     // Each setup registers its functions on the app (toast, refreshStatus, refreshCard, setTool, ...)

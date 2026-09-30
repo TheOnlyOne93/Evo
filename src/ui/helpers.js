@@ -15,8 +15,8 @@
   const sexColor = sex => (sex === 'FEMALE' ? 'var(--female)' : 'var(--male)');
   const sexGlyph = sex => (sex === 'FEMALE' ? '♀' : '♂');
   const sexWord = sex => (sex === 'FEMALE' ? 'Female' : 'Male');
-  const bar = (label, value, color, num = percentOf(value), title = '') =>
-    `<div class="bar"${title ? ` title="${esc(title)}"` : ''}><span>${esc(label)}</span><div class="track"><div class="fill" style="width:${percentOf(value)}%;background:${color}"></div></div><span class="num">${num}</span></div>`;
+  const bar = (label, value, color, num = percentOf(value)) =>
+    `<div class="bar"><span>${esc(label)}</span><div class="track"><div class="fill" style="width:${percentOf(value)}%;background:${color}"></div></div><span class="num">${num}</span></div>`;
 
   // A creature's face or portrait on a canvas the caller sized. Art is decoration: a failure is logged once.
   let faceFailed = false;

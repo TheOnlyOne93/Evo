@@ -247,10 +247,6 @@ i.grown { display: inline-block; width: 7px; height: 7px; border-radius: 50%; ba
 .bar { display: grid; grid-template-columns: 112px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
 .bar .num { text-align: right; font-variant-numeric: tabular-nums; }
 .bar .track { height: 8px; border-radius: 4px; }
-.bar .hint { grid-column: 1 / -1; font-size: 12px; color: var(--faint); margin-top: -4px; }
-.urges { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
-.urges .bar { grid-template-columns: 1fr 44px; }
-.urges .bar .track { grid-column: 1 / -1; order: 3; }
 
 /* Genes */
 details.gene-group { background: var(--panel-raised); border-radius: var(--r-md); padding: 10px 12px; }
@@ -292,15 +288,12 @@ details.gene-kind > .note { margin: 0 0 4px; }
 .mut-tag.lost { background: color-mix(in srgb, var(--stress) 14%, transparent); color: var(--stress); }
 .gene-tags { display: flex; gap: 4px; justify-content: flex-end; }
 .gene-tags:empty { display: none; }
-.gene-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.gene-tag { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--panel-raised); }
 details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .dna-grid { font: 12px/1.7 var(--mono); margin-top: 8px; display: grid; gap: 1px; overflow-x: auto; }
 .dna-row { display: flex; gap: 10px; white-space: nowrap; }
 .dna-row .addr { color: var(--faint); }
 .dna-row .junk { color: #3d5a58; }
 .dna-row .prom { color: var(--text); text-decoration: underline; }
-.dna-row .names { color: var(--muted); font-family: var(--ui); }
 
 /* Population */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -314,7 +307,6 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .member[disabled] { cursor: default; opacity: 0.75; }
 .member[aria-current="true"] { background: var(--panel-raised); outline: 1px solid var(--line); }
 .member .meta { font-size: 12px; color: var(--muted); }
-.member .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Narrow screens */
 .compact .wordmark { font-size: 18px; }
