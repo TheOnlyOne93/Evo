@@ -7,7 +7,7 @@
   const { clamp } = Evo.util;
   const T = Evo.text;
   const $ = id => document.getElementById(id);
-  const { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor, VISION_BY_KEY, SCENT_BY_KEY } = Evo.uiHelpers;
+  const { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor } = Evo.uiHelpers;
   const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
@@ -24,20 +24,6 @@
   const RECENT = 30;         // Ticks within which a connection counts as just used
   const COLD = 0.3, HOT = 0.7; // Body heat below or above these is cold or hot (the bar's colour and word)
   const tempWord = t => t < COLD ? 'cold' : t > HOT ? 'hot' : 'fine';
-
-  const FEATURE_WORD = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, f.word]));
-  const SIDE_WORD = { L: 'left', R: 'right' };
-  const GROUP_KINDS = {
-    brain: ['How neurons work', 'Regions', 'Wiring'],
-    chemistry: ['What events do', 'What the body makes', 'What chemicals act on', 'Reactions', 'How fast chemicals fade', 'Born with']
-  };
-  const KIND_NOTES = {
-    'What events do': 'Stimulus genes: what each thing that happens to it releases.',
-    'What the body makes': 'Emitter genes: a body reading (or a chemical) above or below a level makes a chemical.',
-    'What chemicals act on': 'Receptor genes: a chemical pushes on the body or on one brain cell.',
-    Reactions: 'Reaction genes: one chemical turns into another.',
-    Wiring: 'Axon guidance genes: which cells grow connections to which.'
-  };
 
   class Inspector {
     constructor(app) {
@@ -269,7 +255,7 @@
       const att = b.attended(), hasAttention = (b.duplicatesOf.sight || []).some(l => T.isAttention(b, l));
       row('Looking at', !hasAttention ? '<span class="muted">nothing: it has no attention region (a gene is missing)</span>'
         : c.asleep ? '<span class="muted">nothing (asleep)</span>'
-          : att ? `<b>${esc(FEATURE_WORD[att.feature])}</b> on the ${SIDE_WORD[att.side]}${att.band === 'high' ? ', up high' : ''}`
+          : att ? `<b>${esc(T.FEATURE_WORDS[att.feature])}</b> ${T.whereSeen(att)}`
             : '<span class="muted">nothing in particular</span>');
 
       // Decision
@@ -302,8 +288,7 @@
       if (!c.asleep) sleep = `awake <span class="muted">· ${b.episodes.length} surprising ${b.episodes.length === 1 ? 'moment' : 'moments'} saved to dream about</span>`;
       else if (!b.dream) sleep = 'asleep, not dreaming';
       else if (b.dream.instinct) {
-        const inst = b.dream.instinct, text = Evo.GENES[Evo.GENE_INDEX.Instinct].describe(inst, inst, T.geneWords(b)).text.replace(/^Dreams: /, '');
-        sleep = `<b>dreaming</b> an instinct: ${esc(text)}`;
+        sleep = `<b>dreaming</b> an instinct: ${esc(T.describeInstinct(b.dream.instinct, b))}`;
       } else {
         const ep = b.dream.episode, cue = ep.inputs.length ? T.neuronName(b, b.neurons[ep.inputs[0]]).toLowerCase() : 'nothing much';
         const act = ep.motor >= 0 ? `, ${T.MOTOR_WORDS[b.neurons[ep.motor].meta.key].toLowerCase()}` : '';
@@ -343,8 +328,8 @@
       const dyn = b.dynamics.find(d => d.lobe === lobe);
       const facts = [`<span><b>${busy}</b> busy</span>`, `<span><b>${firing}</b> firing now</span>`];
       if (dyn) {
-        facts.push(`<span>Cells compete <b>${T.level(dyn.competition, 0, 8, ['weakly', 'moderately', 'strongly'])}</b></span>`,
-          `<span>and keep firing <b>${T.level(dyn.persistence, 0, 4, ['briefly', 'for a while', 'for long'])}</b></span>`);
+        const { compete, persist } = T.dynamicsWords(dyn);
+        facts.push(`<span>Cells compete <b>${compete}</b></span>`, `<span>and keep firing <b>${persist}</b></span>`);
       }
       $('regionFacts').innerHTML = facts.join('');
     }
@@ -402,7 +387,7 @@
       for (let s = 0; s < b.S; s++) {
         if (!(b.sFlags[s] & Evo.BRAIN.CUE)) continue;
         const src = b.neurons[b.sSrc[s]], m = src.meta;
-        const key = m.kind === 'sight' ? `Seeing ${VISION_BY_KEY[m.feature].word}` : `Smelling ${SCENT_BY_KEY[m.odour].word}`;
+        const key = m.kind === 'sight' ? `Seeing ${T.FEATURE_WORDS[m.feature]}` : `Smelling ${T.ODOUR_WORDS[m.odour]}`;
         const row = rows.get(key) || { good: 0, bad: 0, n: 0 };
         if (b.modulator[b.sDst[s]] === 0) row.good += b.sW[s]; else row.bad += b.sW[s];
         row.n++;
@@ -445,22 +430,24 @@
         const tag = mut ? `<span class="mut-tag ${mut}">${mut === 'copy' ? 'extra copy' : mut}</span>` : '';
         // Chemistry and instinct genes go under headings that already name them, so they drop the name
         const bare = d.group === 'chemistry' || d.group === 'instinct';
-        const text = d.group === 'instinct' ? d.text.replace(/^Dreams: /, '') : d.text;
+        const text = d.group === 'instinct' ? T.describeInstinct(g.decode(gene), c.brain) : d.text;
         groups[d.group].push({ kind: d.kind, sortBy: text, html: `<div class="gene${later ? ' dormant' : ''}${bare ? ' bare' : ''}" data-find="${esc(`${d.name} ${d.text}`.toLowerCase())}">` +
           `${bare ? '' : `<span class="gene-name">${esc(d.name)}</span>`}<span class="gene-text">${esc(text)}</span><span class="gene-tags">${tag}${when}</span></div>` });
       }
       for (const k in groups) {
-        const list = groups[k], kinds = GROUP_KINDS[k];
+        const kinds = T.GENE_KINDS[k];
+        // Grouped by kind where the group has kinds (then only genes of a listed kind show, and count)
+        const list = kinds ? groups[k].filter(x => kinds.some(({ kind }) => kind === x.kind)) : groups[k];
         let html;
         if (!kinds) html = list.map(x => x.html).join('');
         else {
           // Chemistry genes sorted by what they say, so genes about one chemical sit together
-          html = kinds.map(kind => {
+          html = kinds.map(({ kind, note }) => {
             const own = list.filter(x => x.kind === kind);
             if (k === 'chemistry') own.sort((a, z) => a.sortBy.localeCompare(z.sortBy));
             if (!own.length) return '';
             return `<details class="gene-kind"${k === 'brain' && kind !== 'Wiring' ? ' open' : ''}><summary>${kind} <span class="count">${own.length}</span></summary>` +
-              `${KIND_NOTES[kind] ? `<p class="note">${KIND_NOTES[kind]}</p>` : ''}${own.map(x => x.html).join('')}</details>`;
+              `${note ? `<p class="note">${note}</p>` : ''}${own.map(x => x.html).join('')}</details>`;
           }).join('');
         }
         $(`genes-${k}`).innerHTML = html || '<p class="empty">None.</p>';

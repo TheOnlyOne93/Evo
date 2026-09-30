@@ -54,8 +54,7 @@
 
     app.skipSeason = () => {
       const days = Evo.SEASON_DAYS, next = (Math.floor(world.clock.day / days) + 1) * days;
-      world.clock.tick = Math.round((next + 0.3 - world.startPhase) * Evo.DAY_TICKS); // Morning of its first day
-      world.updateClock();
+      world.setTime(next, world.startPhase); // Its first day, at the hour a world begins (a morning)
       app.refreshStatus();
     };
 

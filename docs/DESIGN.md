@@ -106,7 +106,8 @@ Gene kinds: appearance, morphology, eyes, nose, membrane, plasticity, reinforcem
 muscle, life history, voice, curiosity, anatomy, region duplication, axon guidance, pacemaker,
 neurochemistry, **reaction, emitter, receptor, half-life, initial concentration, instinct**,
 insulation, reproduction, **stimulus**, lobe dynamics. Each row of `Evo.GENES` (`src/sim/genome.js`) decodes its bytes,
-expresses traits, and describes itself in plain words for the UI.
+expresses traits, and names the group the genome view lists it under; `src/ui/text.js` puts each
+gene in plain words.
 
 Genes that switch on at a later stage join the traits then: the biochemistry is reconfigured, new
 axon guidance tracts and pacemakers grow, and a later life-history gene changes the lifespan (life

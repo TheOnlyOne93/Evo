@@ -548,27 +548,13 @@
 
       for (const rule of fresh) {
         this.grownGenes.add(rule.gene);
-        const src = rule.source;
-        const parentId = LOBE_ORDER[src.lobe];
-        // Duplicated regions inherit their parent's developmental program
-        const lobes = [parentId, ...(this.duplicatesOf[parentId] || [])];
-        const r = rule.affinityRadius, win = rule.srcWindow;
-        for (const lobe of lobes) {
-          for (const si of this.lobes[lobe]) {
-            const s = neurons[si];
-            if (win && Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) > win.r) continue;
-            const tx = src.relX ? (src.mirrorX ? 1 - s.tag[0] : s.tag[0]) + rule.target[0] - 0.5 : rule.target[0];
-            const ty = src.relY ? s.tag[1] + rule.target[1] - 0.5 : rule.target[1];
-            const tz = rule.target[2];
-            for (const d of central) {
-              if (d === s) continue;
-              const chemDist = Math.hypot(d.tag[0] - tx, d.tag[1] - ty, d.tag[2] - tz);
-              if (chemDist >= r) continue;
-              const chemMatch = (1.0 - chemDist / r) ** 2;
-              const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
-              if (Evo.chance(chemMatch * Math.exp(-((dist / rule.reach) ** 4)))) {
-                candidates.push([si, d.index, (0.3 + Evo.random() * 0.2) * rule.weightSign, rule.conduction]);
-              }
+        const r = rule.affinityRadius;
+        for (const s of this.tractSources(rule)) {
+          for (const [d, chemDist] of this.tractTargets(rule, s)) {
+            const chemMatch = (1.0 - chemDist / r) ** 2;
+            const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
+            if (Evo.chance(chemMatch * Math.exp(-((dist / rule.reach) ** 4)))) {
+              candidates.push([s.index, d.index, (0.3 + Evo.random() * 0.2) * rule.weightSign, rule.conduction]);
             }
           }
         }
@@ -588,6 +574,34 @@
         }
       }
       this.rebuildAdjacency();
+    }
+
+    // The cells a guidance rule sends axons from: its lobe and the lobe's duplicates (they inherit
+    // their parent's developmental program), within the rule's source window. Pure.
+    tractSources(rule) {
+      const parentId = LOBE_ORDER[rule.source.lobe], win = rule.srcWindow, out = [];
+      for (const lobe of [parentId, ...(this.duplicatesOf[parentId] || [])]) {
+        for (const si of this.lobes[lobe]) {
+          const s = this.neurons[si];
+          if (!win || Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) <= win.r) out.push(s);
+        }
+      }
+      return out;
+    }
+
+    // The central cells whose receptor chemistry lies within a rule's affinity radius of what source
+    // cell s's axon seeks, in neuron order: [[d, chemDist]]. Pure (growTracts adds the chance).
+    tractTargets(rule, s) {
+      const src = rule.source, r = rule.affinityRadius, out = [];
+      const tx = src.relX ? (src.mirrorX ? 1 - s.tag[0] : s.tag[0]) + rule.target[0] - 0.5 : rule.target[0];
+      const ty = src.relY ? s.tag[1] + rule.target[1] - 0.5 : rule.target[1];
+      const tz = rule.target[2];
+      for (const d of this.neurons) {
+        if (d === s || this.isSensory[d.index]) continue;
+        const chemDist = Math.hypot(d.tag[0] - tx, d.tag[1] - ty, d.tag[2] - tz);
+        if (chemDist < r) out.push([d, chemDist]);
+      }
+      return out;
     }
 
     // Use it or lose it, and grow where activity is

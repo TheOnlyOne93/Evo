@@ -2,10 +2,7 @@
 (function (Evo) {
   'use strict';
   const { clamp } = Evo.util;
-  const byKey = list => Object.fromEntries(list.map(x => [x.key, x]));
-  const CHEM_BY_KEY = byKey(Evo.CHEMICALS);
-  const VISION_BY_KEY = byKey(Evo.VISION_FEATURES);
-  const SCENT_BY_KEY = byKey(Evo.SCENTS);
+  const CHEM_BY_KEY = Object.fromEntries(Evo.CHEMICALS.map(c => [c.key, c]));
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // 0..1 -> whole number 0..100
@@ -22,5 +19,5 @@
   const shown = new WeakMap();
   const setHtml = (el, html) => { if (shown.get(el) !== html) { shown.set(el, html); el.innerHTML = html; } };
 
-  Evo.uiHelpers = { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor, VISION_BY_KEY, SCENT_BY_KEY };
+  Evo.uiHelpers = { esc, bar, setHtml, percentOf, sexColor, sexGlyph, chemToken, chemColor };
 })(globalThis.Evo);
