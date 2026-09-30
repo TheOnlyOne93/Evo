@@ -1,7 +1,7 @@
 // The founder genome: brain wiring genes (see founder.js).
 (function (Evo) {
   'use strict';
-  const { FEELING_TAGS, SIDES, sideX } = Evo.BRAIN_BODY_PLAN;
+  const { FEELING_TAGS, SIDES, sideX, MUSCLE_Z, FEELING_Z } = Evo.BRAIN_BODY_PLAN;
   const { approach, guide, prior, need, FEATURES, ODOURS } = Evo.founderKit;
   // A drive's own cell in the Drives lobe, as a source window for a guidance gene
   const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[need(key)], 0.05];
@@ -21,10 +21,10 @@
     approach('sight', FEATURES, 'creature', 0.21),                    // Company
     approach('sight', FEATURES, 'violet', 0.5, true),                   // Thorny violet: walk away
     // Every smell draws the creature toward the side it is stronger on; bitter and alarm push away
-    guide('smell', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.3, relX: true }),
+    guide('smell', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.3, relX: true }),
     approach('smell', ODOURS, 'bitter', 0.6, true),
     approach('smell', ODOURS, 'alarm', 0.6, true),
-    guide('hearing', [0.5, 0.5, 0.9], { radius: 0.12, weight: 0.35, relX: true }),
+    guide('hearing', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.35, relX: true }),
     // Innate priors: a few drive cells lean weakly on one muscle each; the rest is learned
     prior('pain', 'run', 1.0), prior('fear', 'run', 1.0),
     prior('sleepiness', 'rest', 1.0), prior('tiredness', 'rest', 0.7), prior('nausea', 'rest', 0.6),
@@ -32,18 +32,18 @@
     prior('thirst', 'drink', 0.5), prior('anger', 'grab', 0.6),
     ...['boredom', 'crowdedness', 'hunger', 'thirst'].flatMap(d => [prior(d, 'walkL', 0.4), prior(d, 'walkR', 0.4)]),
     // Each touch cell excites the muscle that shares its address (something at the mouth -> eat it)
-    guide('touch', [0.5, 0.5, 0.9], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
+    guide('touch', [0.5, 0.5, MUSCLE_Z], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
     // Bumping into something on one side makes the opposite leg push: turn away from walls
-    guide('touch', [0.5, 0.5, 0.9], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
+    guide('touch', [0.5, 0.5, MUSCLE_Z], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
     // What is up close (its look) informs thinking; whether to eat it is learned (instincts)
     guide('near', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     // Tastes inform thinking (what was just eaten), not the jaws directly
     guide('taste', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
     // Sights and smells reach the reward and punishment cells weakly; these cue synapses learn
     // what each sight or smell predicts
-    ...['sight', 'smell'].flatMap(lobe => FEELING_TAGS.slice(0, 2).map(tag => [...tag, 0.1]).map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
+    ...['sight', 'smell'].flatMap(lobe => FEELING_TAGS.slice(0, 2).map(tag => [...tag, FEELING_Z]).map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
     // The alarm odour excites the feelings cell that shares its address (a fear cell)
-    guide('smell', [0.5, 0.5, 0.1], { radius: 0.07, weight: 0.9, relY: true }),
+    guide('smell', [0.5, 0.5, FEELING_Z], { radius: 0.07, weight: 0.9, relY: true }),
     // Feelings project broadly and fast: where the reward cell's axons end is where learning happens
     // (the chemical is released at the terminals; the synapses themselves are weak)
     guide('feelings', [0.5, 0.5, 0.65], { radius: 0.8, weight: 0.2, conduction: 0.5 }),
@@ -54,11 +54,11 @@
     // that side strongly enough to start working memory there
     ...SIDES.map(sideX).map(x => guide('sight', [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] })),
     guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
-    guide('cortex', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     // …and each thinking cell also pulls on the walk muscle on its own side, so what working memory
     // holds (something there, a moment ago) keeps the creature heading toward it once it is out of sight
-    guide('cortex', [0.5, 0.5, 0.9], { radius: 0.2, weight: 0.7, reach: 0.8, relX: true }),
-    guide('central', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.2, weight: 0.7, reach: 0.8, relX: true }),
+    guide('central', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
     { gene: 'Region duplication', source: 'motor', depth: 1.0, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Efference copy
     { gene: 'Region duplication', source: 'sight', depth: 0.69, lateral: 0.5, chemShift: 0.5, input: 0.92 }, // Orienting map

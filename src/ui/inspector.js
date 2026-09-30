@@ -21,7 +21,7 @@
   const FOUNDER_VARIES = ['Appearance', 'Voice'];
   const GENOME_MEMORY = 400; // Genomes remembered by creature id, so a child can be compared with its parents
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
-  const RECENT = 30;         // Ticks within which a connection counts as just used
+  const GLOW_TICKS = 30;     // Ticks within which a connection counts as just used: outlasts two list refreshes (every 15 ticks at 1x)
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
   const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
   const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome
@@ -388,7 +388,7 @@
         ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: travel time in ticks.</p>${html}`
         : '<p class="empty">No connections yet.</p>');
       // The glow changes every refresh: set it in place, so the buttons stay put under a finger
-      for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActive[+el.dataset.syn] < RECENT);
+      for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActive[+el.dataset.syn] < GLOW_TICKS);
     }
 
     stimulate() {

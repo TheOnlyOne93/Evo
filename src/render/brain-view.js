@@ -19,7 +19,7 @@
   const BAND = { sight: 0, smell: 0, hearing: 0, touch: 0, taste: 0, near: 0, needs: 1, feelings: 1, cortex: 2, side: 2, central: 2, motor: 3, stem: 3 };
   const ROWS = { sight: 2, smell: 2, hearing: 2, touch: 1, taste: 1, near: 1, needs: 3, feelings: 2, cortex: 3, side: 2, central: 4, motor: 1, stem: 2 };
   const IN_ORDER = new Set(['needs', 'feelings', 'taste', 'near']);
-  const RECENT = 20; // Ticks a used connection stays drawn
+  const TRAIL_TICKS = 20; // Ticks a used connection stays drawn
   const SCOPE_V_MIN = -80, SCOPE_V_MAX = 30; // the scope's range (mV): below rest up to a spike's peak
 
   const parentOf = lobe => lobe.replace(/^dup\d+_/, '');
@@ -312,7 +312,7 @@
           ctx.beginPath();
           for (let s = 0; s < b.S; s++) {
             const w = sW[s], m = w < 0 ? -w : w;
-            if (now - sActive[s] > RECENT || m < lo || m >= hi || (w >= 0) !== excite) continue;
+            if (now - sActive[s] > TRAIL_TICKS || m < lo || m >= hi || (w >= 0) !== excite) continue;
             if (!this.touchesRegion(s)) continue;
             line(s);
           }

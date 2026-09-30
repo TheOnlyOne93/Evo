@@ -145,6 +145,8 @@
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
   // The x address of a sense's left or right side
   const sideX = s => (s === 'L' ? 0.1 : 0.9);
+  // The depth (tag z) of the muscle, Drives and feelings cells: founder wiring aims at them
+  const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1;
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
   // constructor checks); neuron counts stay far below that.
@@ -242,10 +244,10 @@
       // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
       VISION_FEATURES.forEach((f, fi) => add('near', [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
       for (let k = 0; k < N_NEEDS; k++) {
-        add('needs', [...DRIVE_CELL_TAGS[k], 0.8], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
+        add('needs', [...DRIVE_CELL_TAGS[k], DRIVE_Z], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
       }
       for (let k = 0; k < N_LIMBIC; k++) {
-        add('feelings', [...FEELING_TAGS[k], 0.1], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
+        add('feelings', [...FEELING_TAGS[k], FEELING_Z], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
           k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`);
       }
 
@@ -268,7 +270,7 @@
         return [mirror(0.20 + 0.06 * Math.sin(t * Math.PI), i >= half), 0.50 + t * 0.22];
       });
       general('central', countFor('central', 20, false), 5, 0.6, i => [0.36 + (i % 5) * 0.07, 0.46 + Math.floor(i / 5) * 0.035]);
-      MOTORS.forEach(m => add('motor', [...m.tag, 0.9], m.pos, { kind: 'motor', key: m.key }));
+      MOTORS.forEach(m => add('motor', [...m.tag, MUSCLE_Z], m.pos, { kind: 'motor', key: m.key }));
       general('stem', countFor('stem', 16, false), 4, 0.8, (i, n) => [0.2 + i * (0.6 / Math.max(1, n - 1)), 0.975]);
 
       // Anatomy genes reshape the body plan: each region can shift forward/back, widen or narrow
@@ -924,7 +926,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX,
+      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

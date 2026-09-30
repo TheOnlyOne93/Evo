@@ -34,11 +34,12 @@
       sx: from ? from[0] : 0, sy: from ? from[1] : 0, sr: from ? G.window.encode(from[2]) : 0
     };
   };
+  const { MUSCLE_Z } = Evo.BRAIN_BODY_PLAN;
   // A topographic tract from one sense channel (its cells' tag y) to the walk muscles (tag y 0.5)
   // on the same side, or with crossed = true, the opposite side
   const approach = (lobe, channels, key, weight, crossed = false) => {
     const y = (channels.indexOf(key) + 0.5) / channels.length;
-    return guide(lobe, [0.5, 0.5 + (0.5 - y), 0.9], { radius: 0.06, weight, relX: true, relY: true, mirrorX: crossed });
+    return guide(lobe, [0.5, 0.5 + (0.5 - y), MUSCLE_Z], { radius: 0.06, weight, relX: true, relY: true, mirrorX: crossed });
   };
   const none = Evo.GENE_NONE; // An instinct input index that matches no neuron
   const instinct = (lobeA, indexA, lobeB, indexB, motor, chem, amount) =>
@@ -52,7 +53,7 @@
   const need = key => Evo.driveCell(key);
   const NEED = key => `need:${need(key)}`;
   // An innate prior: axons from one drive's cell only (a source window) to one muscle
-  const prior = (drive, motor, weight) => guide('needs', [...Evo.MOTORS[MOTOR[motor]].tag, 0.9],
+  const prior = (drive, motor, weight) => guide('needs', [...Evo.MOTORS[MOTOR[motor]].tag, MUSCLE_Z],
     { radius: 0.08, weight, conduction: 0.3, from: [...Evo.DRIVE_CELL_TAGS[need(drive)], 0.04] });
   const { sightIndex: sight, smellIndex: smell } = Evo.BRAIN_BODY_PLAN;
   const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));

@@ -42,7 +42,7 @@ test('learning: a cue that comes before reward comes to predict it', (Evo, asser
   const brain = founderBrain(Evo);
   const drive = new Float32Array(brain.N);
   const P = Evo.BRAIN_BODY_PLAN;
-  const cue = ['L', 'R'].flatMap(side => ['low', 'high'].map(band => brain.lobes.sight[P.sightIndex(side, band, 'yellow')]));
+  const cue = P.SIDES.flatMap(side => P.BANDS.map(band => brain.lobes.sight[P.sightIndex(side, band, 'yellow')]));
   const valueOf = () => brain.valueIn[0].reduce((w, s) => w + (cue.includes(brain.sSrc[s]) ? brain.sW[s] : 0), 0);
   // The founder's cue synapses start out predicting a little: the cue alone first teaches it nothing comes
   const trial = reward => {

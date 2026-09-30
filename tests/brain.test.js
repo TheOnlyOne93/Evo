@@ -222,7 +222,7 @@ function cortexAfterSight(Evo, seed, genes) {
   Evo.seed(seed);
   const brain = new Evo.Brain(Evo.Genome.founder('X', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
   const drive = new Float32Array(brain.N), opts = TICK_OPTS;
-  const eyes = ['low', 'high'].map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
+  const eyes = P.BANDS.map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
   const spikes = { before: 0, seeing: 0, gap: 0, after: 0 };
   for (let t = 0; t < 200; t++) {
     const seeing = t >= 50 && t < 110;

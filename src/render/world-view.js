@@ -59,7 +59,7 @@
       this.ctx = canvas.getContext('2d');
       this.options = { showScent: false, showSenses: false, focused: null, hand: null };
       this.cam = { x: 0, y: 0, zoom: 1 };
-      this.fit = { zoom: 1, top: 0, bottom: 900, centerY: 450, horizonY: 650 };
+      this.fit = { zoom: 1 };
       this.w = 1; this.h = 1; this.dpr = 1;
       this.k = 1; this.ox = 0; this.oy = 0;
       this.minZoom = ZOOM_MIN;

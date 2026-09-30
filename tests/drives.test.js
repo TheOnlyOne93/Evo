@@ -24,10 +24,11 @@ test('drives: Drives cells have distinct addresses', (Evo, assert) => {
 
 test('drives: Drives cells and muscle cells differ in the z part of their tags', (Evo, assert) => {
   const brain = new Evo.Brain(founderTraits(Evo));
-  const zs = lobe => brain.lobes[lobe].map(i => brain.neurons[i].tag[2]);
+  const zs = lobe => brain.lobes[lobe].map(i => brain.neurons[i].tag[2]), P = Evo.BRAIN_BODY_PLAN;
+  assert.notStrictEqual(P.DRIVE_Z, P.MUSCLE_Z);
   assert.ok(zs('needs').length > 0 && zs('motor').length > 0);
-  assert.ok(zs('needs').every(z => z === 0.8), 'Drives cells sit at z 0.8');
-  assert.ok(zs('motor').every(z => z === 0.9), 'muscle cells sit at z 0.9');
+  assert.ok(zs('needs').every(z => z === P.DRIVE_Z), `Drives cells sit at z ${P.DRIVE_Z}`);
+  assert.ok(zs('motor').every(z => z === P.MUSCLE_Z), `muscle cells sit at z ${P.MUSCLE_Z}`);
 });
 
 test('drives: a stimulus releases exactly amount x strength of each chemical, clamped to 0..1', (Evo, assert) => {

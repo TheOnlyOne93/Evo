@@ -6,8 +6,9 @@
 (function (Evo) {
   'use strict';
   const Art = Evo.CreatureArt;
-  const TAU = Math.PI * 2;
+  const { TAU } = Evo.util;
   const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;   // as the simulation advances walkPhase
+  const FPS = 60;   // the lab's simulated frame rate
   const { STAGES } = Evo;
 
   // URL options: ?seed=N seeds the genomes (as in index.html; read by src/core/evo.js), ?t=S
@@ -187,7 +188,7 @@
     const { ctx, w, h } = s, cw = w / 4, z = 4.5, gy = h - 30;
     s.subs.forEach((sub, i) => {
       dayBackdrop(ctx, i * cw, 0, cw, h, gy);
-      if (sub.walk) { sub.c.vx = 1.3; sub.c.walkPhase = t * 60 * 1.3 * PHASE_PER_PX; }
+      if (sub.walk) { sub.c.vx = 1.3; sub.c.walkPhase = t * Evo.TICKS_PER_SECOND * 1.3 * PHASE_PER_PX; }
       wander(poseOf(sub, ticks), t);
       put(ctx, sub, t, i * cw + cw / 2, gy, z);
     });
@@ -254,7 +255,7 @@
         if (sub.zi !== zi) continue;
         const c = sub.c;
         if (c.x === 0) c.x = sub.u * worldW;
-        const step = sub.speed * c.facing * dt * 60;
+        const step = sub.speed * c.facing * dt * Evo.TICKS_PER_SECOND;
         c.x += step;
         if (c.x < 30 && c.facing < 0) c.facing = 1;
         if (c.x > worldW - 30 && c.facing > 0) c.facing = -1;
@@ -340,7 +341,7 @@
       const c = sub.c;
       if (!c.x) c.x = sub.u * worldW;
       if (sub.kind === 'walk' || sub.kind === 'baby') {
-        const sp = sub.kind === 'baby' ? 0.8 : 1.3, step = sp * c.facing * dt * 60;
+        const sp = sub.kind === 'baby' ? 0.8 : 1.3, step = sp * c.facing * dt * Evo.TICKS_PER_SECOND;
         c.x += step;
         if (c.x < 30) c.facing = 1;
         if (c.x > worldW - 30) c.facing = -1;
@@ -399,7 +400,7 @@
   if (paused) {
     for (const s of scenes) {
       if (s.id !== 'motion' && s.id !== 'night') continue;
-      for (let i = 0; i < pauseT * 60; i++) s.paint(s, i / 60, 1 / 60, ticksAt(i / 60));
+      for (let i = 0; i < pauseT * FPS; i++) s.paint(s, i / FPS, 1 / FPS, ticksAt(i / FPS));
     }
   }
 
@@ -454,7 +455,7 @@
     const run = flush => {
       const t0 = performance.now();
       for (let f = 0; f < frames; f++) {
-        const t = f / 60;
+        const t = f / FPS;
         ctx.setTransform(1.25, 0, 0, 1.25, 0, 0);
         ctx.clearRect(0, 0, 1280, 720);
         for (const p of poses) { p.motion.walkPhase += p.motion.vx * PHASE_PER_PX; Art.draw(ctx, p, t); }

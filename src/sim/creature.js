@@ -24,7 +24,7 @@
   const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
-  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS } = Evo.BRAIN_BODY_PLAN;
+  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS, SIDES, BANDS } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
@@ -39,9 +39,9 @@
   const TASTE_FROM_FOOD = { sweet: ['gutSugar', 4], starch: ['gutStarch', 4], savory: ['gutProtein', 4], fat: ['gutFat', 4], bitter: ['toxin', 4], water: ['water', 6] };
   // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
   const SIGHT_CELL = {};
-  for (const side of ['L', 'R']) {
+  for (const side of SIDES) {
     SIGHT_CELL[side] = {};
-    for (const band of ['low', 'high']) SIGHT_CELL[side][band] = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, sightIndex(side, band, f.key)]));
+    for (const band of BANDS) SIGHT_CELL[side][band] = Object.fromEntries(Evo.VISION_FEATURES.map(f => [f.key, sightIndex(side, band, f.key)]));
   }
   const LEFT = [SIGHT_CELL.L], RIGHT = [SIGHT_CELL.R], BOTH_SIDES = [SIGHT_CELL.L, SIGHT_CELL.R];
   // Per-tick scales for the physiological receptor targets (chem.effect(target) × scale)
