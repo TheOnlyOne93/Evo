@@ -124,10 +124,10 @@ A call is a sound at the caller's head, with its voice's pitch (higher for a bab
 
 ## Creatures in the world
 
-- A world starts with two founders, a grown female and male. `addAdult(sex, opts)` brings a grown creature, part-way through its life (a banked genome is re-sexed to fit); `addEgg(x, y)` places a founder egg. Nothing is added past 16 creatures (`Evo.LIMITS.MAX_POPULATION`), and eggs wait to hatch.
+- A world starts with two founders, a grown female and male, the same two every time: `Evo.Genome.founder(sex)` builds each one's genome with no random numbers ([GENOME.md](GENOME.md)). `addAdult(sex, opts)` brings a grown creature, part-way through its life (a banked genome is re-sexed to fit); `addEgg(x, y)` places a founder egg (a fresh founder genome of a random sex, unless told which). Nothing is added past 16 creatures (`Evo.LIMITS.MAX_POPULATION`), and eggs wait to hatch.
 - Each creature within 160 px adds 0.5 company (full at two); crowding starts past three and is full at seven. Touching is felt on that side. A held creature is company but not touch.
 - A fertile female who is not pregnant and a fertile male who touch have a 3% chance each tick to mate. Both wait 1800 ticks before mating again, and he pays some protein. She carries the egg, built from a recombined, mutated genome, and both genomes go into the seed bank (the last 24).
-- Every 1800 ticks, if fewer than two mature (adolescent to senile) females, or else males, are left, one wanderer of that sex walks in from an end of the world: a mutated copy from the seed bank, keeping its generation, or a fresh founder if the bank is empty. A fresh world gets a female at tick 1800 and a male at 3600.
+- Every 1800 ticks, if fewer than two mature (adolescent to senile) females, or else males, are left, one wanderer of that sex walks in from an end of the world: a mutated copy from the seed bank, keeping its generation, or a fresh founder (the first female's or male's genome) if the bank is empty. A fresh world gets a female at tick 1800 and a male at 3600.
 - A world with no creatures and no eggs is founded again, from the seed bank when it holds any genomes.
 - The dead leave carrion holding part of their protein, fat and sugar.
 

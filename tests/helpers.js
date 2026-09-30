@@ -1,14 +1,14 @@
 'use strict';
 // Shared by the tests and by tools/behave.js and its scenarios. Every helper takes Evo, as the tests do.
 
-// A fresh brain from the founder genome
-const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
+// A fresh brain from a founder genome (the first female's unless told otherwise)
+const founderBrain = (Evo, sex = 'FEMALE') => new Evo.Brain(Evo.Genome.founder(sex).develop());
 
 // The options for Brain.tick most tests use: ordinary noise, awake, allowed to fire
 const TICK_OPTS = { noise: 0.35, arousal: 0, canFire: true };
 
-// The founder genome with the thinking lobe's persistence gene set to 0 (no working memory)
-const cortexKnockout = Evo => Evo.FOUNDER_GENOME.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
+// The first female's genes with the thinking lobe's persistence gene set to 0 (no working memory)
+const cortexKnockout = Evo => Evo.FOUNDER_GENOMES.FEMALE.map(g => g.gene === 'Lobe dynamics' && g.lobe === 'cortex' ? { ...g, persistence: 0 } : g);
 
 // A seeded world with one creature and nothing else happening. `phase` sets the time of day when given.
 function quietWorld(Evo, seed, phase) {

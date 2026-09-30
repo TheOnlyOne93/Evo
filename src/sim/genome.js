@@ -9,7 +9,7 @@
 // broken simulation. Sex is carried on its own chromosome (X or Y), outside the mutable gene string.
 (function (Evo) {
   'use strict';
-  const { mean, clamp } = Evo.util;
+  const { mean, clamp, hash2 } = Evo.util;
   const { LOBE_ORDER, LOBE_COUNT, N_CHEM, CHEM, LOCUS, BODY_LOCI, TARGET, TARGETS, NEUROCHEMS, STIMULI } = Evo;
 
   const PROMOTER = 0xA5;
@@ -237,7 +237,16 @@
     };
   }
 
-  const junkByte = () => { const b = Evo.randInt(256); return b === PROMOTER ? 0x5A : b; };
+  // The sex chromosome a sex carries: X for a female, Y for a male
+  const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
+
+  // The filler byte at a position of a founder's DNA: a fixed pattern (not a dice roll), so a founder
+  // is the same every time. Never the gene start byte, which would switch on a gene by accident.
+  const FILLER_SALT = 4242;
+  const fillerAt = position => {
+    const b = Math.floor(hash2(position, FILLER_SALT) * 256);
+    return b === PROMOTER ? 0x5A : b;
+  };
 
   // Encode one founder gene { gene: 'Reaction', stage: 0, ...values } into bytes (promoter included)
   function encodeGene(spec) {
@@ -255,26 +264,29 @@
   }
 
   class Genome {
-    // new Genome(bytes, sexChrom) wraps (a copy of) existing DNA; Genome.founder() builds a founder
+    // new Genome(bytes, sexChrom) wraps (a copy of) existing DNA; Genome.founder(sex) builds a founder
     constructor(bytes, sexChrom = null) {
       this.dna = new Uint8Array(bytes);
       this.sexChrom = sexChrom || (Evo.chance(0.5) ? 'X' : 'Y');
       this.mutationCount = 0; // Mutation events along the longest parental line since the founders
     }
 
-    // Founder genes (Evo.FOUNDER_GENOME, see founder.js), separated by a few junk bytes. The founder
-    // (about 2.9 KB) is far above MIN_LENGTH, so the junk padding never applies; it fills about 36%
-    // of MAX_LENGTH (8 KB), leaving about 5 KB for duplicated genes and insertions to grow into.
-    static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
+    // The first female's or the first male's DNA: their genes (Evo.FOUNDER_GENOMES, see founder.js),
+    // four filler bytes at the start and three after each gene. The filler is a fixed pattern of the
+    // byte's position (fillerAt), so a founder is the same every time and never uses the world's dice,
+    // and the two founders' DNA line up byte for byte (only their looks and voice values differ).
+    // The DNA (about 3 KB) is far above MIN_LENGTH, so the padding at the end never applies; it fills
+    // about a third of MAX_LENGTH (8 KB), leaving room for duplicated genes and insertions to grow into.
+    static founder(sex = 'FEMALE', genes = Evo.FOUNDER_GENOMES[sex]) {
       const bytes = [];
-      const junk = n => { for (let i = 0; i < n; i++) bytes.push(junkByte()); };
-      junk(4);
+      const filler = n => { for (let i = 0; i < n; i++) bytes.push(fillerAt(bytes.length)); };
+      filler(4);
       for (const spec of genes) {
         bytes.push(...encodeGene(spec));
-        junk(2 + Evo.randInt(3));
+        filler(3);
       }
-      junk(Math.max(0, MIN_LENGTH - bytes.length));
-      return new Genome(Uint8Array.from(bytes), sexChrom);
+      filler(Math.max(0, MIN_LENGTH - bytes.length));
+      return new Genome(Uint8Array.from(bytes), chromFor(sex));
     }
 
     // Locate every expressed gene in a DNA string: [start, end) spans including the promoter
@@ -428,5 +440,5 @@
     }
   }
 
-  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES, encodeGene });
+  Object.assign(Evo, { GENOME_LIMITS, Genome, chromFor, GENES, GENE_INDEX, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES, encodeGene });
 })(globalThis.Evo);

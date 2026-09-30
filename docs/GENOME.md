@@ -1,6 +1,6 @@
 # Genome
 
-`src/sim/genome.js` holds the DNA format, the gene table, mutation and development. The founder genome is in `src/sim/founder.js`, `founder-brain.js` and `founder-chem.js`.
+`src/sim/genome.js` holds the DNA format, the gene table, mutation and development. The founders' genomes are in `src/sim/founder.js`, `founder-brain.js` and `founder-chem.js`.
 
 ## DNA
 
@@ -12,7 +12,7 @@ type  = HH % 32    low 5 bits: the row of Evo.GENES (26 are in use; the other 6 
 stage = HH >> 5    high 3 bits: the life stage at which the gene switches on (0 and 1: from birth)
 ```
 
-Everything else is silent junk DNA that mutation can turn into new genes. A gene cut off by the end of the DNA is not expressed, and genes never overlap. Every decoded value is clamped, so a broken gene makes a bad creature, never a broken simulation. Sex is carried apart from the DNA, in `genome.sexChrom` (`'X'` female, `'Y'` male).
+Everything else is silent junk DNA that mutation can turn into new genes. A gene cut off by the end of the DNA is not expressed, and genes never overlap. Every decoded value is clamped, so a broken gene makes a bad creature, never a broken simulation. Sex is carried apart from the DNA, in `genome.sexChrom` (`'X'` female, `'Y'` male; `Evo.chromFor(sex)` gives the one for `'FEMALE'` or `'MALE'`).
 
 ## Genes
 
@@ -53,16 +53,20 @@ Both work on raw bytes.
 
 - `genome.cloneWithMutation()`: each byte mutates with a chance of 0.4% (mostly a small step, else a new byte). Then there is a 3% chance that a whole gene is copied to a random place, 2% that one is lost, and 2% of a one-byte insertion or deletion (a frameshift when it lands in a gene). Losses and deletions stop once the DNA is down to 256 bytes.
 - `Genome.recombine(mother, father)`: one parent is the backbone and the other donates the bytes between two random crossover points. The child's sex is drawn at even odds, and it then mutates.
-- `genome.mutationCount` counts mutation events along the longer parental line since the founders.
+- `genome.mutationCount` counts mutation events along the longer parental line since the first female and male.
 
-## The founder genome
+## The founder genomes
 
-`Evo.FOUNDER_GENOME` is a list of 266 readable gene specs that `Evo.Genome.founder()` encodes to bytes (about 2.9 KB), with a few junk bytes between genes. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially. Each founder placed in a world gets its own random Appearance and Voice.
+The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 266 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
+
+`Evo.FOUNDERS` holds what sets the two apart: each one's looks (the Appearance gene), voice (the Voice gene) and the syllables of its name (Elani, Fenro; the game does not use them yet). Both coats are sea green, near 160 degrees, the colour other creatures' food-colour cells notice least. Her voice is high and his is low, so each can hear which of the two is calling.
+
+The bytes between genes are filler: four at the start and three after each gene. A filler byte is a fixed pattern of its position in the DNA (`Evo.util.hash2`), never the promoter byte, so a founder is the same on every call, never uses `Evo.random`, and the two founders' DNA line up byte for byte (only the looks and voice bytes differ). The filler is silent until a mutation turns some of it into a gene.
 
 | File | What it holds |
 |---|---|
-| `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `guide`, `approach`, `prior`, `instinct`), and one each of the 13 trait genes |
+| `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `guide`, `approach`, `prior`, `instinct`), `Evo.FOUNDERS`, and `Evo.founderBody(sex)`: one each of the 13 trait genes, with that sex's looks and voice |
 | `founder-brain.js` | 65 wiring genes: 59 tracts, a pacemaker, two region duplications, three Lobe dynamics genes ([BRAIN.md](BRAIN.md)) |
-| `founder-chem.js` | 188 genes: metabolism, drives, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)) |
+| `founder-chem.js` | 188 genes: metabolism, drives, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)); it also puts the three lists together into `Evo.FOUNDER_GENOMES` |
 
 The founder has no Anatomy or Neurochemistry gene. All its genes are on from birth except four for adolescence and two for old age.

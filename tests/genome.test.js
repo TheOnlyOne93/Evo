@@ -14,7 +14,7 @@ function tolerance(codec, Evo, v) {
 
 test('genome: every founder gene value survives encoding (nothing is clamped or misread)', (Evo, assert) => {
   const C = Evo.CODEC;
-  for (const spec of Evo.FOUNDER_GENOME) {
+  for (const spec of [...Evo.FOUNDER_GENOMES.FEMALE, ...Evo.FOUNDER_GENOMES.MALE]) {
     const def = Evo.GENES[Evo.GENE_INDEX[spec.gene]];
     const bytes = Evo.encodeGene(spec);
     assert.strictEqual(bytes.length, 2 + def.payload, spec.gene);
@@ -40,16 +40,72 @@ test('genome: every founder gene value survives encoding (nothing is clamped or 
   }
 });
 
-test('genome: founders always carry exactly the founder genes, in order', (Evo, assert) => {
-  const expected = Evo.FOUNDER_GENOME.map(s => [Evo.GENE_INDEX[s.gene], s.stage || 0]);
-  for (let i = 0; i < 100; i++) {
-    const found = Evo.Genome.founder().findGenes().map(g => [g.type, g.stage]);
-    assert.deepStrictEqual(found, expected);
+test('genome: each founder carries exactly its founder genes, in order (the filler makes no gene)', (Evo, assert) => {
+  for (const sex of ['FEMALE', 'MALE']) {
+    const expected = Evo.FOUNDER_GENOMES[sex].map(s => [Evo.GENE_INDEX[s.gene], s.stage || 0]);
+    const found = Evo.Genome.founder(sex).findGenes().map(g => [g.type, g.stage]);
+    assert.deepStrictEqual(found, expected, sex);
   }
 });
 
+test('genome: a founder is the same bytes every time and draws no random numbers', (Evo, assert) => {
+  const bytes = sex => Array.from(Evo.Genome.founder(sex).dna).join(',');
+  for (const sex of ['FEMALE', 'MALE']) {
+    Evo.seed(1);
+    const first = bytes(sex);
+    Evo.seed(5);
+    assert.strictEqual(bytes(sex), first, sex + ' after another seed');
+  }
+  // The next number the dice give is the same with or without a founder built in between
+  Evo.seed(5);
+  const next = Evo.random();
+  Evo.seed(5);
+  Evo.Genome.founder('FEMALE'); Evo.Genome.founder('MALE');
+  assert.strictEqual(Evo.random(), next, 'building founders drew no random numbers');
+  // And no dice at all: a random source that throws is never asked
+  try {
+    Evo.useRandomSource(() => { throw new Error('a founder asked for a random number'); });
+    Evo.Genome.founder('FEMALE'); Evo.Genome.founder('MALE');
+  } finally {
+    Evo.seed(1);
+  }
+});
+
+test('genome: the first female and male differ only in the looks and voice values', (Evo, assert) => {
+  const she = Evo.Genome.founder('FEMALE'), he = Evo.Genome.founder('MALE');
+  assert.strictEqual(she.dna.length, he.dna.length);
+  // Every byte that differs lies in the payload of an Appearance or Voice gene
+  const looksAndVoice = new Set();
+  for (const gene of she.findGenes()) {
+    const name = Evo.GENES[gene.type].name;
+    if (name === 'Appearance' || name === 'Voice') for (let k = gene.start + 2; k < gene.end; k++) looksAndVoice.add(k);
+  }
+  assert.deepStrictEqual(he.findGenes(), she.findGenes(), 'the genes sit in the same places');
+  const differ = [];
+  for (let k = 0; k < she.dna.length; k++) if (she.dna[k] !== he.dna[k]) differ.push(k);
+  assert.ok(differ.length > 0, 'they do differ');
+  for (const k of differ) assert.ok(looksAndVoice.has(k), `byte ${k} differs outside the looks and voice`);
+});
+
+test('genome: the first female develops into a female and the first male into a male', (Evo, assert) => {
+  assert.strictEqual(Evo.Genome.founder('FEMALE').develop().sex, 'FEMALE');
+  assert.strictEqual(Evo.Genome.founder('MALE').develop().sex, 'MALE');
+  assert.strictEqual(Evo.chromFor('FEMALE'), 'X');
+  assert.strictEqual(Evo.chromFor('MALE'), 'Y');
+});
+
+test('genome: the founders have the looks and voice written in Evo.FOUNDERS', (Evo, assert) => {
+  for (const sex of ['FEMALE', 'MALE']) {
+    const { looks, voice } = Evo.FOUNDERS[sex], t = Evo.Genome.founder(sex).develop();
+    assert.ok(Math.abs(t.hue - looks.hue * 360) < 0.5 * 360 / 255 + 1e-9, sex + ' hue');
+    assert.ok(Math.abs(t.voicePitch - voice.pitch) < 0.5 / 255 + 1e-9, sex + ' pitch');
+  }
+  assert.ok(Evo.Genome.founder('FEMALE').develop().voicePitch > 0.5, 'her voice is high');
+  assert.ok(Evo.Genome.founder('MALE').develop().voicePitch < 0.5, 'his voice is low');
+});
+
 test('genome: later life-stage genes switch on only at their stage', (Evo, assert) => {
-  const g = Evo.Genome.founder('X');
+  const g = Evo.Genome.founder('FEMALE');
   const baby = g.develop(Evo.STAGE.BABY), teen = g.develop(Evo.STAGE.ADOLESCENT), old = g.develop(Evo.STAGE.SENILE);
   const sexHormone = Evo.CHEM.sexHormone, ageing = Evo.CHEM.ageing;
   assert.ok(!baby.emitters.some(e => e.chem === sexHormone), 'no sex hormone in babies');
@@ -100,8 +156,8 @@ test('genome: heavy mutation keeps length in bounds and every trait finite', (Ev
 });
 
 test('genome: clones and children keep the family line mutation count', (Evo, assert) => {
-  const a = Evo.Genome.founder('X').cloneWithMutation(0.05);
-  const b = Evo.Genome.founder('Y');
+  const a = Evo.Genome.founder('FEMALE').cloneWithMutation(0.05);
+  const b = Evo.Genome.founder('MALE');
   assert.ok(a.mutationCount > 0);
   assert.strictEqual(a.clone().mutationCount, a.mutationCount);
   const child = Evo.Genome.recombine(a, b);
@@ -109,7 +165,7 @@ test('genome: clones and children keep the family line mutation count', (Evo, as
 });
 
 test('genome: a child gets X or Y from its father at random', (Evo, assert) => {
-  const mother = Evo.Genome.founder('X'), father = Evo.Genome.founder('Y');
+  const mother = Evo.Genome.founder('FEMALE'), father = Evo.Genome.founder('MALE');
   const seen = new Set();
   for (let i = 0; i < 20; i++) seen.add(Evo.Genome.recombine(mother, father).sexChrom);
   assert.deepStrictEqual([...seen].sort(), ['X', 'Y']);

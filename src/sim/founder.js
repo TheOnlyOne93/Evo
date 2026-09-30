@@ -1,8 +1,10 @@
-// The founder genome: the first creatures' genes, written as readable specs and encoded to bytes by
-// Evo.Genome.founder(). These are ordinary genes behind ordinary promoters: they mutate, duplicate,
-// recombine and can be lost. Nothing here is special-cased by the simulation.
-// This file holds the gene-spec helpers (Evo.founderKit) and the body genes (Evo.founderBody);
-// founder-brain.js adds the brain wiring and founder-chem.js the chemistry, and assembles Evo.FOUNDER_GENOME.
+// The founder genomes: the first female's and the first male's genes, written as readable specs and
+// encoded to bytes by Evo.Genome.founder(sex). They are the same every time. These are ordinary genes
+// behind ordinary promoters: they mutate, duplicate, recombine and can be lost. Nothing here is
+// special-cased by the simulation.
+// This file holds the gene-spec helpers (Evo.founderKit), the two founders' own looks, voice and name
+// (Evo.FOUNDERS) and the body genes (Evo.founderBody(sex)); founder-brain.js adds the brain wiring and
+// founder-chem.js the chemistry, and assembles Evo.FOUNDER_GENOMES (one gene list for each sex).
 (function (Evo) {
   'use strict';
 
@@ -60,8 +62,28 @@
 
   Evo.founderKit = { reaction, emitter, receptor, stimulus, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, driveCell, driveTarget, prior, sight, smell, TOUCH };
 
-  Evo.founderBody = [
-    { gene: 'Appearance', hue: 0.08, accentHue: 0.12, pattern: 0.3, patternScale: 0.5, earSize: 0.6, tailLength: 0.6, eyeSize: 0.6, plumpness: 0.55 },
+  // What sets the first female and the first male apart: their looks, their voice and the syllables of
+  // their names (Elani, Fenro; the game does not use the syllables yet). Every other gene they share.
+  // Both coats are near 160 degrees (sea green), the colour that other creatures' food-colour cells
+  // notice least: others see a coat through the same colour cells they use to spot food (see
+  // lookOfCreature in world.js and hueFeatures in constants.js). Her voice is high and his is low, so
+  // each can hear which of the two is calling (a pitch below 0.5 reaches the low hearing cell).
+  Evo.FOUNDERS = {
+    FEMALE: {
+      looks: { hue: 0.44, accentHue: 0.9, pattern: 0.3, patternScale: 0.5, earSize: 0.65, tailLength: 0.6, eyeSize: 0.62, plumpness: 0.55 },
+      voice: { pitch: 0.65, loudness: 0.5 },
+      syllables: ['el', 'ani']
+    },
+    MALE: {
+      looks: { hue: 0.46, accentHue: 0.12, pattern: 0.55, patternScale: 0.55, earSize: 0.55, tailLength: 0.65, eyeSize: 0.58, plumpness: 0.5 },
+      voice: { pitch: 0.35, loudness: 0.5 },
+      syllables: ['fen', 'ro']
+    }
+  };
+
+  // The body genes of the first creature of a sex ('FEMALE' or 'MALE')
+  Evo.founderBody = sex => [
+    { gene: 'Appearance', ...Evo.FOUNDERS[sex].looks },
     { gene: 'Morphology', size: 0.5, legLength: 0.5, mouthReach: 0.5, crest: 0.5 },
     { gene: 'Eyes', range: 0.45, gain: 0.4, night: 0.3 },
     { gene: 'Nose', reach: 0.4, gain: 0.4 },
@@ -70,7 +92,7 @@
     { gene: 'Reinforcement', joy: 0.42, stress: 0.47 },
     { gene: 'Muscle', speed: 0.5, jump: 0.45, run: 0.5 },
     { gene: 'Life history', lifespan: 0.4, gestation: 0.4 },
-    { gene: 'Voice', pitch: 0.5, loudness: 0.5 },
+    { gene: 'Voice', ...Evo.FOUNDERS[sex].voice },
     { gene: 'Curiosity', habituation: 0.25, novelty: 0.5 },
     { gene: 'Insulation', insulation: 0.5, bodyHeat: 0.5 },
     { gene: 'Reproduction', investment: 0.4, incubation: 0.4 },

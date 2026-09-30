@@ -69,7 +69,7 @@ test('brain: founders grow the movement copy and the sight copy', (Evo, assert) 
 // Unbudgeted, 121 more sight copies would make 4119 neurons: more than synapse keys allow
 test('brain: region copies stop at the neuron budget, however many genes ask for them', (Evo, assert) => {
   const copy = { gene: 'Region duplication', source: 'sight', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
-  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, ...Array(121).fill(copy)]);
+  const genome = Evo.Genome.founder('FEMALE', [...Evo.FOUNDER_GENOMES.FEMALE, ...Array(121).fill(copy)]);
   const brain = new Evo.Brain(genome.develop());
   assert.ok(brain.N <= Evo.LIMITS.MAX_NEURONS, `${brain.N} neurons`);
   assert.ok(brain.N + brain.lobes.sight.length > Evo.LIMITS.MAX_NEURONS, 'copies are made until the next would not fit');
@@ -87,7 +87,7 @@ test('brain: founders are born with their reflex arcs', (Evo, assert) => {
   const arcs = { painRun: 0, mouthEatL: 0, mouthEatR: 0, lipsDrink: 0, sleepyRest: 0, bumpTurnL: 0, bumpTurnR: 0 };
   const trials = 40;
   for (let i = 0; i < trials; i++) {
-    const b = founderBrain(Evo, i % 2 ? 'X' : 'Y');
+    const b = founderBrain(Evo, i % 2 ? 'FEMALE' : 'MALE');
     const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)], D = k => b.lobes.needs[Evo.driveCell(k)];
     if (b.hasSynapse(D('pain'), M('run'))) arcs.painRun++;
     if (b.hasSynapse(T('mouthL'), M('eat'))) arcs.mouthEatL++;
@@ -235,7 +235,7 @@ test('brain: attention goes to what the creature needs', (Evo, assert) => {
 // ticks after it stops, for a brain grown from the given genes
 function cortexAfterSight(Evo, seed, genes) {
   Evo.seed(seed);
-  const brain = new Evo.Brain(Evo.Genome.founder('X', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
+  const brain = new Evo.Brain(Evo.Genome.founder('FEMALE', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
   const input = new Float32Array(brain.N), opts = TICK_OPTS;
   const eyes = P.BANDS.map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
   const spikes = { before: 0, seeing: 0, gap: 0, after: 0 };

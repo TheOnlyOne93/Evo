@@ -165,13 +165,14 @@ module.exports = ({ Evo, lab, session, run, trial }) => {
   // A hungry creature sees fruit 150 px to one side (alternating by seed) for 60 ticks; then the
   // fruit vanishes. Share of the next 120 ticks spent walking toward where it was, for the founder
   // and for a knockout whose thinking (cortex) Lobe dynamics gene has persistence 0 (same seed).
+  // The lab's creature is the first female; both sexes get the given genes while the lab is built.
   const labWith = (seed, genes) => {
-    const saved = Evo.FOUNDER_GENOME;
-    Evo.FOUNDER_GENOME = genes;
-    try { return lab(seed); } finally { Evo.FOUNDER_GENOME = saved; }
+    const saved = Evo.FOUNDER_GENOMES;
+    Evo.FOUNDER_GENOMES = { FEMALE: genes, MALE: genes };
+    try { return lab(seed); } finally { Evo.FOUNDER_GENOMES = saved; }
   };
   const hiddenFruit = genes => cached(seed => walksTowardHidden(labWith(seed, genes), seed % 2 ? -1 : 1));
-  const permanence = { founder: hiddenFruit(Evo.FOUNDER_GENOME), knockout: hiddenFruit(cortexKnockout(Evo)) };
+  const permanence = { founder: hiddenFruit(Evo.FOUNDER_GENOMES.FEMALE), knockout: hiddenFruit(cortexKnockout(Evo)) };
   const memoryReports = {
     'memory: walks toward hidden fruit (founder)': permanence.founder,
     'memory: walks toward hidden fruit (cortex persistence 0)': permanence.knockout

@@ -16,19 +16,19 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `brain` | Wiring, weight bounds, region copies and the neuron budget, reflexes, delays, muscle competition, attention, working memory |
 | `clock` | The frame clock: rate, pause, the hitch cap, the budget |
 | `drives` | Drives cells, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
-| `genome` | Encoding round trips, founder genes, stages, duplication and loss, mutation, inheritance, guidance |
+| `genome` | Encoding round trips, founder genes, the founders (the same bytes every time, no random numbers drawn, differing only in looks and voice), stages, duplication and loss, mutation, inheritance, guidance |
 | `kin` | `Evo.kinOf` and `Evo.kinIndex` |
 | `landscape` | Every map in `Evo.MAPS`: the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |
-| `learning` | The modulators, prediction error, credit assignment, stability, replay, dreams, the timing of pats (over eight seeds, as one seed's effect is noisy) |
+| `learning` | The modulators, prediction error, credit assignment, stability, replay (over four seeds), dreams, the timing of pats (over eight seeds, as one seed's effect is noisy) |
 | `render` | The `poseOf` contract, item radii |
 | `text` | `Evo.text`: names, gene descriptions, the mutation list |
 | `world` | Ponds, clock and seasons, temperature, scent (spreading, and a nose reading only air), mating and eggs, the population cap, death and re-founding, the hand, regrowth, life-history genes, order independence, wanderers |
 
-`tests/helpers.js` is shared with the behaviour bench: `founderBrain`, `TICK_OPTS`, `cortexKnockout`, `quietWorld(Evo, seed, phase)`, `callThenPat`, `timeCosts`.
+`tests/helpers.js` is shared with the behaviour bench: `founderBrain(Evo, sex)` (the first female's unless told otherwise), `TICK_OPTS`, `cortexKnockout` (the first female's genes with no working memory), `quietWorld(Evo, seed, phase)`, `callThenPat`, `timeCosts`.
 
 ## The fingerprint
 
-`node tools/fingerprint.js [--save | --check]` runs three worlds in child processes: `sim:seed1` (2 days; the first creature is killed a quarter of the way in), `sim:seed2` (2 days) and `sim:crowd` (half a day, 8 adults near the first grass). Every 250 ticks it hashes the clock, stats, food and items, and each creature's body, chemistry and whole brain, with ids made relative. It also hashes `Evo.poseOf` for every creature at each sample (`pose`), and `Evo.text` for the final creatures and a founder (`text`).
+`node tools/fingerprint.js [--save | --check]` runs three worlds in child processes: `sim:seed1` (2 days; the first creature is killed a quarter of the way in), `sim:seed2` (2 days) and `sim:crowd` (half a day, 8 adults near the first grass). Every 250 ticks it hashes the clock, stats, food and items, and each creature's body, chemistry and whole brain, with ids made relative. It also hashes `Evo.poseOf` for every creature at each sample (`pose`), and `Evo.text` for the final creatures and the first female (`text`).
 
 `--check` exits 1 naming each section that differs. A change meant to alter the simulation, the poses or the text runs `--save` and commits the new `tools/fingerprint.json` with it; a refactor must leave it unchanged.
 

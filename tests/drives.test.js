@@ -1,6 +1,6 @@
 'use strict';
 
-const founderTraits = (Evo, sex = 'X') => Evo.Genome.founder(sex).develop();
+const founderTraits = (Evo, sex = 'FEMALE') => Evo.Genome.founder(sex).develop();
 
 test('drives: every drive has exactly one receptor into its own Drives cell, and no cell is shared', (Evo, assert) => {
   const traits = founderTraits(Evo);
@@ -130,7 +130,7 @@ test('drives: the Up close cells report the look of what is at the mouth', (Evo,
 });
 
 test('drives: founder instincts name real cells, and none knows the mimic', (Evo, assert) => {
-  const traits = Evo.Genome.founder('X').develop();
+  const traits = Evo.Genome.founder('FEMALE').develop();
   const brain = new Evo.Brain(traits);
   const lobeOf = i => Evo.LOBE_ORDER[i];
   for (const inst of traits.instincts) {

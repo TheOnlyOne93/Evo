@@ -390,14 +390,13 @@
     return out;
   }
 
-  // How a genome differs from reference genomes (its parents, or the founders): genes that match
+  // How a genome differs from reference genomes (its parents, or the two founders): genes that match
   // none of them, each paired with the most similar reference gene of its kind when there is one
   // ('changed'), else 'new' (or 'copy' when it is an extra copy of a gene they have); and genes that
-  // every reference has but it lacks ('lost'). skip: gene names to leave out.
+  // every reference has but it lacks ('lost').
   // Returns [{ kind, gene, ref: { genome, gene } | null }], gene = null for 'lost'.
-  function geneChanges(genome, refs, skip = []) {
-    const skipTypes = new Set(skip.map(n => Evo.GENE_INDEX[n]));
-    const listed = g => g.findGenes().filter(x => !skipTypes.has(x.type)).map(x => ({ gene: x, sig: signature(g, x), genome: g }));
+  function geneChanges(genome, refs) {
+    const listed = g => g.findGenes().map(x => ({ gene: x, sig: signature(g, x), genome: g }));
     const mine = listed(genome), theirs = refs.map(listed);
     const count = list => list.reduce((m, x) => m.set(x.sig, (m.get(x.sig) || 0) + 1), new Map());
     const myCount = count(mine), theirCounts = theirs.map(count);
@@ -433,11 +432,12 @@
     return out;
   }
 
-  // The founders' genes as one reference genome (no junk DNA), with the given sex chromosome
-  let founderBytes = null;
-  function founderGenome(sexChrom) {
-    if (!founderBytes) founderBytes = Uint8Array.from(Evo.FOUNDER_GENOME.flatMap(spec => Evo.encodeGene(spec)));
-    return new Evo.Genome(founderBytes, sexChrom);
+  // The first female's and the first male's genomes, the reference for "what changed since the
+  // start" (built once: they are the same every time)
+  let founders = null;
+  function founderGenomes() {
+    if (!founders) founders = [Evo.Genome.founder('FEMALE'), Evo.Genome.founder('MALE')];
+    return founders;
   }
 
   // ---------- Traits ----------
@@ -474,7 +474,7 @@
   Evo.text = {
     lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay,
     describeGene, describeInstinct, duration, ago, signed, level, dynamicsWords, GENE_KINDS,
-    geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
+    geneChanges, fieldChanges, founderGenomes, traitWords, isAttention,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, whereSeen, STIMULUS_PAST
   };
 })(globalThis.Evo);

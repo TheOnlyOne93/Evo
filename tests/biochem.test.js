@@ -69,7 +69,7 @@ test('biochem: receptors act on their target, and damage is blamed on its chemic
 });
 
 test('biochem: in a hungry founder, sweet taste turns hunger into reward and gut sugar sates quietly', (Evo, assert) => {
-  const traits = Evo.Genome.founder('X').develop();
+  const traits = Evo.Genome.founder('FEMALE').develop();
   const b = new Evo.Biochemistry();
   b.configure(traits);
   b.setInitial(traits.initial);
@@ -86,7 +86,7 @@ test('biochem: in a hungry founder, sweet taste turns hunger into reward and gut
 });
 
 test('biochem: a founder going without food gets hungry, and without water gets thirsty', (Evo, assert) => {
-  const traits = Evo.Genome.founder('X').develop();
+  const traits = Evo.Genome.founder('FEMALE').develop();
   const b = new Evo.Biochemistry();
   b.configure(traits);
   b.set('glucose', 0.1); b.set('glycogen', 0.05); b.set('water', 0.3);
@@ -98,7 +98,7 @@ test('biochem: a founder going without food gets hungry, and without water gets 
 test('biochem: an Initial concentration gene that switches on later sets its chemical once, on reaching that stage', (Evo, assert) => {
   const { STAGE } = Evo;
   const late = { gene: 'Initial concentration', stage: STAGE.ADOLESCENT, chem: 'endorphin', amount: 0.8 };
-  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, late]);
+  const genome = Evo.Genome.founder('FEMALE', [...Evo.FOUNDER_GENOMES.FEMALE, late]);
   const world = new Evo.World();
   const c = new Evo.Creature(genome, world.width / 2, 0);
   const level = () => c.chem.get('endorphin');

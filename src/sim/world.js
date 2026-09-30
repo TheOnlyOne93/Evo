@@ -31,7 +31,6 @@
 
   // A new world, and one refounded after extinction (from the seed bank), starts with one female and one male
   const FOUNDERS = ['FEMALE', 'MALE'];
-  const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
   const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
   const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
 
@@ -313,18 +312,6 @@
     }
 
     // ---------- Creatures ----------
-    // A founder genome with its own looks (appearance and voice vary between founders)
-    founderGenome(sex) {
-      const g = Evo.Genome.founder(chromFor(sex));
-      for (const gene of g.findGenes()) {
-        const name = Evo.GENES[gene.type].name;
-        if (name === 'Appearance' || name === 'Voice') {
-          for (let k = gene.start + 2; k < gene.end; k++) g.dna[k] = Evo.randInt(256);
-        }
-      }
-      return g;
-    }
-
     addCreature(genome, x, opts) {
       const c = new Evo.Creature(genome, x, this.terrain.groundY(x), opts);
       this.creatures.push(c);
@@ -335,8 +322,8 @@
     // A grown adult arriving (founders, wanderers, or added by the player)
     addAdult(sex, { genome = null, x = null, reserves = FOUNDER_RESERVES, generation = 1 } = {}) {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return null;
-      genome = genome || this.founderGenome(sex);
-      genome.sexChrom = chromFor(sex);
+      genome = genome || Evo.Genome.founder(sex);
+      genome.sexChrom = Evo.chromFor(sex);
       const lifespan = genome.develop().lifespanTicks;
       const px = x === null ? this.spawnX() : x;
       return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(ADULT_ARRIVAL_AGE[0], ADULT_ARRIVAL_AGE[1])) });
@@ -429,7 +416,7 @@
 
     // A founder egg placed by the player: a fresh genome, provisioned as a mother would
     addEgg(x, y, { sex = Evo.chance(0.5) ? 'FEMALE' : 'MALE', genome = null } = {}) {
-      genome = genome || this.founderGenome(sex);
+      genome = genome || Evo.Genome.founder(sex);
       const at = this.placeAbove(x, y);
       return this.spawnEgg(genome, at.x, at.y, { parents: null, generation: 1 });
     }

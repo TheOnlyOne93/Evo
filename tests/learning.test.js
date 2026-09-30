@@ -125,8 +125,8 @@ test('learning: flat-out input and relentless reward neither run away nor break 
 // Awake, sight cell A and muscle X fire together and reward follows; then the brain sleeps for
 // 3000 ticks, replaying what it remembers (or, with forget, remembering nothing). Returns the
 // change of w(A->X) during sleep.
-function sleepAfterReward(Evo, forget) {
-  Evo.seed(7);
+function sleepAfterReward(Evo, forget, seed) {
+  Evo.seed(seed);
   const brain = founderBrain(Evo);
   const A = brain.lobes.sight[Evo.BRAIN_BODY_PLAN.sightIndex('L', 'low', 'red')], X = brain.lobes.motor[0];
   const old = brain.incoming(X).find(s => brain.sSrc[s] === A);
@@ -153,10 +153,17 @@ function sleepAfterReward(Evo, forget) {
   return { episodes, dw: brain.sW[ax] - w0 };
 }
 
+// Summed over four seeds (one seed's jitter can hide a small effect), at least 0.002 a seed more
 test('learning: sleep replays a rewarded moment and strengthens what led to it', (Evo, assert) => {
-  const replay = sleepAfterReward(Evo, false), idle = sleepAfterReward(Evo, true);
-  assert.ok(replay.episodes > 0, 'the reward was remembered');
-  assert.ok(replay.dw > idle.dw + 0.002, `w(A->X) grows by ${replay.dw.toFixed(4)} replaying, ${idle.dw.toFixed(4)} idle`);
+  const SEEDS = [7, 8, 9, 10];
+  let replay = 0, idle = 0;
+  for (const seed of SEEDS) {
+    const r = sleepAfterReward(Evo, false, seed);
+    assert.ok(r.episodes > 0, `the reward was remembered (seed ${seed})`);
+    replay += r.dw;
+    idle += sleepAfterReward(Evo, true, seed).dw;
+  }
+  assert.ok(replay > idle + 0.002 * SEEDS.length, `w(A->X) grows by ${replay.toFixed(4)} replaying, ${idle.toFixed(4)} idle (over ${SEEDS.length} seeds)`);
 });
 
 test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => {

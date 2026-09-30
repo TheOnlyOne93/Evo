@@ -12,7 +12,7 @@ Each system has its own doc. Change the doc with the code it describes.
 |---|---|---|
 | Ticks, the frame clock, the phases of a tick, how long things last | [TIME.md](TIME.md) | `src/core/clock.js`, `World.step` |
 | The namespace, random numbers, events, diffusion | [CORE.md](CORE.md) | `src/core/` |
-| DNA, the gene table, mutation, the founder genome | [GENOME.md](GENOME.md) | `src/sim/genome.js`, `src/sim/founder*.js` |
+| DNA, the gene table, mutation, the founder genomes | [GENOME.md](GENOME.md) | `src/sim/genome.js`, `src/sim/founder*.js` |
 | Chemicals, drives, reward and punishment | [BIOCHEMISTRY.md](BIOCHEMISTRY.md) | `src/sim/biochem.js`, `src/sim/constants.js` |
 | The spiking brain: wiring, learning, dreams | [BRAIN.md](BRAIN.md) | `src/sim/brain.js` |
 | The body: senses, physiology, muscles | [CREATURE.md](CREATURE.md) | `src/sim/creature.js` |

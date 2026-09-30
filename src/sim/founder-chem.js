@@ -173,5 +173,10 @@
     instinct('smell', smell('R', 'alarm'), 'needs', none, MOTOR.walkL, 'reward', 0.3)
   ];
 
-  Evo.FOUNDER_GENOME = [...Evo.founderBody, ...Evo.founderBrain, ...Evo.founderChem];
+  // The genes of the first female and the first male: the same genes in the same order, apart from
+  // the looks and voice values (see Evo.FOUNDERS)
+  Evo.FOUNDER_GENOMES = {
+    FEMALE: [...Evo.founderBody('FEMALE'), ...Evo.founderBrain, ...Evo.founderChem],
+    MALE: [...Evo.founderBody('MALE'), ...Evo.founderBrain, ...Evo.founderChem]
+  };
 })(globalThis.Evo);

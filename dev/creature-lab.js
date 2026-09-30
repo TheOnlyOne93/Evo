@@ -1,5 +1,5 @@
 // Creature lab: an animated preview of the creature art, for tuning it by eye. Every creature is a
-// real one (Evo.Creature from a founder genome, as World.addAdult makes them), posed by Evo.poseOf
+// real one (Evo.Creature from a founder genome with random looks and voice), posed by Evo.poseOf
 // and drawn by Evo.CreatureArt; states are set on the creature (its chemistry, timers and flags)
 // and read back through poseOf. The page loads the same src/ scripts as index.html, in the same
 // order. Open dev/creature-lab.html straight from disk. Nothing here is used by the game.
@@ -16,16 +16,26 @@
   const params = new URLSearchParams(location.search);
   let seed = params.has('seed') ? +params.get('seed') : Evo.DEFAULT_SEED;
 
-  // A real world, used only as the source of founder genomes (World.founderGenome gives each
-  // founder its own looks and voice); its own creatures aren't shown
-  const world = new Evo.World();
+  // A founder genome with random looks and voice, so the lab shows a variety (the game's own founders
+  // always look the same, see Evo.FOUNDERS). The random numbers come from Evo.seed, so "Reroll looks"
+  // (which seeds again with the next number) gives a new set.
+  function randomLooks(sex) {
+    const genome = Evo.Genome.founder(sex);
+    for (const gene of genome.findGenes()) {
+      const name = Evo.GENES[gene.type].name;
+      if (name === 'Appearance' || name === 'Voice') {
+        for (let k = gene.start + 2; k < gene.end; k++) genome.dna[k] = Evo.randInt(256);
+      }
+    }
+    return genome;
+  }
 
   // A creature at the middle of a life stage. Growth is a stand-in: in the game a body grows with
   // its growth hormone as it lives, so a creature made at an age gets roughly the growth it would
   // have reached (World.addAdult gives adults 1, a hatchling starts at 0).
   const GROWTH = [0, 0.05, 0.3, 0.6, 0.85, 1, 1, 1];
   function makeCreature(stage, sex, genome) {
-    genome = genome ? genome.clone() : world.founderGenome(sex);
+    genome = genome ? genome.clone() : randomLooks(sex);
     const age = (STAGES[stage - 1].until + Math.min(1, STAGES[stage].until)) / 2;
     const c = new Evo.Creature(genome, 0, 0, { ageTicks: Math.floor(genome.develop().lifespanTicks * age), growth: GROWTH[stage] });
     c.onGround = true;

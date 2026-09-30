@@ -53,7 +53,7 @@ function describe(genome, brain, traits) {
   for (const n of brain.neurons) text.add(T.neuronName(brain, n)).add(T.neuronRole(brain, n)).add(T.lobeName(brain, n));
   for (const lobe of Object.keys(brain.lobes)) text.add(T.regionName(brain, lobe)).add(T.regionAbout(brain, lobe));
   text.add(JSON.stringify(T.traitWords(traits)));
-  for (const ch of T.geneChanges(genome, [T.founderGenome(genome.sexChrom)])) {
+  for (const ch of T.geneChanges(genome, T.founderGenomes())) {
     text.add(ch.kind).add(ch.gene ? ch.gene.start : ch.ref.gene.start);
     if (ch.kind === 'changed') text.add(JSON.stringify(T.fieldChanges(genome, ch.gene, ch.ref.genome, ch.ref.gene)));
   }
@@ -114,10 +114,10 @@ const workers = Object.keys(RUNS).map(name => new Promise((resolve, reject) => {
   child.on('message', r => { got = r; });
   child.on('exit', code => (got ? resolve(got) : reject(new Error(`${name} exited ${code} without a result`))));
 }));
-// Meanwhile: the founder genome, with a brain built from it (both draw random numbers: seed them)
+// Meanwhile: the first female's genome, with a brain built from it (the brain draws random numbers: seed them)
 const t0 = Date.now();
 Evo.seed(4);
-const founder = Evo.Genome.founder();
+const founder = Evo.Genome.founder('FEMALE');
 const founderTraits = founder.develop();
 describe(founder, new Evo.Brain(founderTraits), founderTraits);
 const textMs = Date.now() - t0;

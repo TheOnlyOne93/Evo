@@ -137,7 +137,7 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
 
 test('world: an egg the player places is filled as a mother of its genome would fill it', (Evo, assert) => {
   const world = emptyWorld(Evo);
-  const genome = Evo.Genome.founder('X'), x = world.width / 2;
+  const genome = Evo.Genome.founder('FEMALE'), x = world.width / 2;
   const egg = world.addEgg(x, world.terrain.groundY(x) - 40, { genome });
   const share = Evo.eggShare(genome.develop());
   assert.ok(share < 1, 'a founder fills an egg to less than a standard egg');
@@ -225,8 +225,8 @@ test('world: food grows back on the plants', (Evo, assert) => {
 
 test('world: a life-history gene that switches on later changes the lifespan without undoing the stage', (Evo, assert) => {
   const world = emptyWorld(Evo);
-  const genes = [...Evo.FOUNDER_GENOME, { gene: 'Life history', stage: Evo.STAGE.ADULT, lifespan: 1, gestation: 0.4 }];
-  const genome = Evo.Genome.founder('X', genes);
+  const genes = [...Evo.FOUNDER_GENOMES.FEMALE, { gene: 'Life history', stage: Evo.STAGE.ADULT, lifespan: 1, gestation: 0.4 }];
+  const genome = Evo.Genome.founder('FEMALE', genes);
   const before = genome.develop(Evo.STAGE.YOUTH).lifespanTicks;
   const c = world.addCreature(genome, world.width / 2, { ageTicks: Math.ceil(before * Evo.STAGES[Evo.STAGE.YOUTH].until) - 2, growth: 1 });
   assert.strictEqual(c.stage, Evo.STAGE.YOUTH);
@@ -239,7 +239,7 @@ test('world: a life-history gene that switches on later changes the lifespan wit
 test('world: a brain-building gene that switches on after birth has no effect, even in a creature that starts grown', (Evo, assert) => {
   const world = emptyWorld(Evo);
   const late = { gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
-  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, late]);
+  const genome = Evo.Genome.founder('FEMALE', [...Evo.FOUNDER_GENOMES.FEMALE, late]);
   const baby = world.addCreature(genome, world.width / 2);
   const adult = world.addCreature(genome, world.width / 2, { ageTicks: Math.floor(baby.lifespan * 0.5), growth: 1 });
   assert.ok(adult.stage >= Evo.STAGE.ADULT, `stage ${adult.stage}`);

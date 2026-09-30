@@ -95,7 +95,7 @@ const gapBetween = (a0, a1, b0, b1) => Math.max(0, a0 - b1, b0 - a1);
 // something useful (water) must be there. Sight is a founder's (306 px); a station's reach is its
 // extent (FEATURE_KINDS), measured to the nearest edge of a pond's water
 test('landscape: every tree, grass patch, rock and log is within a founder\'s sight of water', (Evo, assert) => {
-  const sight = Evo.Genome.founder('X').develop().visionRange;
+  const sight = Evo.Genome.founder('FEMALE').develop().visionRange;
   for (const { name, land } of specMaps(Evo)) {
     for (const f of land.features) {
       if (!['tree', 'grass', 'rock', 'log'].includes(f.kind)) continue;
@@ -107,7 +107,7 @@ test('landscape: every tree, grass patch, rock and log is within a founder\'s si
 });
 
 test('landscape: each end of the world has water within a founder\'s sight of where wanderers arrive', (Evo, assert) => {
-  const sight = Evo.Genome.founder('X').develop().visionRange;
+  const sight = Evo.Genome.founder('FEMALE').develop().visionRange;
   for (const { name, land } of specMaps(Evo)) {
     for (const x of [land.edge + 30, land.width - land.edge - 30]) {
       const near = Math.min(...land.terrain.ponds.map(p => gapBetween(x, x, p.x0, p.x1)));

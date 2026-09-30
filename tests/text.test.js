@@ -29,7 +29,7 @@ test('text: every kind of gene describes itself in plain words', (Evo, assert) =
 });
 
 test('text: a brain-building gene that switches on after birth says it has no effect', (Evo, assert) => {
-  const g = Evo.Genome.founder('X', [{ gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 },
+  const g = Evo.Genome.founder('FEMALE', [{ gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 },
     { gene: 'Region duplication', stage: 0, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 }]);
   const [late, early] = g.findGenes().map(gene => Evo.text.describeGene(g, gene).text);
   assert.ok(/no effect/.test(late), late);
@@ -48,4 +48,17 @@ test('text: the mutation list pairs a changed gene with the one it came from', (
   const fields = Evo.text.fieldChanges(child, changes[0].gene, changes[0].ref.genome, changes[0].ref.gene);
   assert.strictEqual(fields.length, 1);
   assert.notStrictEqual(fields[0].before, fields[0].after);
+});
+
+test('text: the first female and male, and any mix of their genes, show no difference from the starting genomes', (Evo, assert) => {
+  const refs = Evo.text.founderGenomes();
+  assert.strictEqual(refs.length, 2);
+  assert.strictEqual(Evo.text.founderGenomes(), refs, 'built once');
+  for (const sex of ['FEMALE', 'MALE']) assert.deepStrictEqual(Evo.text.geneChanges(Evo.Genome.founder(sex), refs), [], sex);
+  // Her with his looks: he has those genes, so they are not a change
+  const mix = Evo.Genome.founder('FEMALE'), he = Evo.Genome.founder('MALE');
+  const looks = mix.findGenes().find(x => Evo.GENES[x.type].name === 'Appearance');
+  mix.dna.set(he.dna.slice(looks.start, looks.end), looks.start);
+  assert.notDeepStrictEqual(Array.from(mix.dna), Array.from(Evo.Genome.founder('FEMALE').dna), 'her DNA did change');
+  assert.deepStrictEqual(Evo.text.geneChanges(mix, refs), []);
 });
