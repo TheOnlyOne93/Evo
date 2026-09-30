@@ -64,9 +64,6 @@
     }
   }
 
-  // What each tree species grows (an ITEM_TYPES key)
-  const TREE_YIELDS = { fruit: 'fruit', mimic: 'mimic' };
-
   // A new world, and one refounded after extinction (from the seed bank), starts with one female and one male
   const FOUNDERS = ['FEMALE', 'MALE'];
   const chromFor = sex => (sex === 'FEMALE' ? 'X' : 'Y');
@@ -128,7 +125,7 @@
       let id = 0;
       const feature = (kind, x, props) => ({ id: ++id, kind, ...at(x), ...props });
       // A tree's species decides the item type it yields (renderers draw by species)
-      const tree = (x, species, props) => feature('tree', x, { species, yields: TREE_YIELDS[species], ...props });
+      const tree = (x, species, props) => feature('tree', x, { species, yields: species, ...props });
       this.features = [
         feature('thornbush', jitter(0.125), { radius: 22 }),
         tree(jitter(0.16), 'fruit', { height: 210, canopy: 85, fruiting: 0.5 }),
@@ -163,7 +160,7 @@
       const total = c.tick + this.startPhase * DAY_TICKS;
       c.day = Math.floor(total / DAY_TICKS);
       c.phase = (total % DAY_TICKS) / DAY_TICKS;
-      c.sunElevation = Math.sin((c.phase - 0.25) * Math.PI * 2);
+      c.sunElevation = Math.sin((c.phase - 0.25) * TAU);
       c.light = clamp01(0.08 + 0.92 * clamp01((c.sunElevation + 0.15) / 0.45));
       const idx = Math.floor(c.day / SEASON_DAYS) % SEASONS.length;
       const progress = (c.day % SEASON_DAYS + c.phase) / SEASON_DAYS;
@@ -276,7 +273,7 @@
       if (!def) return null;
       const item = {
         id: Evo.nextId(), type, x, y: y === undefined ? this.terrain.groundY(x) : y,
-        vx: props.vx || 0, vy: props.vy || 0, radius: def.radius, rot: Evo.random() * Math.PI * 2,
+        vx: 0, vy: 0, radius: def.radius, rot: Evo.random() * TAU,
         age: 0, held: null, onGround: false, ...props
       };
       this.items.push(item);
@@ -287,8 +284,19 @@
     dropItem(type, x, y) {
       if (type === 'thorn') return this.addThornbush(x);
       const props = type === 'ball' ? { hue: Evo.randInt(360) } : {};
-      x = clamp(x, this.edge, this.width - this.edge);
-      return this.spawnItem(type, x, Math.min(y, this.surfaceBelow(x, y) - 1), props);
+      const at = this.placeAbove(x, y);
+      return this.spawnItem(type, at.x, at.y, props);
+    }
+
+    // Where a thing released at (x, y) starts falling: kept off the cliffs, and just above the surface below it
+    placeAbove(x, y) {
+      x = this.clampX(x);
+      return { x, y: Math.min(y, this.surfaceBelow(x, y) - 1) };
+    }
+
+    // x kept this far from the world's ends
+    clampX(x) {
+      return clamp(x, this.edge, this.width - this.edge);
     }
 
     addThornbush(x) {
@@ -390,15 +398,21 @@
       return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(0.36, 0.5)) });
     }
 
+    // An adult descended from a random banked genome (or a fresh founder if the bank is empty); fromEdge
+    // has it walk in at one end of the world (the side is drawn after the genome, as before)
+    addFromBank(sex, fromEdge = false) {
+      const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;
+      return this.addAdult(sex, {
+        genome: src ? src.genome.cloneWithMutation() : null, generation: src ? src.generation : 1,
+        reserves: WANDERER_RESERVES, x: fromEdge ? (Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30) : null
+      });
+    }
+
     found() {
       const fromBank = this.seedBank.length > 0;
       for (const sex of FOUNDERS) {
-        if (fromBank) {
-          const src = Evo.pick(this.seedBank);
-          this.addAdult(sex, { genome: src.genome.cloneWithMutation(), generation: src.generation, reserves: WANDERER_RESERVES });
-        } else {
-          this.addAdult(sex);
-        }
+        if (fromBank) this.addFromBank(sex);
+        else this.addAdult(sex);
       }
       if (fromBank) {
         this.stats.refoundings++;
@@ -414,15 +428,11 @@
     // A wanderer walks in from the edge when one sex is nearly gone
     maybeWanderer() {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return;
-      const females = this.creatures.filter(c => c.sex === 'FEMALE' && c.isMature).length;
-      const males = this.creatures.filter(c => c.sex === 'MALE' && c.isMature).length;
+      const adults = Evo.util.countBy(this.creatures.filter(c => c.isMature), c => c.sex);
+      const females = adults.FEMALE || 0, males = adults.MALE || 0;
       const sex = females < 2 ? 'FEMALE' : males < 2 ? 'MALE' : null;
       if (!sex) return;
-      const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;
-      const c = this.addAdult(sex, {
-        genome: src ? src.genome.cloneWithMutation() : null, generation: src ? src.generation : 1,
-        reserves: WANDERER_RESERVES, x: Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30
-      });
+      const c = this.addFromBank(sex, true);
       if (c) {
         this.stats.wanderers++;
         this.events.emit('wanderer', { creature: c });
@@ -466,10 +476,8 @@
     }
 
     layEgg(mother, pregnancy) {
-      const traits = pregnancy.genome.develop();
-      this.spawnItem('egg', mother.x - mother.facing * mother.size * 0.4, mother.y, {
-        genome: pregnancy.genome, reserves: pregnancy.reserves, parents: pregnancy.parents.map(p => ({ id: p.id, syllables: p.syllables })),
-        generation: pregnancy.generation, hue: traits.hue, accentHue: traits.accentHue, progress: 0, incubationTicks: traits.incubationTicks
+      this.spawnEgg(pregnancy.genome, mother.x - mother.facing * mother.size * 0.4, mother.y, {
+        reserves: pregnancy.reserves, parents: pregnancy.parents.map(p => ({ id: p.id, syllables: p.syllables })), generation: pregnancy.generation
       });
       this.stats.eggsLaid++;
       this.events.emit('egg', { mother });
@@ -478,10 +486,15 @@
     // A founder egg placed by the player: a fresh genome, provisioned as a mother would
     addEgg(x, y, { sex = Evo.chance(0.5) ? 'FEMALE' : 'MALE', genome = null } = {}) {
       genome = genome || this.founderGenome(sex);
+      const at = this.placeAbove(x, y);
+      return this.spawnEgg(genome, at.x, at.y, { reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1 });
+    }
+
+    // An egg item holding a genome, developed here for its looks and incubation time
+    spawnEgg(genome, x, y, { reserves, parents, generation }) {
       const traits = genome.develop();
-      x = clamp(x, this.edge, this.width - this.edge);
-      return this.spawnItem('egg', x, Math.min(y, this.surfaceBelow(x, y) - 1), {
-        genome, reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1,
+      return this.spawnItem('egg', x, y, {
+        genome, reserves, parents, generation,
         hue: traits.hue, accentHue: traits.accentHue, progress: 0, incubationTicks: traits.incubationTicks
       });
     }
@@ -644,7 +657,7 @@
         }
         item.vy += GRAVITY;
         const prevY = item.y;
-        item.x = clamp(item.x + item.vx, this.edge, this.width - this.edge);
+        item.x = this.clampX(item.x + item.vx);
         item.y += item.vy;
         const floor = this.surfaceBelow(item.x, prevY - 1);
         const level = this.terrain.waterLevelAt(item.x);
@@ -714,7 +727,7 @@
     moveHand(x, y) {
       const h = this.hand.holding;
       if (!h) return;
-      if (h.creature) { h.creature.x = clamp(x, this.edge, this.width - this.edge); h.creature.y = y + h.creature.size * HOLD_GRIP; }
+      if (h.creature) { h.creature.x = this.clampX(x); h.creature.y = y + h.creature.size * HOLD_GRIP; }
       if (h.item) { h.item.x = x; h.item.y = y + h.item.radius; }
     }
 

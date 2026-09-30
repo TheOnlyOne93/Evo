@@ -27,6 +27,14 @@
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
   const FEATURE_KEYS = Evo.VISION_FEATURES.map(f => f.key);
+  // Sight and smell respond logarithmically (Weber-Fechner): faint signals register, strong ones still read as stronger
+  const logResponse = (x, K, norm) => Math.log1p(x / K) / norm;
+  const LOOK_K = 0.005, LOOK_NORM = Math.log1p(1 / LOOK_K);
+  const RECEPTOR_K = 0.02, RECEPTOR_NORM = Math.log1p(1 / RECEPTOR_K);
+  // Timers that count down once a tick in act(). Not here: prickCooldown (World.prickCreatures) and heardCall (sense)
+  const ACT_TIMERS = ['mouthTimer', 'drinkTimer', 'jumpCooldown', 'grabCooldown', 'mateCooldown', 'callTimer', 'runTimer', 'restTimer', 'bumpCooldown'];
+  // Each taste: the food key it reads and how strongly
+  const TASTE_FROM_FOOD = { sweet: ['gutSugar', 4], starch: ['gutStarch', 4], savory: ['gutProtein', 4], fat: ['gutFat', 4], bitter: ['toxin', 4], water: ['water', 6] };
   // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
   const SIGHT_CELL = {};
   for (const side of ['L', 'R']) {
@@ -122,13 +130,14 @@
     // ---------- Geometry ----------
     get size() { return this.traits.adultSize * (0.42 + 0.58 * this.growth); }
     get radius() { return this.size * 0.4; }
+    get centerY() { return this.y - this.size * 0.4; }
     get headX() { return this.x + this.facing * this.size * 0.38; }
     get headY() { return this.y - this.size * 0.62; }
     get mouthX() { return this.x + this.facing * (this.size * 0.55 + 2); }
     get mouthY() { return this.y - this.size * 0.45; }
     get sex() { return this.traits.sex; }
     get isMature() { return this.stage >= STAGE.ADOLESCENT; } // Adolescent or older: sexually mature
-    get fertile() { return !this.dead && !this.asleep && this.stage >= STAGE.ADOLESCENT && this.stage <= STAGE.OLD && this.chem.effect('fertility') > 1; }
+    get fertile() { return !this.dead && !this.asleep && this.isMature && this.stage <= STAGE.OLD && this.chem.effect('fertility') > 1; }
     // Read from the current traits, so a life-history gene that switches on later in life counts
     get lifespan() { return this.traits.lifespanTicks; }
     get lying() { return this.dead || this.asleep || this.restTimer > 30; }
@@ -252,7 +261,7 @@
       c.add('glucose', -(basal + shiver + work + SPIKE_COST * this.brain.spikesThisTick));
 
       // Water: evaporation rises with heat and effort, and panting costs more
-      const ambient = world.temperatureAt(this.x, this.y - this.size * 0.4);
+      const ambient = world.temperatureAt(this.x, this.centerY);
       const pant = Math.max(0, c.effect('cooling'));
       c.add('water', -0.000012 * (1 + 2 * Math.max(0, ambient - 0.55)) * (1 + this.exertion) - 0.00001 * pant);
 
@@ -370,12 +379,11 @@
       sight.fill(0);
       // Like smell, sight responds logarithmically to apparent size (radius / distance), so a
       // small fruit across a clearing still registers while a nearby creature doesn't swamp it
-      const LOOK_K = 0.005, lookNorm = Math.log1p(1 / LOOK_K);
       const look = (tx, ty, radius, features) => {
         const dx = tx - ex, dy = ty - ey;
         const dist = Math.hypot(dx, dy);
         if (dist > range || dist < 1) return;
-        const intensity = Math.log1p(Math.min(1, radius / Math.max(8, dist)) / LOOK_K) / lookNorm * see;
+        const intensity = logResponse(Math.min(1, radius / Math.max(8, dist)), LOOK_K, LOOK_NORM) * see;
         const band = dy < -dist * HIGH_BAND_SLOPE ? 'high' : 'low';
         const sides = Math.abs(dx) < 3 ? BOTH_SIDES : dx < 0 ? LEFT : RIGHT;
         for (const f in features) {
@@ -391,7 +399,7 @@
         look(item.x, item.y - item.radius, item.radius, world.lookOf(item));
       }
       for (const other of world.creatures) {
-        if (other !== this) look(other.x, other.y - other.size * 0.4, other.size * 0.45, world.lookOfCreature(other));
+        if (other !== this) look(other.x, other.centerY, other.size * 0.45, world.lookOfCreature(other));
       }
       for (const f of world.features) {
         const l = world.lookOfFeature(f);
@@ -405,7 +413,6 @@
 
       // Smell: odour at each antenna tip (one reaching left, one right). Receptors respond
       // logarithmically (Weber-Fechner): faint traces register, stronger ones still read as stronger.
-      const RECEPTOR_K = 0.02, norm = Math.log1p(1 / RECEPTOR_K);
       const smellGain = NEURAL_GAIN * T.scentGain * gainScale;
       const smellIdx = brain.lobes.smell;
       const scentsL = [], scentsR = [];
@@ -413,8 +420,8 @@
         const l = Math.min(1, world.sampleScent(ex - T.noseReach, ey, o));
         const r = Math.min(1, world.sampleScent(ex + T.noseReach, ey, o));
         scentsL.push(l); scentsR.push(r);
-        drive[smellIdx[smellIndex('L', o)]] = Math.log1p(l / RECEPTOR_K) / norm * smellGain;
-        drive[smellIdx[smellIndex('R', o)]] = Math.log1p(r / RECEPTOR_K) / norm * smellGain;
+        drive[smellIdx[smellIndex('L', o)]] = logResponse(l, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
+        drive[smellIdx[smellIndex('R', o)]] = logResponse(r, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
       }
 
       // Hearing: another's call, louder when near, on the side it came from. A call is made in the
@@ -489,7 +496,7 @@
       }
       if (best) return best;
       for (const other of world.creatures) {
-        if (other !== this && !other.held && Math.hypot(other.x - mx, other.y - other.size * 0.4 - my) < other.radius + reach) return { kind: 'creature', creature: other };
+        if (other !== this && !other.held && Math.hypot(other.x - mx, other.centerY - my) < other.radius + reach) return { kind: 'creature', creature: other };
       }
       return null;
     }
@@ -562,15 +569,7 @@
       const brain = this.brain, T = this.traits;
       const m = this.lastMotors;
       for (let k = 0; k < MOTORS.length; k++) m[k] = brain.hist[brain.lobes.motor[k]] & 1;
-      if (this.mouthTimer > 0) this.mouthTimer--;
-      if (this.drinkTimer > 0) this.drinkTimer--;
-      if (this.jumpCooldown > 0) this.jumpCooldown--;
-      if (this.grabCooldown > 0) this.grabCooldown--;
-      if (this.mateCooldown > 0) this.mateCooldown--;
-      if (this.callTimer > 0) this.callTimer--;
-      if (this.runTimer > 0) this.runTimer--;
-      if (this.restTimer > 0) this.restTimer--;
-      if (this.bumpCooldown > 0) this.bumpCooldown--;
+      for (const timer of ACT_TIMERS) if (this[timer] > 0) this[timer]--;
       if (this.asleep || this.held) {
         this.exertion *= 0.95;
         this.muscle.fill(0);
@@ -658,13 +657,10 @@
     ingest(food) {
       const c = this.chem;
       for (const key in food) c.add(key, food[key]);
-      const t = this.taste;
-      t.sweet = Math.min(1, t.sweet + (food.gutSugar || 0) * 4);
-      t.starch = Math.min(1, t.starch + (food.gutStarch || 0) * 4);
-      t.savory = Math.min(1, t.savory + (food.gutProtein || 0) * 4);
-      t.fat = Math.min(1, t.fat + (food.gutFat || 0) * 4);
-      t.bitter = Math.min(1, t.bitter + (food.toxin || 0) * 4);
-      t.water = Math.min(1, t.water + (food.water || 0) * 6);
+      for (const taste in TASTE_FROM_FOOD) {
+        const [key, scale] = TASTE_FROM_FOOD[taste];
+        this.taste[taste] = Math.min(1, this.taste[taste] + (food[key] || 0) * scale);
+      }
     }
 
     // ---------- Physics ----------
@@ -677,7 +673,7 @@
 
       // Horizontal: a rise higher than a step blocks the way (jump to climb it)
       const wantX = this.x + this.vx;
-      const nx = clamp(wantX, world.edge, world.width - world.edge);
+      const nx = world.clampX(wantX);
       const groundHere = world.surfaceBelow(this.x, this.y - STEP_HEIGHT);
       const groundNext = world.surfaceBelow(nx, this.y - STEP_HEIGHT);
       if (this.onGround && groundNext < this.y - STEP_HEIGHT && groundNext < groundHere - 0.5) {
