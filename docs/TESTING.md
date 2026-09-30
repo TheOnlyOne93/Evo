@@ -15,13 +15,14 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `biochem` | Reactions, catalysts, emitters, half-lives, receptors and damage blame, the founder's hunger, thirst and reward, staged initial concentrations |
 | `brain` | Wiring, weight bounds, region copies and the neuron budget, reflexes, delays, muscle competition, attention, working memory |
 | `clock` | The frame clock: rate, pause, the hitch cap, the budget |
-| `drives` | Drives cells, stimulus genes, world stimuli, thorn pain, the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
+| `drives` | Drives cells, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
 | `genome` | Encoding round trips, founder genes, stages, duplication and loss, mutation, inheritance, guidance |
 | `kin` | `Evo.kinOf` and `Evo.kinIndex` |
-| `learning` | The modulators, prediction error, credit assignment, stability, replay, dreams, the timing of pats |
+| `landscape` | Every spec map in `Evo.MAPS` (classic is not one): the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |
+| `learning` | The modulators, prediction error, credit assignment, stability, replay, dreams, the timing of pats (over eight seeds, as one seed's effect is noisy) |
 | `render` | The `poseOf` contract, item radii |
 | `text` | `Evo.text`: names, gene descriptions, the mutation list |
-| `world` | Ponds, clock and seasons, temperature, scent, mating and eggs, the population cap, death and re-founding, the hand, regrowth, life-history genes, order independence, wanderers |
+| `world` | Ponds, clock and seasons, temperature, scent (spreading, and a nose reading only air), mating and eggs, the population cap, death and re-founding, the hand, regrowth, life-history genes, order independence, wanderers |
 
 `tests/helpers.js` is shared with the behaviour bench: `founderBrain`, `TICK_OPTS`, `cortexKnockout`, `quietWorld(Evo, seed, phase)`, `callThenPat`, `timeCosts`.
 
@@ -39,6 +40,8 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `node tools/evaluate.js [days=2] [seeds=3] [firstSeed=1]` | Ecology: one process per seed; meals, drinking, sleep, company, births, deaths, and where the creatures spend their time |
 | `node tools/simulate.js [days=2] [seed=1] [reportsPerDay=4]` | One run with a running report |
 | `node tools/serve.js [port=8123]` | A no-cache static server on 127.0.0.1 for browser checks. Stop it when done |
+
+**The lab.** `lab(seed)` is a quiet world with one creature on open ground: it takes the landscape's features and platforms away (no tree, rock, log, reeds or thorn bush, so no shade, warmth, sight, scent or footing from them; a scenario adds the few things it needs, as the thorn scenario adds its bush) and stands the creature at the dry spot midway across the widest gap between two ponds, about 500 px from the water on each side. It throws if a pond is in sight of that spot. The pond scenarios use `ponds[0]` (the lake: dry ground to its west, a bank to drink from 12 px inside its water) and `ponds[1]` (the small east pool: one scenario stands at the world's east edge facing it, one 200 px west of it).
 
 **Scenarios.** Each `tools/scenarios/*.js` exports `({ Evo, lab, session, run, trial, avoids }) => ({ scenarios, reports })`. A scenario maps a seed to the tick it passed (null for a fail). A report maps a seed to a number; reports run only with `--report`, and those named `cost:` run on their own after the rest.
 

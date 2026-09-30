@@ -193,7 +193,9 @@ function patAfterCall(Evo, seed, lag) {
 }
 
 test('learning: a pat just after an action strengthens the synapses into its muscle; the same pat much later does not', (Evo, assert) => {
+  // One seed's difference is noisy (what the creature happens to see moves it: over 30 seeds the mean
+  // is 0.45 with a spread of 0.45), so the sum over eight seeds must beat 0.1 a seed
   let soon = 0, late = 0;
-  for (let seed = 1; seed <= 3; seed++) { soon += patAfterCall(Evo, seed, 10); late += patAfterCall(Evo, seed, 150); }
-  assert.ok(soon > late + 0.3, `inputs to the call muscle grow by ${soon.toFixed(2)} patted just after calling, ${late.toFixed(2)} patted 150 ticks later`);
+  for (let seed = 1; seed <= 8; seed++) { soon += patAfterCall(Evo, seed, 10); late += patAfterCall(Evo, seed, 150); }
+  assert.ok(soon > late + 0.8, `inputs to the call muscle grow by ${soon.toFixed(2)} patted just after calling, ${late.toFixed(2)} patted 150 ticks later`);
 });

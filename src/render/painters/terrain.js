@@ -7,7 +7,6 @@
   const { rgb, rgba, mix, scale } = Evo.color;
   const { GROUND, DETAIL, SNOW, ROCK_TONES, circle, flower } = Evo.Paint;
   const { WINTER } = Evo.SEASON;
-  const CLIFF_REACH = 110;  // px an edge cliff's art reaches in from its side of the world
   const TILE_MARGIN = 24;   // px of ground a tile paints past its sides (and the view scans for its top)
 
   const SOIL = {
@@ -32,7 +31,10 @@
     const wet = x => { const l = waterAt(x); return l !== null && surf(x) > l + 0.5; };
     const R = rng(9001 + n);
     const info = { W, H, spacing, minS, meanS: sum / n, surf, waterAt, wet };
-    info.cliffTop = Math.max(-240, minS - 360);
+    // The cliff art reaches in as far as the sim's cliff does, and stands as high as the ground at the
+    // world's ends (the higher of the two)
+    info.cliffReach = T.cliffs.width;
+    info.cliffTop = Math.min(surf(0), surf(W));
 
     const pebbles = [];
     for (let x = 0; x < W; x += 9 + R() * 12) {
@@ -354,7 +356,7 @@
     }
     // Edge cliffs
     for (const c of info.cliffs) {
-      const cx0 = c.side ? W - CLIFF_REACH : -10, cx1 = c.side ? W + 10 : CLIFF_REACH;
+      const cx0 = c.side ? W - info.cliffReach : -10, cx1 = c.side ? W + 10 : info.cliffReach;
       if (cx1 < x0 || cx0 > x1) continue;
       paintCliff(g, info, c, si);
     }
@@ -521,5 +523,5 @@
     }
   }
 
-  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, CLIFF_REACH, TILE_MARGIN });
+  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, TILE_MARGIN });
 })(globalThis.Evo);

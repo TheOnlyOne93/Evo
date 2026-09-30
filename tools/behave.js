@@ -15,7 +15,10 @@ const { fork } = require('child_process');
 const Evo = require('../tests/load')();
 const { quietWorld } = require('../tests/helpers');
 
-// A quiet world with one creature and nothing else happening. Besides { world, c }, it has
+// A quiet world with one creature and nothing else happening, on open ground: the landscape's features
+// and platforms are taken away (a scenario adds the ones it needs) so that only ponds could be in sight,
+// and the creature stands at the dry spot midway across the widest gap between two ponds, out of sight
+// of both (it throws if a map change puts one in sight). Besides { world, c }, it has
 // placeAt(x, facing) to stand the creature on the ground at x, and count(eventName, [filter]) which
 // returns a function giving how many such events (passing the filter) have happened since.
 function lab(seed, { phase = 0.45 } = {}) {
@@ -28,7 +31,16 @@ function lab(seed, { phase = 0.45 } = {}) {
     return () => n;
   };
   Object.assign(c, { vx: 0, vy: 0 });
-  s.placeAt(world.features.find(f => f.kind === 'grass').x);
+  // Open ground: no feature or platform (shade, warmth, sight, scent, footing), only the scenario's own
+  // items. The spot is the middle of the widest dry stretch between two ponds
+  world.features = [];
+  world.platforms = [];
+  const ponds = [...world.terrain.ponds].sort((p, q) => p.x0 - q.x0);
+  let gap = [0, 0];
+  for (let i = 1; i < ponds.length; i++) if (ponds[i].x0 - ponds[i - 1].x1 > gap[1] - gap[0]) gap = [ponds[i - 1].x1, ponds[i].x0];
+  const spot = (gap[0] + gap[1]) / 2, sight = c.traits.visionRange + c.size * 0.4;
+  if (ponds.some(p => spot > p.x0 - sight && spot < p.x1 + sight)) throw new Error(`behave: a pond is in sight of the lab spot x ${spot}`);
+  s.placeAt(spot);
   for (const k of Evo.DRIVES) c.chem.set(k, 0);
   c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); c.chem.set('adenosine', 0); c.chem.set('melatonin', 0);
   return s;

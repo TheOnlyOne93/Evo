@@ -1,4 +1,4 @@
-// The side-view world: terrain, two ponds, trees and plants that grow food, day and night, seasons,
+// The side-view world: terrain, ponds, trees and plants that grow food, day and night, seasons,
 // temperature, scent in the air, sound, and the creatures. A pure simulation: it never touches the
 // page; it announces what happens on world.events.
 (function (Evo) {
@@ -155,16 +155,20 @@
       this.pendingScent.push({ x, y, channel, amount });
     }
 
-    // Bilinear sample; a cell's centre is at (k + 0.5) * cell
+    // Bilinear sample of the air; a cell's centre is at (k + 0.5) * cell. Solid cells hold no scent and
+    // carry no weight: the other cells' weights are renormalised to sum to 1, so the ground never pulls
+    // a nose's reading toward 0 (a slope would make a false gradient), and all four solid reads 0.
     sampleScent(x, y, channel) {
-      const s = this.scent, g = s.channels[channel];
+      const s = this.scent, g = s.channels[channel], solid = this.scentSolid;
       const gx = clamp(x / s.cell - 0.5, 0, s.cols - 1), gy = clamp(y / s.cell - 0.5, 0, s.rows - 1);
       const c0 = Math.floor(gx), r0 = Math.floor(gy);
       const c1 = Math.min(s.cols - 1, c0 + 1), r1 = Math.min(s.rows - 1, r0 + 1);
       const fx = gx - c0, fy = gy - r0;
-      const top = g[r0 * s.cols + c0] * (1 - fx) + g[r0 * s.cols + c1] * fx;
-      const bot = g[r1 * s.cols + c0] * (1 - fx) + g[r1 * s.cols + c1] * fx;
-      return top * (1 - fy) + bot * fy;
+      const a = r0 * s.cols + c0, b = r0 * s.cols + c1, c = r1 * s.cols + c0, d = r1 * s.cols + c1;
+      const wa = solid[a] ? 0 : (1 - fx) * (1 - fy), wb = solid[b] ? 0 : fx * (1 - fy);
+      const wc = solid[c] ? 0 : (1 - fx) * fy, wd = solid[d] ? 0 : fx * fy;
+      const w = wa + wb + wc + wd;
+      return w > 0 ? (g[a] * wa + g[b] * wb + g[c] * wc + g[d] * wd) / w : 0;
     }
 
     // ---------- What things look like to an eye ----------

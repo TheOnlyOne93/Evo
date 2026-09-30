@@ -17,10 +17,11 @@ module.exports = ({ lab, trial, avoids }) => ({
       // A friendly nuzzle or two is fine; more than 3 in 900 ticks is nuzzling without a need
       return avoids(s, 900, () => nuzzles() > 3);
     },
-    // The small pond lies near the world's end: a thirsty creature placed at the edge beside it must still drink
+    // The small pond (ponds[1], the east pool) lies near the world's east end: a thirsty creature placed at
+    // the edge beside it, facing it, must still drink
     'thirsty, at the world edge beside the small pond -> drinks': seed => {
       const s = lab(seed);
-      s.placeAt(s.world.edge);
+      s.placeAt(s.world.width - s.world.edge, -1);
       s.hold = { thirst: 0.7 };
       const drinks = s.count('drink');
       return trial(s, 1800, () => drinks() > 0);
@@ -43,7 +44,7 @@ module.exports = ({ lab, trial, avoids }) => ({
     'thirsty, 200px inland of the small pond -> drinks within 1800 ticks': seed => {
       const s = lab(seed);
       const p = s.world.terrain.ponds[1];
-      s.placeAt(p.x1 + 200, -1);
+      s.placeAt(p.x0 - 200, 1);
       s.hold = { thirst: 0.7 };
       const drinks = s.count('drink');
       return trial(s, 1800, () => drinks() > 0) === null ? 0 : 1;

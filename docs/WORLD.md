@@ -7,13 +7,13 @@
 y grows downward. All lengths are world pixels.
 
 ```js
-world.width, world.height            // from the map (the game's: 3600 × 900)
+world.width, world.height            // from the map (the game's: 2960 × 900)
 world.terrain = {
   spacing,                           // px between height samples
-  cliffs: { width, rise },           // the cliff at each end: it reaches width px in and drops the land by up to rise px
+  cliffs: { width, rise },           // the cliff at each end: it reaches width px in and raises the land by up to rise px
   heights,                           // Float32Array: ground surface y at x = i * spacing
   groundY(x), slopeAt(x),            // interpolated surface y; its slope
-  ponds: [{ x0, x1, level }],        // water surface y over [x0, x1]
+  ponds: [{ x0, x1, level, bed }],   // water surface y over [x0, x1]; bed: the deepest ground y under it
   waterLevelAt(x)                    // pond surface y at x, or null
 }
 world.platforms = [{ x0, x1, y, kind, featureId }]  // one-way surfaces: the walkable top of every 'log' and 'rock'
@@ -39,7 +39,8 @@ world.clock = { tick, day, phase, light, sunElevation }
 world.season = { key, index, progress }   // key: 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER'
 world.temperatureAt(x, y)            // 0..1 (0 freezing, 0.5 mild, 1 hot)
 world.scent = { cols, rows, cell, channels }   // one Float32Array per channel of Evo.SCENTS
-world.sampleScent(x, y, channel)
+world.scentSolid                     // Uint8Array, one per scent cell (like a channel): 1 where the cell is solid ground
+world.sampleScent(x, y, channel)     // a nose's reading: bilinear over the air cells only (Scent and sound)
 world.sounds = [{ x, y, pitch, loudness, age, sourceId }]   // calls, kept Evo.WORLD.SOUND_LIFE ticks
 world.nearestWater(x, range)         // { x, y }: the nearest pond surface within range of x, or null
 world.surfaceBelow(x, fromY)         // the highest surface (ground or platform) at or below fromY at x
@@ -54,9 +55,49 @@ Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature
 
 ## Land, light and weather
 
-The ground is a height field with a hill that carries the warm rock, a cliff at each end, and two ponds. Creatures and items stay 150 px from the ends (`world.edge`, at least `terrain.cliffs.width`). The seed jitters where things stand: three trees (two fruit, one mimic), two grass patches, the grub log, the rock, reeds at each pond's edges and three thorn bushes.
+The ground is a height field with ponds and a cliff at each end: the land rises by up to `terrain.cliffs.rise` px over the last `cliffs.width` px. Creatures and items stay `world.edge` px from the ends (at least `cliffs.width`), so they never reach the cliffs; the cliff art is drawn from `terrain.cliffs` too ([RENDERING.md](RENDERING.md)). A pond is a dip that fills with water up to 6 px below its lower rim; its record says where the water is (`x0`, `x1`), its surface (`level`) and the deepest ground under it (`bed`).
 
-The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name (for now only `classic`, today's world, which is temporary: it stays as the before-picture for the terrain redesign and goes once the new map is accepted), and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, spawnX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`). `spawnX()` draws a founder's x when one is founded, and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
+The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name, and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, spawnX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`, `valley`). `spawnX()` draws a founder's x when one is founded, and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
+
+`classic` is the world from before the redesign and is temporary (reach it with `new Evo.World({ map: 'classic' })` or `?map=classic` in the world lab): a legacy builder (`{ build() }`) whose ground is sines with random phases, a hill that carries the warm rock and two dug ponds, and where the seed jitters where things stand: three trees (two fruit, one mimic), two grass patches, the grub log, the rock, reeds at each pond's edges and three thorn bushes. It stays as the before-picture and goes once the valley is accepted.
+
+Every other map is a spec, built by one shared function with nothing random in it. `valley` is the game's, 2960 px wide, with the ground level at y 640 and three ponds dug into it: `ponds[0]` the lake, `ponds[1]` the east pool and `ponds[2]` the spring. Left to right (a pond's x is its rims; the water is inside them):
+
+| x | What |
+|---|---|
+| 175 | Where the ball starts. Founders appear between 220 and 400 |
+| 310 | The home meadow (grass) |
+| 440–680 | The spring (`ponds[2]`): 28 px deep, its water 476–644, with reeds at 456 and 664. The home water |
+| 800 | The fruit tree |
+| 990 | The warm rock: a platform 35 px above the ground |
+| 1265 | The log: a platform 24 px up |
+| 1601–2121 | The lake (`ponds[0]`): 45 px deep, its water 1645–2077, with reeds at 1625 and 2097 |
+| 2250 | The east meadow |
+| 2460 | The mimic tree |
+| 2530–2770 | The east pool (`ponds[1]`): 28 px deep, its water 2566–2734, with reeds at 2546 and 2754. It is by the east end of the world, 46 px from where wanderers arrive there |
+
+Reeds stand 20 px outside the ends of a pond's water. The map's design rules, which `tests/landscape.test.js` holds every spec map to where it can:
+
+* Water is within sight of every station: each tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, measured from the nearest edge of its extent.
+* Something useful and harmless is at each wall, because creatures gather at the world's ends: water, within sight of where wanderers arrive at each end.
+* No thorn bushes on the map. In a one-line world a bush is either a toll gate or a dead end, and dead ends are where creatures gather. (The player's thorn tool still plants one, and teaches pain.)
+* Sources of the same odour are at least 500 px apart (the mimic tree from the fruit tree).
+* The ground under every station is flat (a slope of at most 0.05); a pond's banks are at most 0.4, a slope a creature can climb.
+
+The spec's format:
+
+```js
+valley: {
+  width: 2960, height: 900, edge: 150,
+  cliffs: { width: 140, rise: 260 },
+  ground: 640,                          // the level ground's y
+  ponds: [{ x0, x1, depth, bank }],     // dips that fill with water
+  features: [{ kind, x, ...props }],    // the contract's features; list order is id order (1..N) and the order they are visited
+  ball: 175, spawn: [220, 400]          // where the ball starts; a founder appears at a random x between the two
+}
+```
+
+The ground is sampled every 8 px: `y(x) = ground + pond dips - cliff`. A pond is centred between its rims `x0` and `x1`; its dip lowers the ground by `depth`, flat for `(x1 - x0) - 2 * bank` and easing to nothing over `bank` px on each side (half a cosine), so it ends at the rims; its steepest slope is about `depth * PI / (2 * bank)`. The water stands 6 px below the lower rim, and its ends are found by walking in from the rims to where the ground falls below it; a map's reeds are written in as numbers taken from those ends. The cliff takes `rise * (1 - e / width)^2` off y where e, the distance from the nearer end, is under `width`. A feature's y is the ground's at its x, and a tree's `yields` is its species.
 
 The sun's elevation is a sine of the day's phase, and light follows it. `Evo.SEASONS` gives each season a mean temperature, a day-night swing, a dew factor and a growth factor for each food. `temperatureAt` adds to the season and the sun: cooler in a tree's shade and in water, warmer by the rock, which stores the day's sun and gives it back at night.
 
@@ -79,7 +120,7 @@ Trees and grass build up with light and the season's growth factor, then drop fo
 
 ## Scent and sound
 
-Scent is a grid of 30 px cells (120 × 30), one layer per odour in `Evo.SCENTS`: `sweet`, `starch`, `moist`, `bitter`, `earthy`, `prey`, `muskF`, `muskM`, `alarm`, `carrion`. Items and ponds give off their odours every tick, and bodies their musk and alarm (queued, like every creature write). Each odour's diffusion and decay are in `Evo.SCENTS`; the method is in [CORE.md](CORE.md). Solid ground holds none. Write scent only through `depositScent`, which keeps the box that diffusion sweeps.
+Scent is a grid of 30 px cells (99 × 30 in the valley), one layer per odour in `Evo.SCENTS`: `sweet`, `starch`, `moist`, `bitter`, `earthy`, `prey`, `muskF`, `muskM`, `alarm`, `carrion`. Items and ponds give off their odours every tick, and bodies their musk and alarm (queued, like every creature write). Each odour's diffusion and decay are in `Evo.SCENTS`; the method is in [CORE.md](CORE.md). Solid ground holds none: `world.scentSolid` marks the cells whose centre is more than half a cell below the surface. Write scent only through `depositScent`, which keeps the box that diffusion sweeps. `sampleScent(x, y, channel)`, what a nose reads, blends the four nearest cells bilinearly but reads only air: a solid cell has no weight and the rest are divided by the weight left (0 if all four are solid), so the ground beside a nose neither dims its reading nor makes a slope look like a scent gradient.
 
 A call is a sound at the caller's head, with its voice's pitch (higher for a baby or child) and loudness. It stays in `world.sounds` for 90 ticks; others hear it in the mind phase of the next two ticks ([TIME.md](TIME.md)).
 

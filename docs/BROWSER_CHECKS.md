@@ -53,7 +53,7 @@ unseeded random numbers, so two whole frames never match pixel for pixel.
 A change to the static art (`src/render/painters/`, the sprite code in `world-view.js`) that is
 meant to draw the same thing can prove it. In `dev/world-lab.html`, `lab.paintHash(levels = [0, 2])` builds
 the terrain tiles and every feature's sprite (not the sky's layers), in every season, at 1× and 2×,
-and returns one hash of the pixels per kind: `{ tiles, thornbush, tree, rock, grass, log, reeds }`.
+and returns one hash of the pixels per kind the map has: `{ tiles, tree, rock, grass, log, reeds }`, and `thornbush` when a bush stands there (the game's map has none: load `?map=classic`).
 `levels` index the sprite resolutions `[1, 1.5, 2, 3]`.
 
 1. Before the change, load the lab and note the hashes (the same browser gives the same hashes

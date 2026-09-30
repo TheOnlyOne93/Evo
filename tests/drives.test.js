@@ -73,7 +73,8 @@ test('drives: each thing the world does raises its stimulus on the right creatur
 test('drives: walking through a thornbush pricks, and the founder feels it as pain', (Evo, assert) => {
   const world = new Evo.World();
   world.creatures.length = 1;
-  const c = world.creatures[0], bush = world.features.find(f => f.kind === 'thornbush');
+  // The map has no thorn bush: the player's thorn tool plants one (on open ground, where the ball starts)
+  const c = world.creatures[0], bush = world.dropItem('thorn', world.ballX, 0);
   let pricks = 0;
   const stimulate = c.stimulate;
   c.stimulate = function (key, s) { if (key === 'pricked') pricks++; return stimulate.call(this, key, s); };

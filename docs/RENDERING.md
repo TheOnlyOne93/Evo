@@ -13,8 +13,8 @@
 | `season.js` | `SEASON` (`SPRING` 0 … `WINTER` 3, the order of `world.season.index`) |
 | `sky.js` | `Sky`: gradient, sun, moon, stars, clouds and three parallax layers; the light palette the view tints with. Reads `world.clock` and `world.season` only |
 | `item-art.js` | `ItemArt`: items from their data; `drawIcon` for the toolbar |
-| `painters/` | Add the static-art painters to `Paint`: `palette.js` (seasonal palettes), `terrain.js` (tiles, stones, cliffs), `plants.js` (trees, grass, reeds, thorn bush), `rocks.js` (the log and the rock, shaped to their platforms) |
-| `water.js` | `Water`: ponds, their ice and snow in winter, the sun's glints |
+| `painters/` | Add the static-art painters to `Paint`: `palette.js` (seasonal palettes), `terrain.js` (tiles, stones, cliffs: the art reaches `terrain.cliffs.width` in from each end and stands as high as the ground at the ends, the higher of the two), `plants.js` (trees, grass, reeds, thorn bush), `rocks.js` (the log and the rock, shaped to their platforms) |
+| `water.js` | `Water`: ponds (the water is as deep as the pond's `bed`), their ice and snow in winter, the sun's glints |
 | `weather.js` | `Weather`: snow, leaves, petals, pollen and fireflies, pooled around the visible area |
 | `hand-art.js` | `HandArt`: the player's hand in four poses, in screen px |
 | `cues.js` | `CreatureCues`: thought bubbles, hearts, bursts, name tags, attention brackets, and each creature's recent events for the card; `shownDrives`, `DRIVE_SHOWN`, `EVENT_LOOK` for the interface |
@@ -126,7 +126,7 @@ What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nea
 4. Weather, then the day-night light tint over everything drawn so far.
 5. The sky behind it all (drawn beneath): gradient, stars, sun, moon, clouds.
 6. Glows (the warm rock, lures, ripe eggs, fireflies, water glints) and the vignette.
-7. Overlays: scent, senses, calls, creature cues (in screen px), the hand.
+7. Overlays: scent (left clear where `world.scentSolid` is set), senses, calls, creature cues (in screen px), the hand.
 
 If posing or drawing a creature ever throws, the view warns once and draws placeholders for every creature from then on.
 

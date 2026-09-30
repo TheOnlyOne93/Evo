@@ -41,9 +41,7 @@
       const p = ponds[pi];
       if (p.x1 < v.vx0 || p.x0 > v.vx1) continue;
       const L = p.level;
-      let deep = L;
-      for (let x = p.x0; x <= p.x1; x += spacing) deep = Math.max(deep, surf(x));
-      const depth = Math.max(8, deep - L);
+      const depth = Math.max(8, p.bed - L);
       // Water body: animated surface on top, the pond bed below
       g.beginPath();
       g.moveTo(p.x0, L);

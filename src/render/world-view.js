@@ -221,7 +221,7 @@
           const x0 = i * TILE, x1 = x0 + TILE, y1 = (j + 1) * TILE;
           let top = Infinity;
           for (let x = Math.max(0, x0 - Paint.TILE_MARGIN); x <= Math.min(world.width, x1 + Paint.TILE_MARGIN); x += 4) top = Math.min(top, this.info.surf(x));
-          const cliff = (x0 < Paint.CLIFF_REACH || x1 > world.width - Paint.CLIFF_REACH) && y1 > this.info.cliffTop - 50;
+          const cliff = (x0 < this.info.cliffReach || x1 > world.width - this.info.cliffReach) && y1 > this.info.cliffTop - 50;
           const empty = !cliff && y1 < top - 30;
           this.tiles[j * cols + i] = { kind: KIND.TILE, empty, bx0: x0, by0: j * TILE, bw: TILE, bh: TILE, sp: new Array(SEASON_COUNT * NL).fill(null) };
         }
@@ -264,12 +264,13 @@
       this.cam.y = vh >= H ? H - vh / 2 : clamp(this.cam.y, vh / 2, H - vh / 2);
     }
 
-    // Ground line under the middle of the view: the average surface (or pond surface) nearby
+    // Ground line under the middle of the view: the average surface (or pond surface) nearby, on the
+    // valley floor (the cliffs rising at the ends would lift it)
     _groundLine(x, halfWidth) {
-      const info = this.info;
+      const info = this.info, cliff = this.world.terrain.cliffs.width;
       let sum = 0, n = 0;
       for (let k = -4; k <= 4; k++) {
-        const xx = clamp(x + (k / 4) * halfWidth, 0, info.W);
+        const xx = clamp(x + (k / 4) * halfWidth, cliff, info.W - cliff);
         const wl = info.waterAt(xx);
         const s = info.surf(xx);
         sum += wl !== null && wl < s ? wl : s;
@@ -946,29 +947,22 @@
 
     // ---- Overlays ----
 
-    // The scent field as a soft low-resolution image (cells under the ground are left clear)
+    // The scent field as a soft low-resolution image (the world's solid cells are left clear)
     _drawScent(g) {
       const sc = this.world.scent;
       let S = this.scent;
       if (!S || S.cols !== sc.cols || S.rows !== sc.rows || S.cell !== sc.cell || S.nch !== sc.channels.length) {
         const canvas = makeCanvas(sc.cols, sc.rows);
         const cg = canvas.getContext('2d');
-        const air = new Uint8Array(sc.cols * sc.rows);
-        for (let j = 0; j < sc.rows; j++) {
-          for (let i = 0; i < sc.cols; i++) {
-            const x = (i + 0.5) * sc.cell, y = (j + 0.5) * sc.cell;
-            air[j * sc.cols + i] = y < this.info.surf(x) + sc.cell * 0.3 ? 1 : 0;
-          }
-        }
         S = this.scent = {
           cols: sc.cols, rows: sc.rows, cell: sc.cell, nch: sc.channels.length, canvas, cg, img: cg.createImageData(sc.cols, sc.rows),
-          colors: sc.channels.map((_, ch) => Evo.theme.rgbOf(Evo.SCENTS[ch].token)), air
+          colors: sc.channels.map((_, ch) => Evo.theme.rgbOf(Evo.SCENTS[ch].token))
         };
       }
-      const px = S.img.data, colors = S.colors, chans = sc.channels, n = sc.cols * sc.rows;
+      const px = S.img.data, colors = S.colors, chans = sc.channels, solid = this.world.scentSolid, n = sc.cols * sc.rows;
       for (let i = 0; i < n; i++) {
         const o = i * 4;
-        if (!S.air[i]) { px[o + 3] = 0; continue; }
+        if (solid[i]) { px[o + 3] = 0; continue; }
         let R = 0, G = 0, B = 0, total = 0;
         for (let ch = 0; ch < chans.length; ch++) {
           const v = chans[ch][i];
