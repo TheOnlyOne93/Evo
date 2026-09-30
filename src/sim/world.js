@@ -519,12 +519,17 @@
     addEgg(x, y, { sex = Evo.chance(0.5) ? 'FEMALE' : 'MALE', genome = null } = {}) {
       genome = genome || this.founderGenome(sex);
       const at = this.placeAbove(x, y);
-      return this.spawnEgg(genome, at.x, at.y, { reserves: { ...Evo.EGG_CONTENTS }, parents: null, generation: 1 });
+      return this.spawnEgg(genome, at.x, at.y, { parents: null, generation: 1 });
     }
 
-    // An egg item holding a genome, developed here for its looks and incubation time
-    spawnEgg(genome, x, y, { reserves, parents, generation }) {
+    // An egg item holding a genome, developed here for its looks and incubation time. Without
+    // reserves, it is filled as its own genome's Reproduction gene would have a mother fill it
+    spawnEgg(genome, x, y, { reserves = null, parents, generation }) {
       const traits = genome.develop();
+      if (!reserves) {
+        const share = Evo.eggShare(traits);
+        reserves = Object.fromEntries(Object.entries(Evo.EGG_CONTENTS).map(([k, v]) => [k, v * share]));
+      }
       return this.spawnItem('egg', x, y, {
         genome, reserves, parents, generation,
         hue: traits.hue, accentHue: traits.accentHue, progress: 0, incubationTicks: traits.incubationTicks

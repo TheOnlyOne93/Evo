@@ -346,7 +346,7 @@
         const p = this.pregnancy;
         const share = 1 / T.gestationTicks;
         for (const [key, want] of Object.entries(Evo.EGG_CONTENTS)) {
-          const take = Math.min(c.get(key) * 0.5, want * share * (EGG_INVESTMENT_BASE + T.eggInvestment));
+          const take = Math.min(c.get(key) * 0.5, want * share * eggShare(T));
           c.add(key, -take);
           p.reserves[key] += take;
         }
@@ -781,9 +781,11 @@
     }
   }
 
-  // What a mother puts into an egg (and a hatchling starts with), in chemical units
+  // A standard egg's contents (what a hatchling starts with), in chemical units
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
-  Evo.EGG_INVESTMENT_BASE = EGG_INVESTMENT_BASE;
+  // How full a mother with these traits fills each egg, as a share of a standard egg
+  const eggShare = traits => EGG_INVESTMENT_BASE + traits.eggInvestment;
+  Evo.eggShare = eggShare;
 
   Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX, CALL_TICKS, LYING_ABOVE, JUMP_COOLDOWN } });
 })(globalThis.Evo);

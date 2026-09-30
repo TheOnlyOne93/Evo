@@ -137,6 +137,15 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
   assert.ok(world.history.some(h => h.id === baby.id));
 });
 
+test('world: an egg the player places is filled as a mother of its genome would fill it', (Evo, assert) => {
+  const world = emptyWorld(Evo);
+  const genome = Evo.Genome.founder('X'), x = world.width / 2;
+  const egg = world.addEgg(x, world.terrain.groundY(x) - 40, { genome });
+  const share = Evo.eggShare(genome.develop());
+  assert.ok(share < 1, 'a founder fills an egg to less than a standard egg');
+  for (const [k, v] of Object.entries(Evo.EGG_CONTENTS)) assert.ok(Math.abs(egg.reserves[k] - v * share) < 1e-12, `${k}: ${egg.reserves[k]} vs ${v * share}`);
+});
+
 test('world: a hatching egg does not make the next item skip its tick', (Evo, assert) => {
   const world = emptyWorld(Evo);
   world.items = [];

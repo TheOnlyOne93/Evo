@@ -261,7 +261,7 @@
     'Life history': (v, x, w) => `Lives about ${w.duration(x.lifespanTicks)}; carries an egg for ${w.duration(x.gestationTicks)}`,
     Voice: (v, x) => `A ${x.voicePitch > 0.5 ? 'high' : 'low'}, ${level(x.voiceLoudness, 0.4, 1, ['soft', 'clear', 'loud'])} voice`,
     Insulation: (v, x) => `${graded(x.insulation, R.fur, ['Thin', 'Medium', 'Thick'])} fur (${percent(x.insulation)}), ${level(x.bodyHeat, 0, 1, ['cool', 'warm', 'hot'])}-blooded`,
-    Reproduction: (v, x, w) => `Fills each egg to ${w.percent(Evo.EGG_INVESTMENT_BASE + x.eggInvestment)} of a standard egg, which hatches in about ${w.duration(x.incubationTicks)}`,
+    Reproduction: (v, x, w) => `Fills each egg to ${w.percent(Evo.eggShare(x))} of a standard egg, which hatches in about ${w.duration(x.incubationTicks)}`,
     // Brain
     Membrane: (v, x, w) => `Neurons fire at ${w.num(x.baseThreshold, 0)} mV`,
     Plasticity: (v, x, w) => `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.num(Math.log(0.5) / Math.log(x.traceDecay), 0)} ticks`,
