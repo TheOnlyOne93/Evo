@@ -369,7 +369,7 @@
         case KIND.LOG: Paint.paintLog(g, rec.f, si, rec); break;
         case KIND.ROCK: Paint.paintRock(g, rec.f, si, rec); break;
         case KIND.REEDS: Paint.paintReeds(g, rec.f, si, rec); break;
-        case KIND.THORN: Paint.paintThorn(g, rec.f, si, rec); break;
+        case KIND.THORN: Paint.paintThorn(g, rec.f, si); break;
       }
       const sp = { canvas, used: this.frameNo, px: canvas.width * canvas.height, rec, idx: si * NL + li };
       rec.sp[sp.idx] = sp;
@@ -418,7 +418,7 @@
           break;
         }
         case KIND.LOG: {
-          const L = f.length, top = rec.top;
+          const L = f.length;
           const d = top ? clamp(top + 3, 14, 44) : clamp(L * 0.24, 20, 34);
           // Where the ground falls away under the log, a stone props it up
           const props = [];
@@ -508,7 +508,7 @@
       this._setWorldTransform(g);
       if (this.options.showScent) this._drawScent(g);
       if (this.options.showSenses) this._drawSenses(g, t);
-      this._drawSounds(g, t);
+      this._drawSounds(g);
       this.cues.draw(g, this, t);
       this._drawHand(g, t);
       g.setTransform(1, 0, 0, 1, 0, 0);
@@ -682,7 +682,7 @@
         }
         if (!this.hoveredCreature && hand.mode === 'grab' && !hand.holding) this.hoveredItem = this._itemAtWorld(p.x, p.y, 6 / this.cam.zoom);
       }
-      const focused = this._focused();
+      const focused = this.focused();
       for (let i = 0; i < cs.length; i++) {
         const pose = poses[i];
         if (!pose) continue;
@@ -737,7 +737,7 @@
       return best;
     }
 
-    _focused() {
+    focused() {
       const f = this.options.focused;
       if (f == null) return null;
       if (typeof f === 'object') return f;
@@ -809,7 +809,7 @@
 
     _drawCreatures(g, t) {
       const cs = this.world.creatures;
-      const focused = this._focused();
+      const focused = this.focused();
       const art = Evo.CreatureArt;
       for (let pass = 0; pass < 2; pass++) {
         for (let i = 0; i < cs.length; i++) {
@@ -986,13 +986,13 @@
     }
 
     _drawSenses(g, t) {
-      const c = this._focused();
+      const c = this.focused();
       if (c && this.onDrawSenses) this.onDrawSenses(g, c, this, t);
       this._setWorldTransform(g);
     }
 
     // Calls rise as little music notes and fade
-    _drawSounds(g, t) {
+    _drawSounds(g) {
       const ss = this.world.sounds;
       for (let i = 0; i < ss.length; i++) {
         const s = ss[i];

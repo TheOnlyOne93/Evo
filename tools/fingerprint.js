@@ -46,7 +46,7 @@ function sampleWorld(h, world, base) {
 // Every Evo.text output a genome (and its brain and traits) can drive
 function describe(genome, brain, traits) {
   for (const gene of genome.findGenes()) text.add(JSON.stringify(T.describeGene(genome, gene, brain)));
-  for (const n of brain.neurons) text.add(T.neuronName(brain, n)).add(T.neuronRole(brain, n)).add(T.lobeName(n, brain));
+  for (const n of brain.neurons) text.add(T.neuronName(brain, n)).add(T.neuronRole(brain, n)).add(T.lobeName(brain, n));
   for (const lobe of Object.keys(brain.lobes)) text.add(T.regionName(brain, lobe)).add(T.regionAbout(brain, lobe));
   text.add(JSON.stringify(T.traitWords(traits)));
   for (const ch of T.geneChanges(genome, [T.founderGenome(genome.sexChrom)])) {

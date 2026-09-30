@@ -68,10 +68,8 @@
     return text;
   }
 
-  function lobeName(n, brain = null) {
-    if (n.copyOf !== null && brain) return regionName(brain, n.lobe);
-    const word = LOBE_INFO[n.parentLobe].word;
-    return n.copyOf !== null ? `${word} copy` : word;
+  function lobeName(brain, n) {
+    return n.copyOf !== null ? regionName(brain, n.lobe) : LOBE_INFO[n.parentLobe].word;
   }
 
   function neuronName(brain, n) {
@@ -165,13 +163,13 @@
     return TARGET_WORDS[key] || words(key);
   }
 
-  const seconds = ticks => {
+  const duration = ticks => {
     const s = ticks / Evo.TICKS_PER_SECOND;
     return s < 1 ? 'under a second' : s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
   };
   // How long ago, for an event: 'just now', '5 s ago'
   const ago = ticks => {
-    const s = seconds(ticks);
+    const s = duration(ticks);
     return s === 'under a second' ? 'just now' : s + ' ago';
   };
   const num = (v, d = 2) => (Math.abs(v) >= 100 ? Math.round(v) : Number(v.toFixed(d)));
@@ -197,7 +195,7 @@
       const idx = brain && brain.lobes[L[l]];
       return idx && i < idx.length ? neuronName(brain, brain.neurons[idx[i]]).toLowerCase() : `${lobe(l).toLowerCase()} ${i + 1}`;
     };
-    return { chem: chemName, locus: locusName, target: targetName, lobe, cell, percent, num, seconds };
+    return { chem: chemName, locus: locusName, target: targetName, lobe, cell, percent, num, duration };
   }
 
   // ---------- Genes ----------
@@ -260,10 +258,10 @@
     Eyes: (v, x) => `Sees ${Math.round(x.visionRange)} px, ${level(x.nightVision, 0, 1, ['poorly', 'fairly', 'well'])} at night`,
     Nose: (v, x) => `Smells ${Math.round(x.noseReach)} px around it, sensitivity ×${num(x.scentGain, 1)}`,
     Muscle: (v, x) => `Walks at ${num(x.walkSpeed)}, runs ×${num(x.runBoost, 1)}, jumps ${num(x.jumpPower, 1)}`,
-    'Life history': (v, x, w) => `Lives about ${w.seconds(x.lifespanTicks)}; carries an egg for ${w.seconds(x.gestationTicks)}`,
+    'Life history': (v, x, w) => `Lives about ${w.duration(x.lifespanTicks)}; carries an egg for ${w.duration(x.gestationTicks)}`,
     Voice: (v, x) => `A ${x.voicePitch > 0.5 ? 'high' : 'low'}, ${level(x.voiceLoudness, 0.4, 1, ['soft', 'clear', 'loud'])} voice`,
     Insulation: (v, x) => `${graded(x.insulation, R.fur, ['Thin', 'Medium', 'Thick'])} fur (${percent(x.insulation)}), ${level(x.bodyHeat, 0, 1, ['cool', 'warm', 'hot'])}-blooded`,
-    Reproduction: (v, x, w) => `Fills each egg to ${w.percent(Evo.EGG_INVESTMENT_BASE + x.eggInvestment)} of a standard egg, which hatches in about ${w.seconds(x.incubationTicks)}`,
+    Reproduction: (v, x, w) => `Fills each egg to ${w.percent(Evo.EGG_INVESTMENT_BASE + x.eggInvestment)} of a standard egg, which hatches in about ${w.duration(x.incubationTicks)}`,
     // Brain
     Membrane: (v, x, w) => `Neurons fire at ${w.num(x.baseThreshold, 0)} mV`,
     Plasticity: (v, x, w) => `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.num(Math.log(0.5) / Math.log(x.traceDecay), 0)} ticks`,
@@ -276,7 +274,7 @@
       const lobe = x.copy ? brain && (brain.duplicatesOf[parent] || [])[x.copy - 1] : parent;
       const region = lobe ? regionName(brain, lobe) : `${LOBE_INFO[parent].word} copy ${x.copy} (not there)`;
       const { compete, persist } = dynamicsWords(x);
-      return `${region}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${seconds(1 / (1 - x.keep))})`;
+      return `${region}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
     Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
@@ -316,7 +314,7 @@
       const text = `${lhs || 'nothing'} → ${side(outs) || 'nothing'}, ${rateWord(v.rate)}`;
       return capitalize(text);
     },
-    'Half-life': (v, x, w) => (v.halfLife === Infinity ? `${w.chem(v.chem)} never fades` : `${w.chem(v.chem)} halves in ${w.seconds(v.halfLife)}`),
+    'Half-life': (v, x, w) => (v.halfLife === Infinity ? `${w.chem(v.chem)} never fades` : `${w.chem(v.chem)} halves in ${w.duration(v.halfLife)}`),
     'Initial concentration': (v, x, w) => `Born with ${w.percent(v.amount)} ${w.chem(v.chem).toLowerCase()}`,
     // Instinct
     Instinct: (v, x, w, brain) => `Dreams: ${describeInstinct(v, brain)}`
@@ -371,7 +369,7 @@
     if (codec === C.chem) return value ? chemName(value).toLowerCase() : 'nothing';
     if (codec === C.locus) return locusName(value);
     if (codec === C.target) return targetName(value);
-    if (codec === C.halfLife) return value === Infinity ? 'never' : seconds(value);
+    if (codec === C.halfLife) return value === Infinity ? 'never' : duration(value);
     if (codec === C.lobe) return LOBE_INFO[Evo.LOBE_ORDER[value]].word.toLowerCase();
     if (typeof value === 'number') return value === Infinity ? 'never' : String(num(value, 2));
     return '…';
@@ -448,9 +446,9 @@
       ['Eyesight', graded(tr.visionRange, R.eyes, ['short', 'medium', 'long']), `${Math.round(tr.visionRange)} px`],
       ['Night sight', level(tr.nightVision, 0, 1, ['poor', 'some', 'good']), percent(tr.nightVision)],
       ['Nose', graded(tr.noseReach, R.nose, ['short', 'medium', 'keen']), `${Math.round(tr.noseReach)} px`],
-      ['Lifespan', seconds(tr.lifespanTicks), clock(tr.lifespanTicks)],
-      ['Egg takes', seconds(tr.gestationTicks), clock(tr.gestationTicks)],
-      ['Hatches in', seconds(tr.incubationTicks), clock(tr.incubationTicks)],
+      ['Lifespan', duration(tr.lifespanTicks), clock(tr.lifespanTicks)],
+      ['Egg takes', duration(tr.gestationTicks), clock(tr.gestationTicks)],
+      ['Hatches in', duration(tr.incubationTicks), clock(tr.incubationTicks)],
       ['Fur', graded(tr.insulation, R.fur, ['thin', 'medium', 'thick']), percent(tr.insulation)],
       ['Learning', graded(tr.learningRate, R.learning, ['slow', 'average', 'quick']), num(tr.learningRate, 3)],
       ['Voice', tr.voicePitch > 0.5 ? 'high' : 'low', percent(tr.voiceLoudness) + ' loud']
@@ -471,7 +469,7 @@
 
   Evo.text = {
     lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, capitalize,
-    describeGene, describeInstinct, seconds, ago, signed, level, dynamicsWords, GENE_KINDS,
+    describeGene, describeInstinct, duration, ago, signed, level, dynamicsWords, GENE_KINDS,
     geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
     ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, SIDE, whereSeen, STIMULUS_PAST
   };

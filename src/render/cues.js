@@ -102,7 +102,7 @@
       const world = view.world;
       this.track(world, t);
       const cs = world.creatures, dpr = view.dpr, z = clamp(view.cam.zoom, 0.75, 1.4);
-      const focused = view._focused(), hovered = view.hoveredCreature;
+      const focused = view.focused(), hovered = view.hoveredCreature;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.lineCap = 'round'; g.lineJoin = 'round';
       for (let i = 0; i < cs.length; i++) {

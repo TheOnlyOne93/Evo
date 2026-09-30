@@ -133,11 +133,11 @@
       last = now;
       const ticks = clock.advance(dtMs, state.speed, state.paused);
       let ran = 0;
-      const start = performance.now();
+      const frameStart = performance.now();
       while (ran < ticks) {
         tick();
         ran++;
-        if (performance.now() - start > FRAME_BUDGET_MS) break;
+        if (performance.now() - frameStart > FRAME_BUDGET_MS) break;
       }
       clock.report(ran);
       // A focused creature that died or left: let it go

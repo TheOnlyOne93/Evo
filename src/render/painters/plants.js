@@ -334,7 +334,7 @@
 
   // A bramble: a low, leafy mound in dark plum with thorny canes arching out of it. Purple and
   // spiky so it reads as "don't touch" at any size; in winter only the tangle of canes is left.
-  function paintThorn(g, f, si, rec) {
+  function paintThorn(g, f, si) {
     const R = rng(7000 + (f.id | 0) * 23);
     const r = f.radius;
     const winter = si === WINTER;

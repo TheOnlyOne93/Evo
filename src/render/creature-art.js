@@ -450,11 +450,11 @@
     }
   }
 
-  function tailPath(ctx, r, from, to, grow) {
+  function tailPath(ctx, r, from, to, outset) {
     const T = r.tail;
     ctx.beginPath();
     for (let i = from; i < to; i++) {
-      circle(ctx, T[i * 3], T[i * 3 + 1], T[i * 3 + 2] + grow);
+      circle(ctx, T[i * 3], T[i * 3 + 1], T[i * 3 + 2] + outset);
     }
   }
 

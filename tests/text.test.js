@@ -9,7 +9,7 @@ test('text: every neuron has a plain-language name', (Evo, assert) => {
   for (const n of brain.neurons) {
     const name = Evo.text.neuronName(brain, n);
     assert.ok(name && !/undefined|NaN/.test(name), `neuron ${n.index} (${n.lobe}) -> ${name}`);
-    assert.ok(!/undefined/.test(Evo.text.lobeName(n)));
+    assert.ok(!/undefined/.test(Evo.text.lobeName(brain, n)));
   }
 });
 

@@ -41,7 +41,7 @@
 
   // This frame's pose. The creature's age runs with the lab's clock (60 ticks per second), so
   // poseOf eases and times its gestures per tick as in the game.
-  function poseOf(sub, ticks) {
+  function poseAt(sub, ticks) {
     sub.c.ageTicks = sub.age0 + ticks;
     return (sub.pose = Evo.poseOf(sub.c, { focused: sub.focused, hovered: sub.hovered }));
   }
@@ -157,7 +157,7 @@
   function animate(sub, t, ticks) {
     if (sub.eating) sub.c.mouthTimer = 30 - ticks % 30;
     if (sub.flinch) sub.c.stim.flinch = Math.max(0, 1 - ((t * 0.8) % 1) * 2.2);
-    const p = poseOf(sub, ticks);
+    const p = poseAt(sub, ticks);
     if (sub.heat) inHeat(p);
     return p;
   }
@@ -172,7 +172,7 @@
     s.subs.forEach((sub, i) => {
       const col = i % 7, row = i / 7 | 0, gy = row * rh + rh - 26;
       dayBackdrop(ctx, col * cw, row * rh, cw, rh, gy);
-      wander(poseOf(sub, ticks), t);
+      wander(poseAt(sub, ticks), t);
       put(ctx, sub, t, col * cw + cw / 2, gy, z);
       label(ctx, STAGES[sub.c.stage].word + (row ? ' ♂' : ' ♀'), col * cw + cw / 2, gy + 18);
     });
@@ -189,7 +189,7 @@
     s.subs.forEach((sub, i) => {
       dayBackdrop(ctx, i * cw, 0, cw, h, gy);
       if (sub.walk) { sub.c.vx = 1.3; sub.c.walkPhase = t * Evo.TICKS_PER_SECOND * 1.3 * PHASE_PER_PX; }
-      wander(poseOf(sub, ticks), t);
+      wander(poseAt(sub, ticks), t);
       put(ctx, sub, t, i * cw + cw / 2, gy, z);
     });
   });
@@ -268,7 +268,7 @@
           const u = ((t + sub.jumpT) % 2.2) / 0.75;
           if (u < 1) { c.y = -c.size * 1.1 * 4 * u * (1 - u); c.onGround = false; jumping = true; }
         }
-        const p = poseOf(sub, ticks);
+        const p = poseAt(sub, ticks);
         if (jumping) p.groundY = 0;   // where its shadow stays (the world view fills this in)
         wander(p, t);
         put(ctx, sub, t, 0, gy, z);
@@ -362,7 +362,7 @@
     s.subs.forEach((sub, i) => {
       const col = i % 8, row = i / 8 | 0, gy = row * rh + rh - 22;
       dayBackdrop(ctx, col * cw, row * rh, cw, rh, gy);
-      wander(poseOf(sub, ticks), t);
+      wander(poseAt(sub, ticks), t);
       put(ctx, sub, t, col * cw + cw / 2, gy, z);
     });
   });
@@ -386,7 +386,7 @@
     s.subs.forEach((sub, i) => {
       const col = i % 7, row = i / 7 | 0, gy = row * rh + rh - 26;
       dayBackdrop(ctx, col * cw, row * rh, cw, rh, gy);
-      wander(poseOf(sub, ticks), t);
+      wander(poseAt(sub, ticks), t);
       put(ctx, sub, t, col * cw + cw / 2, gy, z);
       label(ctx, sub.label, col * cw + cw / 2, gy + 18);
     });
@@ -448,7 +448,7 @@
       if (i === 3) setState(sub, 'calling');
       if (i === 5) setState(sub, 'asleep');
       if (i === 7) setState(sub, 'wet');
-      const p = poseOf(sub, 0);
+      const p = poseAt(sub, 0);
       if (i === 9) inHeat(p);
       poses.push(p);
     }

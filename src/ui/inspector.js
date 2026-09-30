@@ -278,7 +278,7 @@
 
       // Decision
       const w = m.winner;
-      const doing = w >= 0 ? `<b>${esc(T.MOTOR_WORDS[b.neurons[w].meta.key] || T.neuronName(b, b.neurons[w]))}</b>, for ${T.seconds(tick - m.since)}` : '<span class="muted">nothing yet</span>';
+      const doing = w >= 0 ? `<b>${esc(T.MOTOR_WORDS[b.neurons[w].meta.key] || T.neuronName(b, b.neurons[w]))}</b>, for ${T.duration(tick - m.since)}` : '<span class="muted">nothing yet</span>';
       row('Decided to', `${doing} <span class="muted">· body: ${esc((T.ACTION_WORDS[c.action] || c.action).toLowerCase())}</span>`);
 
       // Prediction errors: how things turned out against what it expected
@@ -354,7 +354,7 @@
     renderNeuron(b, i) {
       const n = b.neurons[i], now = b.tickCount;
       $('neuronName').textContent = T.neuronName(b, n);
-      $('neuronLobe').textContent = T.lobeName(n, b);
+      $('neuronLobe').textContent = T.lobeName(b, n);
       $('neuronRole').textContent = T.neuronRole(b, n);
       const h = b.hist[i], last = h ? 31 - Math.clz32(h & -h) : -1;
       const ins = [], outs = [];
