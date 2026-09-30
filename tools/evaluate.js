@@ -48,6 +48,10 @@ if (process.argv[2] === '--child') {
 }
 
 const days = Number(process.argv[2] || 2), seeds = Number(process.argv[3] || 3), first = Number(process.argv[4] || 1);
+if (!(days > 0) || !Number.isInteger(seeds) || seeds < 1 || !Number.isInteger(first)) {
+  console.error('usage: node tools/evaluate.js [days=2] [seeds=3] [firstSeed=1]  (days > 0, seeds a whole number >= 1)');
+  process.exit(1);
+}
 const runs = Array.from({ length: seeds }, (_, i) => new Promise(resolve => {
   const child = fork(__filename, ['--child', days, first + i]);
   let got = false;
