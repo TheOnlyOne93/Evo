@@ -25,6 +25,13 @@
   const COLD = 0.3, HOT = 0.7; // Body heat below or above these is cold or hot (the bar's colour and word)
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
   const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
+  const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome
+  const POP_EVERY = 10 * Evo.TICKS_PER_SECOND;    // Ticks between population chart samples
+  const POP_LEN = 400;                            // Population samples kept
+  const WINNER_HOLD = Evo.TICKS_PER_SECOND;       // Undecided ticks before the winning muscle is dropped
+  const STIM_MV = 40;          // mV each pulse of Stimulate injects into the probed cell
+  const MUSCLE_GAIN = 8;       // A muscle bar fills at this multiple of the cell's firing rate
+  const BUSY_RATE = 0.04;      // A cell firing faster than this counts as busy
   const CHANGE_WORDS = { changed: 'changed', new: 'new', copy: 'extra copy', lost: 'lost' };
   // The fill of a bar that grows left or right from its middle: v in -1..1
   const centeredBar = (v, color) => {
@@ -120,10 +127,10 @@
         h.n++;
       }
       if (c && this.mind) this.sampleMind(c.brain, tick);
-      if (tick % 60 === 0) for (const x of world.creatures) this.remember(x);
-      if (tick % 600 === 0 || !this.population.length) {
+      if (tick % REMEMBER_EVERY === 0) for (const x of world.creatures) this.remember(x);
+      if (tick % POP_EVERY === 0 || !this.population.length) {
         this.population.push(world.creatures.length);
-        if (this.population.length > 400) this.population.shift();
+        if (this.population.length > POP_LEN) this.population.shift();
       }
     }
 
@@ -139,7 +146,7 @@
       if (best >= 0) {
         m.idle = 0;
         if (best !== m.winner) { m.winner = best; m.since = tick; }
-      } else if (++m.idle > 60) m.winner = -1;
+      } else if (++m.idle > WINNER_HOLD) m.winner = -1;
       m.tick = tick;
     }
 
@@ -286,7 +293,7 @@
       // Working memory: thinking cells that keep going
       const cortex = b.lobes.cortex || [];
       let on = 0, left = 0;
-      for (const i of cortex) if (b.rate[i] > 0.04) { on++; if (b.neurons[i].pos[0] < 0.5) left++; }
+      for (const i of cortex) if (b.rate[i] > BUSY_RATE) { on++; if (b.neurons[i].pos[0] < 0.5) left++; }
       const side = on < 2 ? '' : left > on * 0.65 ? ', mostly the left side' : left < on * 0.35 ? ', mostly the right side' : ', both sides';
       row('Thinking', on ? `${on} of ${cortex.length} cells busy${side}` : '<span class="muted">quiet</span>');
 
@@ -328,7 +335,7 @@
     renderRegion(b, lobe) {
       const cells = b.lobes[lobe];
       let busy = 0, firing = 0;
-      for (const i of cells) { if (b.rate[i] > 0.04) busy++; if (b.hist[i] & 0xF) firing++; }
+      for (const i of cells) { if (b.rate[i] > BUSY_RATE) busy++; if (b.hist[i] & 0xF) firing++; }
       $('regionName').textContent = T.regionName(b, lobe);
       $('regionSize').textContent = `${cells.length} cells`;
       $('regionAbout').textContent = T.regionAbout(b, lobe);
@@ -384,7 +391,7 @@
     stimulate() {
       const c = this.app.focus, i = this.brainView.probed;
       if (!c || i < 0) return;
-      for (let k = 1; k <= 6; k += 2) c.brain.inject(i, 40, k);
+      for (let k = 1; k <= 6; k += 2) c.brain.inject(i, STIM_MV, k);
     }
 
     // What each sight and smell has come to predict, from the cue synapses onto the reward and
@@ -412,7 +419,7 @@
       const b = c.brain, w = this.mind ? this.mind.winner : -1;
       $('barsMuscles').innerHTML = Evo.MOTORS.map((m, k) => {
         const i = b.lobes.motor[k];
-        return bar(i === w ? `${m.word} ◂` : m.word, Math.min(1, b.rate[i] * 8), i === w ? 'var(--energy)' : b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', percent(b.rate[i]));
+        return bar(i === w ? `${m.word} ◂` : m.word, Math.min(1, b.rate[i] * MUSCLE_GAIN), i === w ? 'var(--energy)' : b.hist[i] & 1 ? 'var(--pulse)' : 'var(--accent)', percent(b.rate[i]));
       }).join('');
     }
 
@@ -594,7 +601,7 @@
         return `<button class="member" data-creature="${c.id}" aria-current="${c === this.app.focus}">` +
           `<span class="sex-glyph" style="color:${sexColor(c.sex)}">${sexGlyph(c.sex)}</span>` +
           `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(T.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
-          `<span class="meta">${need && need[1] > 0.2 ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
+          `<span class="meta">${need && need[1] > Evo.DRIVE_SHOWN.roster ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
       }).join('') || '<p class="empty">Nobody lives here now.</p>');
       this.renderPopulation();
     }

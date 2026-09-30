@@ -163,5 +163,6 @@
     }
   }
 
+  HandController.DRAG = DRAG;  // The bottom sheet's handle uses the same threshold
   Evo.HandController = HandController;
 })(globalThis.Evo);

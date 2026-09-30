@@ -21,7 +21,7 @@
         b.setAttribute('aria-current', String(c === app.focus));
         if (!c) return;
         // A badge with its strongest need (or sleep), and the needs in words on hover
-        const needs = c.dead || c.asleep ? [] : Evo.needsOf(c, 3, 0.45);
+        const needs = c.dead || c.asleep ? [] : Evo.needsOf(c, 3, Evo.DRIVE_SHOWN.strip);
         const badge = c.dead ? '' : c.asleep ? '💤' : needs.length ? needs[0].icon : '';
         const label = `${c.name} (${H.sexWord(c.sex).toLowerCase()})` +
           (c.asleep ? ', asleep' : needs.length ? ': ' + needs.map(n => n.word.toLowerCase()).join(', ') : '');

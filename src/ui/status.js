@@ -3,6 +3,10 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const H = Evo.uiHelpers;
+  const TOAST_MS = 2800;       // A toast stays up this long
+  const LOG_LIFE_MS = 10000;   // A log line stays this long in all, the last FADE_MS of it fading out
+  const FADE_MS = 1000;        // The .log-line opacity transition in app.css
+  const MAX_LOG_LINES = 5;
 
   Evo.setupStatus = function setupStatus(app) {
     const { world } = app;
@@ -13,7 +17,7 @@
       el.textContent = message;
       el.classList.remove('hidden');
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.add('hidden'), 2800);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), TOAST_MS);
     };
 
     app.who = c => `<b style="color:${H.sexColor(c.sex)}">${H.esc(c.name)}</b>`;
@@ -23,9 +27,9 @@
       el.innerHTML = html;
       if (creature) el.dataset.creature = creature.id;
       $('log').prepend(el);
-      while ($('log').children.length > 5) $('log').lastChild.remove();
-      setTimeout(() => el.classList.add('fading'), 9000);
-      setTimeout(() => el.remove(), 10000);
+      while ($('log').children.length > MAX_LOG_LINES) $('log').lastChild.remove();
+      setTimeout(() => el.classList.add('fading'), LOG_LIFE_MS - FADE_MS);
+      setTimeout(() => el.remove(), LOG_LIFE_MS);
     };
     $('log').addEventListener('click', e => {
       const el = e.target.closest('[data-creature]');

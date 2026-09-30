@@ -11,8 +11,8 @@
   --ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --lab-w: clamp(380px, 34vw, 520px); --peek: 70px; --lab-anim: .34s; --ease: cubic-bezier(.22,.8,.24,1);
-  --r-sm: 8px; --r-md: 14px;
+  --lab-w: clamp(380px, 34vw, 520px); --peek: 70px; --sheet-half: 55%; --sheet-full: 92%; --lab-anim: .34s; --ease: cubic-bezier(.22,.8,.24,1);
+  --r-sm: 8px; --r-md: 14px; --track: rgba(255,255,255,0.08);
   padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--pond-deep);
 }
 * { box-sizing: border-box; }
@@ -42,11 +42,11 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 #worldCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
 @media (hover: none) { #worldCanvas { cursor: default; } }
 
-.float { position: absolute; z-index: 10; background: rgba(15, 30, 34, 0.9); border: 1px solid var(--line);
+.float { position: absolute; z-index: 10; background: color-mix(in srgb, var(--pond) 90%, transparent); border: 1px solid var(--line);
   border-radius: var(--r-md); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
 /* Bars: the same everywhere (card, body, brain) */
-.track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.track { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
 .fill { height: 100%; width: 0; border-radius: 3px; transition: width 0.25s linear; }
 
 /* Creature card */
@@ -91,12 +91,12 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 .avatar canvas { width: 34px; height: 34px; display: block; border-radius: 50%; margin: 1px; }
 .avatar .badge { position: absolute; right: -2px; bottom: -2px; font-size: 12px; line-height: 1; pointer-events: none;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
-.avatar[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 2px rgba(155, 227, 200, 0.35); }
+.avatar[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 /* Event log */
 #log { position: absolute; left: 10px; bottom: 76px; z-index: 9; display: flex; flex-direction: column-reverse; gap: 4px;
   max-width: min(360px, calc(100% - 20px)); pointer-events: none; }
-.log-line { pointer-events: auto; text-align: left; font-size: 13px; padding: 5px 10px; border-radius: 10px; background: rgba(15, 30, 34, 0.82);
+.log-line { pointer-events: auto; text-align: left; font-size: 13px; padding: 5px 10px; border-radius: 10px; background: color-mix(in srgb, var(--pond) 82%, transparent);
   border: 1px solid var(--line); color: var(--text); transition: opacity 1s; width: fit-content; }
 .log-line.fading { opacity: 0; }
 button.log-line:hover { border-color: var(--muted); }
@@ -154,8 +154,8 @@ button.log-line:hover { border-color: var(--muted); }
 [data-layout="drawer"].lab-open #labPanel { transform: none; }
 [data-layout="sheet"] #labPanel { position: absolute; left: 0; right: 0; bottom: 0; height: var(--peek);
   border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; box-shadow: 0 -14px 36px rgba(0,0,0,0.55); }
-[data-layout="sheet"][data-sheet="half"] #labPanel { height: 55%; }
-[data-layout="sheet"][data-sheet="full"] #labPanel { height: 92%; }
+[data-layout="sheet"][data-sheet="half"] #labPanel { height: var(--sheet-half); }
+[data-layout="sheet"][data-sheet="full"] #labPanel { height: var(--sheet-full); }
 [data-layout="sheet"] #labPanel.dragging { transition: none; }
 [data-layout="sheet"] #sheetHandle { display: flex; justify-content: center; align-items: center; height: 22px; flex: 0 0 auto; cursor: grab; touch-action: none; }
 #sheetHandle span { width: 42px; height: 5px; border-radius: 3px; background: var(--line); }
@@ -180,7 +180,7 @@ section.block > h3 { font-size: 16px; }
 
 /* Brain */
 .mind { background: var(--panel-raised); border-radius: var(--r-md); padding: 8px 12px; }
-.mind-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(41,68,74,0.5); }
+.mind-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: baseline; font-size: 13px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
 .mind-row:last-child { border-bottom: 0; }
 .mind-k { color: var(--faint); font-size: 12.5px; }
 .mind-v { min-width: 0; }
@@ -217,18 +217,18 @@ section.block > h3 { font-size: 16px; }
 .link-list { display: grid; gap: 1px; }
 .link-list h4 { margin: 0 0 3px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
 .link-list .note { padding-top: 3px; }
-.link { display: grid; grid-template-columns: 1fr 64px 26px; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 4px; border-bottom: 1px solid rgba(41,68,74,0.5); text-align: left; width: 100%; border-radius: 6px; }
+.link { display: grid; grid-template-columns: 1fr 64px 26px; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); text-align: left; width: 100%; border-radius: 6px; }
 .link:hover { background: rgba(255,255,255,0.04); }
-.link.active { background: rgba(253,230,138,0.08); }
+.link.active { background: color-mix(in srgb, var(--pulse) 8%, transparent); }
 .link .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .link .delay { color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
-.strength { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+.strength { height: 6px; border-radius: 3px; background: var(--track); position: relative; overflow: hidden; }
 .strength span { position: absolute; top: 0; bottom: 0; }
 
 .learned { display: grid; gap: 6px; }
 .learn-row { display: grid; grid-template-columns: 1fr 110px 96px; align-items: center; gap: 10px; font-size: 13px; }
 .learn-row .verdict { font-size: 12.5px; text-align: right; color: var(--muted); white-space: nowrap; }
-.centered-track { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+.centered-track { height: 8px; border-radius: 4px; background: var(--track); position: relative; overflow: hidden; }
 .centered-track::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--faint); }
 .centered-track span { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
 .scope-frame { height: 72px; border-radius: var(--r-sm); background: var(--pond-deep); border: 1px solid var(--line); overflow: hidden; }
@@ -258,15 +258,15 @@ details.gene-group summary { cursor: pointer; font-family: var(--display); font-
 details.gene-group .count { font-family: var(--ui); font-weight: 400; font-size: 12.5px; color: var(--muted); margin-left: 6px; }
 .genes { display: grid; gap: 1px; margin-top: 8px; }
 .gene { display: grid; grid-template-columns: 118px 1fr auto; gap: 10px; align-items: baseline; font-size: 12.5px; padding: 4px 2px;
-  border-bottom: 1px solid rgba(41,68,74,0.5); }
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
 .gene.bare { grid-template-columns: 1fr auto; }
 .gene-name { color: var(--faint); }
 .gene-text { color: var(--text); }
 .gene.dormant .gene-text { color: var(--faint); }
-.stage-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(155, 227, 200, 0.12); color: var(--accent); white-space: nowrap; }
+.stage-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); white-space: nowrap; }
 .stage-tag.later { background: rgba(255,255,255,0.06); color: var(--muted); }
 .traits { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-.trait { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(41,68,74,0.5); padding-bottom: 4px; }
+.trait { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); padding-bottom: 4px; }
 .trait b { color: var(--text); font-variant-numeric: tabular-nums; }
 .trait .exact { color: var(--faint); font-weight: 400; font-size: 12px; margin-left: 4px; }
 details.gene-kind { margin-top: 6px; }
@@ -280,16 +280,16 @@ details.gene-kind > .note { margin: 0 0 4px; }
 .mutations { display: grid; gap: 12px; }
 .mut-block { display: grid; gap: 1px; }
 .mut-block h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
-.mut { display: grid; grid-template-columns: auto 108px 1fr; gap: 4px 10px; align-items: baseline; font-size: 12.5px; padding: 5px 2px; border-bottom: 1px solid rgba(41,68,74,0.5); }
+.mut { display: grid; grid-template-columns: auto 108px 1fr; gap: 4px 10px; align-items: baseline; font-size: 12.5px; padding: 5px 2px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
 .mut-name { color: var(--faint); }
 .mut-text s { color: var(--faint); }
 .mut-fields { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
 .mut-fields s { color: var(--faint); }
 .mut-fields b { color: var(--text); font-weight: 700; }
 .mut-more summary { cursor: pointer; font-size: 12.5px; color: var(--muted); padding: 4px 2px; }
-.mut-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: rgba(245,197,66,0.14); color: var(--energy); }
-.mut-tag.new, .mut-tag.copy { background: rgba(155,227,200,0.12); color: var(--accent); }
-.mut-tag.lost { background: rgba(240,96,122,0.14); color: var(--stress); }
+.mut-tag { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--energy) 14%, transparent); color: var(--energy); }
+.mut-tag.new, .mut-tag.copy { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.mut-tag.lost { background: color-mix(in srgb, var(--stress) 14%, transparent); color: var(--stress); }
 .gene-tags { display: flex; gap: 4px; justify-content: flex-end; }
 .gene-tags:empty { display: none; }
 .gene-list { display: flex; flex-wrap: wrap; gap: 6px; }

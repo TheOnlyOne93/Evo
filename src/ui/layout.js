@@ -3,18 +3,26 @@
   'use strict';
   const { clamp, minBy } = Evo.util;
   const $ = id => document.getElementById(id);
+  const { DRAG } = Evo.HandController;  // px the sheet handle must move before a press becomes a drag
+
+  // Layout thresholds (CSS px of the visible viewport)
+  const DESKTOP_MIN_W = 1100, DESKTOP_MIN_H = 600;  // At least this big: the lab docks beside the map
+  const DRAWER_MIN_W = 700;       // Narrower (and portrait): a bottom sheet instead of a drawer
+  const COMPACT_BELOW_W = 560;    // Narrower: the header, toolbar and tabs fold down (.compact)
+  const CARD_FOLD_BELOW_H = 560;  // Shorter: the creature card starts folded
 
   Evo.setupLayout = function setupLayout(app) {
     const { view, inspector } = app;
     const bodyEl = document.body, labPanel = $('labPanel'), labOpenBtn = $('labOpenBtn'), sheetHandle = $('sheetHandle');
     let currentLayout = null;
-    const cssPixels = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+    // A length or percentage token as its number: '70px' -> 70, '55%' -> 55
+    const cssNumber = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
     const resizeAll = () => { view.resize(); inspector.resize(); };
     const viewportSize = () => {
       const vv = window.visualViewport;
       return { w: vv ? vv.width : window.innerWidth, h: vv ? vv.height : window.innerHeight };
     };
-    const pickLayout = ({ w, h }) => (w >= 1100 && h >= 600 ? 'desktop' : w >= 700 || w > h ? 'drawer' : 'sheet');
+    const pickLayout = ({ w, h }) => (w >= DESKTOP_MIN_W && h >= DESKTOP_MIN_H ? 'desktop' : w >= DRAWER_MIN_W || w > h ? 'drawer' : 'sheet');
     app.labVisible = () => bodyEl.classList.contains('lab-open');
     function setLabState(open, stop) {
       bodyEl.classList.toggle('lab-open', open);
@@ -39,13 +47,13 @@
     };
     function applyLayout() {
       const size = viewportSize();
-      bodyEl.classList.toggle('compact', size.w < 560);
+      bodyEl.classList.toggle('compact', size.w < COMPACT_BELOW_W);
       const layout = pickLayout(size);
       if (layout !== currentLayout) {
         currentLayout = layout;
         bodyEl.dataset.layout = layout;
         setLabState(false);
-        setCardCollapsed(layout === 'sheet' || size.h < 560);
+        setCardCollapsed(layout === 'sheet' || size.h < CARD_FOLD_BELOW_H);
       }
       resizeAll();
     }
@@ -57,7 +65,7 @@
     let startY = 0, startH = 0, dragging = false, moved = false;
     const stops = () => {
       const stageH = $('stage').getBoundingClientRect().height;
-      return { closed: cssPixels('--peek'), half: stageH * 0.55, full: stageH * 0.92 };
+      return { closed: cssNumber('--peek'), half: stageH * (cssNumber('--sheet-half') / 100), full: stageH * (cssNumber('--sheet-full') / 100) };
     };
     const cycle = () => {
       const cur = bodyEl.dataset.sheet;
@@ -71,7 +79,7 @@
     sheetHandle.addEventListener('pointermove', e => {
       if (!dragging) return;
       const dy = e.clientY - startY;
-      if (Math.abs(dy) > 6) moved = true;
+      if (Math.abs(dy) > DRAG) moved = true;
       const st = stops();
       labPanel.style.height = clamp(startH - dy, st.closed, st.full) + 'px';
     });

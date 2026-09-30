@@ -11,7 +11,7 @@
 
   // Why it might be doing it: its strongest need, or else how it feels
   function reason(c) {
-    const [need] = Evo.needsOf(c, 1, 0.3);
+    const [need] = Evo.needsOf(c, 1, Evo.DRIVE_SHOWN.card);
     if (need) return need.word.toLowerCase();
     const mood = c.mood;
     return mood === 'calm' ? '' : mood;
@@ -80,14 +80,14 @@
       $('cardDoing').textContent = doing(c, world);
       const needs = c.dead ? [] : Evo.needsOf(c, 3);
       H.setHtml($('cardNeeds'), needs.length
-        ? needs.map(n => chip(n.level > 0.6 ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percent(n.level)}`)).join('')
+        ? needs.map(n => chip(n.level > Evo.DRIVE_SHOWN.strong ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percent(n.level)}`)).join('')
         : c.dead ? '' : chip('need calm', '🙂', 'No pressing needs'));
       const now = world.clock.tick, recent = view.cues.recent(c).filter(e => now - e.tick < EVENT_SHOWN_S * Evo.TICKS_PER_SECOND);
       H.setHtml($('cardEvents'), recent.map(e => {
         const look = Evo.EVENT_LOOK[e.key], ago = t.ago(now - e.tick);
         return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago}`);
       }).join(''));
-      const drives = c.topDrives(3).filter(([, v]) => v > 0.02);
+      const drives = c.topDrives(3).filter(([, v]) => v > Evo.DRIVE_SHOWN.cardBar);
       $('cardDrives').innerHTML = H.bar('Health', c.health, 'var(--protein)') +
         drives.map(([k, v]) => H.bar(t.CHEM_WORDS[k], v, H.chemColor(k))).join('');
     };
