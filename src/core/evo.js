@@ -50,10 +50,10 @@
   Evo.randRange = (lo, hi) => lo + (hi - lo) * rng();
   Evo.randInt = n => Math.floor(rng() * n);
   Evo.chance = p => rng() < p;
-  Evo.pick = arr => arr[Math.floor(rng() * arr.length)];
+  Evo.pick = arr => arr[Evo.randInt(arr.length)];
   Evo.shuffle = arr => {
     for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
+      const j = Evo.randInt(i + 1);
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;

@@ -6,9 +6,17 @@
 (function (Evo) {
   'use strict';
   const { N_CHEM, TARGETS, TARGET, CHEM_BY_ID, STIMULI } = Evo;
+  const { clamp01 } = Evo.util;
 
   // What a death by damage from each chemical is called (anything else: 'illness')
   const DAMAGE_CAUSE = { toxin: 'poison', ageing: 'old age' };
+
+  // An emitter's or receptor's response to reading v: how far v is past the gene's threshold
+  // (below it, if inverted), times the gain; just the gain if digital. 0 while v isn't past it.
+  function respond(v, g) {
+    const x = g.invert ? g.threshold - v : v - g.threshold;
+    return x > 0 ? (g.digital ? g.gain : x * g.gain) : 0;
+  }
 
   class Biochemistry {
     constructor() {
@@ -32,7 +40,7 @@
       this.keep.fill(1);
       for (const chem in traits.halfLives) {
         const hl = traits.halfLives[chem];
-        this.keep[chem] = hl === Infinity ? 1 : Math.pow(0.5, 1 / Math.max(1, hl));
+        this.keep[chem] = Math.pow(0.5, 1 / Math.max(1, hl)); // An infinite half-life keeps 1
       }
     }
 
@@ -42,16 +50,16 @@
     }
 
     get(key) { return this.c[Evo.CHEM[key]]; }
-    set(key, v) { this.c[Evo.CHEM[key]] = Math.max(0, Math.min(1, v)); }
-    add(key, amount) { const i = Evo.CHEM[key]; this.c[i] = Math.max(0, Math.min(1, this.c[i] + amount)); }
+    set(key, v) { this.c[Evo.CHEM[key]] = clamp01(v); }
+    add(key, amount) { const i = Evo.CHEM[key]; this.c[i] = clamp01(this.c[i] + amount); }
 
     // Something happened (event: an index into Evo.STIMULI) with strength s: each stimulus gene for
     // it releases its chemicals (a negative amount removes some)
     stimulate(event, s = 1) {
       const c = this.c;
       for (const g of this.stimuli[event]) {
-        if (g.chem1) c[g.chem1] = Math.max(0, Math.min(1, c[g.chem1] + g.amount1 * s));
-        if (g.chem2) c[g.chem2] = Math.max(0, Math.min(1, c[g.chem2] + g.amount2 * s));
+        if (g.chem1) c[g.chem1] = clamp01(c[g.chem1] + g.amount1 * s);
+        if (g.chem2) c[g.chem2] = clamp01(c[g.chem2] + g.amount2 * s);
       }
     }
 
@@ -62,8 +70,8 @@
       // 1. Emitters: a reading above (or, inverted, below) the threshold releases the chemical
       for (const e of this.emitters) {
         const v = e.locus.body !== undefined ? loci[e.locus.body] : c[e.locus.chem];
-        const x = e.invert ? e.threshold - v : v - e.threshold;
-        if (x > 0) c[e.chem] += e.digital ? e.gain : x * e.gain;
+        const out = respond(v, e);
+        if (out > 0) c[e.chem] += out;
       }
 
       // 2. Reactions, A + B -> C + D, by mass action. B, C and D may be nothing; a chemical on both
@@ -94,10 +102,9 @@
       fx.fill(0);
       this.damageBy.fill(0);
       for (const r of this.receptors) {
-        const v = c[r.chem];
-        const x = r.invert ? r.threshold - v : v - r.threshold;
-        if (x <= 0) continue;
-        const out = (r.negative ? -1 : 1) * (r.digital ? r.gain : x * r.gain);
+        const response = respond(c[r.chem], r);
+        if (response <= 0) continue;
+        const out = (r.negative ? -1 : 1) * response;
         fx[r.target] += out;
         if (r.target === TARGET.damage && out > 0) this.damageBy[r.chem] += out;
       }
