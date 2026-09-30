@@ -133,7 +133,7 @@ test('drives: founder instincts name real cells, and none knows the mimic', (Evo
   const lobeOf = i => Evo.LOBE_ORDER[i];
   for (const inst of traits.instincts) {
     assert.ok(inst.indexA < brain.lobes[lobeOf(inst.lobeA)].length, `input A of ${JSON.stringify(inst)}`);
-    assert.ok(inst.indexB === 255 || inst.indexB < brain.lobes[lobeOf(inst.lobeB)].length, `input B of ${JSON.stringify(inst)}`);
+    assert.ok(inst.indexB === Evo.GENE_NONE || inst.indexB < brain.lobes[lobeOf(inst.lobeB)].length, `input B of ${JSON.stringify(inst)}`);
     const violetUpClose = [[inst.lobeA, inst.indexA], [inst.lobeB, inst.indexB]]
       .some(([l, i]) => lobeOf(l) === 'near' && Evo.VISION_FEATURES[i] && Evo.VISION_FEATURES[i].key === 'violet');
     assert.ok(!violetUpClose, 'no instinct about violet things up close');

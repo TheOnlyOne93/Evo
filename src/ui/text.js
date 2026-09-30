@@ -178,7 +178,7 @@
     // An instinct's input cell by lobe and index (null for "no input")
     const cell = (l, i) => {
       const L = Evo.LOBE_ORDER;
-      if (i >= 255 || !L[l]) return null;
+      if (i >= Evo.GENE_NONE || !L[l]) return null;
       const idx = brain && brain.lobes[L[l]];
       return idx && i < idx.length ? neuronName(brain, brain.neurons[idx[i]]).toLowerCase() : `${lobe(l).toLowerCase()} ${i + 1}`;
     };
@@ -190,6 +190,9 @@
   const PATTERNS = ['plain', 'stripes', 'spots', 'patches'];
   const speedWord = perSecond => (perSecond < 0.05 ? 'a trickle' : perSecond < 0.3 ? 'slowly' : perSecond < 1.2 ? 'steadily' : 'quickly');
   const rateWord = k => level(Math.log10(k), -6, -1, ['very slowly', 'slowly', 'at a moderate pace', 'fast', 'very fast']);
+  // When an emitter or receptor acts, with a leading space: below its threshold (inverted), above it,
+  // or '' at any level
+  const thresholdWord = (invert, t) => (invert ? ` below ${percent(t)}` : t > 0.005 ? ` above ${percent(t)}` : '');
 
   // Which cells an axon guidance gene reaches in this brain: the same chemical match the brain grows
   // by (brain.growTracts), without the chance. Returns { from, to } in words, or null without a brain.
@@ -246,15 +249,13 @@
     },
     // (Emitters and receptors that name no chemical express nothing, so these read the decoded bytes)
     Emitter(v, x, w) {
-      const reading = w.locus(v.locus), out = w.chem(v.chem).toLowerCase(), invert = v.flags & 1, digital = v.flags & 2;
+      const reading = w.locus(v.locus), out = w.chem(v.chem).toLowerCase(), { invert, digital } = Evo.flagsOf(v.flags);
       if (Evo.BODY_LOCI[v.locus.body] === 'always') return `Always makes ${out}, ${speedWord(v.gain * 60)}`;
-      const when = invert ? ` below ${percent(v.threshold)}` : v.threshold > 0.005 ? ` above ${percent(v.threshold)}` : '';
-      return `${capitalize(reading)}${when} → makes ${out}${digital ? ' (all or nothing)' : `, ${speedWord(v.gain * 60)}`}`;
+      return `${capitalize(reading)}${thresholdWord(invert, v.threshold)} → makes ${out}${digital ? ' (all or nothing)' : `, ${speedWord(v.gain * 60)}`}`;
     },
     Receptor(v, x, w) {
-      const invert = v.flags & 1, negative = v.flags & 4;
-      const when = invert ? `below ${percent(v.threshold)}` : v.threshold > 0.005 ? `above ${percent(v.threshold)}` : '';
-      return `${w.chem(v.chem)}${when ? ` ${when}` : ''} ${negative ? 'lowers' : 'raises'} ${w.target(v.target)} (×${num(v.gain, 1)})`;
+      const { invert, negative } = Evo.flagsOf(v.flags);
+      return `${w.chem(v.chem)}${thresholdWord(invert, v.threshold)} ${negative ? 'lowers' : 'raises'} ${w.target(v.target)} (×${num(v.gain, 1)})`;
     },
     Reaction(v, x, w) {
       const ins = [v.a, v.b].filter(Boolean), outs = [[v.c, v.yieldC], [v.d, v.yieldD]].filter(([c, y]) => c && y > 0);

@@ -9,7 +9,7 @@
   // ---------- Helpers that turn intentions into gene specs ----------
   const reaction = (a, b, c, d, rate, yieldC = 1, yieldD = 1, stage = 0) =>
     ({ gene: 'Reaction', stage, a, b, c, d, rate, yieldC, yieldD });
-  const INVERT = 1, DIGITAL = 2, NEGATIVE = 4;
+  const { INVERT, DIGITAL, NEGATIVE } = Evo.FLAG;
   const emitter = (locus, chem, threshold, gain, flags = 0, stage = 0) =>
     ({ gene: 'Emitter', stage, locus, chem, threshold, gain, flags });
   const receptor = (chem, target, threshold, gain, flags = 0, stage = 0) =>
@@ -24,13 +24,14 @@
   const guide = (lobe, [tx, ty, tz], { radius, weight, reach = 1.4, conduction = 0.3, relX = false, relY = false, mirrorX = false, from = null }) => {
     // The sign byte only reads as a weight of at least 0.2 (weaker ones would flip to excitatory)
     if (Math.abs(weight) < 0.2 || Math.abs(weight) > 1) throw new Error(`Axon guidance weight ${weight} must be 0.2 to 1 in size`);
+    const G = Evo.GUIDANCE;
     return {
       gene: 'Axon guidance', source: { lobe, relX, relY, mirrorX }, tx, ty, tz,
-      radius: (radius - 0.04) / 0.76,
-      sign: weight > 0 ? 120 + Math.max(1, (weight - 0.2) * 100) : 120 - (-weight - 0.2) * 100,
-      reach: (reach - 0.15) / 1.35,
-      conduction: (conduction - 0.08) / 0.5,
-      sx: from ? from[0] : 0, sy: from ? from[1] : 0, sr: from ? (from[2] - 0.02) / 0.5 : 0
+      radius: G.radius.encode(radius),
+      sign: G.weight.encode(weight),
+      reach: G.reach.encode(reach),
+      conduction: G.conduction.encode(conduction),
+      sx: from ? from[0] : 0, sy: from ? from[1] : 0, sr: from ? G.window.encode(from[2]) : 0
     };
   };
   // A topographic tract from one sense channel (its cells' tag y) to the walk muscles (tag y 0.5)
@@ -39,7 +40,7 @@
     const y = (channels.indexOf(key) + 0.5) / channels.length;
     return guide(lobe, [0.5, 0.5 + (0.5 - y), 0.9], { radius: 0.06, weight, relX: true, relY: true, mirrorX: crossed });
   };
-  const none = 255; // An instinct input index that matches no neuron
+  const none = Evo.GENE_NONE; // An instinct input index that matches no neuron
   const instinct = (lobeA, indexA, lobeB, indexB, motor, chem, amount) =>
     ({ gene: 'Instinct', stage: Evo.STAGE.BABY, lobeA, indexA, lobeB, indexB, motor, chem, amount });
 

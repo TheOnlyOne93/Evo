@@ -45,7 +45,11 @@
     // Half-life in ticks: 2^(b/16) (1 tick .. ~16 minutes); 255 = never decays
     halfLife: { decode: b => (b === 255 ? Infinity : Math.pow(2, b / 16)), encode: t => (t === Infinity ? 255 : byte(Math.log2(t) * 16)) }
   };
-  const flagsOf = b => ({ invert: !!(b & 1), digital: !!(b & 2), negative: !!(b & 4) });
+  // An emitter's or receptor's flags byte: bit 0 inverts the reading, bit 1 makes it all or nothing,
+  // bit 2 makes a receptor lower its target instead of raising it
+  const FLAG = { INVERT: 1, DIGITAL: 2, NEGATIVE: 4 };
+  const flagsOf = b => ({ invert: !!(b & FLAG.INVERT), digital: !!(b & FLAG.DIGITAL), negative: !!(b & FLAG.NEGATIVE) });
+  const GENE_NONE = 255; // An instinct input index that matches no neuron
   const u = key => [key, CODEC.unit];
 
   // Axon guidance source byte: bits 0-3 lobe, bit 4 x relative to the source's own tag,
@@ -53,6 +57,21 @@
   const guidanceSource = {
     decode: b => ({ lobe: (b & 15) % LOBE_COUNT, relX: !!(b & 16), relY: !!(b & 32), mirrorX: !!(b & 64) }),
     encode: v => LOBE_ORDER.indexOf(v.lobe) | (v.relX ? 16 : 0) | (v.relY ? 32 : 0) | (v.mirrorX ? 64 : 0)
+  };
+  // Axon guidance values from their decoded fields (decode), and back for founder.js guide() (encode).
+  // span: a 0..1 field read as lo .. lo + width.
+  const span = (lo, width) => ({ decode: v => lo + v * width, encode: x => (x - lo) / width });
+  const GUIDANCE = {
+    radius: span(0.04, 0.76),     // Affinity radius around the receptor chemistry sought
+    reach: span(0.15, 1.35),      // How far the axons can grow (brain widths)
+    conduction: span(0.08, 0.5),  // Myelination: distance per tick
+    window: span(0.02, 0.5),      // Radius of the source window
+    // Sign and strength from the raw sign byte: bytes above 120 are excitatory, below inhibitory,
+    // stronger the further from 120 they are (0.2 .. 1.0 either way)
+    weight: {
+      decode: b => (b > 120 ? 1 : -1) * Math.min(1.0, 0.2 + Math.abs(b - 120) / 100),
+      encode: w => (w > 0 ? 120 + Math.max(1, (w - 0.2) * 100) : 120 - (-w - 0.2) * 100)
+    }
   };
 
   // One row per gene type. fields: [name, codec] per payload byte, in order.
@@ -129,14 +148,12 @@
         d.add('axonGuidance', {
           source: v.source,
           // Only source cells whose tag lies within r of (x, y) send axons (sr = 0: every cell does)
-          srcWindow: v.sr === 0 ? null : { x: v.sx, y: v.sy, r: 0.02 + v.sr * 0.5 },
+          srcWindow: v.sr === 0 ? null : { x: v.sx, y: v.sy, r: GUIDANCE.window.decode(v.sr) },
           target: [v.tx, v.ty, v.tz],        // Receptor chemistry sought (x/y relative to the source's own tag if relX/relY)
-          affinityRadius: 0.04 + v.radius * 0.76,
-          // Sign and strength: bytes above 120 are excitatory, below inhibitory, stronger the
-          // further from 120 they are (0.2 .. 1.0 either way)
-          weightSign: (v.sign > 120 ? 1 : -1) * Math.min(1.0, 0.2 + Math.abs(v.sign - 120) / 100),
-          reach: 0.15 + v.reach * 1.35,      // How far these axons can grow (brain widths)
-          conduction: 0.08 + v.conduction * 0.50 // Myelination: distance per tick
+          affinityRadius: GUIDANCE.radius.decode(v.radius),
+          weightSign: GUIDANCE.weight.decode(v.sign),
+          reach: GUIDANCE.reach.decode(v.reach),
+          conduction: GUIDANCE.conduction.decode(v.conduction)
         });
       },
       describe(v, x, w) {
@@ -431,5 +448,5 @@
     }
   }
 
-  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, PROMOTER, CODEC, encodeGene });
+  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, PROMOTER, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, encodeGene });
 })(globalThis.Evo);
