@@ -7,7 +7,8 @@
   const { WINTER } = Evo.SEASON, SEASON_COUNT = Evo.SEASON_COUNT;
 
   // Scenery uses its own seeded streams (Evo.util.mulberry32), never Evo.random: drawing must not
-  // consume the simulation's random numbers.
+  // consume the simulation's random numbers. Transient effects (shooting stars; weather.js) use
+  // unseeded Math.random instead.
   const rng = Evo.util.mulberry32;
 
   function makeCanvas(w, h) {
@@ -481,7 +482,7 @@
       this.pal = makePalette();
       this.tmp = makePalette();
       this.ss = { cur: 0, next: 1, blend: 0, prefetch: false };
-      this.layerSprites = new Map(); // `${layer}|${season}` -> { canvas, res }
+      this.layerSprites = new Map(); // layer * SEASON_COUNT + season -> { canvas, res }
       this.layerRes = 1;
       const R = rng(404);
       this.cloudShapes = [];

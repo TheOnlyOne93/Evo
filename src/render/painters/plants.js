@@ -1,6 +1,7 @@
 // Plant painters: fruit and mimic trees, grass clumps, reeds and the thornbush, in each season.
 // A *Structure(f) function fixes a plant's shape once (seeded by its id); the painter then draws
-// it for a season. Local coordinates: origin at the plant's base (f.x, f.y), y up is negative.
+// it for a season (the thornbush has none: paintThorn draws it directly). Local coordinates: origin
+// at the plant's base (f.x, f.y), y up is negative.
 (function (Evo) {
   'use strict';
   const { TAU, clamp01 } = Evo.util;

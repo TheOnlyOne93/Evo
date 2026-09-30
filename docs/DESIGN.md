@@ -267,7 +267,7 @@ world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
   //  'thornbush' { radius }                             looks violet; moving through it pricks ('pricked' stimulus)
 world.items = [{ id, type, x, y, vx, vy, radius, rot, age, held, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
-  //  egg: { hue, accentHue, progress: 0..1 (may exceed 1 while the egg waits for room to hatch) }   ball: { hue }
+  //  egg: { hue, accentHue, progress: 0..1 (may exceed 1 while the egg waits for room to hatch) }   ball: { hue }   carrion: { hue }
 world.creatures                      // live creatures; draw each via Evo.CreatureArt.draw(ctx, Evo.poseOf(c), t)
 world.clock = { tick, day, phase, light, sunElevation }
   //  phase 0..1 (0 midnight, .25 sunrise, .5 noon, .75 sunset); light 0..1; sunElevation -1..1
@@ -303,7 +303,7 @@ pose = {
   size,                     // body length in px (≈18 for a newborn, ≈44 for a large adult)
   stage,                    // 1 baby, 2 child, 3 adolescent, 4 youth, 5 adult, 6 old, 7 senile
   sex,                      // 'FEMALE' | 'MALE'
-  looks: {                  // all 0..1 unless noted; genetic, fixed for life
+  looks: {                  // all 0..1 unless noted; genetic (a later-stage appearance gene can change them)
     hue, accentHue,         // 0..360
     pattern,                // 0 plain, 1 stripes, 2 spots, 3 patches
     patternScale, earSize, tailLength, eyeSize, plumpness, legLength, crest
@@ -316,10 +316,10 @@ pose = {
   },
   face: {
     eyesClosed,             // 0..1
-    pupilX, pupilY,         // -1..1: where it is looking
+    pupilX, pupilY,         // -1..1: where it is looking (pupilX +1 = world right, whichever way it faces)
     mouthOpen,              // 0..1
     smile,                  // -1 (miserable) .. 1 (delighted)
-    earDroop,               // 0..1 (tired, sad, lonely, ill)
+    earDroop,               // 0..1 (tired, queasy, lonely, or old age)
     blush,                  // 0..1 (pleasure, e.g. being patted)
     happy,                  // 0..1 (just patted: happy eyes, wagging tail)
     worry,                  // 0..1 (worried brows: in pain, lonely, bored)
@@ -344,7 +344,8 @@ pose = {
 // src/render/creature-art.js
 Evo.CreatureArt = {
   draw(ctx, pose, t),                 // ctx is already in world coordinates; t = seconds
-  drawPortrait(ctx, pose, w, h, t),   // fit the creature into a w×h box (UI card)
+  drawPortrait(ctx, pose, w, h, t, framing), // fit the creature into a w×h box (UI card)
+  //  framing: 'body' | 'face' | 'auto' (default: the face in boxes under 100 px)
   bounds(pose)                        // { x0, y0, x1, y1 } in world coordinates, for picking
 }
 
@@ -353,7 +354,8 @@ class WorldView {
   constructor(world, canvas)
   setWorld(world)                     // show another world (e.g. after a restart)
   resize()
-  render(t)                           // sky, parallax, terrain, water, features, items, creatures, overlays
+  render(t)                           // sky backdrop, terrain, back features, shadows, items, creatures, held items, water,
+                                      // front features, weather, light, sky, glow, vignette, overlays (scent, senses, sounds, cues, hand)
   follow(creature | null)             // camera tracks a creature smoothly
   panBy(dx, dy); zoomAt(factor, sx, sy); resetZoom()
   screenToWorld(sx, sy); worldToScreen(x, y)

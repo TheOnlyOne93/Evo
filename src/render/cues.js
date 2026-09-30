@@ -1,6 +1,6 @@
 // Creature cues: what the world view draws over creatures to show what is going on inside them,
 // Creatures-style. A thought bubble with the strongest need (or, asleep, what it is dreaming of),
-// hearts after a pat or a nuzzle, a burst after a slap, thorns or a hard fall, a name tag under the
+// hearts after a pat, a nuzzle or mating, a burst after a slap, thorns or a hard fall, a name tag under the
 // followed and the hovered creature, and brackets around what the followed creature is attending
 // to. Also keeps each creature's recent events (patted, slapped, ate...) for the creature card.
 // Drawn in screen space (CSS px) so the cues stay readable at every zoom.
@@ -114,7 +114,7 @@
       g.globalAlpha = 1;
     }
 
-    // Hearts rise after a pat or a nuzzle; a burst flashes after a slap, thorns or a hard fall
+    // Hearts rise after a pat, a nuzzle or mating; a burst flashes after a slap, thorns or a hard fall
     _reactions(g, r, head, z, t) {
       for (let k = r.fx.length - 1; k >= 0; k--) {
         const fx = r.fx[k], age = t - fx.t0;
