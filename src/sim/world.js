@@ -12,7 +12,7 @@
   const WANDER_INTERVAL = 1800;
   const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
   const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
-  const ADULT_ARRIVAL_AGE = [0.36, 0.5]; // A wandering adult arrives at this fraction of its lifespan
+  const ADULT_ARRIVAL_AGE = 0.4;    // A grown adult arrives at this fraction of its lifespan
   // Food growth per tick (rate x light x season): fruit and grain build up to a threshold, then ripen by chance; dew forms in a dawn window
   const GROWTH = {
     fruit: { rate: 0.00009, threshold: 0.3, chance: 0.0025, cost: 0.06 },
@@ -30,7 +30,6 @@
   const POND_SCENT = { spacing: 60, amount: 0.02 };
 
   // A new world, and one refounded after extinction (from the seed bank), starts with one female and one male
-  const FOUNDERS = ['FEMALE', 'MALE'];
   const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
   const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
 
@@ -53,7 +52,7 @@
       this.pendingEggs = [];           // { mother, pregnancy }
 
       // The landscape (Evo.buildLandscape): the size, the terrain, the features and platforms, where
-      // founders appear and where the ball starts. Built before anyone is founded, as it draws at random
+      // each founder stands and where the ball starts. Built before anyone is founded, as they stand where it says
       const land = Evo.buildLandscape(map);
       const { width, height } = land;
       this.width = width;
@@ -63,7 +62,7 @@
       this.features = land.features;
       this.platforms = land.platforms;
       this.ballX = land.ballX;
-      this.spawnX = land.spawnX;
+      this.founderX = land.founderX;
       this.scent = {
         cols: Math.ceil(width / SCENT_CELL), rows: Math.ceil(height / SCENT_CELL), cell: SCENT_CELL,
         channels: SCENTS.map(() => new Float32Array(Math.ceil(width / SCENT_CELL) * Math.ceil(height / SCENT_CELL)))
@@ -319,31 +318,40 @@
       return c;
     }
 
-    // A grown adult arriving (founders, wanderers, or added by the player)
-    addAdult(sex, { genome = null, x = null, reserves = FOUNDER_RESERVES, generation = 1 } = {}) {
+    // A grown adult arriving (founders, wanderers, or added by the player). With no x it stands where
+    // the map puts its sex's founder. facing and syllables (its name's two syllables) are left to
+    // chance when not given.
+    addAdult(sex, { genome = null, x = null, reserves = FOUNDER_RESERVES, generation = 1, facing, syllables } = {}) {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return null;
       genome = genome || Evo.Genome.founder(sex);
-      genome.sexChrom = Evo.chromFor(sex);
       const lifespan = genome.develop().lifespanTicks;
-      const px = x === null ? this.spawnX() : x;
-      return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * Evo.randRange(ADULT_ARRIVAL_AGE[0], ADULT_ARRIVAL_AGE[1])) });
+      const px = x === null ? this.founderX[sex] : x;
+      return this.addCreature(genome, px, { generation, reserves, growth: 1, ageTicks: Math.floor(lifespan * ADULT_ARRIVAL_AGE), facing, syllables });
     }
 
-    // An adult descended from a random banked genome (or a fresh founder if the bank is empty); fromEdge
-    // has it walk in at one end of the world (the side is drawn after the genome)
+    // An adult that is an exact copy of a random banked genome of its sex (or of the starting genome
+    // if there is none); fromEdge has it walk in at one end of the world (the side is drawn after the genome)
     addFromBank(sex, fromEdge = false) {
-      const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;
+      const banked = this.seedBank.filter(b => b.genome.sexChrom === Evo.chromFor(sex));
+      const src = banked.length ? Evo.pick(banked) : null;
       return this.addAdult(sex, {
-        genome: src ? src.genome.cloneWithMutation() : null, generation: src ? src.generation : 1,
+        genome: src ? src.genome.clone() : null, generation: src ? src.generation : 1,
         reserves: WANDERER_RESERVES, x: fromEdge ? (Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30) : null
       });
     }
 
+    // A pair to start a world, or to start it again once everyone is gone: copies of banked genomes,
+    // or, with an empty bank, the starting pair (each with its own name, turned to face the other)
     found() {
+      const sexes = Object.keys(Evo.FOUNDERS);
       const fromBank = this.seedBank.length > 0;
-      for (const sex of FOUNDERS) {
-        if (fromBank) this.addFromBank(sex);
-        else this.addAdult(sex);
+      for (const sex of sexes) {
+        if (fromBank) {
+          this.addFromBank(sex);
+        } else {
+          const other = sexes.find(s => s !== sex);
+          this.addAdult(sex, { syllables: Evo.FOUNDERS[sex].syllables, facing: Math.sign(this.founderX[other] - this.founderX[sex]) });
+        }
       }
       if (fromBank) {
         this.stats.refoundings++;
@@ -356,12 +364,12 @@
       if (this.seedBank.length > LIMITS.SEED_BANK) this.seedBank.shift();
     }
 
-    // A wanderer walks in from the edge when one sex is nearly gone
+    // A wanderer walks in from the edge when one sex has no grown adult left
     maybeWanderer() {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return;
       const adults = Evo.util.countBy(this.creatures.filter(c => c.isMature), c => c.sex);
       const females = adults.FEMALE || 0, males = adults.MALE || 0;
-      const sex = females < 2 ? 'FEMALE' : males < 2 ? 'MALE' : null;
+      const sex = females === 0 ? 'FEMALE' : males === 0 ? 'MALE' : null;
       if (!sex) return;
       const c = this.addFromBank(sex, true);
       if (c) {

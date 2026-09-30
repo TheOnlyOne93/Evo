@@ -68,6 +68,22 @@ test('landscape: wanderers arrive on dry ground, clear of any thorn bush', (Evo,
   }
 });
 
+test('landscape: each founder stands on dry, level ground inside the walkable edge, clear of thorn bushes, apart from the other', (Evo, assert) => {
+  for (const { name, land } of specMaps(Evo)) {
+    const spots = land.founderX;
+    assert.deepStrictEqual(Object.keys(spots).sort(), ['FEMALE', 'MALE'], `${name}: a spot for each sex`);
+    assert.notStrictEqual(spots.FEMALE, spots.MALE, `${name}: the two founders need different spots to face each other`);
+    for (const [sex, x] of Object.entries(spots)) {
+      const what = `${name}: the ${sex} founder at ${x}`;
+      assert.ok(x >= land.edge && x <= land.width - land.edge, `${what} is outside the walkable edge`);
+      assert.strictEqual(land.terrain.waterLevelAt(x), null, `${what} is in water`);
+      const slope = steepest(land.terrain, x - 30, x + 30);
+      assert.ok(slope <= 0.05, `${what} stands on a slope of ${slope.toFixed(3)}`);
+      for (const f of land.features) if (f.kind === 'thornbush') assert.ok(Math.abs(x - f.x) >= f.radius, `${what} is in the thorn bush at ${f.x}`);
+    }
+  }
+});
+
 test('landscape: no thorn bush stands between other features, so none blocks the way from one to the next', (Evo, assert) => {
   for (const { name, land } of specMaps(Evo)) {
     for (const b of land.features.filter(f => f.kind === 'thornbush')) {

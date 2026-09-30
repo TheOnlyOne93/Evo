@@ -57,13 +57,14 @@ Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature
 
 The ground is a height field with ponds and a cliff at each end: the land rises by up to `terrain.cliffs.rise` px over the last `cliffs.width` px. Creatures and items stay `world.edge` px from the ends (at least `cliffs.width`), so they never reach the cliffs; the cliff art is drawn from `terrain.cliffs` too ([RENDERING.md](RENDERING.md)). A pond is a dip that fills with water up to 6 px below its lower rim; its record says where the water is (`x0`, `x1`), its surface (`level`) and the deepest ground under it (`bed`).
 
-The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name, and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, spawnX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`, `valley`). `spawnX()` draws a founder's x when one is founded, and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
+The landscape is data in `src/sim/landscape.js`. `Evo.MAPS` holds the maps by name, and `Evo.buildLandscape(map)` takes a name or a map object and returns `{ width, height, edge, terrain, features, platforms, ballX, founderX }`; `new Evo.World({ map })` uses it, the game's map by default (`Evo.DEFAULT_MAP`, `valley`). `founderX` is where the first female and the first male stand (`{ FEMALE, MALE }`), and `ballX` is where the ball starts. `Evo.FEATURE_KINDS` says what each kind of feature is to the landscape: its half-width (`extent`) and, for rocks and logs, the platform on top (`platform`). `buildLandscape` makes a platform for every feature whose kind has one.
 
 A map is a spec, built by one shared function with nothing random in it. `valley` is the game's, 2960 px wide, with the ground level at y 640 and three ponds dug into it: `ponds[0]` the lake, `ponds[1]` the east pool and `ponds[2]` the spring. Left to right (a pond's x is its rims; the water is inside them):
 
 | x | What |
 |---|---|
-| 175 | Where the ball starts. Founders appear between 220 and 400 |
+| 175 | Where the ball starts |
+| 275 and 345 | Where the first female (275) and male (345) stand, on level ground in the home meadow, clear of the spring |
 | 310 | The home meadow (grass) |
 | 440–680 | The spring (`ponds[2]`): 28 px deep, its water 476–644, with reeds at 456 and 664. The home water |
 | 800 | The fruit tree |
@@ -81,6 +82,7 @@ Reeds stand 20 px outside the ends of a pond's water. The map's design rules, wh
 * No thorn bushes on the map. In a one-line world a bush is either a toll gate or a dead end, and dead ends are where creatures gather. (The player's thorn tool still plants one, and teaches pain.)
 * Sources of the same odour are at least 500 px apart (the mimic tree from the fruit tree).
 * The ground under every station is flat (a slope of at most 0.05); a pond's banks are at most 0.4, a slope a creature can climb.
+* Each founder's spot is dry, level (a slope of at most 0.05 around it), inside the walkable edge and clear of thorn bushes, and the two spots differ, so the pair can face each other.
 
 The spec's format:
 
@@ -91,7 +93,8 @@ valley: {
   ground: 640,                          // the level ground's y
   ponds: [{ x0, x1, depth, bank }],     // dips that fill with water
   features: [{ kind, x, ...props }],    // the contract's features; list order is id order (1..N) and the order they are visited
-  ball: 175, spawn: [220, 400]          // where the ball starts; a founder appears at a random x between the two
+  ball: 175,                            // where the ball starts
+  founders: { FEMALE: 275, MALE: 345 }  // where the first female and the first male stand
 }
 ```
 
@@ -124,11 +127,11 @@ A call is a sound at the caller's head, with its voice's pitch (higher for a bab
 
 ## Creatures in the world
 
-- A world starts with two founders, a grown female and male, the same two every time: `Evo.Genome.founder(sex)` builds each one's genome with no random numbers ([GENOME.md](GENOME.md)). `addAdult(sex, opts)` brings a grown creature, part-way through its life (a banked genome is re-sexed to fit); `addEgg(x, y)` places a founder egg (a fresh founder genome of a random sex, unless told which). Nothing is added past 16 creatures (`Evo.LIMITS.MAX_POPULATION`), and eggs wait to hatch.
+- A world starts with two founders, a grown female and male, the same two every time: `Evo.Genome.founder(sex)` builds each one's genome with no random numbers ([GENOME.md](GENOME.md)). Each stands on the spot the map gives its sex (`founderX`), faces the other, and has the name written in `Evo.FOUNDERS`: Elani and Fenro. Their brains grow the same too ([BRAIN.md](BRAIN.md)), so every world starts the same. `addAdult(sex, opts)` brings a grown creature at 40% of its life (`Evo.WORLD.ADULT_ARRIVAL_AGE`), on its sex's founder spot unless `opts.x` says where; `opts.facing` and `opts.syllables` (the two syllables of its name) are chosen at random when left out ([CREATURE.md](CREATURE.md)). `addEgg(x, y)` places a founder egg (a fresh founder genome of a random sex, unless told which). Nothing is added past 16 creatures (`Evo.LIMITS.MAX_POPULATION`), and eggs wait to hatch.
 - Each creature within 160 px adds 0.5 company (full at two); crowding starts past three and is full at seven. Touching is felt on that side. A held creature is company but not touch.
-- A fertile female who is not pregnant and a fertile male who touch have a 3% chance each tick to mate. Both wait 1800 ticks before mating again, and he pays some protein. She carries the egg, built from a recombined, mutated genome, and both genomes go into the seed bank (the last 24).
-- Every 1800 ticks, if fewer than two mature (adolescent to senile) females, or else males, are left, one wanderer of that sex walks in from an end of the world: a mutated copy from the seed bank, keeping its generation, or a fresh founder (the first female's or male's genome) if the bank is empty. A fresh world gets a female at tick 1800 and a male at 3600.
-- A world with no creatures and no eggs is founded again, from the seed bank when it holds any genomes.
+- A fertile female who is not pregnant and a fertile male who touch have a 3% chance each tick to mate. Both wait 1800 ticks before mating again, and he pays some protein. She carries the egg, built from a recombined, mutated genome, and both genomes go into the seed bank (the last 24). Genes change only here, when a child is conceived: everyone else keeps the genes they were made with.
+- Every 1800 ticks, if a sex has no mature (adolescent to senile) adult left, one wanderer of that sex walks in from an end of the world (a female first, if neither is left): an exact copy of a random banked genome of that sex, keeping its generation, or the starting genome (the first female's or male's, generation 1) if the bank holds none of that sex. A fresh world stays at its two founders until babies come.
+- A world with no creatures and no eggs is founded again, from the seed bank when it holds any genomes: a copy of a random banked genome of each sex, standing on the founder spots, with random names and facing. With an empty bank it is the starting pair again, named and facing each other as at the start.
 - The dead leave carrion holding part of their protein, fat and sugar.
 
 ## The hand

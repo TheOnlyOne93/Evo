@@ -20,7 +20,11 @@
     if (params.get('ui') === '0') document.body.classList.add('noui');
 
     const world = new Evo.World(params.has('map') ? { map: params.get('map') } : undefined);
-    for (let i = 0; i < num('creatures', 0); i++) world.addAdult(i % 2 ? 'MALE' : 'FEMALE');
+    // Extra adults stand near where the first of their sex stood, not on top of them
+    for (let i = 0; i < num('creatures', 0); i++) {
+      const sex = i % 2 ? 'MALE' : 'FEMALE';
+      world.addAdult(sex, { x: world.founderX[sex] + Evo.randRange(-120, 120) });
+    }
     // The clock moves only through world.setTime(day, phase). A season is SEASON_DAYS days, so
     // choosing one moves the day into it, keeping the year, the day within the season and the
     // time of day. Either may turn the clock back; the lab allows it, the game never does.

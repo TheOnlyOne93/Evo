@@ -53,15 +53,16 @@ Each entry a gene adds to a list (a tract, a reaction, an instinct…) also reco
 
 Both work on raw bytes.
 
-- `genome.cloneWithMutation()`: each byte mutates with a chance of 0.4% (mostly a small step, else a new byte). Then there is a 3% chance that a whole gene is copied to a random place, 2% that one is lost, and 2% of a one-byte insertion or deletion (a frameshift when it lands in a gene). Losses and deletions stop once the DNA is down to 256 bytes.
+- `genome.cloneWithMutation()`: each byte mutates with a chance of 0.1%, so about 3 bytes change in a founder's 3 KB of DNA (mostly a small step, else a new byte). Then there is a 3% chance that a whole gene is copied to a random place, 2% that one is lost, and 2% of a one-byte insertion or deletion (a frameshift when it lands in a gene). Losses and deletions stop once the DNA is down to 256 bytes.
 - `Genome.recombine(mother, father)`: one parent is the backbone and the other donates the bytes between two random crossover points. The child's sex is drawn at even odds, and it then mutates.
+- Genes change only when a child is conceived (`recombine`, which ends in `cloneWithMutation`). `genome.clone()` is an exact copy: a wanderer, or a world started again, is a clone of a banked genome.
 - `genome.mutationCount` counts mutation events along the longer parental line since the first female and male.
 
 ## The founder genomes
 
 The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 266 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
 
-`Evo.FOUNDERS` holds what sets the two apart: each one's looks (the Appearance gene), voice (the Voice gene) and the syllables of its name (Elani, Fenro; the game does not use them yet). Both coats are sea green, near 160 degrees, the colour other creatures' food-colour cells notice least. Her voice is high and his is low, so each can hear which of the two is calling.
+`Evo.FOUNDERS` holds what sets the two apart: each one's looks (the Appearance gene), voice (the Voice gene) and the syllables of its name (Elani, Fenro). Both coats are sea green, near 160 degrees, the colour other creatures' food-colour cells notice least. Her voice is high and his is low, so each can hear which of the two is calling.
 
 The bytes between genes are filler: four at the start and three after each gene. A filler byte is a fixed pattern of its position in the DNA (`Evo.util.hash2`), never the promoter byte, so a founder is the same on every call, never uses `Evo.random`, and the two founders' DNA line up byte for byte (only the looks and voice bytes differ). The filler is silent until a mutation turns some of it into a gene.
 

@@ -19,7 +19,7 @@
   const GENOME_LIMITS = { MIN_LENGTH, MAX_LENGTH };
   // Per-copy mutation: a point mutation per byte at `rate` (mostly a small step, else a new byte), then
   // chances of duplicating a gene, losing a gene, and one small insertion or deletion
-  const MUTATION = { rate: 0.004, smallStepShare: 0.8, stepWidth: 48, duplication: 0.03, deletion: 0.02, indel: 0.02 };
+  const MUTATION = { rate: 0.001, smallStepShare: 0.8, stepWidth: 48, duplication: 0.03, deletion: 0.02, indel: 0.02 };
 
   // span: a 0..1 field read as lo .. lo + width (decode), and back for founder values (encode)
   const span = (lo, width) => ({ lo, width, decode: v => lo + v * width, encode: x => (x - lo) / width });

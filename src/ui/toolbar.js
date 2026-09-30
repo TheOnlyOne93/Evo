@@ -127,7 +127,8 @@
     app.setTool('grab');
     const addAdult = sex => {
       closeGroups();
-      const x = app.focus ? app.focus.x + Evo.randRange(-120, 120) : null;
+      // Near the creature being followed, else near where the first of its sex stood
+      const x = (app.focus ? app.focus.x : world.founderX[sex]) + Evo.randRange(-120, 120);
       const c = world.addAdult(sex, { x });
       if (!c) return app.toast('The world is full.');
       app.log(`${app.who(c)} arrived`, c);

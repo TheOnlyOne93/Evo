@@ -317,6 +317,120 @@ test('world: scent a body gives off reaches every creature\'s nose in the same t
   }
 });
 
-test('world: wandering adults arrive past youth, so they can mate', (Evo, assert) => {
-  assert.ok(Evo.WORLD.ADULT_ARRIVAL_AGE[0] > Evo.STAGES[Evo.STAGE.YOUTH].until);
+test('world: grown adults arrive past youth, so they can mate', (Evo, assert) => {
+  assert.ok(Evo.WORLD.ADULT_ARRIVAL_AGE > Evo.STAGES[Evo.STAGE.YOUTH].until);
+});
+
+// What makes a first pair the same in every world: the DNA, the wiring of the brain, the name, the
+// place, the age and which way each one faces
+function firstPair(Evo, seed) {
+  Evo.seed(seed);
+  const world = new Evo.World();
+  return world.creatures.map(c => ({
+    sex: c.sex, name: c.name, x: c.x, ageTicks: c.ageTicks, facing: c.facing, dna: Array.from(c.genome.dna),
+    wiring: Object.fromEntries(['sSrc', 'sDst', 'sW'].map(k => [k, Array.from(c.brain[k].subarray(0, c.brain.S))]))
+  }));
+}
+
+test('world: the first pair is the same in every world, and they face each other', (Evo, assert) => {
+  const a = firstPair(Evo, 1), b = firstPair(Evo, 5);
+  assert.deepStrictEqual(a, b, 'the same DNA, wiring, names, places, ages and facing on two seeds');
+  assert.deepStrictEqual(a.map(c => c.sex), ['FEMALE', 'MALE']);
+  assert.deepStrictEqual(a.map(c => c.name), ['Elani', 'Fenro']);
+  assert.ok(a[0].wiring.sSrc.length > 1000, 'a grown brain');
+  assert.deepStrictEqual(a.map(c => c.dna), ['FEMALE', 'MALE'].map(sex => Array.from(Evo.Genome.founder(sex).dna)), 'the starting genomes');
+  const land = Evo.buildLandscape();
+  assert.deepStrictEqual(a.map(c => c.x), [land.founderX.FEMALE, land.founderX.MALE]);
+  assert.deepStrictEqual(a.map(c => c.facing), [1, -1], 'she is left of him and looks right, he looks left');
+  const lifespan = Evo.Genome.founder('FEMALE').develop().lifespanTicks;
+  assert.strictEqual(a[0].ageTicks, Math.floor(lifespan * Evo.WORLD.ADULT_ARRIVAL_AGE));
+});
+
+test('world: an adult can be given the syllables of its name and the way it faces; left out, they are chance', (Evo, assert) => {
+  const world = emptyWorld(Evo);
+  const given = world.addAdult('FEMALE', { syllables: ['ka', 'mi'], facing: -1 });
+  assert.strictEqual(given.name, 'Kami');
+  assert.deepStrictEqual(given.syllables, ['ka', 'mi']);
+  assert.strictEqual(given.facing, -1);
+  const seen = new Set();
+  for (let i = 0; i < 12; i++) {
+    const c = world.addAdult('MALE');
+    assert.strictEqual(c.syllables.length, 2);
+    assert.strictEqual(c.name.toLowerCase(), c.syllables.join(''));
+    seen.add(c.facing);
+  }
+  assert.deepStrictEqual([...seen].sort(), [-1, 1], 'it faces either way');
+});
+
+test('world: a new world stays at two grown adults until babies arrive, as newcomers come only to rescue a sex', (Evo, assert) => {
+  const world = new Evo.World();
+  const pair = [...world.creatures];
+  world.maybeWanderer();
+  assert.strictEqual(world.creatures.length, 2, 'one of each sex is enough');
+  for (let t = 0; t < 2 * 1800 + 100; t++) world.step(); // more than two wanderer intervals (WANDER_INTERVAL)
+  assert.ok(pair.every(c => world.creatures.includes(c)), 'both founders are still alive');
+  assert.strictEqual(world.stats.wanderers, 0);
+});
+
+// Two banked genomes of each sex, each changed by heavy mutation so that they differ from each other
+// and from the starting genome
+function bankedGenomes(Evo) {
+  return ['FEMALE', 'MALE'].flatMap(sex => [1, 2].map(n => ({ genome: Evo.Genome.founder(sex).cloneWithMutation(0.05), generation: 3 + n })));
+}
+
+test('world: a wanderer is an exact copy of a banked genome of its sex, never a changed one', (Evo, assert) => {
+  const world = new Evo.World();
+  const banked = world.seedBank = bankedGenomes(Evo);
+  for (const sex of ['FEMALE', 'MALE']) {
+    const same = banked.filter(b => b.genome.develop().sex === sex);
+    for (let i = 0; i < 6; i++) {
+      world.creatures = [world.addAdult(sex === 'FEMALE' ? 'MALE' : 'FEMALE')]; // only the other sex is left
+      world.maybeWanderer();
+      const c = world.creatures[world.creatures.length - 1];
+      assert.strictEqual(c.sex, sex);
+      const source = same.find(b => Buffer.from(b.genome.dna).equals(Buffer.from(c.genome.dna)));
+      assert.ok(source, 'its DNA is a banked one, byte for byte');
+      assert.notStrictEqual(c.genome, source.genome, 'a copy, not the banked genome itself');
+      assert.strictEqual(c.generation, source.generation);
+    }
+  }
+  assert.strictEqual(world.stats.wanderers, 12);
+});
+
+test('world: with no banked genome of its sex, a wanderer has the starting genome', (Evo, assert) => {
+  const world = new Evo.World();
+  world.creatures = [world.creatures.find(c => c.sex === 'MALE')];
+  world.seedBank = [];
+  world.maybeWanderer();
+  assert.deepStrictEqual(world.creatures[1].genome.dna, Evo.Genome.founder('FEMALE').dna, 'an empty bank');
+  assert.strictEqual(world.creatures[1].generation, 1);
+  world.creatures = [world.creatures[0]];
+  world.seedBank = bankedGenomes(Evo).filter(b => b.genome.sexChrom === 'Y');
+  world.maybeWanderer();
+  assert.deepStrictEqual(world.creatures[1].genome.dna, Evo.Genome.founder('FEMALE').dna, 'a bank of males only');
+});
+
+test('world: a world started again after everyone died has exact copies of banked genomes', (Evo, assert) => {
+  const world = new Evo.World();
+  const banked = world.seedBank = bankedGenomes(Evo);
+  world.creatures = [];
+  world.items = world.items.filter(i => i.type !== 'egg');
+  world.step();
+  assert.strictEqual(world.stats.refoundings, 1);
+  assert.deepStrictEqual(world.creatures.map(c => c.sex), ['FEMALE', 'MALE']);
+  for (const c of world.creatures) {
+    const source = banked.find(b => Buffer.from(b.genome.dna).equals(Buffer.from(c.genome.dna)) && b.genome.sexChrom === c.genome.sexChrom);
+    assert.ok(source, `${c.sex}: its DNA is a banked one, byte for byte`);
+    assert.strictEqual(c.generation, source.generation);
+  }
+});
+
+test('world: a world started again with nothing banked has the starting pair, named and facing each other', (Evo, assert) => {
+  const world = new Evo.World();
+  const first = firstPair(Evo, 12345);
+  world.creatures = [];
+  world.step();
+  assert.strictEqual(world.stats.refoundings, 0, 'nothing was banked');
+  assert.deepStrictEqual(world.creatures.map(c => [c.sex, c.name, c.x, c.facing]), first.map(c => [c.sex, c.name, c.x, c.facing]));
+  assert.deepStrictEqual(world.creatures.map(c => Array.from(c.genome.dna)), first.map(c => c.dna));
 });

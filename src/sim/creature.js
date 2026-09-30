@@ -74,24 +74,24 @@
   const POND_SIGHT_RADIUS = 30;     // A pond is seen as a blue blob of this radius
   const HEARING_FALLOFF = { x: 200, y: 400 }; // Distance (px) at which a call's loudness halves, sideways and vertically
 
-  // Pronounceable names; children mix syllables from their parents' names
+  // Pronounceable names of two syllables; children mix syllables from their parents' names
   const SYLLABLES = ['ka', 'mi', 'ro', 'lu', 'sa', 'vi', 'no', 'pip', 'bo', 'ki', 'ar', 'el', 'ju', 'zo', 'fen', 'wy', 'dru', 'ta', 'po', 'lin', 'ose', 'mar', 'tuk', 'bel', 'ren', 'ani', 'qui', 'da'];
   const capital = s => s.charAt(0).toUpperCase() + s.slice(1);
-  function makeName(parents) {
+  function makeSyllables(parents) {
     const pool = parents ? parents.flatMap(p => p.syllables) : [];
     const syl = () => (pool.length && Evo.chance(0.6) ? Evo.pick(pool) : Evo.pick(SYLLABLES));
     const syllables = [syl(), syl()];
     if (syllables[0] === syllables[1]) syllables[1] = Evo.pick(SYLLABLES);
-    return { name: capital(syllables.join('')), syllables };
+    return syllables;
   }
 
   class Creature {
-    // opts: { generation, parents: [mother, father] (a hatchling's are { id, syllables }), reserves: { glucose, ... }, ageTicks, growth }
+    // opts: { generation, parents: [mother, father] (a hatchling's are { id, syllables }), reserves: { glucose, ... }, ageTicks, growth,
+    //   facing (1 or -1; chosen by chance if left out), syllables (the two syllables of its name; made from its parents' if left out) }
     constructor(genome, x, y, opts = {}) {
       this.id = Evo.nextId();
-      const n = makeName(opts.parents);
-      this.name = n.name;
-      this.syllables = n.syllables;
+      this.syllables = opts.syllables || makeSyllables(opts.parents);
+      this.name = capital(this.syllables.join(''));
       this.genome = genome;
       this.generation = opts.generation || 1;
       this.motherId = opts.parents ? opts.parents[0].id : null;
@@ -115,7 +115,7 @@
 
       // Physical state
       this.x = x; this.y = y; this.vx = 0; this.vy = 0;
-      this.facing = Evo.chance(0.5) ? 1 : -1;
+      this.facing = opts.facing || (Evo.chance(0.5) ? 1 : -1);
       this.onGround = false;
       this.inWater = false;
       this.walkPhase = 0;

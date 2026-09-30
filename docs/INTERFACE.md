@@ -46,7 +46,7 @@ State: `world`, `view`, `synth`, `inspector`, `frameClock`, `focus`, `following`
 | Slap | `world.slap` on press only; puts it on the card | Dragging pans |
 | An item: fruit, grain, dew, grub, bug, mimic berry, ball, lure, egg (a founder egg), thorn bush | | Tap to drop it there (`world.dropItem`, or `world.addEgg` for the egg; the thorn bush plants one) |
 
-The wheel and a two-finger pinch zoom (a pinch also pans). **Add a creature** brings a grown female or male within 120 px of the focused creature, or anywhere in the middle of the world with none; a full world (16) says so in a toast. The hand counts its timing in ticks (the 15-tick pat, flings at the hand's on-screen speed), so it feels the same at every speed.
+The wheel and a two-finger pinch zoom (a pinch also pans). **Add a creature** brings a grown female or male within 120 px of the focused creature, or, with none, within 120 px of where the first creature of its sex stood; a full world (16) says so in a toast. The hand counts its timing in ticks (the 15-tick pat, flings at the hand's on-screen speed), so it feels the same at every speed.
 
 Keys (`keyboard.js`): arrows and WASD pan, `+`/`=` and `-`/`_` zoom, `0` resets the zoom, `F` toggles following, `[` and `]` step through the creatures, Space pauses, `.` steps one tick while paused, `1`–`4` pick a speed (and resume), Esc goes back to the hand. Keys are ignored while typing in a field.
 

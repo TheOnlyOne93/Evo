@@ -1,7 +1,7 @@
 // The world's landscape as data: the terrain (a height field with ponds and cliffs), the features
 // standing on it (trees, rocks, logs...) and the platforms some of them make, built from a map.
 // Pure: it never touches the page. A map is data with nothing random in it: every seed gets the
-// same landscape (only spawnX() draws, from Evo.random, when a founder is placed).
+// same landscape.
 (function (Evo) {
   'use strict';
   const { clamp } = Evo.util;
@@ -113,7 +113,8 @@
   //   ponds: [{ x0, x1, depth, bank }]    dips that fill with water
   //   features: [{ kind, x, ...props }]   what stands on the ground (its y is the ground's at x); the list
   //                                       order is the ids 1..N and the order the world visits them
-  //   ball, spawn: [x0, x1]               where the ball starts; the span a founder appears in
+  //   ball                                where the ball starts
+  //   founders: { FEMALE, MALE }          the x where the first female and the first male stand
   // Nothing in it is random.
   function buildFromSpec(spec) {
     const terrain = terrainFromSpec(spec);
@@ -124,7 +125,7 @@
       if (kind === 'tree') feature.yields = feature.species;
       return feature;
     });
-    return { width: spec.width, height: spec.height, edge: spec.edge, terrain, features, ballX: spec.ball, spawnX: () => Evo.randRange(spec.spawn[0], spec.spawn[1]) };
+    return { width: spec.width, height: spec.height, edge: spec.edge, terrain, features, ballX: spec.ball, founderX: { ...spec.founders } };
   }
 
   // ---------- Maps ----------
@@ -158,14 +159,15 @@
         { kind: 'reeds', x: 2546, width: 50 },
         { kind: 'reeds', x: 2754, width: 50 }
       ],
-      ball: 175, spawn: [220, 400]
+      ball: 175, founders: { FEMALE: 275, MALE: 345 } // in the home meadow, on level ground
     }
   };
   const DEFAULT_MAP = 'valley';
 
   // The landscape of a map (a name in MAPS, or a map object):
-  // { width, height, edge, terrain, features, platforms, ballX, spawnX }. `edge` is how far creatures
-  // and items stay from the world's ends (at least terrain.cliffs.width); `spawnX()` draws a founder's x.
+  // { width, height, edge, terrain, features, platforms, ballX, founderX }. `edge` is how far creatures
+  // and items stay from the world's ends (at least terrain.cliffs.width); `founderX` says where each
+  // founder stands.
   // Every rock and log makes a platform, each the walkable top of its feature, named by featureId
   // (renderers draw them as one).
   function buildLandscape(map = DEFAULT_MAP) {
