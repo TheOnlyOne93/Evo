@@ -78,6 +78,20 @@ test('world: it is colder in winter, at night, and in the water', (Evo, assert) 
   assert.ok(at(1, 0.5, (pond.x0 + pond.x1) / 2, pond.level + 10) < at(1, 0.5, (pond.x0 + pond.x1) / 2, pond.level - 20));
 });
 
+test('world: ponds are held in by the ground and deep enough to drink from', (Evo, assert) => {
+  // Seeds 12 and 37 once had a 68 px wall of water and a 4 px deep small pond
+  for (const seed of [1, 7, 12, 37]) {
+    Evo.seed(seed);
+    const t = new Evo.World().terrain;
+    for (const p of t.ponds) {
+      assert.ok(Math.max(t.groundY(p.x0), t.groundY(p.x1)) < p.level + 4, `seed ${seed}: the water stands above its shore`);
+      let bed = -Infinity;
+      for (let x = p.x0; x <= p.x1; x += 2) bed = Math.max(bed, t.groundY(x));
+      assert.ok(bed - p.level > 17, `seed ${seed}: a pond only ${(bed - p.level).toFixed(1)} px deep`);
+    }
+  }
+});
+
 test('world: scent spreads through the air but never into the ground', (Evo, assert) => {
   const world = emptyWorld(Evo);
   world.items = [];
