@@ -307,3 +307,19 @@ test('brain: working memory keeps the cortex going after what it saw is gone; a 
     assert.ok(ko.after <= 2, `seed ${seed}: knockout cortex after the sight: ${ko.after} spikes`);
   }
 });
+
+test("brain: a Cell type gene sets its region's resting activity", (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const restOf = lobe => brain.traits.cellTypes.find(e => Evo.LOBE_ORDER[e.lobeIdx] === lobe).restingRate;
+  // The Feelings cells that feed the body's emitters (all but the reward and punishment cells) and the
+  // Brainstem cells rest where their gene says; the muscles' pacemaker gene lifts theirs above it
+  for (const i of brain.lobes.feelings.slice(2)) assert.ok(Math.abs(brain.targetRate[i] - restOf('feelings')) < 1e-9);
+  for (const i of brain.lobes.stem) assert.ok(Math.abs(brain.targetRate[i] - restOf('stem')) < 1e-9);
+  for (const i of brain.lobes.motor) assert.ok(brain.targetRate[i] >= restOf('motor'));
+  for (const n of brain.neurons) assert.strictEqual(brain.rate[n.index], brain.targetRate[n.index], `cell ${n.index} starts at its resting activity`);
+  // Without the genes, those cells rest like a thinking cell, far busier
+  const without = new Evo.Brain(Evo.Genome.founder('FEMALE', Evo.FOUNDER_GENOMES.FEMALE.filter(g => g.gene !== 'Cell type')).develop());
+  const usual = without.targetRate[without.lobes.cortex[0]];
+  assert.ok(usual > 10 * restOf('feelings'));
+  for (const i of without.lobes.feelings.slice(2)) assert.strictEqual(without.targetRate[i], usual);
+});

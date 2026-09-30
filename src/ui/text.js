@@ -257,6 +257,7 @@
       const { compete, persist } = dynamicsWords(x);
       return `${w.lobe(x.lobeIdx)}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
+    'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity and, when quiet, get up to ${x.thrDrop.toFixed(1)} mV easier to fire`,
     Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
     'Axon guidance'(v, x, w, brain) {
@@ -309,7 +310,7 @@
   const GENE_KINDS = {
     brain: [
       { kind: 'How neurons work', genes: ['Membrane', 'Plasticity', 'Reinforcement', 'Curiosity', 'Neurochemistry'] },
-      { kind: 'Regions', genes: ['Anatomy', 'Lobe dynamics', 'Pacemaker'] },
+      { kind: 'Regions', genes: ['Anatomy', 'Lobe dynamics', 'Cell type', 'Pacemaker'] },
       { kind: 'Wiring', genes: ['Axon guidance'], note: 'Axon guidance genes: which cells grow connections to which.' }
     ],
     chemistry: [

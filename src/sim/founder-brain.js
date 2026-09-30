@@ -86,5 +86,9 @@
     // Working memory: thinking cells that fire keep themselves going for a while, so what was
     // just seen or felt outlasts it (until they tire or a rival takes over)
     { gene: 'Lobe dynamics', lobe: 'cortex', competition: 0.1, persistence: 0.6, tau: 0.7, fatigue: 0.8 },
+    // Kinds of cell: muscles, Feelings cells and Brainstem cells rest nearly silent and grow only a
+    // little twitchier when quiet, so a single weak input doesn't make them fire (a Feelings cell that
+    // fired at rest would make fear all the time; a Brainstem cell must wait for two inputs at once)
+    ...['motor', 'feelings', 'stem'].map(lobe => ({ gene: 'Cell type', lobe, rest: 0.2408, twitch: 0.1875 }))
   ];
 })(globalThis.Evo);

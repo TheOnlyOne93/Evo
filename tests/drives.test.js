@@ -143,3 +143,18 @@ test('drives: falling asleep rewards a sleepy creature once, not all night', (Ev
   assert.ok(early > 0.05, `dozing off rewards (${early})`);
   assert.ok(late < 0.01, `staying asleep does not (${late})`);
 });
+
+// Every brain cell starts life at its own resting activity, so a new creature's Feelings cells don't
+// start out firing and give it a burst of fear
+test('drives: a founder starts life without a burst of fear', (Evo, assert) => {
+  const { quietWorld } = require('./helpers');
+  const { world, c } = quietWorld(Evo, 1);
+  for (const k of Evo.DRIVES) c.chem.set(k, 0);
+  let worst = 0;
+  for (let t = 0; t < 600; t++) {
+    c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); // Fed and watered; nothing else is touched
+    world.step();
+    worst = Math.max(worst, c.chem.get('fear'));
+  }
+  assert.ok(worst < 0.01, `the highest fear was ${worst}`);
+});

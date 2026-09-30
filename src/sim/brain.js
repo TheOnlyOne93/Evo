@@ -64,10 +64,12 @@
   // Per-lobe neuron parameters (initNeurons). tau: membrane leak per tick; adaptInc: adaptation per
   // spike; adaptKeep: share of adaptation kept per tick (Lobe dynamics genes override it);
   // thrDrop: how far homeostasis may lower the threshold. Central tau comes from the genome.
+  // A cell's resting activity and thrDrop come from the Cell type genes; these are what a cell uses
+  // when its region has none.
   const NEURON = {
-    rate: 0.12, adaptKeep: 0.95,     // Every neuron's starting rate and set point, and adaptation fade
+    rate: 0.12, adaptKeep: 0.95,     // The resting activity a cell aims for when no gene says otherwise, and adaptation fade
     sensory: { thrBelow: 3.0, tau: 0.78, adaptInc: 0.12, adaptKeep: 0.996 }, // The needs cells don't adapt
-    motor: { tau: 0.85, adaptInc: 0.3, targetRate: 0.004, thrDrop: 3 },
+    motor: { tau: 0.85, adaptInc: 0.3 },
     central: { adaptInc: 0.15, thrDrop: 14 },
     modulatorAdaptInc: 0.8
   };
@@ -360,11 +362,9 @@
           this.tau[i] = motor ? P.tau : T.tauLeak;
           this.homeo[i] = 1;
           this.adaptInc[i] = P.adaptInc; // A muscle that keeps working tires (Lobe dynamics set how slowly)
-          // Muscles are mostly quiet unless driven: a low set point keeps them excitable (so the
-          // creature fidgets, explores and babbles) without acting all the time
-          if (motor) this.targetRate[i] = P.targetRate;
-          // …and disuse makes a muscle only slightly twitchier, so a weak input alone never becomes an action
-          this.thrDrop[i] = P.thrDrop;
+          // Until a Cell type gene says otherwise, a cell rests at NEURON.rate and may get up to
+          // NEURON.central.thrDrop easier to fire when quiet (a missing gene makes a restless cell)
+          this.thrDrop[i] = NEURON.central.thrDrop;
           this.refrPeriod[i] = T.refractoryTicks; // develop() rounds it to 1..3
           this.fast[i] = motor ? 1 : 0;
         }
@@ -376,9 +376,22 @@
       this.modulatorCells = this.lobes.feelings.slice(0, N_MOD);
       this.modulatorCells.forEach((i, c) => { this.modulator[i] = c; this.homeo[i] = 0; this.adaptInc[i] = NEURON.modulatorAdaptInc; });
 
+      // Cell type genes: what each kind of cell rests at, and how much easier to fire it may get when
+      // quiet (several genes for one region: the last one wins). Sensory cells have no balancing.
+      for (const e of T.cellTypes) {
+        for (const i of this.lobes[LOBE_ORDER[e.lobeIdx]]) {
+          if (this.isSensory[i]) continue;
+          this.targetRate[i] = e.restingRate;
+          this.thrDrop[i] = e.thrDrop;
+        }
+      }
+
       // Pacemaker genes give a whole lobe a steady depolarizing current (spontaneous activity),
       // and raise the lobe's homeostatic set point so homeostasis doesn't simply cancel it
       this.applyPacemakers(T.pacemakers);
+
+      // Every cell starts life at its own resting activity
+      for (const n of this.neurons) this.rate[n.index] = this.targetRate[n.index];
 
       // Lobe dynamics genes: competition and self-sustaining activity within a region (see
       // applyDynamics). Several genes for one region: the last one wins.

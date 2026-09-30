@@ -197,6 +197,13 @@
           adaptKeep: 0.95 + 0.049 * v.fatigue               // How slowly the cells recover from tiring
         });
       },
+      birthOnly: true },
+    // What a kind of cell is like when nothing drives it. rest: the share of ticks a cell of this
+    // region fires on its own, which its balancing aims for (0.001 to about 0.3, on a log scale).
+    // twitch: how many mV easier to fire a quiet cell may become (0 to 16). The last gene for a
+    // region wins.
+    { name: 'Cell type', group: 'brain', fields: [['lobe', CODEC.lobe], u('rest'), u('twitch')],
+      express(v, d) { d.add('cellTypes', { lobeIdx: v.lobe, restingRate: 10 ** (-3 + 2.5 * v.rest), thrDrop: v.twitch * 16 }); },
       birthOnly: true }
   ];
   GENES.forEach(g => { g.payload = g.fields.length; });
@@ -218,7 +225,7 @@
       habituationRate: 0.0015, noveltyGain: 8,
       insulation: 0.6, bodyHeat: 0.5,
       eggInvestment: 0.35, incubationTicks: 5400,
-      axonGuidance: [], pacemakers: [], lobeDynamics: [],
+      axonGuidance: [], pacemakers: [], lobeDynamics: [], cellTypes: [],
       reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [], stimuli: [],
       neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}
@@ -388,7 +395,7 @@
 
     // Build the traits of a creature at a life stage: every gene whose switch-on stage has been
     // reached (stages 0 and 1 are both "from birth"). Genes marked birthOnly (anatomy,
-    // membrane, neurochemistry, lobe dynamics) still appear in later traits, but the
+    // membrane, neurochemistry, lobe dynamics, cell type) still appear in later traits, but the
     // brain only reads them when it is built, so a copy that switches on after birth has no effect.
     // Each list entry records the gene it came from (`gene`: its start offset, and its `stage`), so
     // callers can tell which ones are new at a later stage, and the gene's own dice (`dice`): a whole

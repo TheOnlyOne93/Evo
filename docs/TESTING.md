@@ -13,9 +13,9 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | File | Covers |
 |---|---|
 | `biochem` | Reactions, catalysts, emitters, half-lives, receptors and damage blame, the founder's hunger, thirst and reward, staged initial concentrations |
-| `brain` | Wiring, weight bounds; growing the same brain every time (no random numbers drawn, the same wiring whatever the seed, the same for the first female and male, taking out any one wiring gene changes only connections it could make, a doubled wiring gene grows more); the founders' reflexes, delays, muscle competition, attention, working memory |
+| `brain` | Wiring, weight bounds; growing the same brain every time (no random numbers drawn, the same wiring whatever the seed, the same for the first female and male, taking out any one wiring gene changes only connections it could make, a doubled wiring gene grows more); the founders' reflexes, delays, muscle competition, attention, working memory, resting activity set by the Cell type gene |
 | `clock` | The frame clock: rate, pause, the hitch cap, the budget |
-| `drives` | Stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
+| `drives` | No burst of fear at the start of life, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
 | `genome` | Encoding round trips, founder genes, the founders (the same bytes every time, no random numbers drawn, differing only in looks and voice), stages, duplication and loss, mutation, inheritance, guidance |
 | `kin` | `Evo.kinOf` and `Evo.kinIndex` |
 | `landscape` | Every map in `Evo.MAPS`: the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; each founder's spot is dry, level, inside the walkable edge, clear of thorn bushes and apart from the other's; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |

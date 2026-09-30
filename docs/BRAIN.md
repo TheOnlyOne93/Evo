@@ -6,7 +6,7 @@ Nothing is hand-wired to "do" attention or decisions. Those roles come from guid
 
 ## Neurons
 
-Leaky integrate-and-fire cells with a refractory period, adaptation, and a threshold that drifts to hold each cell near a target firing rate. State lives in typed arrays, one entry per neuron. `brain.neurons[i]` describes neuron i (lobe, position, receptor tag, meta) for the interface.
+Leaky integrate-and-fire cells with a refractory period, adaptation, and a threshold that drifts to hold each cell near a resting activity (its target firing rate). State lives in typed arrays, one entry per neuron. `brain.neurons[i]` describes neuron i (lobe, position, receptor tag, meta) for the interface.
 
 Coordinates: x runs from the creature's left (0) to its right (1) **in the world** (the side view has two hemifields: things to the left, things to the right). y runs from the front (senses, 0) to the back (muscles, 1). Each neuron also has a tag, a chemical address `[x, y, z]` that guidance genes aim at.
 
@@ -27,6 +27,12 @@ Coordinates: x runs from the creature's left (0) to its right (1) **in the world
 The founder's brain has 222 neurons and 1,383 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
 
 `Evo.BRAIN_BODY_PLAN` defines the sensory layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and `sightCell(k)` and `smellCell(k)` decode it. The depths (tag z) of the muscle, Drives, Feelings and Attention cells are there too; Attention has the front-most depth (0), which the broad wiring genes don't reach.
+
+### Resting activity
+
+Every thinking cell's balancing (homeostasis) pulls its firing toward a resting activity and lets a quiet cell's threshold drop by up to a set number of mV. Each kind of cell gets both from its region's **Cell type** genes (region, rest, twitch): rest is the share of ticks the cell fires when nothing drives it (0.001 to about 0.3, on a log scale), twitch is how many mV easier to fire a quiet cell may become (0 to 16). Several genes for one region: the last one wins. Sensory cells have no balancing, and the first two Feelings cells (reward and punishment) are not balanced either.
+
+A region with no Cell type gene rests at 0.12 and may drop 14 mV, like a thinking cell: a missing gene makes a restless creature, never a broken one. The founder has three: muscles, Feelings cells and Brainstem cells rest at 0.4% and may drop 3 mV, so a single weak input doesn't make them fire (a Feelings cell that fired at rest would make fear all the time; a Brainstem cell must wait for two inputs at once). The muscles' pacemaker then lifts their resting activity a little (to about 0.6%). Every cell starts life at its own resting activity, so a newborn has no burst of firing.
 
 ## Wiring
 
@@ -54,7 +60,7 @@ What happens while living still uses the world's dice: firing noise, sprouting n
 
 ### The founder's wiring
 
-75 genes in `founder-brain.js`: 71 tracts, all excitatory, and four others.
+78 genes in `founder-brain.js`: 71 tracts, all excitatory, and seven others.
 
 | Purpose | Genes |
 |---|---|
@@ -67,7 +73,7 @@ What happens while living still uses the world's dice: firing noise, sprouting n
 | Out to the muscles | 3: from Thinking and the Central lobe |
 | Value | 4 cue tracts from sight and smell onto the reward and punishment cells, which learn what each predicts; 1 from the alarm odour to a Feelings cell that raises fear; 1 broad, fast projection from Feelings, which sets where learning happens |
 | Attention | 12: a drive's cell biases the attention cells toward what it needs |
-| Others | A pacemaker that keeps the muscles restless; three Lobe dynamics genes (below) |
+| Others | A pacemaker that keeps the muscles restless; three Lobe dynamics genes and three Cell type genes (below) |
 
 ## A tick
 
