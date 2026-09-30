@@ -135,13 +135,15 @@
   const STIMULUS = Object.fromEntries(STIMULI.map((k, i) => [k, i]));
   const STIMULUS_WORDS = Object.fromEntries(STIMULUS_LIST);
 
+  const N_NEEDS = 18, N_LIMBIC = 8;
+
   // ---- Body loci: what emitter genes can read (all 0..1). Codes 128+ read a chemical instead. ----
   const BODY_LOCI = [
     'none', 'always', 'bodyTemp', 'heatGain', 'heatLoss', 'darkness', 'exertion', 'awake', 'asleep',
     'resting', 'injury', 'health', 'impact', 'gentleTouch', 'touchingFriend', 'company', 'crowding',
     'novelty', 'falling', 'inWater', 'held', 'tasteSweet', 'tasteStarch', 'tasteSavory', 'tasteFat',
     'tasteBitter', 'tasteWater', 'gutFullness', 'mated', 'pregnant', 'heardCall', 'growth', 'starving',
-    'limbic0', 'limbic1', 'limbic2', 'limbic3', 'limbic4', 'limbic5', 'limbic6', 'limbic7'
+    ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic${k}`)
   ];
   const LOCUS = Object.fromEntries(BODY_LOCI.map((k, i) => [k, i]));
 
@@ -149,7 +151,6 @@
   // Physiological targets are read by the body; need:k and limbic:k inject current into a neuron.
   const PHYSIO_TARGETS = ['none', 'muscle', 'arousal', 'sleep', 'damage', 'healing', 'fertility', 'growth',
     'scentSex', 'scentAlarm', 'metabolism', 'thermogenesis', 'cooling'];
-  const N_NEEDS = 18, N_LIMBIC = 8;
   const TARGETS = [...PHYSIO_TARGETS,
     ...Array.from({ length: N_NEEDS }, (_, k) => `need:${k}`),
     ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic:${k}`)];
@@ -193,7 +194,10 @@
   // Drives lobe: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
   // genes), plus spare cells. Their addresses form a grid that shares nothing with the muscles, so
   // what a drive makes the creature do is up to guidance genes aimed at single cells.
-  const DRIVE_CELL_TAGS = Array.from({ length: N_NEEDS }, (_, k) => [(k % 6 + 0.5) / 6, (Math.floor(k / 6) + 0.5) / 3]);
+  const DRIVE_COLS = 6, DRIVE_ROWS = Math.ceil(N_NEEDS / DRIVE_COLS);
+  if (DRIVES.length > N_NEEDS) throw new Error('more drive chemicals than Drives lobe cells');
+  const DRIVE_CELL_TAGS = Array.from({ length: N_NEEDS }, (_, k) =>
+    [(k % DRIVE_COLS + 0.5) / DRIVE_COLS, (Math.floor(k / DRIVE_COLS) + 0.5) / DRIVE_ROWS]);
   const driveCell = key => DRIVES.indexOf(key);
 
   // ---- Neurochemicals: the brain's modulatory channels, in channel order. Neurochemistry genes pick

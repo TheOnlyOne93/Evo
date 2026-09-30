@@ -108,6 +108,8 @@
   // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
   const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENT.alarm + 0.5) / N_ODOURS],
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
+  // The x address of a sense's left or right side
+  const sideX = s => (s === 'L' ? 0.1 : 0.9);
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
   // constructor checks); neuron counts stay far below that.
@@ -181,7 +183,6 @@
         (lobes[lobe] = lobes[lobe] || []).push(n.index);
         return n;
       };
-      const sideX = s => (s === 'L' ? 0.1 : 0.9);
 
       // Sight: two eyes' fields (left, right) × low/high × features; a map across the front.
       // Cells are added in sightIndex order.
@@ -869,7 +870,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS,
+      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, FEELING_TAGS, sideX,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

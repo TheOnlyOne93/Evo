@@ -1,11 +1,12 @@
 // The founder genome: brain wiring genes (see founder.js).
 (function (Evo) {
   'use strict';
+  const { FEELING_TAGS, SIDES, sideX } = Evo.BRAIN_BODY_PLAN;
   const { approach, guide, prior, need, FEATURES, ODOURS } = Evo.founderKit;
   // A drive's own cell in the Drives lobe, as a source window for a guidance gene
   const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[need(key)], 0.05];
   // Top-down attention: a drive's cell biases the sight copy's cells for one feature (either side)
-  const attend = (drive, feature) => [0.1, 0.9].map(x =>
+  const attend = (drive, feature) => SIDES.map(sideX).map(x =>
     guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, 0.22], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
 
   Evo.founderBrain = [
@@ -40,7 +41,7 @@
     guide('taste', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
     // Sights and smells reach the reward and punishment cells weakly; these cue synapses learn
     // what each sight or smell predicts
-    ...['sight', 'smell'].flatMap(lobe => [[0.2, 0.9, 0.1], [0.9, 0.2, 0.1]].map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
+    ...['sight', 'smell'].flatMap(lobe => FEELING_TAGS.slice(0, 2).map(tag => [...tag, 0.1]).map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
     // The alarm odour excites the feelings cell that shares its address (a fear cell)
     guide('smell', [0.5, 0.5, 0.1], { radius: 0.07, weight: 0.9, relY: true }),
     // Feelings project broadly and fast: where the reward cell's axons end is where learning happens
@@ -51,7 +52,7 @@
     guide('sight', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     // The colours of food and water (red to blue) on one side reach the thinking cells tagged for
     // that side strongly enough to start working memory there
-    ...[0.1, 0.9].map(x => guide('sight', [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] })),
+    ...SIDES.map(sideX).map(x => guide('sight', [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] })),
     guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
     guide('cortex', [0.5, 0.5, 0.9], { radius: 0.6, weight: 0.2, reach: 0.8 }),
     // …and each thinking cell also pulls on the walk muscle on its own side, so what working memory

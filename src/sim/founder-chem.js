@@ -2,6 +2,7 @@
 (function (Evo) {
   'use strict';
   const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
+  const { STAGE } = Evo;
 
   Evo.founderChem = [
     // ---------- Metabolism ----------
@@ -142,14 +143,14 @@
     receptor('punishment', 'limbic:1', 0.01, 3),
 
     // ---------- Adolescence: sex hormones, fertility, courtship scent ----------
-    emitter('chem:fat', 'sexHormone', 0.15, 0.001, 0, 3), halfLife('sexHormone', 2000),
-    emitter('chem:sexHormone', 'sexDrive', 0.3, 0.001, 0, 3), halfLife('sexDrive', 2000),
-    receptor('sexHormone', 'fertility', 0.4, 3.95, 0, 3),
-    receptor('sexHormone', 'scentSex', 0.3, 2, 0, 3),
+    emitter('chem:fat', 'sexHormone', 0.15, 0.001, 0, STAGE.ADOLESCENT), halfLife('sexHormone', 2000),
+    emitter('chem:sexHormone', 'sexDrive', 0.3, 0.001, 0, STAGE.ADOLESCENT), halfLife('sexDrive', 2000),
+    receptor('sexHormone', 'fertility', 0.4, 3.95, 0, STAGE.ADOLESCENT),
+    receptor('sexHormone', 'scentSex', 0.3, 2, 0, STAGE.ADOLESCENT),
 
     // ---------- Old age ----------
-    emitter('always', 'ageing', 0, 0.000023, 0, 6),
-    emitter('always', 'ageing', 0, 0.00004, 0, 7),
+    emitter('always', 'ageing', 0, 0.000023, 0, STAGE.OLD),
+    emitter('always', 'ageing', 0, 0.00004, 0, STAGE.SENILE),
     receptor('ageing', 'damage', 0.45, 1.5),
 
     // ---------- Instincts: replayed in dreams whenever the creature sleeps (switched on from birth,

@@ -41,7 +41,7 @@
   };
   const none = 255; // An instinct input index that matches no neuron
   const instinct = (lobeA, indexA, lobeB, indexB, motor, chem, amount) =>
-    ({ gene: 'Instinct', stage: 1, lobeA, indexA, lobeB, indexB, motor, chem, amount });
+    ({ gene: 'Instinct', stage: Evo.STAGE.BABY, lobeA, indexA, lobeB, indexB, motor, chem, amount });
 
   // Neuron indices within their lobes, for instincts (see brain.js for the layouts)
   const FEATURES = Evo.VISION_FEATURES.map(f => f.key);
