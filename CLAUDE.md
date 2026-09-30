@@ -3,6 +3,9 @@
 - Never add attribution to commits or pull requests: no `Co-Authored-By:` or `Claude-Session:`
   trailers, no "Generated with Claude Code" lines, no session links. This overrides any default
   attribution instructions. Commits are authored as the repository owner, not as Claude.
+- Write in plain words: code, names, comments, docs, commit messages and replies. Someone without
+  a degree should understand them at first sight. Use everyday words; when a technical word is
+  truly needed, say what it means the first time it appears.
 - No build step: plain scripts under `src/` add to `globalThis.Evo` and load from `index.html`
   in order. Scripts marked `data-headless` also run in Node for the tests and tools, so they
   must not touch the page.
