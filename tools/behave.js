@@ -1,12 +1,17 @@
 // Behaviour bench: one creature in a controlled situation, many trials, and how often (and how
 // fast) it does the sensible thing. Drives are held at fixed levels during a trial.
-//   node tools/behave.js [trials=12] [filter] [--report]   (in any order)
+//   node tools/behave.js [trials=12] [filter] [--report] [--jobs N]   (in any order)
 // Scenarios live in tools/scenarios/*.js. Each file exports ({ Evo, lab, session, trial, avoids }) =>
 // ({ scenarios, reports }): scenarios map a name to seed => tick it passed (null = fail); reports map a
 // name to seed => number and are averaged and printed only with --report (they never gate anything).
+// The seeds are split across N worker processes (default: one per CPU thread, at most one per seed;
+// --jobs 1 runs everything in this process). Every seed starts from its own seeded world, so the
+// results don't depend on the split.
 'use strict';
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { fork } = require('child_process');
 const Evo = require('../tests/load')();
 const { quietWorld } = require('../tests/helpers');
 
@@ -74,26 +79,74 @@ for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
   Object.assign(REPORTS, reports);
 }
 
+// Reports that time the code: run on their own after the pool, so other processes don't slow them
+const isCost = name => name.startsWith('cost:');
+
+// Each selected scenario's and report's result for the given seeds: { name: { seed: value } }
+function measure({ seeds, filter, report, cost }) {
+  const out = {};
+  const each = table => {
+    for (const [name, fn] of Object.entries(table)) {
+      if (!name.includes(filter) || (table === REPORTS && isCost(name) !== cost)) continue;
+      out[name] = {};
+      for (const seed of seeds) out[name][seed] = fn(seed);
+    }
+  };
+  if (!cost) each(SCENARIOS);
+  if (report) each(REPORTS);
+  return out;
+}
+
+// A worker: measure its seeds and send them back
+if (process.argv[2] === '--child') {
+  process.send(measure(JSON.parse(process.argv[3])));
+  process.exit(0);
+}
+
+// Split the seeds across `jobs` worker processes (seed s goes to worker (s - 1) % jobs); resolves to
+// their merged results
+function pool(seeds, jobs, opts) {
+  return Promise.all(Array.from({ length: jobs }, (_, j) => new Promise((resolve, reject) => {
+    const mine = seeds.filter(s => (s - 1) % jobs === j);
+    const child = fork(__filename, ['--child', JSON.stringify({ ...opts, seeds: mine })]);
+    let got = null;
+    child.on('message', r => { got = r; });
+    child.on('exit', code => (got ? resolve(got) : reject(new Error(`worker ${j} exited ${code} without a result`))));
+  }))).then(parts => {
+    const out = {};
+    for (const part of parts) for (const [name, bySeed] of Object.entries(part)) Object.assign(out[name] = out[name] || {}, bySeed);
+    return out;
+  });
+}
+
 const args = process.argv.slice(2);
+const jobsAt = args.findIndex(a => a === '--jobs' || a.startsWith('--jobs='));
+const jobsArg = jobsAt < 0 ? null : args[jobsAt].includes('=') ? args[jobsAt].split('=')[1] : args.splice(jobsAt + 1, 1)[0];
+if (jobsAt >= 0) args.splice(jobsAt, 1);
 const showReport = args.includes('--report');
 const trialsArg = args.find(a => /^\d+$/.test(a));
 const filter = args.find(a => !a.startsWith('-') && a !== trialsArg) || '';
 const trials = Number(trialsArg || 12);
-const nameWidth = Math.max(...Object.keys(SCENARIOS).map(n => n.length));
-for (const [name, scenario] of Object.entries(SCENARIOS)) {
-  if (!name.includes(filter)) continue;
-  const times = [];
-  for (let seed = 1; seed <= trials; seed++) times.push(scenario(seed));
-  const ok = times.filter(t => t !== null);
-  const median = ok.length ? ok.sort((a, b) => a - b)[Math.floor(ok.length / 2)] : null;
-  console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(nameWidth)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
-}
-const reportWidth = Math.max(...Object.keys(REPORTS).map(n => n.length));
-if (showReport) {
-  for (const [name, metric] of Object.entries(REPORTS)) {
-    if (!name.includes(filter)) continue;
+const jobs = Math.max(1, Math.min(trials, jobsArg ? Number(jobsArg) : os.availableParallelism()));
+if (!Number.isInteger(jobs)) { console.error('usage: --jobs N (a whole number)'); process.exit(1); }
+const seeds = Array.from({ length: trials }, (_, i) => i + 1);
+
+(async () => {
+  const opts = { filter, report: showReport, cost: false };
+  const results = jobs > 1 ? await pool(seeds, jobs, opts) : measure({ ...opts, seeds });
+  if (showReport) Object.assign(results, measure({ ...opts, seeds, cost: true }));
+  const nameWidth = Math.max(...Object.keys(SCENARIOS).map(n => n.length));
+  for (const name of Object.keys(SCENARIOS)) {
+    if (!results[name]) continue;
+    const ok = seeds.map(s => results[name][s]).filter(t => t !== null);
+    const median = ok.length ? ok.sort((a, b) => a - b)[Math.floor(ok.length / 2)] : null;
+    console.log(`${String(Math.round(ok.length / trials * 100)).padStart(3)}%  ${name.padEnd(nameWidth)} ${median !== null && median > 0 ? `median ${median} ticks` : ''}`);
+  }
+  const reportWidth = Math.max(...Object.keys(REPORTS).map(n => n.length));
+  for (const name of Object.keys(REPORTS)) {
+    if (!results[name]) continue;
     let sum = 0;
-    for (let seed = 1; seed <= trials; seed++) sum += metric(seed);
+    for (const s of seeds) sum += results[name][s];   // In seed order, so the float sum is the same however the seeds were split
     console.log(`  ~  ${name.padEnd(reportWidth)} mean ${(sum / trials).toFixed(3)}`);
   }
-}
+})().catch(e => { console.error(e.message); process.exitCode = 1; });
