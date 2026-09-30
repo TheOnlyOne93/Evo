@@ -22,7 +22,6 @@
   const GENOME_MEMORY = 400; // Genomes remembered by creature id, so a child can be compared with its parents
   const ERROR_FADE = 0.99;   // Per tick: how quickly a shown prediction error fades (about a second)
   const RECENT = 30;         // Ticks within which a connection counts as just used
-  const COLD = 0.3, HOT = 0.7; // Body heat below or above these is cold or hot (the bar's colour and word)
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
   const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
   const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome
@@ -38,7 +37,11 @@
     const width = Math.abs(v) * 50;
     return `<span style="${v >= 0 ? 'left:50%' : `left:${50 - width}%`};width:${width}%;background:${color}"></span>`;
   };
-  const tempWord = t => t < COLD ? 'cold' : t > HOT ? 'hot' : 'fine';
+  // Body heat in words: what the creature feels (its coldness or hotness drive, at the level the card shows a need)
+  const tempWord = c => {
+    const cold = c.chem.get('coldness'), hot = c.chem.get('hotness'), shown = Evo.DRIVE_SHOWN.cue;
+    return cold > shown && cold >= hot ? 'cold' : hot > shown ? 'hot' : 'fine';
+  };
 
   class Inspector {
     constructor(app) {
@@ -203,7 +206,7 @@
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
 
       const temp = c.bodyTemp;
-      const word = tempWord(temp);
+      const word = tempWord(c);
       const tempColor = word === 'cold' ? 'var(--water)' : word === 'hot' ? 'var(--fruit)' : 'var(--accent)';
       $('barsVitals').innerHTML =
         bar('Health', c.health, 'var(--protein)') +

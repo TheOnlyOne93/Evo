@@ -103,7 +103,7 @@
       if (world) this._sync();
     }
 
-    get following() { return this.target; }
+    get followed() { return this.target; }
 
     // Match the canvas to its box
     resize() {

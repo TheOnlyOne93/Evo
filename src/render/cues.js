@@ -74,7 +74,6 @@
       const cs = world.creatures;
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
-        if (!c.chem) continue;   // a stand-in creature (dev labs)
         const r = this.rec(c), ring = c.recentStimuli;
         // Entries of the ring not seen yet (entry j has sequence number stimCount - length + j + 1)
         for (let j = Math.max(0, ring.length - (c.stimCount - r.seen)); j < ring.length; j++) {
@@ -91,7 +90,7 @@
           }
         }
         r.seen = c.stimCount;
-        const d = c.brain && c.brain.dream;
+        const d = c.brain.dream;
         if (c.asleep && d) {
           r.dreamUntil = t + DREAM_HOLD;
           r.dreamIcon = dreamIcon(c, d);
@@ -108,13 +107,13 @@
       g.lineCap = 'round'; g.lineJoin = 'round';
       for (let i = 0; i < cs.length; i++) {
         const c = cs[i];
-        if (!view.poses[i] || !c.chem) continue;
+        if (!view.poses[i]) continue;
         const r = this.rec(c);
         const head = view.worldToScreen(c.x + c.facing * c.size * 0.3, c.y - c.size * (c.lying ? 0.7 : 1.05));
         this._reactions(g, r, head, z, t);
         if (!c.held && !c.dead) this._bubble(g, c, r, head, z, t, c === focused);
       }
-      if (focused && focused.chem) {
+      if (focused) {
         const a = Evo.attentionOf(focused, world);
         if (a) this._brackets(g, view, a, t);
       }

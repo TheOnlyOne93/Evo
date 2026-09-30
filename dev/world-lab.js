@@ -76,7 +76,7 @@
       setPressed('[data-hand]', b => b.dataset.hand === state.tool);
       $('#scentBtn').setAttribute('aria-pressed', String(!!view.options.showScent));
       $('#sensesBtn').setAttribute('aria-pressed', String(!!view.options.showSenses));
-      $('#followBtn').setAttribute('aria-pressed', String(!!view.following));
+      $('#followBtn').setAttribute('aria-pressed', String(!!view.followed));
     };
     document.querySelectorAll('[data-phase]').forEach(b => b.addEventListener('click', () => { setPhase(Number(b.dataset.phase)); refresh(); }));
     document.querySelectorAll('[data-season]').forEach(b => b.addEventListener('click', () => { setSeason(Number(b.dataset.season)); refresh(); }));
@@ -100,7 +100,7 @@
       refresh();
     }
     function toggleFollow() {
-      state.following = !view.following;
+      state.following = !view.followed;
       if (state.following) focus(view.options.focused || world.creatures[0] || null);
       else view.follow(null);
       refresh();

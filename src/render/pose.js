@@ -43,7 +43,7 @@
   const attention = new WeakMap();
   const RESOLVE_EVERY = 6;   // ticks
   function attentionOf(c, world) {
-    if (!world || !c.brain || !c.brain.attended || c.dead || c.asleep || c.held) return null;
+    if (!world || c.dead || c.asleep || c.held) return null;
     const tick = world.clock.tick;
     let a = attention.get(c);
     if (!a || tick < a.tick || tick - a.tick >= RESOLVE_EVERY) {
