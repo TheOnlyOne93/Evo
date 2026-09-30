@@ -6,12 +6,13 @@
   const H = Evo.uiHelpers;
 
   const EVENT_SHOWN_S = 120;   // An event stays on the card this long (simulated seconds)
+  const BAR_FLOOR = 0.02;      // The drive bars show its strongest drives that are there at all (bars are meters, not signs of a need)
   // What an idle creature is about to do, by the muscle it has decided on (keys are Evo.MOTORS)
   const ABOUT_TO = { eat: 'Trying to eat', grab: 'Reaching for', drink: 'About to drink', call: 'About to call', rest: 'Settling down' };
 
   // Why it might be doing it: its strongest need, or else how it feels
   function reason(c) {
-    const [need] = Evo.shownDrives(c, 1, Evo.DRIVE_SHOWN.card);
+    const [need] = Evo.shownDrives(c, 1);
     if (need) return need.word.toLowerCase();
     const mood = c.mood;
     return mood === 'calm' ? '' : mood;
@@ -87,7 +88,7 @@
         const look = Evo.EVENT_LOOK[e.key], ago = t.ago(now - e.tick);
         return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago}`);
       }).join(''));
-      const drives = c.topDrives(3).filter(([, v]) => v > Evo.DRIVE_SHOWN.cardBar);
+      const drives = c.topDrives(3).filter(([, v]) => v > BAR_FLOOR);
       $('cardDrives').innerHTML = H.bar('Health', c.health, 'var(--protein)') +
         drives.map(([k, v]) => H.bar(t.CHEM_WORDS[k], v, H.chemColor(k))).join('');
     };

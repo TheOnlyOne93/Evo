@@ -21,7 +21,7 @@
 
   // How each drive reads at a glance, for thought bubbles and the creature card: an icon and a
   // word for "feels ..." (keys are Evo.DRIVES)
-  Evo.DRIVE_LOOK = {
+  const DRIVE_LOOK = {
     hunger: { icon: '🍎', word: 'Hungry' }, proteinHunger: { icon: '🐛', word: 'Craving protein' },
     fatHunger: { icon: '🥜', word: 'Craving fat' }, thirst: { icon: '💧', word: 'Thirsty' },
     tiredness: { icon: '🥱', word: 'Tired' }, sleepiness: { icon: '🌙', word: 'Sleepy' },
@@ -37,21 +37,15 @@
     ate: { icon: '🍽️', word: 'Ate' }, drank: { icon: '💧', word: 'Drank' }, played: { icon: '⚽', word: 'Played' },
     mated: { icon: '💞', word: 'Mated' }, fellAsleep: { icon: '💤', word: 'Fell asleep' }, woke: { icon: '☀️', word: 'Woke up' }
   };
-  // How strong a drive must be before each place shows it. Open question for the owner: whether
-  // these should be one or two shared levels rather than six
-  Evo.DRIVE_SHOWN = {
-    card: 0.3,      // the card's "why": its strongest need
-    cardBar: 0.02,  // the card's drive bars
-    strip: 0.45,    // the badge and hover words on the strip's avatars
-    roster: 0.2,    // the need beside each name in the population roster
-    cue: 0.25,      // shownDrives' default: the card's need chips
-    strong: 0.6     // a need chip on the card drawn as strong
-  };
+  // How strong a drive must be before it shows. shown: the card's "why" and need chips, the roster,
+  // the Body deck's cold or hot, and the followed creature's thought bubble. strong: a need chip
+  // drawn as strong, the badge on the strip's avatars, and every other creature's thought bubble.
+  Evo.DRIVE_SHOWN = { shown: 0.3, strong: 0.6 };
   // Its strongest needs, strongest first: [{ key, level, icon, word }] for drives above `min`
-  Evo.shownDrives = (c, n = 3, min = Evo.DRIVE_SHOWN.cue) => c.topDrives(n).filter(([, v]) => v > min)
-    .map(([key, level]) => ({ key, level, ...(Evo.DRIVE_LOOK[key] || { icon: '•', word: key }) }));
+  Evo.shownDrives = (c, n = 3, min = Evo.DRIVE_SHOWN.shown) => c.topDrives(n).filter(([, v]) => v > min)
+    .map(([key, level]) => ({ key, level, ...(DRIVE_LOOK[key] || { icon: '•', word: key }) }));
   // Icons for actions (keys are Evo.MOTORS), shown in dreams
-  Evo.MOTOR_ICON = { walkL: '👣', walkR: '👣', jump: '🦘', eat: '🍎', grab: '✊', rest: '💤', call: '🎵', run: '💨', drink: '💧' };
+  const MOTOR_ICON = { walkL: '👣', walkR: '👣', jump: '🦘', eat: '🍎', grab: '✊', rest: '💤', call: '🎵', run: '💨', drink: '💧' };
 
   class CreatureCues {
     constructor() {
@@ -154,12 +148,12 @@
       if (c.asleep) {
         if (r.dreamUntil > t) { icon = r.dreamIcon; dream = true; alpha = clamp01((r.dreamUntil - t) / 0.4); }
       } else {
-        let best = null, v = focused ? 0.45 : 0.6;
+        let best = null, v = focused ? Evo.DRIVE_SHOWN.shown : Evo.DRIVE_SHOWN.strong;
         for (const k of Evo.DRIVES) { const x = c.chem.get(k); if (x > v) { v = x; best = k; } }
         if (best) {
           const on = focused ? 6 : 4, u = (t + c.id * 2.3) % BUBBLE_PERIOD;
           alpha = u < on ? Math.min(1, u / 0.35, (on - u) / 0.35) : 0;
-          icon = Evo.DRIVE_LOOK[best] && Evo.DRIVE_LOOK[best].icon;
+          icon = DRIVE_LOOK[best] && DRIVE_LOOK[best].icon;
         }
       }
       if (!icon || alpha <= 0.01) return;
@@ -247,7 +241,7 @@
     if (d.episode) k = c.brain.lobes.motor.indexOf(d.episode.motor);
     else if (d.instinct && d.instinct.motor !== undefined) k = d.instinct.motor % Evo.MOTORS.length;
     const m = Evo.MOTORS[k];
-    return (m && Evo.MOTOR_ICON[m.key]) || '✨';
+    return (m && MOTOR_ICON[m.key]) || '✨';
   }
 
   function heart(g, x, y, s) {

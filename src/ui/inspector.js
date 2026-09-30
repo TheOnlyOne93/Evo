@@ -39,7 +39,7 @@
   };
   // Body heat in words: what the creature feels (its coldness or hotness drive, at the level the card shows a need)
   const tempWord = c => {
-    const cold = c.chem.get('coldness'), hot = c.chem.get('hotness'), shown = Evo.DRIVE_SHOWN.cue;
+    const cold = c.chem.get('coldness'), hot = c.chem.get('hotness'), shown = Evo.DRIVE_SHOWN.shown;
     return cold > shown && cold >= hot ? 'cold' : hot > shown ? 'hot' : 'fine';
   };
 
@@ -605,7 +605,7 @@
         return `<button class="member" data-creature="${c.id}" aria-current="${c === this.app.focus}">` +
           `<span class="sex-glyph" style="color:${sexColor(c.sex)}">${sexGlyph(c.sex)}</span>` +
           `<span>${esc(c.name)}<br><span class="meta">${Evo.STAGES[c.stage].word}, gen ${c.generation}, ${esc(T.ACTION_WORDS[c.action] || c.action).toLowerCase()}</span></span>` +
-          `<span class="meta">${need && need[1] > Evo.DRIVE_SHOWN.roster ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
+          `<span class="meta">${need && need[1] > Evo.DRIVE_SHOWN.shown ? esc(T.CHEM_WORDS[need[0]].toLowerCase()) : ''}</span></button>`;
       }).join('') || '<p class="empty">Nobody lives here now.</p>');
       this.renderPopulation();
     }
