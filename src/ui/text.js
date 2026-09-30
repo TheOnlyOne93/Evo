@@ -6,6 +6,8 @@
   const { LOBE_INFO, VISION_FEATURES, SCENTS, STAGES, CHEMICALS, MOTORS, TRAIT_RANGES: R } = Evo;
 
   const SIDE = { L: 'left', R: 'right' };
+  // Which side of its target region an axon guidance gene aims at (the left side needs no words)
+  const SIDE_MODE_WORDS = { same: 'on its own side', other: 'on the other side', right: 'on the right', left: '' };
   const FEATURE_WORDS = Object.fromEntries(VISION_FEATURES.map(f => [f.key, f.word]));
   const ODOUR_WORDS = Object.fromEntries(SCENTS.map(s => [s.key, s.word]));
   const MOTOR_WORDS = Object.fromEntries(MOTORS.map(m => [m.key, m.word]));
@@ -193,18 +195,15 @@
   // or '' at any level
   const thresholdWord = (invert, t) => (invert ? ` below ${percent(t)}` : t > 0.005 ? ` above ${percent(t)}` : '');
 
-  // Which cells an axon guidance gene reaches in this brain: the same chemical match the brain grows
-  // by (brain.growTracts), without the chance. Returns { from, to } in words, or null without a brain.
+  // Which cells an axon guidance gene reaches in this brain: the same spot match the brain grows by
+  // (brain.growTracts), without the chance. Returns { from, to } in words, or null without a brain.
   function guidanceReach(brain, x) {
     if (!brain) return null;
     const sources = brain.tractSources(x);
-    const hits = new Map(), cells = new Set(), senders = new Set();
+    const cells = new Set(), senders = new Set();
     for (const s of sources) {
       const targets = brain.tractTargets(x, s);
-      for (const [d] of targets) {
-        cells.add(d.index);
-        hits.set(d.lobe, (hits.get(d.lobe) || 0) + 1);
-      }
+      for (const [d] of targets) cells.add(d.index);
       if (targets.length) senders.add(s.index);
     }
     const cellsOf = set => [...set].map(i => brain.neurons[i]);
@@ -215,12 +214,9 @@
     const from = !senders.size ? `${lobeWord} (no cells match)`
       : senders.size === sources.length && !x.srcWindow ? lobeWord
         : kinds.length <= 2 ? kinds.join(' and ') : `${sending.length} ${lobeWord.toLowerCase()} cells`;
-    const reached = cellsOf(cells);
     const cellWord = d => (d.lobe === 'attention' ? `attention to ${FEATURE_WORDS[d.meta.feature]} on the ${SIDE[d.meta.side]}` : neuronName(brain, d).toLowerCase());
-    const names = [...new Set(reached.map(cellWord))];
-    const regions = [...hits.entries()]
-      .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([l]) => regionName(brain, l));
-    const to = !cells.size ? 'nothing it can find' : names.length <= 2 ? names.join(' and ') : regions.join(' and ');
+    const names = [...new Set(cellsOf(cells).map(cellWord))];
+    const to = !cells.size ? 'nothing it can find' : names.length <= 2 ? names.join(' and ') : `${cells.size} cells`;
     return { from, to };
   }
 
@@ -257,17 +253,17 @@
       const { compete, persist } = dynamicsWords(x);
       return `${w.lobe(x.lobeIdx)}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
-    'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity and, when quiet, get up to ${x.thrDrop.toFixed(1)} mV easier to fire`,
+    'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity; when quiet they get ${x.thrDrop < 4 ? 'a little' : x.thrDrop < 10 ? 'somewhat' : 'much'} easier to set off`,
     Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
     'Axon guidance'(v, x, w, brain) {
-      const src = x.source, reach = guidanceReach(brain, x), excites = x.weightSign > 0;
+      const src = x.source, reach = guidanceReach(brain, x), verb = x.weightSign > 0 ? 'excites' : 'inhibits';
+      const side = SIDE_MODE_WORDS[src.side] ? `, ${SIDE_MODE_WORDS[src.side]}` : '';
       if (!reach) { // No brain to trace it in: where the axons look
-        const [tx, ty, tz] = x.target.map(t => w.num(t)), map = src.relX || src.relY ? (src.mirrorX ? ', crossed map' : ', mapped') : '';
-        return `${w.lobe(src.lobe)} axons seek (${tx}, ${ty}, ${tz})${map}, ${excites ? 'exciting' : 'inhibiting'}${x.srcWindow ? ', from a window of cells' : ''}`;
+        const [tu, tv] = x.target.map(t => w.num(t));
+        return `From ${w.lobe(src.lobe)} to ${w.lobe(x.targetRegion)} (near spot ${tu}, ${tv})${side}: ${verb}${x.srcWindow ? ', from a window of cells' : ''}`;
       }
-      const map = src.relX || src.relY ? (src.mirrorX ? ', each cell to the opposite side' : ', each cell to its match') : '';
-      return `${capitalize(reach.from)} → ${reach.to}: ${excites ? 'excites' : 'inhibits'}${map}`;
+      return `From ${reach.from} to ${w.lobe(x.targetRegion)} (${reach.to})${side}: ${verb}`;
     },
     // Chemistry
     Stimulus(v, x, w) {
@@ -340,7 +336,7 @@
 
   // Gene fields whose code name says little
   const FIELD_WORDS = {
-    tx: 'target left–right', ty: 'target front–back', tz: 'target depth', sx: 'senders left–right', sy: 'senders front–back',
+    tu: 'target spot left–right', tv: 'target spot front–back', sx: 'senders left–right', sy: 'senders front–back',
     sr: 'senders spread', radius: 'target spread', a: 'input', b: 'second input', c: 'output', d: 'second output',
     yieldC: 'output amount', yieldD: 'second output amount', chem1: 'chemical', amount1: 'amount', chem2: 'second chemical',
     amount2: 'second amount', lobeA: 'input region', indexA: 'input cell', lobeB: 'second input region', indexB: 'second input cell',

@@ -32,10 +32,10 @@ Each row of `Evo.GENES` decodes its payload bytes (`fields`, one codec per byte)
 | | Plasticity | Learning rate, eligibility half-life (14–140 ticks), sprouting threshold, pruning |
 | | Reinforcement | Sensitivity to reward and to punishment |
 | | Curiosity | How fast a look becomes familiar, how strongly novelty registers |
-| | Anatomy | A region's position, width, depth and cell count |
-| | Axon guidance | A tract: the source region (and a window on it), the receptor chemistry sought, sign and strength, reach, conduction speed |
+| | Anatomy | A region's box on the brain map: its place front to back, its distance from the middle, its height, and its cell count ([BRAIN.md](BRAIN.md)) |
+| | Axon guidance | A tract: the source region (and a window on its cells' spots), which side of the target it aims at (its own side, the other side, the right, or else the left), the target region and the spot sought in it, how near counts, sign and strength, reach, conduction speed |
 | | Pacemaker | A steady current into a region |
-| | Neurochemistry | How far a modulator's learning signal spreads |
+| | Neurochemistry | How far a modulator's learning signal spreads (reward or punishment) |
 | | Lobe dynamics | Competition and persistence within a region |
 | | Cell type | A region's resting activity (the firing its balancing aims for) and how much easier to fire a quiet cell may become |
 | chemistry | Reaction, Emitter, Receptor, Half-life, Initial concentration, Stimulus | See [BIOCHEMISTRY.md](BIOCHEMISTRY.md) |
@@ -60,7 +60,7 @@ Both work on raw bytes.
 
 ## The founder genomes
 
-The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 279 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
+The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 292 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
 
 `Evo.FOUNDERS` holds what sets the two apart: each one's looks (the Appearance gene), voice (the Voice gene) and the syllables of its name (Elani, Fenro). Both coats are sea green, near 160 degrees, the colour other creatures' food-colour cells notice least. Her voice is high and his is low, so each can hear which of the two is calling.
 
@@ -68,8 +68,8 @@ The bytes between genes are filler: four at the start and three after each gene.
 
 | File | What it holds |
 |---|---|
-| `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `guide`, `approach`, `prior`, `instinct`), `Evo.FOUNDERS`, and `Evo.founderBody(sex)`: one each of the 13 trait genes, with that sex's looks and voice |
-| `founder-brain.js` | 78 genes: 71 tracts, a pacemaker, three Lobe dynamics genes and three Cell type genes ([BRAIN.md](BRAIN.md)) |
+| `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `wire`, `instinct`, and the spot helpers `muscleSpot`, `driveSpot`, `colourSpot`, `odourSpot`, `touchSpot`, `feelingSpot`, which read the brain map), `Evo.FOUNDERS`, and `Evo.founderBody(sex)`: one each of the 13 trait genes, with that sex's looks and voice |
+| `founder-brain.js` | 91 genes: 84 tracts, a pacemaker, three Lobe dynamics genes and three Cell type genes ([BRAIN.md](BRAIN.md)) |
 | `founder-chem.js` | 188 genes: metabolism, drives, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)); it also puts the three lists together into `Evo.FOUNDER_GENOMES` |
 
 The founder has no Anatomy or Neurochemistry gene. All its genes are on from birth except four for adolescence and two for old age.

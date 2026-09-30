@@ -1,6 +1,6 @@
 // Tables that several parts of the simulation (and the UI) share. Every chemical, item, season and
-// brain region, and most senses, are defined once here (brain.js lays out the touch, taste and
-// hearing cells); everything else derives from these tables.
+// brain region, and most senses, are defined once here (brain.js lays out the touch cells);
+// everything else derives from these tables.
 (function (Evo) {
   'use strict';
 
@@ -170,48 +170,53 @@
   const TARGET = Object.fromEntries(TARGETS.map((k, i) => [k, i]));
 
   // ---- Brain regions, in genome order (genes address a region by its index here) ----
-  // word: plain-language region name; cell: what one of its general-purpose cells is called
+  // word: plain-language region name; cell: what one of its general-purpose cells is called.
+  // The brain map: x runs from the world's left (0) to its right (1), y from the front (0) to the back
+  // (1). Every region is a box on it, [x0, y0, x1, y1]; a cell's address is its spot inside its box, and
+  // where it is drawn follows from the box. grid: [columns, rows] of the spots (per side for a two-sided
+  // region), which also gives the region's usual cell count. The touch and movement cells have spots of
+  // their own (see brain.js and MOTORS below). sided: the box is the LEFT box and the right one is its
+  // mirror image (x becomes 1 - x); a spot's left-right position is measured from the box's outer edge,
+  // so a left cell and its twin on the right share one spot.
   const LOBES = [
-    { key: 'sight',    word: 'Sight',        color: '#38bdf8', sensory: true },
-    { key: 'smell',    word: 'Smell',        color: '#f59e0b', sensory: true },
-    { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true },
-    { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true },
-    { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true },
-    { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true },
-    { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true },
-    { key: 'feelings', word: 'Feelings',     color: '#10b981' },
-    { key: 'attention', word: 'Attention',   color: '#22d3ee' },
-    { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell' },
-    { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell' },
-    { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell' },
-    { key: 'motor',    word: 'Movement',     color: '#34d399' },
-    { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell' }
+    { key: 'sight',    word: 'Sight',        color: '#38bdf8', sensory: true, box: [0.10, 0.10, 0.47, 0.18], sided: true, grid: [8, 2] },
+    { key: 'smell',    word: 'Smell',        color: '#f59e0b', sensory: true, box: [0.30, 0.02, 0.47, 0.08], sided: true, grid: [5, 2] },
+    { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true, box: [0.02, 0.10, 0.08, 0.18], sided: true, grid: [1, 2] },
+    { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true, box: [0.36, 0.80, 0.64, 0.87] },
+    { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true, box: [0.14, 0.80, 0.30, 0.85], grid: [3, 2] },
+    { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true, box: [0.70, 0.80, 0.86, 0.85], grid: [4, 2] },
+    { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true, box: [0.33, 0.71, 0.67, 0.78], grid: [6, 3] },
+    { key: 'feelings', word: 'Feelings',     color: '#10b981', box: [0.41, 0.63, 0.59, 0.68], grid: [4, 2] },
+    { key: 'attention', word: 'Attention',   color: '#22d3ee', box: [0.16, 0.26, 0.47, 0.30], sided: true, grid: [8, 1] },
+    { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell', box: [0.08, 0.34, 0.45, 0.48], sided: true, grid: [5, 3] },
+    { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell', box: [0.03, 0.53, 0.20, 0.67], sided: true, grid: [3, 4] },
+    { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell', box: [0.39, 0.52, 0.61, 0.61], grid: [5, 4] },
+    { key: 'motor',    word: 'Movement',     color: '#34d399', box: [0.06, 0.95, 0.94, 0.99] },
+    { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell', box: [0.10, 0.89, 0.90, 0.93], grid: [9, 2] }
   ];
   const LOBE_ORDER = LOBES.map(l => l.key);
   const LOBE_INFO = Object.fromEntries(LOBES.map(l => [l.key, l]));
   const SENSORY_LOBES = LOBES.filter(l => l.sensory).map(l => l.key);
 
-  // Muscles (Movement lobe). tag[0..1] is each muscle's chemical address: guidance genes find a
-  // muscle by it (a topographic gene wires a sense cell to the muscle whose address matches its own).
+  // Muscles (Movement region). spot: where each one sits in its box (left to right, then its row).
+  // Guidance genes find a muscle by its spot. side: the two walking muscles are a pair; the others
+  // sit on the midline.
   const MOTORS = [
-    { key: 'walkL', word: 'Walk left',  tag: [0.10, 0.50], pos: [0.18, 0.86] },
-    { key: 'walkR', word: 'Walk right', tag: [0.90, 0.50], pos: [0.82, 0.86] },
-    { key: 'jump',  word: 'Jump',       tag: [0.30, 0.30], pos: [0.38, 0.82] },
-    { key: 'eat',   word: 'Eat',        tag: [0.50, 0.30], pos: [0.50, 0.80] },
-    { key: 'grab',  word: 'Grab / drop', tag: [0.70, 0.30], pos: [0.62, 0.82] },
-    { key: 'rest',  word: 'Rest',       tag: [0.40, 0.70], pos: [0.42, 0.90] },
-    { key: 'call',  word: 'Call',       tag: [0.60, 0.70], pos: [0.58, 0.90] },
-    { key: 'run',   word: 'Run',        tag: [0.20, 0.70], pos: [0.50, 0.94] },
-    { key: 'drink', word: 'Drink',      tag: [0.50, 0.12], pos: [0.50, 0.87] }
+    { key: 'walkL', word: 'Walk left',  spot: [0.056, 0.5], side: 'L' },
+    { key: 'walkR', word: 'Walk right', spot: [0.944, 0.5], side: 'R' },
+    { key: 'jump',  word: 'Jump',       spot: [0.167, 0.5] },
+    { key: 'eat',   word: 'Eat',        spot: [0.278, 0.5] },
+    { key: 'grab',  word: 'Grab / drop', spot: [0.389, 0.5] },
+    { key: 'rest',  word: 'Rest',       spot: [0.500, 0.5] },
+    { key: 'call',  word: 'Call',       spot: [0.611, 0.5] },
+    { key: 'run',   word: 'Run',        spot: [0.722, 0.5] },
+    { key: 'drink', word: 'Drink',      spot: [0.833, 0.5] }
   ];
 
-  // Drives lobe: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
-  // genes), plus spare cells. Their addresses form a grid at their own depth (z 0.8; the muscles' is 0.9), so
-  // what a drive makes the creature do is up to guidance genes aimed at single cells.
-  const DRIVE_COLS = 6, DRIVE_ROWS = Math.ceil(N_DRIVE_CELLS / DRIVE_COLS);
-  if (DRIVES.length > N_DRIVE_CELLS) throw new Error('more drive chemicals than Drives lobe cells');
-  const DRIVE_CELL_TAGS = Array.from({ length: N_DRIVE_CELLS }, (_, k) =>
-    [(k % DRIVE_COLS + 0.5) / DRIVE_COLS, (Math.floor(k / DRIVE_COLS) + 0.5) / DRIVE_ROWS]);
+  // Drives region: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
+  // genes), plus spare cells. What a drive makes the creature do is up to guidance genes aimed at single
+  // cells.
+  if (DRIVES.length > N_DRIVE_CELLS) throw new Error('more drive chemicals than Drives region cells');
   const driveCell = key => DRIVES.indexOf(key);
 
   // ---- Neurochemicals: the brain's modulatory channels, in channel order. Neurochemistry genes pick
@@ -219,8 +224,7 @@
   // terminals (see Brain.buildLearningFields). base: the spread when no gene sets it.
   const NEUROCHEMS = [
     { key: 'DA', word: 'Reward', base: 0.5 },   // Dopamine-like reward chemical
-    { key: 'ST', word: 'Punishment', base: 0.5 },   // Punishment chemical
-    { key: 'NO', word: 'NO', base: 0.15 }       // Retired (it let active neighbours share credit); kept so gene bytes decode as before
+    { key: 'ST', word: 'Punishment', base: 0.5 }    // Punishment chemical
   ];
 
   const LIMITS = {
@@ -237,7 +241,7 @@
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
     STIMULI, STIMULUS, STIMULUS_WORDS, TASTES, BODY_LOCI, LOCUS, TARGETS, TARGET, N_DRIVE_CELLS, N_LIMBIC,
-    LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, driveCell, NEUROCHEMS,
+    LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, driveCell, NEUROCHEMS,
     LIMITS
   });
 })(globalThis.Evo);

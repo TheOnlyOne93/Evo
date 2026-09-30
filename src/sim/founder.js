@@ -20,47 +20,48 @@
     ({ gene: 'Stimulus', stimulus: Evo.STIMULUS[key], chem1, amount1, chem2, amount2 });
   const halfLife = (chem, ticks) => ({ gene: 'Half-life', chem, halfLife: ticks });
   const initial = (chem, amount) => ({ gene: 'Initial concentration', chem, amount });
-  // Axon guidance: a source lobe's axons seek a receptor chemistry. With relX / relY the target is
-  // relative to each source cell's own tag (0.5 = "the same as mine"): a topographic projection.
-  // from: [x, y, r] limits the source to cells whose tag is within r of (x, y).
-  const guide = (lobe, [tx, ty, tz], { radius, weight, reach = 1.4, conduction = 0.3, relX = false, relY = false, mirrorX = false, from = null }) => {
+  // Axon guidance: the axons of one region (from) grow toward a spot (at) in another region (to), and
+  // connect to the cells near it, within radius. side says which side of the target they aim at:
+  // 'same' is the source cell's own side, 'other' the opposite one (a cell with no side aims at both),
+  // 'left' the spot as given, 'right' its mirror image. window: [u, v, r] limits the source to cells whose
+  // spot is within r of (u, v). reach: how far the axons can grow (the default reaches anywhere on the
+  // map, like a long nerve tract; the target region limits where they land). speed: how fast a spike
+  // travels along the axon.
+  const wire = (from, to, { at = [0.5, 0.5], radius, weight, side = 'left', window = null, reach = 3.0, speed = 0.3 }) => {
     // The sign byte only reads as a weight of at least 0.2 (weaker ones would flip to excitatory)
     if (Math.abs(weight) < 0.2 || Math.abs(weight) > 1) throw new Error(`Axon guidance weight ${weight} must be 0.2 to 1 in size`);
     const G = Evo.GUIDANCE;
     return {
-      gene: 'Axon guidance', source: { lobe, relX, relY, mirrorX }, tx, ty, tz,
+      gene: 'Axon guidance', source: { lobe: from, side }, region: to, tu: at[0], tv: at[1],
       radius: G.radius.encode(radius),
       sign: G.weight.encode(weight),
       reach: G.reach.encode(reach),
-      conduction: G.conduction.encode(conduction),
-      sx: from ? from[0] : 0, sy: from ? from[1] : 0, sr: from ? G.window.encode(from[2]) : 0
+      conduction: G.conduction.encode(speed),
+      sx: window ? window[0] : 0, sy: window ? window[1] : 0, sr: window ? G.window.encode(window[2]) : 0
     };
-  };
-  const { MUSCLE_Z } = Evo.BRAIN_BODY_PLAN;
-  // A topographic tract from one sense channel (its cells' tag y) to the walk muscles (tag y 0.5)
-  // on the same side, or with crossed = true, the opposite side
-  const approach = (lobe, channels, key, weight, crossed = false) => {
-    const y = (channels.indexOf(key) + 0.5) / channels.length;
-    return guide(lobe, [0.5, 0.5 + (0.5 - y), MUSCLE_Z], { radius: 0.06, weight, relX: true, relY: true, mirrorX: crossed });
   };
   const none = Evo.GENE_NONE; // An instinct input index that matches no neuron
   const instinct = (lobeA, indexA, lobeB, indexB, motor, chem, amount) =>
     ({ gene: 'Instinct', stage: Evo.STAGE.BABY, lobeA, indexA, lobeB, indexB, motor, chem, amount });
 
-  // Neuron indices within their lobes, for instincts (see brain.js for the layouts)
+  // Neuron indices within their regions, for instincts (see brain.js for the layouts)
   const FEATURES = Evo.VISION_FEATURES.map(f => f.key);
-  const ODOURS = Evo.SCENTS.map(s => s.key);
   const MOTOR = Object.fromEntries(Evo.MOTORS.map((m, i) => [m.key, i]));
   // Drives cell of each drive chemical (Evo.driveCell), for receptor targets and instincts
   const { driveCell } = Evo;
   const driveTarget = key => `need:${driveCell(key)}`;
-  // An innate prior: axons from one drive's cell only (a source window) to one muscle
-  const prior = (drive, motor, weight) => guide('needs', [...Evo.MOTORS[MOTOR[motor]].tag, MUSCLE_Z],
-    { radius: 0.08, weight, conduction: 0.3, from: [...Evo.DRIVE_CELL_TAGS[driveCell(drive)], 0.04] });
-  const { sightIndex: sight, smellIndex: smell } = Evo.BRAIN_BODY_PLAN;
+  const { sightIndex: sight, smellIndex: smell, gridSpot, colourSpot, smellSpot: odourSpot } = Evo.BRAIN_BODY_PLAN;
   const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));
+  // Where things sit in their regions, for wire(): read from the layout (brain.js, constants.js)
+  const muscleSpot = key => Evo.MOTORS[MOTOR[key]].spot;
+  const driveSpot = key => gridSpot('needs', driveCell(key));
+  const touchSpot = key => Evo.BRAIN_BODY_PLAN.TOUCH[TOUCH[key]].spot;
+  const feelingSpot = k => gridSpot('feelings', k);
 
-  Evo.founderKit = { reaction, emitter, receptor, stimulus, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, driveCell, driveTarget, prior, sight, smell, TOUCH };
+  Evo.founderKit = {
+    reaction, emitter, receptor, stimulus, halfLife, initial, wire, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, driveCell, driveTarget,
+    sight, smell, TOUCH, muscleSpot, driveSpot, colourSpot, odourSpot, touchSpot, feelingSpot
+  };
 
   // What sets the first female and the first male apart: their looks, their voice and the syllables of
   // their names (Elani, Fenro; the game does not use the syllables yet). Every other gene they share.

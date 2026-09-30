@@ -323,3 +323,27 @@ test("brain: a Cell type gene sets its region's resting activity", (Evo, assert)
   assert.ok(usual > 10 * restOf('feelings'));
   for (const i of without.lobes.feelings.slice(2)) assert.strictEqual(without.targetRate[i], usual);
 });
+
+test("brain: a guidance gene aims at its source cell's own side, the other side, both, or a fixed side", (Evo, assert) => {
+  const brain = founderBrain(Evo), { wire, muscleSpot, colourSpot } = Evo.founderKit;
+  const aim = (from, to, cell, at, side) => {
+    const spec = wire(from, to, { at, radius: 0.06, weight: 0.5, side });
+    const rule = new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop().axonGuidance[0];
+    return brain.tractTargets(rule, brain.neurons[cell]).map(([d]) => d.side);
+  };
+  const eyeL = brain.lobes.sight[Evo.BRAIN_BODY_PLAN.sightIndex('L', 'low', 'red')], eyeR = brain.lobes.sight[Evo.BRAIN_BODY_PLAN.sightIndex('R', 'low', 'red')];
+  const walkL = muscleSpot('walkL');
+  // The walking muscles are a pair, in a region that is not two-sided: the right one is the mirror image of the left
+  assert.deepStrictEqual(aim('sight', 'motor', eyeL, walkL, 'same'), ['L']);
+  assert.deepStrictEqual(aim('sight', 'motor', eyeR, walkL, 'same'), ['R']);
+  assert.deepStrictEqual(aim('sight', 'motor', eyeL, walkL, 'other'), ['R']);
+  assert.deepStrictEqual(aim('sight', 'motor', eyeR, walkL, 'left'), ['L']);
+  assert.deepStrictEqual(aim('sight', 'motor', eyeL, walkL, 'right'), ['R']);
+  // A cell with no side aims at both sides
+  assert.deepStrictEqual(aim('needs', 'motor', brain.lobes.needs[0], walkL, 'same'), ['L', 'R']);
+  // In a two-sided region a side is its own box
+  const red = colourSpot('red');
+  assert.deepStrictEqual(aim('sight', 'attention', eyeR, red, 'same'), ['R']);
+  assert.deepStrictEqual(aim('sight', 'attention', eyeR, red, 'left'), ['L']);
+  assert.deepStrictEqual(aim('needs', 'attention', brain.lobes.needs[0], red, 'same'), ['L', 'R']);
+});

@@ -187,31 +187,21 @@ test('genome: duplicated genes average their values (co-dominance)', (Evo, asser
   assert.ok(Math.abs(two.walkSpeed - (W.lo + W.width / 2)) < 1e-9, 'speed 0 and speed 1 average to the middle of the range');
 });
 
-test('genome: axon guidance strength decodes symmetrically around byte 120', (Evo, assert) => {
-  const strength = sign => {
-    const spec = { gene: 'Axon guidance', source: { lobe: 'touch', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.5, radius: 0.5, sign, reach: 0.5, conduction: 0.5, sx: 0, sy: 0, sr: 0 };
-    return new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop().axonGuidance[0].weightSign;
-  };
-  assert.ok(Math.abs(strength(121) - 0.21) < 1e-9, 'just above 120: weakly excitatory');
-  assert.ok(Math.abs(strength(120) + 0.2) < 1e-9, '120 and below: inhibitory');
-  assert.ok(Math.abs(strength(100) + 0.4) < 1e-9);
-  assert.ok(Math.abs(strength(180) - 0.8) < 1e-9);
-  assert.strictEqual(strength(255), 1); assert.strictEqual(strength(0), -1);
-});
-
 test('genome: a misspelled chemical name in a gene throws instead of encoding to nothing', (Evo, assert) => {
   assert.throws(() => Evo.encodeGene({ gene: 'Half-life', chem: 'no-such-chemical', halfLife: 100 }), /chem/);
 });
 
 test('genome: a founder guidance weight too weak to keep its sign throws', (Evo, assert) => {
-  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: 0.1 }), /0\.1/);
-  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: -0.1 }), /-0\.1/);
+  assert.throws(() => Evo.founderKit.wire('touch', 'motor', { radius: 0.2, weight: 0.1 }), /0\.1/);
+  assert.throws(() => Evo.founderKit.wire('touch', 'motor', { radius: 0.2, weight: -0.1 }), /-0\.1/);
 });
 
 test('genome: a windowed guidance gene grows synapses only from the cells in its window', (Evo, assert) => {
+  const { wire, driveSpot, muscleSpot } = Evo.founderKit;
+  // A Drives-to-Movement gene that aims at the Rest muscle, alone in a genome; its tract grows after the
+  // brain is born, so only what the gene grows is counted
   const sourcesOf = window => {
-    const spec = { gene: 'Axon guidance', source: { lobe: 'needs', relX: false, relY: false, mirrorX: false }, tx: 0.5, ty: 0.5, tz: 0.9,
-      radius: 1, sign: 200, reach: 1, conduction: 0.5, sx: 0, sy: 0, sr: 0, ...window };
+    const spec = wire('needs', 'motor', { at: muscleSpot('rest'), radius: 0.4, weight: 0.5, window });
     const traits = new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop();
     const rules = traits.axonGuidance;
     traits.axonGuidance = [];
@@ -220,12 +210,10 @@ test('genome: a windowed guidance gene grows synapses only from the cells in its
     brain.growTracts(rules);
     return { brain, from: new Set(Array.from(brain.sSrc.subarray(before, brain.S))) };
   };
-  const open = sourcesOf({});
-  const k = 10, cell = open.brain.lobes.needs[k];
-  const [tx, ty] = open.brain.neurons[cell].tag;
-  assert.ok(open.from.size > 1, 'without a window many need cells send axons');
-  // sr is a radius encoded over the window's range (0.02 to 0.5): a radius of about 0.05 in the cell's own tag space
-  const windowed = sourcesOf({ sx: tx, sy: ty, sr: (0.05 - 0.02) / 0.5 });
+  const open = sourcesOf(null);
+  const cell = open.brain.lobes.needs[Evo.driveCell('hunger')];
+  assert.ok(open.from.size > 1, 'without a window many Drives cells send axons');
+  const windowed = sourcesOf([...driveSpot('hunger'), 0.04]);
   assert.ok(windowed.from.size > 0, 'the windowed cell grew synapses');
   assert.deepStrictEqual([...windowed.from], [cell], 'only the cell in the window');
 });

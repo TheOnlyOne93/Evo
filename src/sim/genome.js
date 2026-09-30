@@ -77,16 +77,17 @@
   const GENE_NONE = 255; // An instinct input index that matches no neuron
   const u = key => [key, CODEC.unit];
 
-  // Axon guidance source byte: bits 0-3 lobe, bit 4 x relative to the source's own tag,
-  // bit 5 y relative, bit 6 x mirrored (a crossed projection)
+  // Axon guidance source byte: bits 0-3 the source region; then which side of the target region the
+  // axons aim at, as seen from the source cell: bit 4 its own side, bit 5 the other side, bit 6 the
+  // right side (none of the three: the left side)
   const guidanceSource = {
-    decode: b => ({ lobe: (b & 15) % LOBE_COUNT, relX: !!(b & 16), relY: !!(b & 32), mirrorX: !!(b & 64) }),
-    encode: v => LOBE_ORDER.indexOf(v.lobe) | (v.relX ? 16 : 0) | (v.relY ? 32 : 0) | (v.mirrorX ? 64 : 0)
+    decode: b => ({ lobe: (b & 15) % LOBE_COUNT, side: b & 16 ? 'same' : b & 32 ? 'other' : b & 64 ? 'right' : 'left' }),
+    encode: v => LOBE_ORDER.indexOf(v.lobe) | ({ same: 16, other: 32, right: 64, left: 0 })[v.side]
   };
-  // Axon guidance values from their decoded fields (decode), and back for founder.js guide() (encode)
+  // Axon guidance values from their decoded fields (decode), and back for founder.js wire() (encode)
   const GUIDANCE = {
-    radius: span(0.04, 0.76),     // Affinity radius around the receptor chemistry sought
-    reach: span(0.15, 1.35),      // How far the axons can grow (brain widths)
+    radius: span(0.04, 0.76),     // Affinity radius around the spot sought
+    reach: span(0.15, 2.85),      // How far the axons can grow, in map heights (0.15 to 3.0: the top reaches anywhere on the map)
     conduction: span(0.08, 0.5),  // Myelination: distance per tick
     window: span(0.02, 0.5),      // Radius of the source window
     // Sign and strength from the raw sign byte: bytes above 120 are excitatory, 120 and below inhibitory,
@@ -148,13 +149,14 @@
         d.anatomy(LOBE_ORDER[v.region], { shift: (v.shift - 0.5) * 0.3, lateral: 0.6 + v.lateral * 0.8, size: 0.6 + v.size * 0.9, count: 0.5 + v.count * 1.1 });
       },
       birthOnly: true },
-    { name: 'Axon guidance', group: 'brain', fields: [['source', guidanceSource], u('tx'), u('ty'), u('tz'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction'), u('sx'), u('sy'), u('sr')],
+    { name: 'Axon guidance', group: 'brain', fields: [['source', guidanceSource], ['region', CODEC.lobe], u('tu'), u('tv'), u('radius'), ['sign', CODEC.raw], u('reach'), u('conduction'), u('sx'), u('sy'), u('sr')],
       express(v, d) {
         d.add('axonGuidance', {
-          source: v.source,
-          // Only source cells whose tag lies within r of (x, y) send axons (sr = 0: every cell does)
+          source: v.source,                  // The region the axons leave, and which side of the target they aim at
+          // Only source cells whose spot lies within r of (x, y) send axons (sr = 0: every cell does)
           srcWindow: v.sr === 0 ? null : { x: v.sx, y: v.sy, r: GUIDANCE.window.decode(v.sr) },
-          target: [v.tx, v.ty, v.tz],        // Receptor chemistry sought (x/y relative to the source's own tag if relX/relY)
+          targetRegion: v.region,
+          target: [v.tu, v.tv],              // The spot sought in the target region
           affinityRadius: GUIDANCE.radius.decode(v.radius),
           weightSign: GUIDANCE.weight.decode(v.sign),
           reach: GUIDANCE.reach.decode(v.reach),

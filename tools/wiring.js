@@ -19,10 +19,10 @@ const pairsOf = b => { const out = new Set(); for (let s = 0; s < b.S; s++) out.
 // connections are the ones that appear when that gene is added.
 const base = pairsOf(new Evo.Brain({ ...traits, axonGuidance: [] }));
 
-console.log('Each wiring gene on its own (source, target address, radius, weight; source cells; connections; where they land)');
+console.log('Each wiring gene on its own (source region and window; target region, spot, side, radius, weight; source cells; connections; where they land)');
+const SIDE_MODE = { same: 'own side', other: 'other side', left: 'left as given', right: 'right (mirrored)' };
 traits.axonGuidance.forEach((rule, i) => {
-  const src = rule.source;
-  let from = Evo.LOBE_ORDER[src.lobe] + (src.relX ? ' relative x' : '') + (src.relY ? ' relative y' : '') + (src.mirrorX ? ' mirrored' : '');
+  let from = Evo.LOBE_ORDER[rule.source.lobe];
   if (rule.srcWindow) from += ` window (${f(rule.srcWindow.x)}, ${f(rule.srcWindow.y)}, ${f(rule.srcWindow.r)})`;
   const alone = new Evo.Brain({ ...traits, axonGuidance: [rule] });
   const landed = {};
@@ -34,7 +34,8 @@ traits.axonGuidance.forEach((rule, i) => {
     landed[lobe] = (landed[lobe] || 0) + 1;
   }
   const where = Object.entries(landed).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ');
-  console.log(`${String(i + 1).padStart(3)}  ${from} -> [${rule.target.map(f).join(', ')}] radius ${f(rule.affinityRadius)} weight ${f(rule.weightSign)} | ` +
+  console.log(`${String(i + 1).padStart(3)}  ${from} -> ${Evo.LOBE_ORDER[rule.targetRegion]} spot (${rule.target.map(f).join(', ')}), ${SIDE_MODE[rule.source.side]}, ` +
+    `radius ${f(rule.affinityRadius)} weight ${f(rule.weightSign)} | ` +
     `${brain.tractSources(rule).length} source cells, ${grown} connections: ${where || 'none'}`);
 });
 

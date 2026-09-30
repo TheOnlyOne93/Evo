@@ -1,33 +1,37 @@
-// The founder genome: brain wiring genes (see founder.js).
+// The founder genome: brain wiring genes (see founder.js). Each wire() says which region's axons grow
+// toward which spot of which region (see brain.js for the brain map and how the side word works).
 (function (Evo) {
   'use strict';
-  const { FEELING_TAGS, SIDES, sideX, MUSCLE_Z, FEELING_Z, ATTENTION_Z } = Evo.BRAIN_BODY_PLAN;
-  const { approach, guide, prior, driveCell, FEATURES, ODOURS } = Evo.founderKit;
-  // A drive's own cell in the Drives lobe, as a source window for a guidance gene
-  const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[driveCell(key)], 0.05];
-  // Top-down attention: a drive's cell biases the attention cells for one feature (either side)
-  const attend = (drive, feature) => SIDES.map(sideX).map(x =>
-    guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, ATTENTION_Z], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
+  const { wire, muscleSpot, driveSpot, colourSpot, odourSpot, touchSpot, feelingSpot } = Evo.founderKit;
+  const WALK = muscleSpot('walkL'); // The left walking muscle; 'same' side aims a right cell at the right one
+  // A source window around a spot: only the cells there send axons (in a two-sided region, both twins)
+  const around = (spot, r) => [...spot, r];
+  // Top-down attention: a drive's cell biases the attention cells for one feature (both sides, as
+  // the drive has no side)
+  const attend = (drive, feature) => wire('needs', 'attention',
+    { window: around(driveSpot(drive), 0.04), at: colourSpot(feature), radius: 0.06, weight: 0.3, side: 'same' });
+  // An innate prior: axons from one drive's cell only (a source window) to one muscle
+  const prior = (drive, motor, weight) => wire('needs', 'motor',
+    { window: around(driveSpot(drive), 0.04), at: muscleSpot(motor), radius: 0.06, weight });
 
   Evo.founderBrain = [
     // ---------- Brain wiring ----------
-    // Orienting. A sight cell's tag says which side (x) and which colour (y) it sees; the walk
-    // muscles sit at y = 0.5. Each of these genes carries one colour's cells to walking toward
-    // (or, crossed, away from) the side they see it on. Food colours pull hardest.
-    ...['red', 'yellow', 'green'].map(f => approach('sight', FEATURES, f, f === 'red' ? 0.42 : 0.35)),
-    approach('sight', FEATURES, 'blue', 0.21),
-    approach('sight', FEATURES, 'pink', 0.21),
-    approach('sight', FEATURES, 'creature', 0.21),                    // Company
-    approach('sight', FEATURES, 'violet', 0.5, true),                   // Thorny violet: walk away
-    // Attention is an orienting map, like the midbrain's: its cells have the same addresses as the
-    // sight cells, and whichever wins the competition turns the creature hard toward what it
+    // Orienting. A sight cell's spot says which colour (along the box) and which side it sees; the two
+    // walking muscles are a left-right pair. Each of these genes carries one colour's cells to walking
+    // toward (or, with 'other', away from) the side they see it on. Food colours pull hardest.
+    ...[['red', 0.42], ['yellow', 0.35], ['green', 0.35], ['blue', 0.21], ['pink', 0.21], ['creature', 0.21]].map(([f, weight]) =>
+      wire('sight', 'motor', { window: around(colourSpot(f), 0.16), at: WALK, radius: 0.06, weight, side: 'same' })),   // Creature: company
+    wire('sight', 'motor', { window: around(colourSpot('violet'), 0.16), at: WALK, radius: 0.06, weight: 0.5, side: 'other' }), // Thorny violet: walk away
+    // Attention is an orienting map, like the midbrain's: its cells sit at the same spots as the
+    // sight columns, and whichever wins the competition turns the creature hard toward what it
     // attends to (away from violet), on top of what it merely sees
-    ...FEATURES.filter(f => f !== 'motion').map(f => approach('attention', FEATURES, f, 1.0, f === 'violet')),
+    ...['red', 'yellow', 'green', 'blue', 'violet', 'pink', 'creature'].map(f =>
+      wire('attention', 'motor', { window: around(colourSpot(f), 0.06), at: WALK, radius: 0.06, weight: 1.0, side: f === 'violet' ? 'other' : 'same' })),
     // Every smell draws the creature toward the side it is stronger on; bitter and alarm push away
-    guide('smell', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.3, relX: true }),
-    approach('smell', ODOURS, 'bitter', 0.6, true),
-    approach('smell', ODOURS, 'alarm', 0.6, true),
-    guide('hearing', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.35, relX: true }),
+    wire('smell', 'motor', { at: WALK, radius: 0.06, weight: 0.3, side: 'same' }),
+    wire('smell', 'motor', { window: around(odourSpot('bitter'), 0.1), at: WALK, radius: 0.06, weight: 0.6, side: 'other' }),
+    wire('smell', 'motor', { window: around(odourSpot('alarm'), 0.1), at: WALK, radius: 0.06, weight: 0.6, side: 'other' }),
+    wire('hearing', 'motor', { at: WALK, radius: 0.06, weight: 0.35, side: 'same' }),
     // Innate priors: each gene leans one drive cell on one muscle (pain, fear and sleepiness at full
     // strength); the rest is learned
     prior('pain', 'run', 1.0), prior('fear', 'run', 1.0),
@@ -35,43 +39,45 @@
     prior('loneliness', 'call', 0.6), prior('hunger', 'eat', 0.4), prior('proteinHunger', 'eat', 0.3),
     prior('thirst', 'drink', 0.5), prior('anger', 'grab', 0.6),
     ...['boredom', 'crowdedness', 'hunger', 'thirst'].flatMap(d => [prior(d, 'walkL', 0.4), prior(d, 'walkR', 0.4)]),
-    // Each touch cell excites the muscle that shares its address (something at the mouth -> eat it)
-    guide('touch', [0.5, 0.5, MUSCLE_Z], { radius: 0.08, weight: 0.3, relX: true, relY: true }),
+    // Touch cells that excite the muscle they belong with: something at the mouth (either side, not
+    // the lips) -> eat, water at the lips -> drink, pain -> run
+    wire('touch', 'motor', { window: [0.5, 0.1, 0.16], at: muscleSpot('eat'), radius: 0.06, weight: 0.3 }),
+    wire('touch', 'motor', { window: around(touchSpot('lips'), 0.05), at: muscleSpot('drink'), radius: 0.06, weight: 0.3 }),
+    wire('touch', 'motor', { window: around(touchSpot('pain'), 0.05), at: muscleSpot('run'), radius: 0.06, weight: 0.3 }),
     // Bumping into something on one side makes the opposite leg push: turn away from walls
-    guide('touch', [0.5, 0.5, MUSCLE_Z], { radius: 0.06, weight: 0.6, relX: true, mirrorX: true }),
-    // What is up close (its look) informs thinking; whether to eat it is learned (instincts)
-    guide('near', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
-    // Tastes inform thinking (what was just eaten), not the jaws directly
-    guide('taste', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
+    wire('touch', 'motor', { window: around(touchSpot('contactL'), 0.05), at: muscleSpot('walkR'), radius: 0.06, weight: 0.6 }),
+    wire('touch', 'motor', { window: around(touchSpot('contactR'), 0.05), at: muscleSpot('walkL'), radius: 0.06, weight: 0.6 }),
+    // What is up close (its look), tastes (what was just eaten), sights, what it attends to, smells,
+    // drives, and what the muscles just did (Movement) reach the thinking regions, each side to its own
+    // side. Whether to eat what is up close is learned (instincts), not wired to the jaws.
+    ...['near', 'taste', 'sight', 'attention', 'smell'].flatMap(lobe => ['cortex', 'central'].map(to =>
+      wire(lobe, to, { radius: 0.45, weight: 0.3, side: 'same' }))),
+    ...['cortex', 'central'].map(to => wire('needs', to, { radius: 0.45, weight: 0.4, side: 'same' })),
+    wire('motor', 'cortex', { radius: 0.45, weight: 0.3, side: 'same' }),
+    // The colours of food and water (red to blue, not violet) on one side start working memory on that
+    // side of Thinking strongly enough to keep it going
+    wire('sight', 'cortex', { window: [0.25, 0.5, 0.26], radius: 0.35, weight: 0.8, side: 'same' }),
+    wire('attention', 'cortex', { window: [0.25, 0.5, 0.2], radius: 0.35, weight: 0.8, side: 'same' }),
+    // Sight feeds attention: each sight cell to the attention cell of its side and colour (both heights
+    // feed the same cell)
+    ...Evo.VISION_FEATURES.map(f => wire('sight', 'attention',
+      { window: around(colourSpot(f.key), 0.16), at: colourSpot(f.key), radius: 0.06, weight: 0.85, side: 'same' })),
     // Sights and smells reach the reward and punishment cells weakly; these cue synapses learn
     // what each sight or smell predicts
-    ...['sight', 'smell'].flatMap(lobe => FEELING_TAGS.slice(0, 2).map(tag => [...tag, FEELING_Z]).map(cell => guide(lobe, cell, { radius: 0.08, weight: 0.25 }))),
-    // The alarm odour excites the feelings cell that shares its address (a fear cell)
-    guide('smell', [0.5, 0.5, FEELING_Z], { radius: 0.07, weight: 0.9, relY: true }),
+    ...['sight', 'smell'].flatMap(lobe => [0, 1].map(k => wire(lobe, 'feelings', { at: feelingSpot(k), radius: 0.06, weight: 0.25 }))),
+    // The alarm odour excites the fear cell (Feelings cell 3)
+    wire('smell', 'feelings', { window: around(odourSpot('alarm'), 0.1), at: feelingSpot(2), radius: 0.06, weight: 0.9 }),
     // Feelings project broadly and fast: where the reward cell's axons end is where learning happens
     // (the chemical is released at the terminals; the synapses themselves are weak)
-    guide('feelings', [0.5, 0.5, 0.65], { radius: 0.8, weight: 0.2, conduction: 0.5 }),
-    // Association: senses and needs into the thinking regions, and thinking regions to the muscles
-    guide('needs', [0.5, 0.5, 0.55], { radius: 0.3, weight: 0.4, reach: 0.8 }),
-    // Sights, and what it attends to, reach the thinking regions
-    ...['sight', 'attention'].flatMap(lobe => [
-      guide(lobe, [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
-      // The colours of food and water (red to blue) on one side reach the thinking cells tagged for
-      // that side strongly enough to start working memory there
-      ...SIDES.map(sideX).map(x => guide(lobe, [x, 0.33, 0.45], { radius: 0.35, weight: 0.8, reach: 0.6, from: [x, 0.25, 0.2] }))
-    ]),
-    // Sight feeds attention: each sight cell to the attention cell of its side and colour (both heights
-    // feed the same cell). Full reach, so the cell is nearly always found.
-    guide('sight', [0.5, 0.5, ATTENTION_Z], { radius: 0.06, weight: 0.85, reach: 1.35, relX: true, relY: true }),
-    guide('smell', [0.5, 0.5, 0.5], { radius: 0.45, weight: 0.3, reach: 0.6 }),
-    guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    ...['attention', 'cortex', 'side', 'central', 'motor', 'stem'].map(to =>
+      wire('feelings', to, { radius: 0.8, weight: 0.2, speed: 0.5, side: 'same' })),
+    // Thinking to the muscles, broadly…
+    wire('cortex', 'motor', { radius: 0.6, weight: 0.2 }),
     // …and each thinking cell also pulls on the walk muscle on its own side, so what working memory
     // holds (something there, a moment ago) keeps the creature heading toward it once it is out of sight
-    guide('cortex', [0.5, 0.5, MUSCLE_Z], { radius: 0.2, weight: 0.7, reach: 0.8, relX: true }),
-    guide('central', [0.5, 0.5, MUSCLE_Z], { radius: 0.6, weight: 0.2, reach: 0.8 }),
+    wire('cortex', 'motor', { at: WALK, radius: 0.06, weight: 0.7, side: 'same' }),
+    wire('central', 'motor', { radius: 0.6, weight: 0.2 }),
     { gene: 'Pacemaker', lobe: 'motor', bias: 0.3 },                   // Restless muscles: exploration
-    // What the body just did informs thinking
-    guide('motor', [0.5, 0.5, 0.5], { radius: 0.3, weight: 0.3, reach: 0.8 }),
     // Action selection: the muscles compete, the most strongly driven one wins and keeps going
     // until it tires or something much more pressing comes up
     { gene: 'Lobe dynamics', lobe: 'motor', competition: 0.2, persistence: 0.2, tau: 0.3, fatigue: 0.9 },
@@ -79,10 +85,10 @@
     // the creature needs biases which: hunger toward food colours, thirst toward water, loneliness
     // toward other creatures, desire toward the pink of a mate
     { gene: 'Lobe dynamics', lobe: 'attention', competition: 1.0, persistence: 0.3, tau: 0.2, fatigue: 0.9 },
-    ...['red', 'yellow', 'green'].flatMap(f => attend('hunger', f)),
-    ...attend('thirst', 'blue'),
-    ...attend('loneliness', 'creature'),
-    ...attend('sexDrive', 'pink'),
+    ...['red', 'yellow', 'green'].map(f => attend('hunger', f)),
+    attend('thirst', 'blue'),
+    attend('loneliness', 'creature'),
+    attend('sexDrive', 'pink'),
     // Working memory: thinking cells that fire keep themselves going for a while, so what was
     // just seen or felt outlasts it (until they tire or a rival takes over)
     { gene: 'Lobe dynamics', lobe: 'cortex', competition: 0.1, persistence: 0.6, tau: 0.7, fatigue: 0.8 },

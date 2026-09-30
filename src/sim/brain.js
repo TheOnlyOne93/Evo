@@ -1,18 +1,19 @@
 // A recurrent spiking brain: leaky integrate-and-fire neurons with physical axons (conduction
 // delays), grown from the genome and shaped by three-factor learning driven by reward prediction errors.
 //
-// Brain coordinates: x runs from the creature's left (0) to its right (1) *in the world* (the side
+// The brain map: x runs from the creature's left (0) to its right (1) *in the world* (the side
 // view has two hemifields: what is to the left and what is to the right); y runs from the front
-// (senses, 0) to the back (muscles, 1). A spike travels along the axon and arrives after a delay
-// set by axon length and myelination.
+// (senses, 0) to the back (muscles, 1). Every region is a box on the map (Evo.LOBE_INFO), and a cell's
+// address is its spot in its box, which says where on the map it is drawn. A spike travels along the
+// axon and arrives after a delay set by the distance on the map and the axon's myelination.
 //
 // Neuron state lives in typed arrays (one entry per neuron) and synapses in parallel typed arrays,
 // so a founder's brain (about 220 neurons and 1,400 synapses at birth) costs about 10 µs per tick.
-// brain.neurons[i] describes neuron i (lobe, position, receptor tag) for the UI.
+// brain.neurons[i] describes neuron i (region, spot, side, position) for the UI.
 (function (Evo) {
   'use strict';
-  const { clamp, mean, TAU, fixedRoll } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS, TASTES } = Evo;
+  const { clamp, fixedRoll } = Evo.util;
+  const { LOBE_ORDER, LOBE_INFO, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, TASTES } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -29,8 +30,7 @@
   const THR_RISE_MAX = 10, THR_AT_CEILING = THR_RISE_MAX - 0.5;
   const DECISION_FLOOR = 0.5;        // Activity a competing cell needs to count as attended to or decided on
 
-  // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 punishment (ST). The third, NO, once let
-  // active neighbours share credit; it is retired, and a Neurochemistry gene that picks it does nothing.
+  // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 punishment (ST).
   // brain.chemImages[0] and [1] are CHEM_SIZE² images, for display only: where the net learning signal
   // is positive and where it is negative.
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
@@ -58,7 +58,7 @@
   // so it stays the same when another region grows or shrinks.
   const ROLL = { connect: 0, strength: 1, queue: 2 };
   const REGION_SPAN = 1024;          // More cells than any region can hold (a brain must stay under KEY_SPAN, 4096, cells in all)
-  const EXACT_MATCH = 0.01;           // A chemical match this close is perfect; the rest is only the byte rounding of a gene's address
+  const EXACT_MATCH = 0.01;           // A spot this close to the one sought is a perfect match; the rest is only the byte rounding of a gene's spot
   const BACKGROUND_DICE = 7919;      // The background wiring's own dice (it has no gene): any fixed whole number would do
 
   // Per-lobe neuron parameters (initNeurons). tau: membrane leak per tick; adaptInc: adaptation per
@@ -131,40 +131,51 @@
   // …and back: what the sight / smell cell at index k within its lobe reports
   const sightCell = k => ({ side: SIDES[Math.floor(k / (BANDS.length * NF))], band: BANDS[Math.floor(k / NF) % BANDS.length], feature: VISION_FEATURES[k % NF].key });
   const smellCell = k => ({ side: SIDES[Math.floor(k / N_ODOURS)], odour: SCENTS[k % N_ODOURS].key });
-  // Touch cells. A receptor tag that matches a muscle's address lets topographic guidance wire
-  // it to that muscle (the mouth cells to Eat, the pain cell to Run).
+  // Touch cells: each has a spot of its own in the Touch box (and a side, where it has one). The mouth
+  // cells sit at the front, next to the lips; the feet, falling and water cells at the back.
   const TOUCH = [
-    { key: 'contactL', word: 'Touch on its left', tag: [0.10, 0.92], pos: [0.06, 0.40] },
-    { key: 'contactR', word: 'Touch on its right', tag: [0.90, 0.92], pos: [0.94, 0.40] },
-    { key: 'mouthL', word: 'Something at its mouth (left)', tag: [0.50, 0.30], pos: [0.30, 0.30] },
-    { key: 'mouthR', word: 'Something at its mouth (right)', tag: [0.50, 0.30], pos: [0.70, 0.30] },
-    { key: 'lips', word: 'Water at its lips', tag: [0.50, 0.12], pos: [0.50, 0.26] },
-    { key: 'back', word: 'Touch on its back', tag: [0.50, 0.86], pos: [0.50, 0.36] },
-    { key: 'feet', word: 'Ground under its feet', tag: [0.30, 0.97], pos: [0.50, 0.97] },
-    { key: 'pain', word: 'Pain', tag: [0.20, 0.70], pos: [0.44, 0.38] },
-    { key: 'gentle', word: 'Gentle touch', tag: [0.62, 0.90], pos: [0.56, 0.38] },
-    { key: 'falling', word: 'Falling', tag: [0.80, 0.97], pos: [0.62, 0.97] },
-    { key: 'inWater', word: 'In water', tag: [0.97, 0.97], pos: [0.38, 0.97] }
+    { key: 'contactL', word: 'Touch on its left', spot: [0.05, 0.50], side: 'L' },
+    { key: 'contactR', word: 'Touch on its right', spot: [0.95, 0.50], side: 'R' },
+    { key: 'mouthL', word: 'Something at its mouth (left)', spot: [0.35, 0.10], side: 'L' },
+    { key: 'mouthR', word: 'Something at its mouth (right)', spot: [0.65, 0.10], side: 'R' },
+    { key: 'lips', word: 'Water at its lips', spot: [0.50, 0.30], side: null },
+    { key: 'back', word: 'Touch on its back', spot: [0.50, 0.50], side: null },
+    { key: 'feet', word: 'Ground under its feet', spot: [0.50, 0.90], side: null },
+    { key: 'pain', word: 'Pain', spot: [0.35, 0.65], side: null },
+    { key: 'gentle', word: 'Gentle touch', spot: [0.65, 0.65], side: null },
+    { key: 'falling', word: 'Falling', spot: [0.25, 0.90], side: null },
+    { key: 'inWater', word: 'In water', spot: [0.75, 0.90], side: null }
   ];
-  // Each taste cell's chemical address (the tastes themselves are Evo.TASTES)
-  const TASTE_TAGS = { sweet: [0.50, 0.30], starch: [0.50, 0.30], savoury: [0.50, 0.30], fat: [0.50, 0.30], bitter: [0.50, 0.96], water: [0.50, 0.30] };
-  // Feelings cells: 0 releases the reward chemical, 1 the punishment chemical. Cell 2's address matches
-  // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
-  const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENT.alarm + 0.5) / N_ODOURS],
-    [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
-  // The x address of a sense's left or right side
-  const sideX = s => (s === 'L' ? 0.1 : 0.9);
-  // The depth (tag z) of the muscle, Drives and Feelings cells. Attention is the front-most depth,
-  // which the broad wiring genes (aimed at the middle depths) don't reach.
-  const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1, ATTENTION_Z = 0.0;
+
+  // The spot of cell i in a region laid out as a grid (see LOBE_INFO grid): n cells (per side for a
+  // two-sided region; usually the grid's full size, but Anatomy genes can change it). Cells fill the
+  // rows from left to right, and the grid gets as many rows as it needs.
+  const gridSpot = (lobe, i, n = LOBE_INFO[lobe].grid[0] * LOBE_INFO[lobe].grid[1]) => {
+    const cols = LOBE_INFO[lobe].grid[0];
+    return [((i % cols) + 0.5) / cols, (Math.floor(i / cols) + 0.5) / Math.ceil(n / cols)];
+  };
+  // A vision feature's column in the Sight box, in the middle row. The Attention cells sit at the same
+  // spots, and sight cells at its two heights: a little above and below
+  const colourSpot = feature =>
+    [((typeof feature === 'number' ? feature : FEATURE_INDEX[feature]) + 0.5) / LOBE_INFO.sight.grid[0], 0.5];
+  const SIGHT_ROW = { high: 0.35, low: 0.65 };
+  // The smell cell for an odour (a key or an index) and a hearing cell for a pitch, in their boxes
+  const smellSpot = odour => gridSpot('smell', typeof odour === 'number' ? odour : SCENT[odour]);
+  const hearingSpot = pitch => gridSpot('hearing', pitch === 'high' ? 0 : 1);
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
   // constructor checks).
   const KEY_SPAN = 4096;
   const synapseKey = (src, dst) => src * KEY_SPAN + dst;
 
-  const ring = (cx, cy, r, i, n) => [cx + r * Math.cos(i * TAU / n), cy + r * Math.sin(i * TAU / n)];
-  const mirror = (x, right) => (right ? 1.0 - x : x);
+  // A region's box after its Anatomy gene: moved front or back, its distance from the map's middle
+  // scaled, its height stretched about its middle; kept inside the map. Spots don't change.
+  const boxAfterAnatomy = ([x0, y0, x1, y1], g) => {
+    if (!g) return [x0, y0, x1, y1];
+    const across = x => clamp(0.5 + (x - 0.5) * g.lateral, 0.01, 0.99);
+    const mid = (y0 + y1) / 2 + g.shift, half = (y1 - y0) * g.size / 2;
+    return [across(x0), clamp(mid - half, 0.005, 0.995), across(x1), clamp(mid + half, 0.005, 0.995)];
+  };
 
   // The per-synapse arrays: a synapse is an index into every one of them. allocate() creates them
   // by name, not in a loop over this list: assigning them by computed key slows the brain by about 10%.
@@ -223,11 +234,18 @@
       const T = this.traits, A = T.anatomy;
       const neurons = this.neurons = [];
       const lobes = this.lobes = {};
+      // Each region's box on the brain map, after its Anatomy gene (the left box of a two-sided region)
+      const boxes = Object.fromEntries(LOBE_ORDER.map(lobe => [lobe, boxAfterAnatomy(LOBE_INFO[lobe].box, A[lobe])]));
+      // A cell's address is its spot in its box; where it sits on the map follows from the spot. In a
+      // two-sided region a spot's left-right position counts from the box's outer edge, so the right
+      // twin of a left cell has the same spot and sits at the mirror image of its place.
       // label: the UI's name, for the kinds Evo.text.neuronName doesn't name itself (touch, taste,
       // feelings). The stableId is the region's number and the cell's number within it (see REGION_SPAN)
-      const add = (lobe, tag, pos, meta, label = null) => {
+      const add = (lobe, spot, side, meta, label = null) => {
         const members = lobes[lobe] = lobes[lobe] || [];
-        const n = { index: neurons.length, stableId: LOBE_ORDER.indexOf(lobe) * REGION_SPAN + members.length, label, lobe, tag, pos, meta };
+        const [x0, y0, x1, y1] = boxes[lobe], x = x0 + spot[0] * (x1 - x0);
+        const pos = [side === 'R' && LOBE_INFO[lobe].sided ? 1 - x : x, y0 + spot[1] * (y1 - y0)];
+        const n = { index: neurons.length, stableId: LOBE_ORDER.indexOf(lobe) * REGION_SPAN + members.length, label, lobe, spot, side, pos, meta };
         neurons.push(n);
         members.push(n.index);
         return n;
@@ -236,73 +254,44 @@
       // Sight: two eyes' fields (left, right) × low/high × features; a map across the front.
       // Cells are added in sightIndex order.
       for (let k = 0; k < SIGHT_CELLS; k++) {
-        const { side, band, feature } = sightCell(k), fi = k % NF, b = band === 'high' ? 1 : 0;
-        const x = side === 'R' ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045;
-        add('sight', [sideX(side), (fi + 0.5) / NF, 0.2 + b * 0.04], [x, 0.05 + b * 0.05],
-          { kind: 'sight', side, band, feature });
+        const { side, band, feature } = sightCell(k);
+        add('sight', [colourSpot(feature)[0], SIGHT_ROW[band]], side, { kind: 'sight', side, band, feature });
       }
       // Smell: one bulb per antenna, each on its own side (in smellIndex order)
       for (let k = 0; k < SMELL_CELLS; k++) {
-        const { side, odour } = smellCell(k), o = SCENT[odour];
-        const x = side === 'R' ? 0.60 + (o % 5) * 0.05 : 0.40 - (o % 5) * 0.05;
-        add('smell', [sideX(side), (o + 0.5) / N_ODOURS, 0.4], [x, 0.16 + Math.floor(o / 5) * 0.04],
-          { kind: 'smell', side, odour });
+        const { side, odour } = smellCell(k);
+        add('smell', smellSpot(odour), side, { kind: 'smell', side, odour });
       }
-      HEARING.forEach(([side, pitch], k) => add('hearing',
-        [sideX(side), pitch === 'low' ? 0.35 : 0.65, 0.3], [side === 'L' ? 0.08 : 0.92, 0.26 + (k % 2) * 0.04],
-        { kind: 'hearing', side, pitch }));
-      TOUCH.forEach(t => add('touch', [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }, t.word));
-      TASTES.forEach((t, k) => add('taste', [...TASTE_TAGS[t.key], 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }, t.word));
+      HEARING.forEach(([side, pitch]) => add('hearing', hearingSpot(pitch), side, { kind: 'hearing', side, pitch }));
+      TOUCH.forEach(t => add('touch', t.spot, t.side, { kind: 'touch', key: t.key }, t.word));
+      TASTES.forEach((t, k) => add('taste', gridSpot('taste', k), null, { kind: 'taste', key: t.key }, t.word));
       // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
-      VISION_FEATURES.forEach((f, fi) => add('near', [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
-      for (let k = 0; k < N_DRIVE_CELLS; k++) {
-        add('needs', [...DRIVE_CELL_TAGS[k], DRIVE_Z], ring(0.5, 0.74, 0.05, k, N_DRIVE_CELLS), { kind: 'need', index: k });
-      }
+      VISION_FEATURES.forEach((f, fi) => add('near', gridSpot('near', fi), null, { kind: 'near', feature: f.key }));
+      for (let k = 0; k < N_DRIVE_CELLS; k++) add('needs', gridSpot('needs', k), null, { kind: 'need', index: k });
       for (let k = 0; k < N_LIMBIC; k++) {
-        add('feelings', [...FEELING_TAGS[k], FEELING_Z], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
+        add('feelings', gridSpot('feelings', k), null, { kind: 'feeling', index: k },
           k === 0 ? 'Reward cell' : k === 1 ? 'Punishment cell' : `Feelings cell ${k + 1}`);
       }
-      // Attention: one cell per side and vision feature (side first, then feature)
+      // Attention: one cell per side and vision feature (side first, then feature), at the feature's column
       for (const side of SIDES) {
-        for (let fi = 0; fi < NF; fi++) {
-          add('attention', [sideX(side), (fi + 0.5) / NF, ATTENTION_Z], [side === 'R' ? 0.60 + fi * 0.045 : 0.40 - fi * 0.045, 0.76],
-            { kind: 'attention', side, feature: VISION_FEATURES[fi].key });
-        }
+        for (let fi = 0; fi < NF; fi++) add('attention', colourSpot(fi), side, { kind: 'attention', side, feature: VISION_FEATURES[fi].key });
       }
 
-      // Anatomy genes grow or shrink the interior regions (always an even count for paired ones)
-      const countFor = (lobe, base, paired) => {
-        const c = Math.round(base * (A[lobe] ? A[lobe].count : 1.0));
-        return paired ? Math.max(4, c - (c % 2)) : Math.max(3, c);
-      };
-      const general = (lobe, count, cols, z, posFor) => {
+      // The general-purpose regions fill a grid, and Anatomy genes change their cell count (a two-sided
+      // region always has an even count: the first half are the left cells, the rest their right twins)
+      const general = lobe => {
+        const info = LOBE_INFO[lobe], usual = info.grid[0] * info.grid[1] * (info.sided ? 2 : 1);
+        const c = Math.round(usual * (A[lobe] ? A[lobe].count : 1.0));
+        const count = info.sided ? Math.max(4, c - (c % 2)) : Math.max(3, c), each = info.sided ? count / 2 : count;
         for (let i = 0; i < count; i++) {
-          add(lobe, [(i % cols) / cols, Math.floor(i / cols) / Math.ceil(count / cols), z], posFor(i, count), { kind: 'cell', index: i });
+          add(lobe, gridSpot(lobe, i % each, each), info.sided ? (i < each ? 'L' : 'R') : null, { kind: 'cell', index: i });
         }
       };
-      general('cortex', countFor('cortex', 30, true), 10, 0.5, (i, n) => {
-        const half = n / 2, k = i % half;
-        return [mirror(0.14 + (k % 5) * 0.065, i >= half), 0.33 + Math.floor(k / 5) * 0.055];
-      });
-      general('side', countFor('side', 24, true), 8, 0.7, (i, n) => {
-        const half = n / 2, k = i % half, t = k / (half - 1);
-        return [mirror(0.20 + 0.06 * Math.sin(t * Math.PI), i >= half), 0.50 + t * 0.22];
-      });
-      general('central', countFor('central', 20, false), 5, 0.6, i => [0.36 + (i % 5) * 0.07, 0.46 + Math.floor(i / 5) * 0.035]);
-      MOTORS.forEach(m => add('motor', [...m.tag, MUSCLE_Z], m.pos, { kind: 'motor', key: m.key }));
-      general('stem', countFor('stem', 16, false), 4, 0.8, (i, n) => [0.2 + i * (0.6 / Math.max(1, n - 1)), 0.975]);
-
-      // Anatomy genes reshape the body plan: each region can shift forward/back, widen or narrow
-      // (mirrored, so the brain stays bilateral) and stretch front-to-back about its centre.
-      for (const lobe of LOBE_ORDER) {
-        const g = A[lobe];
-        if (!g) continue;
-        const members = lobes[lobe].map(i => neurons[i]);
-        const cy = mean(members.map(n => n.pos[1]));
-        for (const n of members) {
-          n.pos = [clamp(0.5 + (n.pos[0] - 0.5) * g.lateral, 0.01, 0.99), clamp(cy + g.shift + (n.pos[1] - cy) * g.size, 0.005, 0.995)];
-        }
-      }
+      general('cortex');
+      general('side');
+      general('central');
+      MOTORS.forEach(m => add('motor', m.spot, m.side || null, { kind: 'motor', key: m.key }));
+      general('stem');
 
       this.N = neurons.length;
     }
@@ -574,13 +563,13 @@
     }
 
     // ---------- Growing the wiring ----------
-    // PURE BOTTOM-UP WIRING. Each guidance gene sends the axons of one lobe looking for a chemical
-    // receptor match. The target may be fixed, or relative to each source cell's own tag (so every
-    // cell finds its own partner: a topographic map), and axons can only grow so far: a good match
-    // within reach almost always connects, and beyond it the growth cones soon give out. Sensory
-    // cells are driven by the body and world, so central axons never target them. Candidates from all
-    // genes join one queue in a shuffled order and take the budget in turn, leaving headroom for
-    // activity-dependent sprouting. Genes that switch on later in life grow their tracts then.
+    // PURE BOTTOM-UP WIRING. Each guidance gene sends the axons of one region toward a spot in a target
+    // region. Which side of the target the axons look at depends on the gene and on the source cell's own
+    // side (so every cell can find its own partner: a map, or a crossed map), and axons can only grow so
+    // far: a cell near the spot sought within reach almost always connects, and beyond it the growth
+    // cones soon give out. Sensory cells are driven by the body and world, so axons never target them.
+    // Candidates from all genes join one queue in a shuffled order and take the budget in turn, leaving
+    // headroom for activity-dependent sprouting. Genes that switch on later in life grow their tracts then.
     // Every chance here is a fixed roll (see ROLL), never the world's dice (Evo.random), so the same
     // genes always grow the same wiring, and changing one gene changes only connections that gene
     // could make (while the budget lasts: once it runs short, a gene that takes less leaves more room).
@@ -596,10 +585,10 @@
         this.grownGenes.add(rule.gene);
         const r = rule.affinityRadius;
         for (const s of this.tractSources(rule)) {
-          for (const [d, chemDist] of this.tractTargets(rule, s)) {
-            const chemMatch = (1.0 - Math.max(0, chemDist - EXACT_MATCH) / (r - EXACT_MATCH)) ** 2;
+          for (const [d, spotDist] of this.tractTargets(rule, s)) {
+            const match = (1.0 - Math.max(0, spotDist - EXACT_MATCH) / (r - EXACT_MATCH)) ** 2;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
-            if (fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.connect) < chemMatch * Math.exp(-((dist / rule.reach) ** 4))) {
+            if (fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.connect) < match * Math.exp(-((dist / rule.reach) ** 4))) {
               const strength = 0.3 + fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.strength) * 0.2;
               candidates.push([s.index, d.index, strength * rule.weightSign, rule.conduction, fixedRoll(rule.dice, s.stableId, d.stableId, ROLL.queue)]);
             }
@@ -626,28 +615,37 @@
       this.rebuildAdjacency();
     }
 
-    // The cells a guidance rule sends axons from: the cells of its lobe within the rule's source
-    // window. Pure.
+    // The cells a guidance rule sends axons from: the cells of its region whose spot is within the rule's
+    // source window. Pure.
     tractSources(rule) {
       const win = rule.srcWindow, out = [];
       for (const si of this.lobes[LOBE_ORDER[rule.source.lobe]]) {
         const s = this.neurons[si];
-        if (!win || Math.hypot(s.tag[0] - win.x, s.tag[1] - win.y) <= win.r) out.push(s);
+        if (!win || Math.hypot(s.spot[0] - win.x, s.spot[1] - win.y) <= win.r) out.push(s);
       }
       return out;
     }
 
-    // The central cells whose receptor chemistry lies within a rule's affinity radius of what source
-    // cell s's axon seeks, in neuron order: [[d, chemDist]]. Pure (growTracts adds the chance).
+    // The cells of the target region within a rule's affinity radius of the spot its axons seek, for
+    // source cell s, in neuron order: [[d, spotDist]]. Pure (growTracts adds the chance).
+    // Which side the axons aim at: 'same' is s's own side and 'other' the opposite one (a cell with no
+    // side aims at both sides), 'left' and 'right' that side whatever s is. In a two-sided target region a
+    // side is its box: only that side's cells are candidates, compared by spot. In any other region the
+    // left side is the spot as given and the right side its mirror image [1 - u, v]. Aiming at both sides
+    // takes whichever is nearer.
     tractTargets(rule, s) {
-      const src = rule.source, r = rule.affinityRadius, out = [];
-      const tx = src.relX ? (src.mirrorX ? 1 - s.tag[0] : s.tag[0]) + rule.target[0] - 0.5 : rule.target[0];
-      const ty = src.relY ? s.tag[1] + rule.target[1] - 0.5 : rule.target[1];
-      const tz = rule.target[2];
-      for (const d of this.neurons) {
-        if (d === s || this.isSensory[d.index]) continue;
-        const chemDist = Math.hypot(d.tag[0] - tx, d.tag[1] - ty, d.tag[2] - tz);
-        if (chemDist < r) out.push([d, chemDist]);
+      const r = rule.affinityRadius, out = [], key = LOBE_ORDER[rule.targetRegion], [tu, tv] = rule.target;
+      if (SENSORY_LOBES.includes(key)) return out;
+      const mode = rule.source.side, other = s.side === 'L' ? 'R' : 'L';
+      const sides = mode === 'left' ? ['L'] : mode === 'right' ? ['R']
+        : !s.side ? ['L', 'R'] : [mode === 'same' ? s.side : other];
+      const sided = LOBE_INFO[key].sided;
+      for (const di of this.lobes[key]) {
+        const d = this.neurons[di];
+        if (d === s || (sided && !sides.includes(d.side))) continue;
+        let spotDist = Infinity;
+        for (const side of sides) spotDist = Math.min(spotDist, Math.hypot(d.spot[0] - (side === 'R' && !sided ? 1 - tu : tu), d.spot[1] - tv));
+        if (spotDist < r) out.push([d, spotDist]);
       }
       return out;
     }
@@ -935,7 +933,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z, ATTENTION_Z,
+      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, gridSpot, colourSpot, smellSpot,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });
