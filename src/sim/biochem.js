@@ -44,9 +44,10 @@
       }
     }
 
-    // Starting concentrations from the genome (at birth)
-    setInitial(traits) {
-      for (const { chem, amount } of traits.initial) this.c[chem] = amount;
+    // Set chemicals to the levels Initial concentration genes give (entries of traits.initial): every
+    // one at birth, and on entering a later life stage the ones that switch on then
+    setInitial(entries) {
+      for (const { chem, amount } of entries) this.c[chem] = amount;
     }
 
     get(key) { return this.c[Evo.CHEM[key]]; }

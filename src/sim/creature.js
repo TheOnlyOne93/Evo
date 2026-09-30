@@ -100,7 +100,7 @@
 
       this.chem = new Evo.Biochemistry();
       this.chem.configure(this.traits);
-      this.chem.setInitial(this.traits);
+      this.chem.setInitial(this.traits.initial);
       if (opts.reserves) for (const k in opts.reserves) this.chem.set(k, opts.reserves[k]);
       // Built from the birth traits, so birth-only genes that switch on later have no effect even
       // in a creature that starts life grown
@@ -181,13 +181,15 @@
       this.brain.applyPacemakers(this.traits.pacemakers.filter(p => !seen.has(p.gene)));
     }
 
-    // A new life stage: genes that switch on now join the biochemistry, the brain grows any new
-    // tracts, and the body adopts the new traits
+    // A new life stage: genes that switch on now join the biochemistry (an Initial concentration
+    // gene sets its chemical, once), the brain grows any new tracts, and the body adopts the new traits
     enterStage(stage, world) {
       this.stage = stage;
       const before = this.traits;
       this.traits = this.genome.develop(stage);
       this.chem.configure(this.traits);
+      const had = new Set(before.initial.map(g => g.gene));
+      this.chem.setInitial(this.traits.initial.filter(g => !had.has(g.gene)));
       this.growBrain(before);
       world.events.emit('stage', { creature: this, stage });
     }

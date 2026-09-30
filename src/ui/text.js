@@ -315,7 +315,10 @@
       return capitalize(text);
     },
     'Half-life': (v, x, w) => (v.halfLife === Infinity ? `${w.chem(v.chem)} never fades` : `${w.chem(v.chem)} halves in ${w.duration(v.halfLife)}`),
-    'Initial concentration': (v, x, w) => `Born with ${w.percent(v.amount)} ${w.chem(v.chem).toLowerCase()}`,
+    // A copy that switches on after birth sets its chemical when the creature reaches that stage
+    'Initial concentration': (v, x, w, brain, gene) => (gene.stage > 1
+      ? `${w.chem(v.chem)} set to ${w.percent(v.amount)} on reaching the ${STAGES[gene.stage].word.toLowerCase()} stage`
+      : `Born with ${w.percent(v.amount)} ${w.chem(v.chem).toLowerCase()}`),
     // Instinct
     Instinct: (v, x, w, brain) => `Dreams: ${describeInstinct(v, brain)}`
   };
@@ -334,7 +337,7 @@
       { kind: 'What chemicals act on', genes: ['Receptor'], note: 'Receptor genes: a chemical pushes on the body or on one brain cell.' },
       { kind: 'Reactions', genes: ['Reaction'], note: 'Reaction genes: one chemical turns into another.' },
       { kind: 'How fast chemicals fade', genes: ['Half-life'] },
-      { kind: 'Born with', genes: ['Initial concentration'] }
+      { kind: 'Starting levels', genes: ['Initial concentration'] }
     ]
   };
   const GENE_KIND = Object.fromEntries(Object.values(GENE_KINDS).flat().flatMap(k => k.genes.map(name => [name, k.kind])));
@@ -343,7 +346,7 @@
   // 'chemistry' | 'instinct' (GENES in genome.js), kind a heading within the group (GENE_KINDS).
   function describeGene(genome, gene, brain = null) {
     const def = Evo.GENES[gene.type];
-    let text = DESCRIBE[def.name](genome.decode(gene), genome.expressed(gene), geneWords(brain), brain);
+    let text = DESCRIBE[def.name](genome.decode(gene), genome.expressed(gene), geneWords(brain), brain, gene);
     // The brain is built once, at birth: a brain-building gene that switches on later does nothing
     if (def.birthOnly && gene.stage > 1) text += ' (only works from birth, so this late copy has no effect)';
     return { name: def.name, kind: GENE_KIND[def.name] || '', group: def.group, text };
@@ -468,9 +471,9 @@
   const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
 
   Evo.text = {
-    lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay, capitalize,
+    lobeName, neuronName, neuronRole, regionName, regionAbout, clock, timeOfDay,
     describeGene, describeInstinct, duration, ago, signed, level, dynamicsWords, GENE_KINDS,
     geneChanges, fieldChanges, founderGenome, traitWords, isAttention,
-    ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, SIDE, whereSeen, STIMULUS_PAST
+    ACTION_WORDS, DEATH_WORDS, CHEM_WORDS, MOTOR_WORDS, FEATURE_WORDS, ODOUR_WORDS, whereSeen, STIMULUS_PAST
   };
 })(globalThis.Evo);

@@ -72,7 +72,7 @@ test('biochem: in a hungry founder, sweet taste turns hunger into reward and gut
   const traits = Evo.Genome.founder('X').develop();
   const b = new Evo.Biochemistry();
   b.configure(traits);
-  b.setInitial(traits);
+  b.setInitial(traits.initial);
   b.set('hunger', 0.6);
   b.set('gutSugar', 0.3);
   const L = loci(Evo);
@@ -93,4 +93,25 @@ test('biochem: a founder going without food gets hungry, and without water gets 
   for (let t = 0; t < 600; t++) b.step(loci(Evo));
   assert.ok(b.get('hunger') > 0.2, `hunger ${b.get('hunger')}`);
   assert.ok(b.get('thirst') > 0.2, `thirst ${b.get('thirst')}`);
+});
+
+test('biochem: an Initial concentration gene that switches on later sets its chemical once, on reaching that stage', (Evo, assert) => {
+  const { STAGE } = Evo;
+  const late = { gene: 'Initial concentration', stage: STAGE.ADOLESCENT, chem: 'endorphin', amount: 0.8 };
+  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, late]);
+  const world = new Evo.World();
+  const c = new Evo.Creature(genome, world.width / 2, 0);
+  const level = () => c.chem.get('endorphin');
+  assert.ok(level() < 0.5, `not at birth (${level()})`);
+  c.enterStage(STAGE.CHILD, world);
+  assert.ok(level() < 0.5, `not as a child (${level()})`);
+  c.enterStage(STAGE.ADOLESCENT, world);
+  const want = c.traits.initial.find(g => g.stage === STAGE.ADOLESCENT).amount;
+  assert.ok(Math.abs(level() - want) < 1e-6, `set on becoming adolescent (${level()} vs ${want})`);
+  c.chem.set('endorphin', 0.1);
+  c.enterStage(STAGE.YOUTH, world);
+  assert.ok(Math.abs(level() - 0.1) < 1e-6, `not set again later (${level()})`);
+  const gene = genome.findGenes().find(g => g.stage === STAGE.ADOLESCENT && Evo.GENES[g.type].name === 'Initial concentration');
+  const text = Evo.text.describeGene(genome, gene).text;
+  assert.ok(/adolescent stage/.test(text), text);
 });
