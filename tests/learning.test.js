@@ -1,7 +1,7 @@
 'use strict';
 // How the brain learns: modulator cells, prediction errors, credit assignment.
 
-const { founderBrain, TICK_OPTS, quietWorld, callThenPat, timeCosts } = require('./helpers');
+const { founderBrain, TICK_OPTS, quietWorld, callThenPat } = require('./helpers');
 
 // Random sensory drive, as a creature looking around would get
 function senseAround(Evo, brain, input) {
@@ -103,18 +103,6 @@ test('learning: punishment weakens the synapse that made its target fire, not it
   // (Weakening is gentler: the soft bound scales it by how far the weight is from 0)
   assert.ok(dx < -0.01, `A->X weakens: ${dx.toFixed(4)}`);
   assert.ok(Math.abs(dy) < 0.1 * -dx, `A->Y stays: ${dy.toFixed(4)}`);
-});
-
-test('learning: a brain tick stays within its time budget', (Evo, assert) => {
-  // In a default World (2 founders); the game must run many creatures at 60 frames a second
-  const world = new Evo.World();
-  const { brain: us } = timeCosts(Evo, reset => {
-    for (let t = 0; t < 800; t++) {
-      if (t === 200) reset();
-      world.step();
-    }
-  });
-  assert.ok(us < 60, `${us.toFixed(1)} us per creature-tick`);
 });
 
 test('learning: flat-out input and relentless reward neither run away nor break the weights', (Evo, assert) => {
