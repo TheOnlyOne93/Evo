@@ -210,6 +210,7 @@
     // "♀ Name" in a small pill under the feet
     _nameTag(g, view, c, z, alpha) {
       const p = view.worldToScreen(c.x, c.y);
+      g.save();
       const glyph = c.sex === 'FEMALE' ? '♀' : '♂', name = c.name;
       g.font = `700 ${Math.round(11.5 * Math.min(z, 1.15))}px ${Evo.theme.color('--ui')}`;
       const gw = g.measureText(glyph + ' ').width, w = gw + g.measureText(name).width + 14, hh = 18 * Math.min(z, 1.15);
@@ -223,7 +224,7 @@
       g.fillText(glyph, x + 7, y + hh / 2 + 0.5);
       g.fillStyle = Evo.theme.color('--text');
       g.fillText(name, x + 7 + gw, y + hh / 2 + 0.5);
-      g.globalAlpha = 1;
+      g.restore();
     }
 
     // An emoji drawn once into a small canvas, then blitted

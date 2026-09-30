@@ -30,10 +30,9 @@
     }
   }
 
-  function drawCuff(g, x, y, w, h, rot) {
+  function drawCuff(g, x, y, w, h) {
     g.save();
     g.translate(x, y);
-    if (rot) g.rotate(rot);
     g.fillStyle = CUFF;
     g.strokeStyle = INK;
     g.lineWidth = 1.3;
@@ -52,7 +51,7 @@
     if (mode === 'pat') {
       // Palm down, fingers to the left; bobs as if patting
       g.translate(0, patBob(t));
-      drawCuff(g, 14.5, -6, 7, 13, 0);
+      drawCuff(g, 14.5, -6, 7, 13);
       handOutlineAndFill(g, [-2, -11.2, 3.5, -11.5, 5.2], [-19, -9, 28, 9, 4.5]);
       g.strokeStyle = SKIN_SHADE;
       g.lineWidth = 1;
@@ -66,7 +65,7 @@
     }
     if (mode === 'slap') {
       g.rotate(SLAP_TILT);
-      drawCuff(g, 0, 16, 18, 7, 0);
+      drawCuff(g, 0, 16, 18, 7);
       handOutlineAndFill(g, SLAP_HAND, [-9.5, -6.5, 19, 16, 6]);
       g.strokeStyle = SKIN_SHADE;
       g.lineWidth = 1;
@@ -84,7 +83,7 @@
       g.stroke();
       return;
     }
-    drawCuff(g, 0, 16, 18, 7, 0);
+    drawCuff(g, 0, 16, 18, 7);
     if (holding) {
       handOutlineAndFill(g, FIST_THUMB, [-9.5, -9.5, 19, 19, 7]);
       // Folded fingers
