@@ -36,7 +36,7 @@
   // Timers that count down once a tick in act(). Not here: prickCooldown (World.prickCreatures) and heardCall (sense)
   const ACT_TIMERS = ['mouthTimer', 'drinkTimer', 'jumpCooldown', 'grabCooldown', 'mateCooldown', 'callTimer', 'runTimer', 'restTimer', 'bumpCooldown'];
   // Each taste: the food key it reads and how strongly
-  const TASTE_FROM_FOOD = { sweet: ['gutSugar', 4], starch: ['gutStarch', 4], savory: ['gutProtein', 4], fat: ['gutFat', 4], bitter: ['toxin', 4], water: ['water', 6] };
+  const TASTE_FROM_FOOD = { sweet: ['gutSugar', 4], starch: ['gutStarch', 4], savoury: ['gutProtein', 4], fat: ['gutFat', 4], bitter: ['toxin', 4], water: ['water', 6] };
   // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
   const SIGHT_CELL = {};
   for (const side of SIDES) {
@@ -135,7 +135,7 @@
 
       // Transient sensations, decaying each tick
       this.stim = { impact: 0, gentle: 0, back: 0, mated: 0, heardCall: 0, flinch: 0, contactL: 0, contactR: 0, touchingFriend: 0 };
-      this.taste = { sweet: 0, starch: 0, savory: 0, fat: 0, bitter: 0, water: 0 };
+      this.taste = { sweet: 0, starch: 0, savoury: 0, fat: 0, bitter: 0, water: 0 };
       this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
       this.familiar = new Float32Array(FEATURE_KEYS.length); // How used it is to each look (vision feature)
@@ -222,7 +222,7 @@
       L[LOCUS.falling] = !this.onGround && this.vy > 2 ? Math.min(1, this.vy / 6) : 0;
       L[LOCUS.inWater] = this.inWater ? 1 : 0;
       L[LOCUS.held] = this.held ? 1 : 0;
-      L[LOCUS.tasteSweet] = t.sweet; L[LOCUS.tasteStarch] = t.starch; L[LOCUS.tasteSavory] = t.savory;
+      L[LOCUS.tasteSweet] = t.sweet; L[LOCUS.tasteStarch] = t.starch; L[LOCUS.tasteSavoury] = t.savoury;
       L[LOCUS.tasteFat] = t.fat; L[LOCUS.tasteBitter] = t.bitter; L[LOCUS.tasteWater] = t.water;
       const c = this.chem;
       L[LOCUS.gutFullness] = clamp01(c.get('gutSugar') + c.get('gutStarch') + c.get('gutProtein') + c.get('gutFat'));

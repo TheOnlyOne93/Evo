@@ -74,7 +74,7 @@
     emitter('tasteWater', 'drink', 0, 0.05),
     // Tasting food is what satisfies at the moment of eating (consummatory relief)
     emitter('tasteSweet', 'sweetTaste', 0.05, 0.05), emitter('tasteStarch', 'sweetTaste', 0.05, 0.05),
-    emitter('tasteSavory', 'savouryTaste', 0.05, 0.05), emitter('tasteFat', 'savouryTaste', 0.05, 0.05),
+    emitter('tasteSavoury', 'savouryTaste', 0.05, 0.05), emitter('tasteFat', 'savouryTaste', 0.05, 0.05),
     emitter('mated', 'mating', 0, 0.05),
     halfLife('warmth', 60), halfLife('coolness', 60), halfLife('company', 60), halfLife('endorphin', 200),
     halfLife('novelty', 30), halfLife('restRelief', 30), halfLife('sleepSignal', 60), halfLife('drink', 20), halfLife('mating', 120),

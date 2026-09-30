@@ -136,7 +136,7 @@
   ];
   const TASTES = [
     { key: 'sweet', word: 'Tastes sweet', tag: [0.50, 0.30] }, { key: 'starch', word: 'Tastes starchy', tag: [0.50, 0.30] },
-    { key: 'savory', word: 'Tastes savoury', tag: [0.50, 0.30] }, { key: 'fat', word: 'Tastes fatty', tag: [0.50, 0.30] },
+    { key: 'savoury', word: 'Tastes savoury', tag: [0.50, 0.30] }, { key: 'fat', word: 'Tastes fatty', tag: [0.50, 0.30] },
     { key: 'bitter', word: 'Tastes bitter', tag: [0.50, 0.96] }, { key: 'water', word: 'Tastes water', tag: [0.50, 0.30] }
   ];
   // Feelings cells: 0 releases the reward chemical, 1 the punishment chemical. Cell 2's address matches

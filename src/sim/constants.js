@@ -23,16 +23,16 @@
 
   // ---- Odours diffusing through the air. `token` is the CSS colour used to draw each one. ----
   const SCENTS = [
-    { key: 'sweet',  word: 'sweet',       token: '--fruit',   diffusion: 0.20, decay: 0.006 },
-    { key: 'starch', word: 'grainy',      token: '--grain',   diffusion: 0.18, decay: 0.006 },
-    { key: 'moist',  word: 'water',       token: '--water',   diffusion: 0.20, decay: 0.016 },
-    { key: 'bitter', word: 'bitter',      token: '--toxin',   diffusion: 0.16, decay: 0.010 },
-    { key: 'earthy', word: 'earthy',      token: '--grub',    diffusion: 0.14, decay: 0.006 },
-    { key: 'prey',   word: 'bug',         token: '--protein', diffusion: 0.20, decay: 0.010 },
-    { key: 'muskF',  word: 'female musk', token: '--female',  diffusion: 0.22, decay: 0.006 },
-    { key: 'muskM',  word: 'male musk',   token: '--male',    diffusion: 0.22, decay: 0.006 },
-    { key: 'alarm',  word: 'alarm',       token: '--alarm',   diffusion: 0.24, decay: 0.030 },
-    { key: 'decay',  word: 'rot',         token: '--carrion', diffusion: 0.18, decay: 0.014 }
+    { key: 'sweet',   word: 'sweet',       token: '--fruit',   diffusion: 0.20, decay: 0.006 },
+    { key: 'starch',  word: 'grainy',      token: '--grain',   diffusion: 0.18, decay: 0.006 },
+    { key: 'moist',   word: 'water',       token: '--water',   diffusion: 0.20, decay: 0.016 },
+    { key: 'bitter',  word: 'bitter',      token: '--toxin',   diffusion: 0.16, decay: 0.010 },
+    { key: 'earthy',  word: 'earthy',      token: '--grub',    diffusion: 0.14, decay: 0.006 },
+    { key: 'prey',    word: 'bug',         token: '--protein', diffusion: 0.20, decay: 0.010 },
+    { key: 'muskF',   word: 'female musk', token: '--female',  diffusion: 0.22, decay: 0.006 },
+    { key: 'muskM',   word: 'male musk',   token: '--male',    diffusion: 0.22, decay: 0.006 },
+    { key: 'alarm',   word: 'alarm',       token: '--alarm',   diffusion: 0.24, decay: 0.030 },
+    { key: 'carrion', word: 'rot',         token: '--carrion', diffusion: 0.18, decay: 0.014 }
   ];
   const SCENT = Object.fromEntries(SCENTS.map((s, i) => [s.key, i]));
 
@@ -73,7 +73,7 @@
     mimic:   { word: 'mimic berry', radius: 6, look: { red: 0.9, violet: 0.25 }, odour: [[SCENT.sweet, 0.035], [SCENT.bitter, 0.02]], food: { gutSugar: 0.08, toxin: 0.35 }, ttl: 7200, bounce: 0.3 },
     dew:     { word: 'dew drop', radius: 4, look: { blue: 0.8 }, odour: [[SCENT.moist, 0.03]], food: { water: 0.14 }, ttl: 3600 },
     lure:    { word: 'lure', radius: 6, look: { pink: 1 }, odour: [[SCENT.muskF, 0.12]], food: null, ttl: 2400 },
-    carrion: { word: 'carrion', radius: 9, look: { red: 0.2, violet: 0.2 }, odour: [[SCENT.decay, 0.06]], food: 'contents', ttl: 5400 },
+    carrion: { word: 'carrion', radius: 9, look: { red: 0.2, violet: 0.2 }, odour: [[SCENT.carrion, 0.06]], food: 'contents', ttl: 5400 },
     egg:     { word: 'egg', radius: 7, look: {}, odour: [], food: null, bounce: 0.2 },
     ball:    { word: 'ball', radius: 8, look: {}, odour: [], food: null, bounce: 0.7, rolls: true }
   };
@@ -141,7 +141,7 @@
   const BODY_LOCI = [
     'none', 'always', 'bodyTemp', 'heatGain', 'heatLoss', 'darkness', 'exertion', 'awake', 'asleep',
     'resting', 'injury', 'health', 'impact', 'gentleTouch', 'touchingFriend', 'company', 'crowding',
-    'novelty', 'falling', 'inWater', 'held', 'tasteSweet', 'tasteStarch', 'tasteSavory', 'tasteFat',
+    'novelty', 'falling', 'inWater', 'held', 'tasteSweet', 'tasteStarch', 'tasteSavoury', 'tasteFat',
     'tasteBitter', 'tasteWater', 'gutFullness', 'mated', 'pregnant', 'heardCall', 'growth', 'starving',
     ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic${k}`)
   ];
