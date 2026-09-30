@@ -64,7 +64,7 @@
     halfLife('fear', 300), halfLife('adrenaline', 200), halfLife('boredom', 2000), halfLife('nausea', 300),
     halfLife('adenosine', 40000),
 
-    // ---------- Relief: what satisfies each drive ----------
+    // ---------- Relief: what satisfies a drive (11 of the 16 have one) ----------
     emitter('heatGain', 'warmth', 0, 0.02), emitter('heatLoss', 'coolness', 0, 0.02),
     emitter('touchingFriend', 'company', 0, 0.01), emitter('heardCall', 'company', 0.3, 0.002),
     emitter('gentleTouch', 'company', 0, 0.01), emitter('gentleTouch', 'endorphin', 0, 0.02),

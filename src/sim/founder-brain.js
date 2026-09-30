@@ -25,7 +25,8 @@
     approach('smell', ODOURS, 'bitter', 0.6, true),
     approach('smell', ODOURS, 'alarm', 0.6, true),
     guide('hearing', [0.5, 0.5, MUSCLE_Z], { radius: 0.12, weight: 0.35, relX: true }),
-    // Innate priors: a few drive cells lean weakly on one muscle each; the rest is learned
+    // Innate priors: each gene leans one drive cell on one muscle (pain, fear and sleepiness at full
+    // strength); the rest is learned
     prior('pain', 'run', 1.0), prior('fear', 'run', 1.0),
     prior('sleepiness', 'rest', 1.0), prior('tiredness', 'rest', 0.7), prior('nausea', 'rest', 0.6),
     prior('loneliness', 'call', 0.6), prior('hunger', 'eat', 0.4), prior('proteinHunger', 'eat', 0.3),

@@ -1,6 +1,6 @@
 /* ===== Tokens: colour always means the same thing (map, bars, brain) =====
-   The canvas renderers read these same variables at start-up (Evo.theme), so a colour
-   changed here changes everywhere. */
+   The canvas renderers read these same variables (Evo.theme, once, on first use), so a
+   colour changed here changes everywhere. */
 :root {
   --pond: #0f1e22; --pond-deep: #0a1619; --panel: #15282c; --panel-raised: #1b3136;
   --line: #29444a; --text: #e6ede3; --muted: #9ab0aa; --faint: #6b837e; --accent: #9be3c8;
@@ -296,7 +296,7 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .dna-row .junk { color: #3d5a58; }
 .dna-row .prom { color: var(--text); text-decoration: underline; }
 
-/* Population */
+/* Population, World tiles and member rosters */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .tile { background: var(--panel-raised); border-radius: var(--r-sm); padding: 9px 10px; }
 .tile b { display: block; font-family: var(--display); font-size: 22px; font-weight: 650; line-height: 1.1; }

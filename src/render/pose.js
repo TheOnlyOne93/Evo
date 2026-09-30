@@ -1,5 +1,5 @@
 // Evo.poseOf(creature): turn simulation state into the plain pose object the creature artist draws
-// from (docs/DESIGN.md §7). Smooths a few values between frames so poses don't flicker.
+// from (docs/RENDERING.md, Creature pose). Eases a few values per sim tick so poses don't flicker.
 // Evo.looksOf(creature): the pose's looks alone.
 // Evo.attentionOf(creature, world): the thing in the world the creature is attending to.
 (function (Evo) {

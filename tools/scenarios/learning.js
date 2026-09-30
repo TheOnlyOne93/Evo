@@ -53,7 +53,7 @@ module.exports = ({ Evo, lab, session, run, trial }) => {
   });
 
   // Microseconds of brain (tick + morphogenesis) and senses per creature-tick, and milliseconds per
-  // world tick, in a default world (its 2 founders, as the game starts)
+  // world tick, in a default world (its 2 founders, as the game starts; no wanderers)
   const COST_WARMUP = 300, COST_TICKS = 900;   // Ticks before timing starts, and in all
   const BRAIN_BUDGET_US = 60;                  // A brain tick should cost less than this per creature
   const cost = cached(seed => {

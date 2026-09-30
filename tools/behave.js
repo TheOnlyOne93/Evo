@@ -1,7 +1,7 @@
 // Behaviour bench: one creature in a controlled situation, many trials, and how often (and how
 // fast) it does the sensible thing. Drives are held at fixed levels during a trial.
 //   node tools/behave.js [trials=12] [filter] [--report] [--jobs N]   (in any order)
-// Scenarios live in tools/scenarios/*.js. Each file exports ({ Evo, lab, session, trial, avoids }) =>
+// Scenarios live in tools/scenarios/*.js. Each file exports ({ Evo, lab, session, run, trial, avoids }) =>
 // ({ scenarios, reports }): scenarios map a name to seed => tick it passed (null = fail); reports map a
 // name to seed => number and are averaged and printed only with --report (they never gate anything).
 // The seeds are split across N worker processes (default: one per CPU thread, at most one per seed;

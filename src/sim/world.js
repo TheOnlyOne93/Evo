@@ -1,4 +1,4 @@
-// The side-view world: terrain, a pond, trees and plants that grow food, day and night, seasons,
+// The side-view world: terrain, two ponds, trees and plants that grow food, day and night, seasons,
 // temperature, scent in the air, sound, and the creatures. A pure simulation: it never touches the
 // page; it announces what happens on world.events.
 (function (Evo) {
@@ -34,7 +34,7 @@
   const POND = { belowRim: 6, minDepth: 18, digPasses: 4 };
   const CLIFF_WIDTH = 140;          // The cliffs at each end of the world reach this far in (px); World.edge must be at least this
 
-  // ---------- Terrain: a height field with a pond ----------
+  // ---------- Terrain: a height field with two ponds ----------
   class Terrain {
     constructor(width, layout) {
       this.spacing = 8;
@@ -431,7 +431,7 @@
     }
 
     // An adult descended from a random banked genome (or a fresh founder if the bank is empty); fromEdge
-    // has it walk in at one end of the world (the side is drawn after the genome, as before)
+    // has it walk in at one end of the world (the side is drawn after the genome)
     addFromBank(sex, fromEdge = false) {
       const src = this.seedBank.length ? Evo.pick(this.seedBank) : null;
       return this.addAdult(sex, {
@@ -718,7 +718,7 @@
       this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.heldBy);
     }
 
-    // Odours rise from items and bodies, spread through the air, and fade
+    // Odours rise from items and ponds (the creatures queue their own), spread through the air, and fade
     stepScent() {
       for (const item of this.items) {
         for (const [ch, rate] of ITEM_TYPES[item.type].odour) this.depositScent(item.x, item.y - item.radius, ch, rate);
@@ -782,7 +782,7 @@
     // place in the array:
     //   time         the clock advances
     //   environment  food grows, items fall and drift (eggs hatch), scent diffuses
-    //   contact      creatures jostle each other and prick against spiky things
+    //   contact      creatures register company, crowding and touch; thorn bushes prick
     //   body         age and stage, chemistry, physiology, sleep (a creature may die here); scent
     //                a body gives off and eggs it lays are queued, not written
     //   body commit  the queued scent and eggs land, in creature order; the dead leave carrion

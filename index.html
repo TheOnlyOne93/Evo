@@ -13,7 +13,7 @@
   <header class="topbar">
     <div class="wordmark">Synapse<span>Core</span></div>
     <div class="status">
-      <span class="chip" title="Day and time of day"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:00</span></span>
+      <span class="chip" title="Day and time of day"><span id="timeIcon" aria-hidden="true">☀</span> <b id="statDay">Day 1</b> <span id="statTime">07:12</span></span>
       <span class="chip" title="Season"><b id="statSeason">Spring</b></span>
       <span class="chip" title="Creatures alive"><b id="statPop">0</b> living</span>
       <span class="chip" title="The latest generation alive">gen <b id="statGen">1</b></span>
@@ -228,8 +228,8 @@
   </div>
 
   <!-- Plain scripts, in dependency order (no build step: the page opens straight from disk).
-       Scripts marked data-headless don't touch the page; tests/run.js loads them, in this order, into Node.
-       dev/world-lab.html and dev/creature-lab.html load this same list (up to the ui scripts): keep them in step. -->
+       Scripts marked data-headless don't touch the page; tests/load.js loads them, in this order, into Node for the tests and tools.
+       dev/world-lab.html and dev/creature-lab.html load this same list up to the drawing scripts (the world lab adds src/ui/hand.js): keep them in step. -->
   <script src="src/core/evo.js" data-headless></script>
   <script src="src/core/clock.js" data-headless></script>
   <script src="src/core/diffusion.js" data-headless></script>

@@ -68,7 +68,7 @@
       injury: 0.001, injuryAt: 0.99, recovery: 0.00003, recoveryProtein: 0.15, logFade: 0.998 }
   };
   const FAMILIARITY_FADE = 0.9999;  // Per tick, what a creature has grown used to fades back
-  const HABITUATION_SCALE = 20;     // Habituation gene x this = how fast looking at a thing makes it familiar
+  const HABITUATION_SCALE = 20;     // The Curiosity gene's habituation x this = how fast looking at a thing makes it familiar
   const NOVELTY_GAIN_MID = 8;       // The Curiosity gene's mid value (genome: noveltyGain = 4 + v.novelty * 8, so 0.5 gives 8)
   const SIGHT_GAIN = 1.4;           // Sight drive relative to the other senses
   const POND_SIGHT_RADIUS = 30;     // A pond is seen as a blue blob of this radius
@@ -86,7 +86,7 @@
   }
 
   class Creature {
-    // opts: { generation, parents: [mother, father], reserves: { glucose, ... }, ageTicks, growth }
+    // opts: { generation, parents: [mother, father] (a hatchling's are { id, syllables }), reserves: { glucose, ... }, ageTicks, growth }
     constructor(genome, x, y, opts = {}) {
       this.id = Evo.nextId();
       const n = makeName(opts.parents);

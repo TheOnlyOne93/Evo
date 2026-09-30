@@ -1,12 +1,12 @@
-// The interface: builds the world and its views, wires the controls (see the setup* files
-// beside this one), and runs the main loop.
+// The interface: builds the world and its views, wires the controls (the Evo.setup* functions
+// in the files beside this one), and runs the main loop.
 (function (Evo) {
   'use strict';
   const { minBy } = Evo.util;
   const $ = id => document.getElementById(id);
 
   const FRAME_BUDGET_MS = 11;   // Simulation time allowed per frame; the speed drops rather than the frame rate
-  // Panel refreshes, in wall time (these were every 10 / 20 / 15 frames at 60 fps)
+  // Panel refreshes, in wall time: the card 6, the status and strip 3, the inside view 4 times a second
   const CARD_EVERY_MS = 1000 * 10 / 60;
   const STATUS_EVERY_MS = 1000 * 20 / 60;
   const LAB_EVERY_MS = 1000 * 15 / 60;

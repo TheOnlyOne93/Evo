@@ -1,13 +1,15 @@
 // WorldView: the camera, the sprite cache and the frame. Each frame it draws, back to front, the
-// sky and parallax scenery (sky.js), terrain tiles and plants, rocks and logs (painters/*,
-// via Evo.Paint), items (item-art.js), creatures (Evo.CreatureArt), ponds (water.js) and weather
-// (weather.js), then day/night light, glows and the overlays: scent, senses, calls, creature cues
-// (cues.js: thought bubbles, reactions, name tags, attention) and the player's hand (hand-art.js).
-// Reads the world through the contract in DESIGN.md §6 and never changes it.
+// parallax backdrop (sky.js), terrain tiles and plants, rocks and logs (painters/*, via Evo.Paint),
+// items (item-art.js), creatures (Evo.CreatureArt), ponds (water.js) and weather (weather.js); then
+// the day/night light, the sky behind it all, glows, the vignette and the overlays: scent, senses,
+// calls, creature cues (cues.js: thought bubbles, reactions, name tags, attention) and the player's
+// hand (hand-art.js).
+// Reads the world through the contract in docs/WORLD.md and never changes it.
 //
-// Static art (terrain tiles, plants, rocks, logs) is painted once into offscreen sprites at a
-// resolution matched to the zoom, per season, and blitted each frame. Only water, items,
-// creatures, particles and overlays are drawn as paths every frame.
+// Static art (terrain tiles, plants, rocks, logs, reeds, thorn bushes) is painted once into
+// offscreen sprites at a resolution matched to the zoom, per season, and blitted each frame.
+// Everything else (water, items, creatures, fruit, shadows, particles, the sky, overlays) is drawn
+// every frame.
 (function (Evo) {
   'use strict';
   const { TAU, clamp, clamp01, hash2 } = Evo.util;
@@ -24,7 +26,7 @@
   const NL = LEVELS.length;
   const TILE = 256;                     // terrain tile size (world px)
   const SPRITE_BUDGET = 24e6;           // cached sprite pixels before old ones are dropped
-  const BUILDS_PER_FRAME = 3;           // sprite upgrades per frame (missing ones are always built)
+  const BUILDS_PER_FRAME = 3;           // sprite upgrades per frame (in the current season, one with nothing to stand in is built at once)
   const ALPHA_MIN = 0.002;              // in the season crossfade, sprites fainter than this aren't drawn
   const SOUND_LIFE = Evo.WORLD.SOUND_LIFE; // ticks a call stays visible (world.sounds[].age is in ticks)
   const NOTE_HIGH = '#bff3ff', NOTE_LOW = '#ffe2a8'; // a call's music notes, by pitch
@@ -694,8 +696,8 @@
       }
     }
 
-    // This frame's pose of a creature, for the card and the strip (so its eased values advance once
-    // per frame); creatures off screen get a fresh one
+    // This frame's pose of a creature (with groundY, focused and hovered), for the card and the
+    // strip; creatures off screen get a fresh one
     poseFor(c) {
       const i = this.world.creatures.indexOf(c);
       return (i >= 0 && this.poses[i]) || Evo.poseOf(c, { world: this.world });
@@ -878,7 +880,7 @@
       g.restore();
     }
 
-    // ---- Weather and seasonal particles (pooled, world space) ----
+    // ---- Light, glow and vignette ----
 
     // Night and twilight: tint everything drawn so far (the sky is painted behind afterwards)
     _applyLight(g) {

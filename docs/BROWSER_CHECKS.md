@@ -1,8 +1,8 @@
 # Checking changes in a browser
 
 `node tools/check.js` proves the simulation, the poses and the text unchanged. Drawing and the
-interface can't be fingerprinted: a change to `src/render/`, `src/ui/`, `styles/` or the pages is
-checked by loading the page and looking. This is how, for a person or for Claude Code.
+interface can't be fingerprinted: a change to `src/render/`, `src/ui/` (except the headless `pose.js`,
+`text.js` and `kin.js`), `styles/` or the pages is checked by loading the page and looking. This is how, for a person or for Claude Code.
 
 ## Serve the repo without caching
 
@@ -40,9 +40,10 @@ unseeded random numbers, so two whole frames never match pixel for pixel.
 ## A painter refactor: the same pixels
 
 A change to the static art (`src/render/painters/`, the sprite code in `world-view.js`) that is
-meant to draw the same thing can prove it. In `dev/world-lab.html`, `lab.paintHash()` builds every
-static sprite (the terrain tiles and each kind of feature, in every season, at two resolutions)
-and returns a hash of the pixels for each: `{ tiles, thornbush, tree, rock, grass, log, reeds }`.
+meant to draw the same thing can prove it. In `dev/world-lab.html`, `lab.paintHash(levels = [0, 2])` builds
+the terrain tiles and every feature's sprite (not the sky's layers), in every season, at 1× and 2×,
+and returns one hash of the pixels per kind: `{ tiles, thornbush, tree, rock, grass, log, reeds }`.
+`levels` index the sprite resolutions `[1, 1.5, 2, 3]`.
 
 1. Before the change, load the lab and note the hashes (the same browser gives the same hashes
    on every load).
@@ -50,15 +51,27 @@ and returns a hash of the pixels for each: `{ tiles, thornbush, tree, rock, gras
 
 The default world has one log and one rock. When a painter has cases the world doesn't show (a
 log with no platform on it, say), paint those onto a scratch canvas with the painter itself
-(`Evo.Paint.paintLog(g, f, season, rec)`) and hash them the same way, before and after.
+and hash them the same way, before and after. `rec = lab.view._featRec(f)` gives the shape the
+painter needs; painters draw in the feature's own coordinates, so size the canvas `rec.bw × rec.bh`,
+`g.setTransform(1, 0, 0, 1, -rec.bx0, -rec.by0)`, then `Evo.Paint.paintLog(g, f, season, rec)` with a
+season index 0–3.
 
 ## The pages
 
-* `index.html`: the game. `Evo.app` holds the world, the view, the inspector and the frame clock.
+* `index.html`: the game. `Evo.app` holds the world, the view, the inspector, the frame clock and the
+  interface state ([INTERFACE.md](INTERFACE.md)); the hand controller is not on it.
 * `dev/world-lab.html`: the game's world drawn by the game's `WorldView`, with controls for the
-  time of day, season, speed and overlays. URL options (`dev/world-lab.js` lists them):
-  `?seed=11&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1`. `window.lab` is there for
-  scripted checks: `world`, `view`, `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n)`,
-  `paintHash()`.
-* `dev/creature-lab.html`: the creature art at every life stage and state (`?t=S` freezes time,
-  `?bounds` outlines the picking boxes).
+  time of day, speed (❚❚, 1×, 4×, 20×, 120×), season, overlays, following, fitting the view, and the
+  hand (grab, tickle, slap). Keys: arrows or WASD pan, `+` `-` zoom, `f` follows, Space pauses, and
+  `1`–`4` pick the **season** (in the game they pick the speed). URL options (`dev/world-lab.js`
+  lists them): `?seed=11&speed=4&paused=1&phase=0.5&season=2&creatures=4&ui=0&scent=1`. `window.lab`
+  is there for scripted checks: `world`, `view`, `state`, `hand`, `clock`, `focus`, `refresh`,
+  `setPhase(p)`, `setSeason(s)`, `step(n)`, `measure(n = 600)` (a promise of
+  `{ frames, renderAvg, renderP95, frameAvg }`) and `paintHash()`.
+* `dev/creature-lab.html`: real creatures from the founder genome, posed by `Evo.poseOf` and drawn on
+  their own backdrops (no world) at every life stage and state. `?seed=N`, `?t=S` freezes time,
+  `?bounds` outlines the picking boxes. Reroll looks, Pause and a benchmark
+  (`window.creatureBench(frames = 600, n = 20)`); click a creature to focus it.
+
+Both labs load `index.html`'s scripts up to the drawing ones, not the interface (the world lab adds
+`src/ui/hand.js`). A new simulation or drawing script goes into all three pages.

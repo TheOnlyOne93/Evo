@@ -9,7 +9,7 @@
   const DESKTOP_MIN_W = 1100, DESKTOP_MIN_H = 600;  // At least this big: the lab docks beside the map
   const DRAWER_MIN_W = 700;       // Narrower (and portrait): a bottom sheet instead of a drawer
   const COMPACT_BELOW_W = 560;    // Narrower: the header, toolbar and tabs fold down (.compact)
-  const CARD_FOLD_BELOW_H = 560;  // Shorter: the creature card starts folded
+  const CARD_FOLD_BELOW_H = 560;  // Shorter (or a sheet): the card starts folded on a layout change
 
   Evo.setupLayout = function setupLayout(app) {
     const { view, inspector } = app;

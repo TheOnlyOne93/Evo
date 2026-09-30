@@ -1,4 +1,4 @@
-// Creature art (docs/DESIGN.md §7–8): draws one creature from its pose object and nothing else.
+// Creature art (docs/RENDERING.md): draws one creature from its pose object and nothing else.
 // The species, a "tuftkin", is a soft round quadruped: a big head seen in three-quarter view,
 // large eyes, long leaf-shaped ears, a pom-pom tail and a head crest whose shape shows the sex
 // and which glows in the breeding season. Geometry is built in units (an adult is about 32 units

@@ -1,7 +1,7 @@
 // Creature cues: what the world view draws over creatures to show what is going on inside them,
 // Creatures-style. A thought bubble with the strongest need (or, asleep, what it is dreaming of),
 // hearts after a pat, a nuzzle or mating, a burst after a slap, thorns or a hard fall, a name tag under the
-// followed and the hovered creature, and brackets around what the followed creature is attending
+// focused and the hovered creature, and brackets around what the focused creature is attending
 // to. Also keeps each creature's recent events (patted, slapped, ate...) for the creature card.
 // Drawn in screen space (CSS px) so the cues stay readable at every zoom.
 (function (Evo) {
@@ -49,7 +49,7 @@
 
   class CreatureCues {
     constructor() {
-      this.recs = new WeakMap();   // creature -> { last, fx: [{ key, t0 }], log: [{ key, tick, n }], dreamUntil, dreamIcon }
+      this.recs = new WeakMap();   // creature -> { seen, fx: [{ key, t0 }], log: [{ key, tick, n }], dreamUntil, dreamIcon }
       this.icons = new Map();      // emoji -> pre-rendered canvas
     }
 

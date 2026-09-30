@@ -1,4 +1,4 @@
-// Render contract: Evo.poseOf yields every field docs/DESIGN.md §7 documents, with the right types.
+// Render contract: Evo.poseOf yields every field docs/RENDERING.md (Creature pose) documents, with the right types.
 'use strict';
 
 test('render: poseOf returns the documented pose fields with valid types and ranges', (Evo, assert) => {

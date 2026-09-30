@@ -1,5 +1,6 @@
-// Tables that several parts of the simulation (and the UI) share. Every chemical, sense, item,
-// season and brain region is defined once here; everything else derives from these tables.
+// Tables that several parts of the simulation (and the UI) share. Every chemical, item, season and
+// brain region, and most senses, are defined once here (brain.js lays out the touch, taste and
+// hearing cells); everything else derives from these tables.
 (function (Evo) {
   'use strict';
 
@@ -64,7 +65,7 @@
   // (units are chemical concentrations; taste is derived from it; 'contents' means whatever a dead body
   // held, as with carrion). ttl: ticks before it rots. Movement: bounce: fraction of speed kept on a
   // bounce. crawls: wander speed on the ground. flees: crawls away from creatures. hops: jumps while
-  // fleeing. rolls: rolls downhill and spins.
+  // fleeing. rolls: rolls and spins. Items that roll or bounce slide downhill.
   const ITEM_TYPES = {
     fruit:   { word: 'fruit', radius: 6, look: { red: 1 }, odour: [[SCENT.sweet, 0.05]], food: { gutSugar: 0.3, water: 0.06 }, ttl: 7200, bounce: 0.3 },
     grain:   { word: 'grain', radius: 5, look: { yellow: 1 }, odour: [[SCENT.starch, 0.04]], food: { gutStarch: 0.3, gutProtein: 0.06 }, ttl: 14400, bounce: 0.2 },
@@ -78,8 +79,8 @@
     ball:    { word: 'ball', radius: 8, look: {}, odour: [], food: null, bounce: 0.7, rolls: true }
   };
 
-  // ---- Seasons: temperature, day length and what grows ----
-  // temp: mean ambient temperature (0 freezing .. 1 hot); swing: day-night difference;
+  // ---- Seasons: temperature, dew and what grows ----
+  // temp: mean ambient temperature (0 freezing .. 1 hot); swing: the day-night amplitude (half the difference);
   // dew: how likely dew drops are at dawn (a multiplier). grow: growth multipliers for each food source
   const SEASONS = [
     { key: 'SPRING', word: 'Spring', temp: 0.48, swing: 0.14, dew: 1.0, grow: { fruit: 0.4, grain: 0.5, grub: 1.0, bug: 1.2, mimic: 0.4 } },
@@ -88,7 +89,7 @@
     { key: 'WINTER', word: 'Winter', temp: 0.22, swing: 0.10, dew: 0.0, grow: { fruit: 0.1, grain: 0.3, grub: 0.5, bug: 0.1, mimic: 0.1 } }
   ];
 
-  // ---- Chemicals: 64 slots. Named ones below; the rest are free for mutation to use. ----
+  // ---- Chemicals: 64 slots. Slot 0 is nothing; named ones below; the rest are free for mutation to use. ----
   // kind: 'nutrient' | 'hormone' | 'drive' | 'relief' | 'reinforcer' | 'other'
   const N_CHEM = 64;
   const CHEMICAL_LIST = [
@@ -148,7 +149,8 @@
   const LOCUS = Object.fromEntries(BODY_LOCI.map((k, i) => [k, i]));
 
   // ---- Receptor targets: what receptor genes can push on ----
-  // Physiological targets are read by the body; need:k and limbic:k inject current into a neuron.
+  // Physiological targets are read by the body; need:k and limbic:k inject current into a neuron,
+  // except limbic:0 and limbic:1, which are the brain's reward and punishment outcome.
   const PHYSIO_TARGETS = ['none', 'muscle', 'arousal', 'sleep', 'damage', 'healing', 'fertility', 'growth',
     'scentSex', 'scentAlarm', 'metabolism', 'thermogenesis', 'cooling'];
   const TARGETS = [...PHYSIO_TARGETS,
@@ -192,7 +194,7 @@
   ];
 
   // Drives lobe: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
-  // genes), plus spare cells. Their addresses form a grid that shares nothing with the muscles, so
+  // genes), plus spare cells. Their addresses form a grid at their own depth (z 0.8; the muscles' is 0.9), so
   // what a drive makes the creature do is up to guidance genes aimed at single cells.
   const DRIVE_COLS = 6, DRIVE_ROWS = Math.ceil(N_DRIVE_CELLS / DRIVE_COLS);
   if (DRIVES.length > N_DRIVE_CELLS) throw new Error('more drive chemicals than Drives lobe cells');

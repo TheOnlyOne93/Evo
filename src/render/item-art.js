@@ -1,4 +1,4 @@
-// Items in the world, drawn from their plain data (DESIGN.md §6): fruit, grain, dew, grubs, bugs,
+// Items in the world, drawn from their plain data (docs/WORLD.md): fruit, grain, dew, grubs, bugs,
 // mimic berries, lures, carrion, eggs and balls. Food colours come from the CSS tokens so the map,
 // the toolbar and the bars agree. ctx is in world coordinates. As in the simulation, (item.x,
 // item.y) is where the item touches the ground: an item resting on the ground has y = ground, and

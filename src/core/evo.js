@@ -1,6 +1,7 @@
 // The Evo namespace and small shared helpers. Loaded before every other script.
 // Plain scripts (no modules, no build) so the page opens straight from disk; each file adds
-// its exports to globalThis.Evo. The same files load in Node for the headless tests.
+// its exports to globalThis.Evo. The scripts index.html marks data-headless also load in Node,
+// for the tests and tools.
 (function (root) {
   'use strict';
   const Evo = root.Evo = root.Evo || {};

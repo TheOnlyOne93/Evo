@@ -25,7 +25,7 @@
   const span = (lo, width) => ({ lo, width, decode: v => lo + v * width, encode: x => (x - lo) / width });
   // Trait ranges: a gene reads its 0..1 field as lo .. lo + width (express below; the rate codec reads
   // its byte the same way), and text.js grades the trait in words over lo..hi. hi is lo + width
-  // written out, so the words keep their exact cut-offs (0.3 + 0.6 is not 0.9 in floating point).
+  // written out (for size it also counts the female's extra 2 px), so the words keep their exact cut-offs (0.3 + 0.6 is not 0.9 in floating point).
   const ranged = (lo, width, hi) => ({ ...span(lo, width), hi });
   const TRAIT_RANGES = {
     size: { ...ranged(30, 16, 48), female: 2 }, // Adult body length, px: 30..46 for males, 32..48 for females
@@ -89,7 +89,7 @@
     reach: span(0.15, 1.35),      // How far the axons can grow (brain widths)
     conduction: span(0.08, 0.5),  // Myelination: distance per tick
     window: span(0.02, 0.5),      // Radius of the source window
-    // Sign and strength from the raw sign byte: bytes above 120 are excitatory, below inhibitory,
+    // Sign and strength from the raw sign byte: bytes above 120 are excitatory, 120 and below inhibitory,
     // stronger the further from 120 they are (0.2 .. 1.0 either way)
     weight: {
       decode: b => (b > 120 ? 1 : -1) * Math.min(1.0, 0.2 + Math.abs(b - 120) / 100),

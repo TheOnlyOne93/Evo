@@ -1,7 +1,8 @@
-// The inside view: what is going on inside the followed creature (body chemistry, brain, genes,
-// family) and in the world as a whole. Each deck renders from the simulation on demand: the app
-// calls update() a few times a second for the visible deck, frame() every frame (the brain map and
-// charge trace) and sample() every simulation tick (history, and what the brain is up to).
+// The inside view: what is going on inside the focused creature (body chemistry, brain, genes,
+// family) and in the world as a whole. Each deck renders from the simulation on demand. While the
+// panel is open the app calls update() a few times a second for the visible deck and frame() every
+// frame (the brain map, the charge trace). Every simulation tick it calls sample() (history, what
+// the brain is up to, genomes and looks, population) and scopeTick() (the charge trace).
 (function (Evo) {
   'use strict';
   const { clamp } = Evo.util;
@@ -16,7 +17,7 @@
   const HORMONES = ['insulin', 'glucagon', 'melatonin', 'adenosine', 'growthHormone', 'sexHormone', 'liverEnzyme', 'ageing'];
   // Drives drawn in the history chart
   const HISTORY = ['hunger', 'thirst', 'tiredness', 'sleepiness', 'loneliness', 'boredom', 'coldness', 'fear', 'reward', 'punishment'];
-  const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time at 1×
+  const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time
   // Genes left out of the comparison with the founders: every founder gets its own looks and voice
   const FOUNDER_VARIES = ['Appearance', 'Voice'];
   const REMEMBERED = 400;    // Creatures whose genome and looks are remembered by id, for their children's gene comparison and the family tree
@@ -25,7 +26,7 @@
   const MUTATIONS_SHOWN = 8;   // Differences listed before the rest fold away
   const FAMILY_SHOWN = 12;     // Relatives in one list before the rest fold away
   const SYNAPSES_SHOWN = 8;    // Connections listed for a cell before 'and N weaker'
-  const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome
+  const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome and looks
   const POP_EVERY = 10 * Evo.TICKS_PER_SECOND;    // Ticks between population chart samples
   const POP_LEN = 400;                            // Population samples kept
   const WINNER_HOLD = Evo.TICKS_PER_SECOND;       // Undecided ticks before the winning muscle is dropped

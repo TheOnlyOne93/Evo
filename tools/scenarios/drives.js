@@ -17,8 +17,7 @@ module.exports = ({ lab, trial, avoids }) => ({
       // A friendly nuzzle or two is fine; more than 3 in 900 ticks is nuzzling without a need
       return avoids(s, 900, () => nuzzles() > 3);
     },
-    // The small pond lies near the world's end: a thirsty creature at the edge beside it must still drink
-    // (200px short of the pond's middle is always past the edge on seeds 1-12, so the creature starts at the edge)
+    // The small pond lies near the world's end: a thirsty creature placed at the edge beside it must still drink
     'thirsty, at the world edge beside the small pond -> drinks': seed => {
       const s = lab(seed);
       s.placeAt(s.world.edge);

@@ -7,7 +7,7 @@
 // set by axon length and myelination.
 //
 // Neuron state lives in typed arrays (one entry per neuron) and synapses in parallel typed arrays,
-// so a brain of ~250 neurons and ~3000 synapses costs a few hundredths of a millisecond per tick.
+// so a founder's brain (about 250 neurons and 1,700 synapses at birth) costs about 10 µs per tick.
 // brain.neurons[i] describes neuron i (lobe, position, receptor tag) for the UI.
 (function (Evo) {
   'use strict';
@@ -31,8 +31,8 @@
 
   // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 punishment (ST). The third, NO, once let
   // active neighbours share credit; it is retired, and a Neurochemistry gene that picks it does nothing.
-  // brain.chemImages holds one CHEM_SIZE² image per modulator channel, for display only: the learning
-  // signal where each neuron sits (reward, punishment).
+  // brain.chemImages[0] and [1] are CHEM_SIZE² images, for display only: where the net learning signal
+  // is positive and where it is negative.
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
   const CHEM_SIZE = 20;
   // The brain regrows and prunes its wiring every this many brain ticks
@@ -145,7 +145,7 @@
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
   // The x address of a sense's left or right side
   const sideX = s => (s === 'L' ? 0.1 : 0.9);
-  // The depth (tag z) of the muscle, Drives and feelings cells: founder wiring aims at them
+  // The depth (tag z) of the muscle, Drives and Feelings cells
   const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1;
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
@@ -187,7 +187,7 @@
       this.spikesThisTick = 0;
       this.seizures = 0;      // Times the seizure brake has come on (shown in the brain view)
       this.overdrive = 0;     // Consecutive ticks with too many neurons firing
-      this.brake = 0;         // mV held back from every central neuron this tick
+      this.brake = 0;         // mV held back from every non-sensory neuron this tick
       this.awake = true;
       this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, t }
       this.episodes = [];     // Up to EPISODES recent surprises: { inputs, motor, value, tick }
@@ -510,7 +510,7 @@
     rebuildAdjacency() {
       const { N, S, sSrc, sDst, modulator } = this;
       // Per synapse: does it deliver current, and is it plastic (it delivers current and doesn't come
-      // from a modulator cell: the modulators' own wiring stays as the genome built it)
+      // from a modulator cell: learning never changes the modulators' own wiring, though morphogenesis can)
       const delivers = new Uint8Array(S), plastic = new Uint8Array(S);
       const value = Array.from({ length: N_MOD }, () => []);
       for (let s = 0; s < S; s++) {
@@ -702,7 +702,7 @@
     }
 
     // ---------- One tick ----------
-    // input: Float32Array (one per neuron) of external current: senses, needs, dreams.
+    // input: Float32Array (one per neuron) of external current: senses and needs (dreams arrive by inject).
     // opts: { noise, arousal, canFire, asleep }. Returns the number of spikes (after held-back ones are removed).
     tick(input, opts) {
       if (this.adjacencyDirty) this.rebuildAdjacency();
@@ -719,7 +719,7 @@
       let spikes = 0;
       for (let i = 0; i < N; i++) {
         const k = i * SLOTS + slot;
-        // A modulator cell is driven only by its prediction error (see learn), not by the body
+        // A modulator cell ignores the body's input: its prediction error drives it (see learn), besides noise and arousal
         let I = inbox[k] + (modulator[i] < 0 ? input[i] : 0) + lateralI[i];
         inbox[k] = 0;
         adapt[i] *= adaptKeep[i];
@@ -756,7 +756,7 @@
       this.spikesThisTick = spikes;
       this.applyDynamics();
       // Seizure brake: when more than a quarter of the brain fires for three ticks running (runaway
-      // recurrent excitation, e.g. in working memory), every central neuron is held back next tick
+      // recurrent excitation, e.g. in working memory), every non-sensory neuron is held back next tick
       this.overdrive = this.spikesThisTick > SEIZURE_SHARE * N ? this.overdrive + 1 : 0;
       this.brake = this.overdrive >= SEIZURE_TICKS ? SEIZURE_BRAKE : 0;
       if (this.overdrive === SEIZURE_TICKS) this.seizures++;
