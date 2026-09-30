@@ -3,7 +3,7 @@
 // page; it announces what happens on world.events.
 (function (Evo) {
   'use strict';
-  const { clamp, clamp01 } = Evo.util;
+  const { clamp, clamp01, TAU } = Evo.util;
   const { SCENTS, ITEM_TYPES, SEASONS, DAY_TICKS, SEASON_DAYS, LIMITS, STAGE, CREATURE } = Evo;
 
   const WORLD_W = 3600, WORLD_H = 900;
@@ -20,10 +20,10 @@
       this.step = 8;
       const n = Math.ceil(width / this.step) + 1;
       this.heights = new Float32Array(n);
-      const ph = [Evo.random() * 6.28, Evo.random() * 6.28, Evo.random() * 6.28];
+      const ph = [Evo.random() * TAU, Evo.random() * TAU, Evo.random() * TAU];
       for (let i = 0; i < n; i++) {
         const x = i * this.step;
-        let h = 640 + 30 * Math.sin(x / 1400 * 6.28 + ph[0]) + 18 * Math.sin(x / 520 * 6.28 + ph[1]) + 7 * Math.sin(x / 170 * 6.28 + ph[2]);
+        let h = 640 + 30 * Math.sin(x / 1400 * TAU + ph[0]) + 18 * Math.sin(x / 520 * TAU + ph[1]) + 7 * Math.sin(x / 170 * TAU + ph[2]);
         // The hill with the warm rock
         const hill = (x - layout.hill) / 260;
         h -= 70 * Math.exp(-hill * hill);
