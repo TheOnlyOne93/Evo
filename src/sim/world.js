@@ -18,9 +18,10 @@
   const GROWTH = {
     fruit: { rate: 0.00009, threshold: 0.3, chance: 0.0025, cost: 0.06 },
     grain: { rate: 0.0001, threshold: 0.3, chance: 0.003, cost: 0.05 },
-    dew: { from: 0.2, to: 0.3, chance: 0.004 }, bug: 0.0004, grub: 0.0007,
-    rockWarm: 0.0004, rockCool: 0.00025, rockLight: 0.5 // The rock warms in daylight (above this light) and cools otherwise
+    dew: { from: 0.2, to: 0.3, chance: 0.004 }, bug: 0.0004, grub: 0.0007
   };
+  // The warm rock: its warmth rises by `warm` a tick in daylight (light above `light`) and falls by `cool` otherwise
+  const ROCK = { warm: 0.0004, cool: 0.00025, light: 0.5 };
   // Mating: reach is a share of the two body sizes (horizontal), vertical is px
   const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldown: 1800, maleProtein: 0.04 };
   // Egg incubation speed: (temperature - cold) / span, at most max
@@ -621,7 +622,7 @@
           }
         } else if (f.kind === 'rock') {
           // The rock soaks up sunshine by day and gives it back at night
-          f.warm = clamp01(f.warm + (light > GROWTH.rockLight ? GROWTH.rockWarm : -GROWTH.rockCool));
+          f.warm = clamp01(f.warm + (light > ROCK.light ? ROCK.warm : -ROCK.cool));
         }
       }
     }
