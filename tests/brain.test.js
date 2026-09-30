@@ -66,6 +66,14 @@ test('brain: founders grow the movement copy and the sight copy', (Evo, assert) 
   assert.deepStrictEqual(parents.sort(), ['motor', 'sight']);
 });
 
+// Unbudgeted, 121 more sight copies would make 4119 neurons: more than synapse keys allow
+test('brain: region copies stop at the neuron budget, however many genes ask for them', (Evo, assert) => {
+  const copy = { gene: 'Region duplication', source: 'sight', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
+  const brain = new Evo.Brain(Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, ...Array(121).fill(copy)]).develop());
+  assert.ok(brain.N <= Evo.LIMITS.MAX_NEURONS, `${brain.N} neurons`);
+  assert.ok(brain.N + brain.lobes.sight.length > Evo.LIMITS.MAX_NEURONS, 'copies are made until the next would not fit');
+});
+
 test('brain: founders are born with their reflex arcs', (Evo, assert) => {
   const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
   const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);

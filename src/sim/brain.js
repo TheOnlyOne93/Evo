@@ -149,7 +149,7 @@
   const MUSCLE_Z = 0.9, DRIVE_Z = 0.8, FEELING_Z = 0.1;
 
   // The lookup-set key of the synapse src -> dst. It needs fewer than KEY_SPAN neurons (the
-  // constructor checks); neuron counts stay far below that.
+  // constructor checks); LIMITS.MAX_NEURONS keeps neuron counts far below that.
   const KEY_SPAN = 4096;
   const synapseKey = (src, dst) => src * KEY_SPAN + dst;
 
@@ -287,12 +287,16 @@
 
       // Region duplications: each copy keeps its parent's layout and chemistry (shifted), sits at a new
       // depth, and is a central (non-sensory) region. Its parent's guidance genes also grow its axons.
+      // Copies are budgeted: nothing else limits how many Region duplication genes a genome carries,
+      // and wiring a brain takes time with the square of its size, so a copy that would take the brain
+      // past LIMITS.MAX_NEURONS is skipped.
       this.duplicatesOf = {};
       this.duplicateLobes = [];
       T.duplications.forEach((d, k) => {
         const parentId = LOBE_ORDER[d.sourceLobeIdx];
         const lobeId = `dup${k}_${parentId}`;
         const parent = lobes[parentId].map(i => neurons[i]);
+        if (neurons.length + parent.length > LIMITS.MAX_NEURONS) return;
         const cy = mean(parent.map(n => n.pos[1]));
         for (const src of parent) {
           const tag = [src.tag[0], src.tag[1], clamp(src.tag[2] + d.chemShift, 0, 1)];

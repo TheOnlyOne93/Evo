@@ -550,6 +550,7 @@
       const at = new Int32Array(g.dna.length).fill(-1);
       genes.forEach((x, gi) => { for (let k = x.start; k < x.end; k++) at[k] = gi; });
       const palette = ['var(--water)', 'var(--grain)', 'var(--protein)', 'var(--female)', 'var(--toxin)'];
+      const digits = Math.max(3, (g.dna.length - 1).toString(16).length); // Every address as wide as the last
       let html = '';
       for (let i = 0; i < g.dna.length; i += 16) {
         const cells = [];
@@ -559,7 +560,7 @@
           else if (k === genes[gi].start) cells.push(`<span class="prom">${hex}</span>`);
           else cells.push(`<span style="color:${palette[gi % palette.length]}">${hex}</span>`);
         }
-        html += `<div class="dna-row"><span class="addr">${i.toString(16).padStart(3, '0')}</span><span>${cells.join(' ')}</span></div>`;
+        html += `<div class="dna-row"><span class="addr">${i.toString(16).padStart(digits, '0')}</span><span>${cells.join(' ')}</span></div>`;
       }
       $('dnaGrid').innerHTML = html;
     }

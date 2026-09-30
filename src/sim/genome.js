@@ -15,7 +15,7 @@
   const PROMOTER = 0xA5;
   const TYPE_SLOTS = 32;
   const MIN_LENGTH = 256;
-  const MAX_LENGTH = 3200;
+  const MAX_LENGTH = 8192;
   const GENOME_LIMITS = { MIN_LENGTH, MAX_LENGTH };
   // Per-copy mutation: a point mutation per byte at `rate` (mostly a small step, else a new byte), then
   // chances of duplicating a gene, losing a gene, and one small insertion or deletion
@@ -263,8 +263,8 @@
     }
 
     // Founder genes (Evo.FOUNDER_GENOME, see founder.js), separated by a few junk bytes. The founder
-    // (about 2.9 KB) is far above MIN_LENGTH, so the junk padding never applies; it leaves about 8%
-    // headroom below MAX_LENGTH.
+    // (about 2.9 KB) is far above MIN_LENGTH, so the junk padding never applies; it fills about 36%
+    // of MAX_LENGTH (8 KB), leaving about 5 KB for duplicated genes and insertions to grow into.
     static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
       const bytes = [];
       const junk = n => { for (let i = 0; i < n; i++) bytes.push(junkByte()); };
