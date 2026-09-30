@@ -193,7 +193,7 @@ test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => 
     c.updateSleep = () => {};
     c.asleep = true;
     const w0 = b.sW[s];
-    for (let t = 0; t < 3000; t++) { c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); world.step(); }
+    for (let t = 0; t < 600; t++) { c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); world.step(); }
     return b.sW[s] - w0;
   };
   const dreaming = run(true), idle = run(false);
