@@ -20,6 +20,7 @@
   const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
+  const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
@@ -362,7 +363,7 @@
       const see = T.nightVision + (1 - T.nightVision) * light;
 
       // Sight: each thing in range excites the colour/motion cells of the side it is on, in the
-      // low band (at or below eye level) or the high band (above). Signal = apparent size.
+      // low band (up to about 20 degrees above eye level) or the high band (steeper than that). Signal = apparent size.
       const ex = this.headX, ey = this.headY;
       const range = T.visionRange;
       const sight = this.visionBuffer;
@@ -375,7 +376,7 @@
         const dist = Math.hypot(dx, dy);
         if (dist > range || dist < 1) return;
         const intensity = Math.log1p(Math.min(1, radius / Math.max(8, dist)) / LOOK_K) / lookNorm * see;
-        const band = dy < -dist * 0.35 ? 'high' : 'low';
+        const band = dy < -dist * HIGH_BAND_SLOPE ? 'high' : 'low';
         const sides = Math.abs(dx) < 3 ? BOTH_SIDES : dx < 0 ? LEFT : RIGHT;
         for (const f in features) {
           const v = intensity * features[f] / sides.length;

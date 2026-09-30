@@ -13,6 +13,7 @@
   const WANDER_INTERVAL = 1800;
   const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
   const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
+  const CLIFF_WIDTH = 140;          // The cliffs at each end of the world reach this far in (px); World.edge must be at least this
 
   // ---------- Terrain: a height field with a pond ----------
   class Terrain {
@@ -27,9 +28,9 @@
         // The hill with the warm rock
         const hill = (x - layout.hill) / 260;
         h -= 70 * Math.exp(-hill * hill);
-        // Cliffs at both ends keep everyone in
+        // Cliffs at both ends; the walkable edge (World.edge) keeps creatures off them
         const edge = Math.min(x, width - x);
-        if (edge < 140) h -= 260 * (1 - edge / 140) ** 2;
+        if (edge < CLIFF_WIDTH) h -= 260 * (1 - edge / CLIFF_WIDTH) ** 2;
         this.heights[i] = h;
       }
       // Ponds: smooth dips that fill with water up to just below their lower rim
@@ -91,7 +92,7 @@
       // every body has run, so all bodies read the same world (see step)
       this.pendingScent = [];          // { x, y, channel, amount }
       this.pendingEggs = [];           // { mother, pregnancy }
-      this.edge = 150;       // Creatures and items stay this far from the world's ends (the cliffs are scenery)
+      this.edge = 150;       // Creatures and items stay this far from the world's ends, so they never reach the cliffs (edge >= CLIFF_WIDTH)
 
       this.buildLandscape();
       this.scent = {
@@ -106,7 +107,7 @@
       this.scentSolid = new Uint8Array(this.scent.cols * this.scent.rows);
       for (let r = 0; r < this.scent.rows; r++) {
         for (let c = 0; c < this.scent.cols; c++) {
-          // A cell is solid when its centre is underground
+          // A cell is solid when its centre is more than half a cell below the surface
           if ((r + 0.5) * SCENT_CELL > this.terrain.groundY((c + 0.5) * SCENT_CELL) + SCENT_CELL * 0.5) this.scentSolid[r * this.scent.cols + c] = 1;
         }
       }
@@ -768,5 +769,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, WORLD: { HOLD_GRIP, SOUND_LIFE } });
+  Object.assign(Evo, { World, WORLD: { HOLD_GRIP, SOUND_LIFE, CLIFF_WIDTH } });
 })(globalThis.Evo);

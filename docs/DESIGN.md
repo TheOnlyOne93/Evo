@@ -82,7 +82,7 @@ substepped, so speed changes how many ticks happen per second, not what a tick c
 | age tick (`creature.ageTicks`, one per body phase, from birth) | life stage (age over lifespan); the time stamp on `lastStimulus` |
 
 * A day lasts `DAY_TICKS` (3 minutes at 1×); a season lasts 2 days; a year is 8 days.
-* A creature lives roughly 25–40 minutes of simulated time (about one year), set by its genes.
+* A creature lives roughly 20–44 minutes of simulated time (about one year), set by its genes.
 * Life stages, as fractions of lifespan: baby 0–5%, child –15%, adolescent –25%, youth –35%,
   adult –75%, old –90%, senile after that.
 
@@ -267,7 +267,7 @@ world.features  = [{ id, kind, x, y, ...props }]   // y = base on the ground
   //  'thornbush' { radius }                             looks violet; moving through it pricks ('pricked' stimulus)
 world.items = [{ id, type, x, y, vx, vy, radius, rot, age, held, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
-  //  egg: { hue, accentHue, progress: 0..1 }   ball: { hue }
+  //  egg: { hue, accentHue, progress: 0..1 (may exceed 1 while the egg waits for room to hatch) }   ball: { hue }
 world.creatures                      // live creatures; draw each via Evo.CreatureArt.draw(ctx, Evo.poseOf(c), t)
 world.clock = { tick, day, phase, light, sunElevation }
   //  phase 0..1 (0 midnight, .25 sunrise, .5 noon, .75 sunset); light 0..1; sunElevation -1..1

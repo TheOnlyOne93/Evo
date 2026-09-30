@@ -16,6 +16,7 @@
   const TYPE_SLOTS = 32;
   const MIN_LENGTH = 256;
   const MAX_LENGTH = 3200;
+  const GENOME_LIMITS = { MIN_LENGTH, MAX_LENGTH };
 
   // ---- Codecs: how one payload byte decodes to a value, and how a founder value encodes to a byte ----
   const byte = v => clamp(Math.round(v), 0, 255);
@@ -214,7 +215,8 @@
   GENES.forEach(g => { g.payload = g.fields.length; });
   const GENE_INDEX = Object.fromEntries(GENES.map((g, i) => [g.name, i]));
 
-  // Defaults for any trait whose gene is missing
+  // Fallbacks for any trait whose gene is missing. These are not the founder's values (the founder
+  // gene sets its own; e.g. learningRate here is 0.038, the founder's is 0.033)
   function defaultTraits(F) {
     return {
       hue: 30, accentHue: 45, pattern: 0, patternScale: 0.5, earSize: 0.5, tailLength: 0.5, eyeSize: 0.5, plumpness: 0.5,
@@ -261,8 +263,9 @@
       this.mutationCount = 0; // Mutation events along the longest parental line since the founders
     }
 
-    // Founder genes (Evo.FOUNDER_GENOME, see founder.js), separated by a few junk bytes, then junk
-    // padding. The chromosome is sized to hold every founder gene.
+    // Founder genes (Evo.FOUNDER_GENOME, see founder.js), separated by a few junk bytes. The founder
+    // (about 2.9 KB) is far above MIN_LENGTH, so the junk padding never applies; it leaves about 8%
+    // headroom below MAX_LENGTH.
     static founder(sexChrom = null, genes = Evo.FOUNDER_GENOME) {
       const bytes = [];
       const junk = n => { for (let i = 0; i < n; i++) bytes.push(junkByte()); };
@@ -428,5 +431,5 @@
     }
   }
 
-  Object.assign(Evo, { Genome, GENES, GENE_INDEX, PROMOTER, CODEC, encodeGene });
+  Object.assign(Evo, { GENOME_LIMITS, Genome, GENES, GENE_INDEX, PROMOTER, CODEC, encodeGene });
 })(globalThis.Evo);
