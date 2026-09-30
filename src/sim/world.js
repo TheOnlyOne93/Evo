@@ -98,6 +98,10 @@
         cols: Math.ceil(width / SCENT_CELL), rows: Math.ceil(height / SCENT_CELL), cell: SCENT_CELL,
         channels: SCENTS.map(() => new Float32Array(Math.ceil(width / SCENT_CELL) * Math.ceil(height / SCENT_CELL)))
       };
+      // Per channel, the rows and columns holding every non-zero cell ({ r0, r1, c0, c1 }, or null
+      // when the channel is all zero), so diffusion sweeps only where there is scent. Write scent
+      // only through depositScent, which grows the box
+      this.scentBox = SCENTS.map(() => null);
       this.scentScratch = new Float32Array(this.scent.cols * this.scent.rows);
       this.scentSolid = new Uint8Array(this.scent.cols * this.scent.rows);
       for (let r = 0; r < this.scent.rows; r++) {
@@ -198,8 +202,14 @@
     }
 
     depositScent(x, y, channel, amount) {
-      const g = this.scent.channels[channel], i = this.scentIndex(x, y);
-      if (!this.scentSolid[i]) g[i] = Math.min(2.5, g[i] + amount);
+      const s = this.scent, g = s.channels[channel], i = this.scentIndex(x, y);
+      if (this.scentSolid[i]) return;
+      g[i] = Math.min(2.5, g[i] + amount);
+      if (g[i] === 0) return;
+      const r = Math.floor(i / s.cols), c = i - r * s.cols, box = this.scentBox[channel];
+      if (!box) { this.scentBox[channel] = { r0: r, r1: r, c0: c, c1: c }; return; }
+      if (r < box.r0) box.r0 = r; else if (r > box.r1) box.r1 = r;
+      if (c < box.c0) box.c0 = c; else if (c > box.c1) box.c1 = c;
     }
 
     // Scent a body gives off: it lands when the bodies' writes are applied
@@ -665,8 +675,10 @@
       for (const p of this.terrain.ponds) for (let x = p.x0; x < p.x1; x += 60) this.depositScent(x, p.level - 10, Evo.SCENT.moist, 0.02);
       if (this.clock.tick % SCENT_EVERY) return;
       const s = this.scent;
-      SCENTS.forEach((sc, ch) => Evo.diffuse(s.channels[ch], this.scentScratch, s.cols, s.rows,
-        sc.diffusion * SCENT_EVERY, Math.pow(1 - sc.decay, SCENT_EVERY), 0.0005, this.scentSolid));
+      SCENTS.forEach((sc, ch) => {
+        this.scentBox[ch] = Evo.diffuse(s.channels[ch], this.scentScratch, s.cols, s.rows,
+          sc.diffusion * SCENT_EVERY, Math.pow(1 - sc.decay, SCENT_EVERY), 0.0005, this.scentSolid, this.scentBox[ch]);
+      });
     }
 
     // ---------- The player's hand ----------
