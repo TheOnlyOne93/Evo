@@ -27,11 +27,17 @@
   const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
-  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS, SIDES, BANDS } = Evo.BRAIN_BODY_PLAN;
+  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS, SIDES, BANDS, TOUCH, TASTES } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
   const FEATURE_KEYS = Evo.VISION_FEATURES.map(f => f.key);
+  // For the senses' hot loop: each touch cell's key and whether it gets through to a sleeper (pain,
+  // impacts and pats do), and the receptor target driving each Needs and Feelings cell
+  const TOUCH_KEYS = TOUCH.map(t => t.key), TOUCH_WAKES = TOUCH.map(t => t.key === 'pain' || t.key === 'back');
+  const TASTE_KEYS = TASTES.map(t => t.key);
+  const NEED_TARGETS = Array.from({ length: Evo.N_DRIVE_CELLS }, (_, k) => TARGET[`need:${k}`]);
+  const FEELING_TARGETS = Array.from({ length: N_LIMBIC }, (_, k) => TARGET[`limbic:${k}`]);
   // Sight and smell respond logarithmically (Weber-Fechner): faint signals register, strong ones still read as stronger
   const logResponse = (x, K, norm) => Math.log1p(x / K) / norm;
   const LOOK_K = 0.005, LOOK_NORM = Math.log1p(1 / LOOK_K);
@@ -466,7 +472,8 @@
       }
       this.stim.heardCall = Math.max(this.stim.heardCall * 0.9, heard);
       if (heardNew > 0) this.stimulate('heardCall', heardNew);
-      brain.lobes.hearing.forEach((i, k) => { input[i] = hear[k] * NEURAL_GAIN * gainScale; });
+      const L = brain.lobes;
+      for (let k = 0; k < L.hearing.length; k++) input[L.hearing[k]] = hear[k] * NEURAL_GAIN * gainScale;
 
       // Touch
       const s = this.stim;
@@ -482,20 +489,18 @@
         back: s.back, feet: this.onGround ? 1 : 0, pain: Math.min(1, s.impact + this.chem.get('pain')),
         gentle: s.gentle, falling: this.loci[LOCUS.falling], inWater: this.inWater ? 1 : 0
       };
-      Evo.BRAIN_BODY_PLAN.TOUCH.forEach((t, k) => {
-        // Pain, impacts and pats get through even to a sleeper
-        const g = (t.key === 'pain' || t.key === 'back') ? 1 : gainScale;
-        input[brain.lobes.touch[k]] = touch[t.key] * NEURAL_GAIN * g;
-      });
-      Evo.BRAIN_BODY_PLAN.TASTES.forEach((t, k) => { input[brain.lobes.taste[k]] = this.taste[t.key] * NEURAL_GAIN; });
+      for (let k = 0; k < TOUCH_KEYS.length; k++) {
+        input[L.touch[k]] = touch[TOUCH_KEYS[k]] * NEURAL_GAIN * (TOUCH_WAKES[k] ? 1 : gainScale);
+      }
+      for (let k = 0; k < TASTE_KEYS.length; k++) input[L.taste[k]] = this.taste[TASTE_KEYS[k]] * NEURAL_GAIN;
       // Up close: how the thing at the mouth looks (Up close cells are in vision feature order)
       const near = !mouthThing ? null : mouthThing.kind === 'item' ? world.lookOf(mouthThing.item) : world.lookOfCreature(mouthThing.creature);
-      brain.lobes.near.forEach((i, k) => { input[i] = near ? (near[FEATURE_KEYS[k]] || 0) * NEURAL_GAIN * gainScale : 0; });
+      for (let k = 0; k < L.near.length; k++) input[L.near[k]] = near ? (near[FEATURE_KEYS[k]] || 0) * NEURAL_GAIN * gainScale : 0;
 
       // Needs and Feelings cells: driven by whichever chemicals receptor genes attached to them
       const fx = this.chem.effects;
-      brain.lobes.needs.forEach((i, k) => { input[i] = fx[TARGET[`need:${k}`]] * NEURAL_GAIN; });
-      brain.lobes.feelings.forEach((i, k) => { input[i] = fx[TARGET[`limbic:${k}`]] * NEURAL_GAIN; });
+      for (let k = 0; k < L.needs.length; k++) input[L.needs[k]] = fx[NEED_TARGETS[k]] * NEURAL_GAIN;
+      for (let k = 0; k < L.feelings.length; k++) input[L.feelings[k]] = fx[FEELING_TARGETS[k]] * NEURAL_GAIN;
 
       this.senses = { sight, scentsL, scentsR, hear, touch, mouthThing };
     }
