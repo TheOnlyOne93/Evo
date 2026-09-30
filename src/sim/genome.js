@@ -194,8 +194,8 @@
     { name: 'Reproduction', group: 'body', fields: [u('investment'), u('incubation')],
       express(v, d) { d.set('eggInvestment', 0.2 + v.investment * 0.4); d.set('incubationTicks', 3000 + v.incubation * 6000); } },
     // What a stimulus (Evo.STIMULI) releases: up to two chemicals, each by a signed amount
-    { name: 'Stimulus', group: 'chemistry', fields: [['event', CODEC.raw], ['chem1', CODEC.chem], ['amount1', CODEC.signed], ['chem2', CODEC.chem], ['amount2', CODEC.signed]],
-      express(v, d) { d.add('stimuli', { event: v.event % STIMULI.length, chem1: v.chem1, amount1: v.amount1, chem2: v.chem2, amount2: v.amount2 }); } },
+    { name: 'Stimulus', group: 'chemistry', fields: [['stimulus', CODEC.raw], ['chem1', CODEC.chem], ['amount1', CODEC.signed], ['chem2', CODEC.chem], ['amount2', CODEC.signed]],
+      express(v, d) { d.add('stimuli', { stimulus: v.stimulus % STIMULI.length, chem1: v.chem1, amount1: v.amount1, chem2: v.chem2, amount2: v.amount2 }); } },
     // How a region's cells work together: they compete (each is held back by the others' recent
     // firing), and a cell that fires keeps itself going for a while, until it tires. copy 0 is the
     // region itself, k its k-th duplicate.

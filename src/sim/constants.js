@@ -135,7 +135,7 @@
   const STIMULUS = Object.fromEntries(STIMULI.map((k, i) => [k, i]));
   const STIMULUS_WORDS = Object.fromEntries(STIMULUS_LIST);
 
-  const N_NEEDS = 18, N_LIMBIC = 8;
+  const N_DRIVE_CELLS = 18, N_LIMBIC = 8;
 
   // ---- Body loci: what emitter genes can read (all 0..1). Codes 128+ read a chemical instead. ----
   const BODY_LOCI = [
@@ -152,7 +152,7 @@
   const PHYSIO_TARGETS = ['none', 'muscle', 'arousal', 'sleep', 'damage', 'healing', 'fertility', 'growth',
     'scentSex', 'scentAlarm', 'metabolism', 'thermogenesis', 'cooling'];
   const TARGETS = [...PHYSIO_TARGETS,
-    ...Array.from({ length: N_NEEDS }, (_, k) => `need:${k}`),
+    ...Array.from({ length: N_DRIVE_CELLS }, (_, k) => `need:${k}`),
     ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic:${k}`)];
   const TARGET = Object.fromEntries(TARGETS.map((k, i) => [k, i]));
 
@@ -194,9 +194,9 @@
   // Drives lobe: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
   // genes), plus spare cells. Their addresses form a grid that shares nothing with the muscles, so
   // what a drive makes the creature do is up to guidance genes aimed at single cells.
-  const DRIVE_COLS = 6, DRIVE_ROWS = Math.ceil(N_NEEDS / DRIVE_COLS);
-  if (DRIVES.length > N_NEEDS) throw new Error('more drive chemicals than Drives lobe cells');
-  const DRIVE_CELL_TAGS = Array.from({ length: N_NEEDS }, (_, k) =>
+  const DRIVE_COLS = 6, DRIVE_ROWS = Math.ceil(N_DRIVE_CELLS / DRIVE_COLS);
+  if (DRIVES.length > N_DRIVE_CELLS) throw new Error('more drive chemicals than Drives lobe cells');
+  const DRIVE_CELL_TAGS = Array.from({ length: N_DRIVE_CELLS }, (_, k) =>
     [(k % DRIVE_COLS + 0.5) / DRIVE_COLS, (Math.floor(k / DRIVE_COLS) + 0.5) / DRIVE_ROWS]);
   const driveCell = key => DRIVES.indexOf(key);
 
@@ -222,7 +222,7 @@
     TICKS_PER_SECOND, DAY_TICKS, SEASON_DAYS, STAGES, STAGE,
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
-    STIMULI, STIMULUS, STIMULUS_WORDS, BODY_LOCI, LOCUS, TARGETS, TARGET, N_NEEDS, N_LIMBIC,
+    STIMULI, STIMULUS, STIMULUS_WORDS, BODY_LOCI, LOCUS, TARGETS, TARGET, N_DRIVE_CELLS, N_LIMBIC,
     LOBES, LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, driveCell, NEUROCHEMS,
     LIMITS
   });

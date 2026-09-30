@@ -12,7 +12,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, mean, TAU } = Evo.util;
-  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_NEEDS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
+  const { LOBE_ORDER, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -243,8 +243,8 @@
       TASTES.forEach((t, k) => add('taste', [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }, t.word));
       // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
       VISION_FEATURES.forEach((f, fi) => add('near', [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
-      for (let k = 0; k < N_NEEDS; k++) {
-        add('needs', [...DRIVE_CELL_TAGS[k], DRIVE_Z], ring(0.5, 0.74, 0.05, k, N_NEEDS), { kind: 'need', index: k });
+      for (let k = 0; k < N_DRIVE_CELLS; k++) {
+        add('needs', [...DRIVE_CELL_TAGS[k], DRIVE_Z], ring(0.5, 0.74, 0.05, k, N_DRIVE_CELLS), { kind: 'need', index: k });
       }
       for (let k = 0; k < N_LIMBIC; k++) {
         add('feelings', [...FEELING_TAGS[k], FEELING_Z], ring(0.5, 0.62, 0.04, k, N_LIMBIC), { kind: 'feeling', index: k },
@@ -314,7 +314,7 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
-      this.lateral = f32(); this.vFired = f32();
+      this.lateralI = f32(); this.vFired = f32();
       this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
       this.hist = new Uint32Array(N);
@@ -407,7 +407,7 @@
     // decisions persist and attention settles on one thing, from the region's own dynamics.
     // Sets the current for the coming tick.
     applyDynamics() {
-      const { hist, lateral, vFired, v, vShow, thr, rate, adapt, adaptInc, refr } = this;
+      const { hist, lateralI, vFired, v, vShow, thr, rate, adapt, adaptInc, refr } = this;
       for (const g of this.dynamics) {
         const { cells, activity, drive, competition, persistence, keep, fired } = g, most = 3 * persistence;
         let n = 0;
@@ -436,7 +436,7 @@
           drive[k] = p > most ? most : p;
           pool += activity[k];
         }
-        for (let k = 0; k < cells.length; k++) lateral[cells[k]] = drive[k] - competition * (pool - activity[k]);
+        for (let k = 0; k < cells.length; k++) lateralI[cells[k]] = drive[k] - competition * (pool - activity[k]);
       }
     }
 
@@ -697,14 +697,14 @@
     }
 
     // ---------- One tick ----------
-    // drive: Float32Array (one per neuron) of external current: senses, needs, dreams.
+    // input: Float32Array (one per neuron) of external current: senses, needs, dreams.
     // opts: { noise, arousal, canFire, asleep }. Returns the number of spikes (after held-back ones are removed).
-    tick(drive, opts) {
+    tick(input, opts) {
       if (this.adjacencyDirty) this.rebuildAdjacency();
       const now = ++this.tickCount;
       const slot = now % SLOTS;
       const N = this.N;
-      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator, lateral } = this;
+      const { v, vShow, thr, thrBase, thrDrop, tau, bias, adapt, adaptInc, adaptKeep, refr, refrPeriod, hist, rate, targetRate, inbox, homeo, fast, isSensory, modulator, lateralI } = this;
       const noise = opts.noise, arousal = opts.arousal, canFire = opts.canFire, brake = this.brake;
       this.awake = !opts.asleep;
       if (this.awake) this.dream = null;
@@ -715,7 +715,7 @@
       for (let i = 0; i < N; i++) {
         const k = i * SLOTS + slot;
         // A modulator cell is driven only by its prediction error (see learn), not by the body
-        let I = inbox[k] + (modulator[i] < 0 ? drive[i] : 0) + lateral[i];
+        let I = inbox[k] + (modulator[i] < 0 ? input[i] : 0) + lateralI[i];
         inbox[k] = 0;
         adapt[i] *= adaptKeep[i];
         let fired = 0;

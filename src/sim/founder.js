@@ -14,8 +14,8 @@
     ({ gene: 'Emitter', stage, locus, chem, threshold, gain, flags });
   const receptor = (chem, target, threshold, gain, flags = 0, stage = 0) =>
     ({ gene: 'Receptor', stage, chem, target, threshold, gain, flags });
-  const stimulus = (event, chem1, amount1, chem2 = null, amount2 = 0) =>
-    ({ gene: 'Stimulus', event: Evo.STIMULUS[event], chem1, amount1, chem2, amount2 });
+  const stimulus = (key, chem1, amount1, chem2 = null, amount2 = 0) =>
+    ({ gene: 'Stimulus', stimulus: Evo.STIMULUS[key], chem1, amount1, chem2, amount2 });
   const halfLife = (chem, ticks) => ({ gene: 'Half-life', chem, halfLife: ticks });
   const initial = (chem, amount) => ({ gene: 'Initial concentration', chem, amount });
   // Axon guidance: a source lobe's axons seek a receptor chemistry. With relX / relY the target is
@@ -50,15 +50,15 @@
   const ODOURS = Evo.SCENTS.map(s => s.key);
   const MOTOR = Object.fromEntries(Evo.MOTORS.map((m, i) => [m.key, i]));
   // Drives cell of each drive chemical (Evo.driveCell), for receptor targets and instincts
-  const need = key => Evo.driveCell(key);
-  const NEED = key => `need:${need(key)}`;
+  const { driveCell } = Evo;
+  const driveTarget = key => `need:${driveCell(key)}`;
   // An innate prior: axons from one drive's cell only (a source window) to one muscle
   const prior = (drive, motor, weight) => guide('needs', [...Evo.MOTORS[MOTOR[motor]].tag, MUSCLE_Z],
-    { radius: 0.08, weight, conduction: 0.3, from: [...Evo.DRIVE_CELL_TAGS[need(drive)], 0.04] });
+    { radius: 0.08, weight, conduction: 0.3, from: [...Evo.DRIVE_CELL_TAGS[driveCell(drive)], 0.04] });
   const { sightIndex: sight, smellIndex: smell } = Evo.BRAIN_BODY_PLAN;
   const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));
 
-  Evo.founderKit = { reaction, emitter, receptor, stimulus, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, need, NEED, prior, sight, smell, TOUCH };
+  Evo.founderKit = { reaction, emitter, receptor, stimulus, halfLife, initial, guide, approach, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, ODOURS, MOTOR, driveCell, driveTarget, prior, sight, smell, TOUCH };
 
   Evo.founderBody = [
     { gene: 'Appearance', hue: 0.08, accentHue: 0.12, pattern: 0.3, patternScale: 0.5, earSize: 0.6, tailLength: 0.6, eyeSize: 0.6, plumpness: 0.55 },

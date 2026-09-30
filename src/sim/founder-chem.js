@@ -1,7 +1,7 @@
 // The founder genome: metabolism, drives, receptors and instincts (see founder.js).
 (function (Evo) {
   'use strict';
-  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, need, NEED, sight, smell, TOUCH } = Evo.founderKit;
+  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, driveCell, driveTarget, sight, smell, TOUCH } = Evo.founderKit;
   const { STAGE } = Evo;
 
   Evo.founderChem = [
@@ -138,7 +138,7 @@
     // ---------- Receptors: what the brain can feel (Drives and Feelings cells) ----------
     // Each drive has its own cell in the Drives lobe; what it makes the creature do is up to the
     // brain's wiring (innate priors in founder-brain.js, then learning)
-    ...Evo.DRIVES.map(drive => receptor(drive, NEED(drive), 0.05, 1.2)),
+    ...Evo.DRIVES.map(drive => receptor(drive, driveTarget(drive), 0.05, 1.2)),
     receptor('reward', 'limbic:0', 0.01, 3),
     receptor('punishment', 'limbic:1', 0.01, 3),
 
@@ -156,16 +156,16 @@
     // ---------- Instincts: replayed in dreams whenever the creature sleeps (switched on from birth,
     // so they matter most in early life, before experience has wired the brain) ----------
     // Drives met with the right thing up close: eat it, drink it, nuzzle it
-    ...['red', 'yellow', 'green'].map(f => instinct('needs', need('hunger'), 'near', FEATURES.indexOf(f), MOTOR.eat, 'reward', 0.5)),
-    instinct('needs', need('proteinHunger'), 'near', FEATURES.indexOf('green'), MOTOR.eat, 'reward', 0.4),
-    instinct('needs', need('thirst'), 'touch', TOUCH.lips, MOTOR.drink, 'reward', 0.5),
-    instinct('needs', need('loneliness'), 'near', FEATURES.indexOf('creature'), MOTOR.eat, 'reward', 0.3),
+    ...['red', 'yellow', 'green'].map(f => instinct('needs', driveCell('hunger'), 'near', FEATURES.indexOf(f), MOTOR.eat, 'reward', 0.5)),
+    instinct('needs', driveCell('proteinHunger'), 'near', FEATURES.indexOf('green'), MOTOR.eat, 'reward', 0.4),
+    instinct('needs', driveCell('thirst'), 'touch', TOUCH.lips, MOTOR.drink, 'reward', 0.5),
+    instinct('needs', driveCell('loneliness'), 'near', FEATURES.indexOf('creature'), MOTOR.eat, 'reward', 0.3),
     // Drives on their own
-    instinct('needs', need('sleepiness'), 'needs', none, MOTOR.rest, 'reward', 0.5),
-    instinct('needs', need('tiredness'), 'needs', none, MOTOR.rest, 'reward', 0.4),
-    instinct('needs', need('loneliness'), 'needs', none, MOTOR.call, 'reward', 0.3),
-    instinct('needs', need('pain'), 'needs', none, MOTOR.run, 'reward', 0.3),
-    instinct('needs', need('fear'), 'needs', none, MOTOR.run, 'reward', 0.3),
+    instinct('needs', driveCell('sleepiness'), 'needs', none, MOTOR.rest, 'reward', 0.5),
+    instinct('needs', driveCell('tiredness'), 'needs', none, MOTOR.rest, 'reward', 0.4),
+    instinct('needs', driveCell('loneliness'), 'needs', none, MOTOR.call, 'reward', 0.3),
+    instinct('needs', driveCell('pain'), 'needs', none, MOTOR.run, 'reward', 0.3),
+    instinct('needs', driveCell('fear'), 'needs', none, MOTOR.run, 'reward', 0.3),
     // Places and smells to keep away from
     instinct('sight', sight('L', 'low', 'violet'), 'needs', none, MOTOR.walkL, 'punishment', 0.5), // Don't walk into violet
     instinct('sight', sight('R', 'low', 'violet'), 'needs', none, MOTOR.walkR, 'punishment', 0.5),

@@ -36,7 +36,7 @@
       this.emitters = traits.emitters;
       this.receptors = traits.receptors;
       this.stimuli = STIMULI.map(() => []);
-      for (const g of traits.stimuli || []) this.stimuli[g.event].push(g);
+      for (const g of traits.stimuli || []) this.stimuli[g.stimulus].push(g);
       this.keep.fill(1);
       for (const chem in traits.halfLives) {
         const hl = traits.halfLives[chem];
@@ -53,11 +53,11 @@
     set(key, v) { this.c[Evo.CHEM[key]] = clamp01(v); }
     add(key, amount) { const i = Evo.CHEM[key]; this.c[i] = clamp01(this.c[i] + amount); }
 
-    // Something happened (event: an index into Evo.STIMULI) with strength s: each stimulus gene for
+    // Something happened (stimulus: an index into Evo.STIMULI) with strength s: each stimulus gene for
     // it releases its chemicals (a negative amount removes some)
-    stimulate(event, s = 1) {
+    stimulate(stimulus, s = 1) {
       const c = this.c;
-      for (const g of this.stimuli[event]) {
+      for (const g of this.stimuli[stimulus]) {
         if (g.chem1) c[g.chem1] = clamp01(c[g.chem1] + g.amount1 * s);
         if (g.chem2) c[g.chem2] = clamp01(c[g.chem2] + g.amount2 * s);
       }

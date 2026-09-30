@@ -16,7 +16,7 @@ test('drives: every drive has exactly one receptor into its own Drives cell, and
 
 test('drives: Drives cells have distinct addresses', (Evo, assert) => {
   const tags = Evo.DRIVE_CELL_TAGS;
-  assert.strictEqual(tags.length, Evo.N_NEEDS);
+  assert.strictEqual(tags.length, Evo.N_DRIVE_CELLS);
   for (let a = 0; a < tags.length; a++) {
     for (let b = a + 1; b < tags.length; b++) assert.ok(Math.hypot(tags[a][0] - tags[b][0], tags[a][1] - tags[b][1]) > 0.15);
   }
@@ -35,8 +35,8 @@ test('drives: a stimulus releases exactly amount x strength of each chemical, cl
   const { CHEM, STIMULUS } = Evo;
   const b = new Evo.Biochemistry();
   b.configure({ reactions: [], emitters: [], receptors: [], halfLives: {},
-    stimuli: [{ event: STIMULUS.patted, chem1: CHEM.reward, amount1: 0.2, chem2: CHEM.fear, amount2: -0.1 },
-      { event: STIMULUS.slapped, chem1: 0, amount1: 0.4, chem2: CHEM.pain, amount2: 0.3 }] });
+    stimuli: [{ stimulus: STIMULUS.patted, chem1: CHEM.reward, amount1: 0.2, chem2: CHEM.fear, amount2: -0.1 },
+      { stimulus: STIMULUS.slapped, chem1: 0, amount1: 0.4, chem2: CHEM.pain, amount2: 0.3 }] });
   b.set('fear', 0.5);
   b.stimulate(STIMULUS.patted, 0.5);
   assert.ok(Math.abs(b.get('reward') - 0.1) < 1e-6 && Math.abs(b.get('fear') - 0.45) < 1e-6);
@@ -50,11 +50,11 @@ test('drives: a stimulus releases exactly amount x strength of each chemical, cl
 });
 
 test('drives: a stimulus gene survives encoding and decodes to its event and amounts', (Evo, assert) => {
-  const spec = { gene: 'Stimulus', event: Evo.STIMULUS.wasShoved, chem1: 'anger', amount1: 0.1, chem2: 'fear', amount2: -0.05 };
+  const spec = { gene: 'Stimulus', stimulus: Evo.STIMULUS.wasShoved, chem1: 'anger', amount1: 0.1, chem2: 'fear', amount2: -0.05 };
   const traits = new Evo.Genome([0, ...Evo.encodeGene(spec), 0], 'X').develop();
   assert.strictEqual(traits.stimuli.length, 1);
   const s = traits.stimuli[0];
-  assert.strictEqual(Evo.STIMULI[s.event], 'wasShoved');
+  assert.strictEqual(Evo.STIMULI[s.stimulus], 'wasShoved');
   assert.strictEqual(s.chem1, Evo.CHEM.anger); assert.strictEqual(s.chem2, Evo.CHEM.fear);
   assert.ok(Math.abs(s.amount1 - 0.1) < 0.002 && Math.abs(s.amount2 + 0.05) < 0.002);
 });
@@ -120,7 +120,7 @@ test('drives: the Up close cells report the look of what is at the mouth', (Evo,
   const c = world.creatures[0];
   world.items = []; world.creatures = [c];
   Object.assign(c, { facing: 1, asleep: false });
-  const near = () => { c.sense(world); return Object.fromEntries(c.brain.lobes.near.map((i, k) => [Evo.VISION_FEATURES[k].key, c.drive[i]])); };
+  const near = () => { c.sense(world); return Object.fromEntries(c.brain.lobes.near.map((i, k) => [Evo.VISION_FEATURES[k].key, c.input[i]])); };
   assert.ok(Object.values(near()).every(v => v === 0), 'nothing at the mouth');
   world.spawnItem('mimic', c.mouthX + 2, c.y);
   const d = near(), N = Evo.CREATURE.NEURAL_GAIN, look = Evo.ITEM_TYPES.mimic.look;

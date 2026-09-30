@@ -315,7 +315,7 @@
 
       // The last thing that happened to it
       const ls = c.lastStimulus;
-      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.ago(c.ageTicks - ls.tick)}</span>` : '<span class="muted">nothing yet</span>');
+      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.ago(c.ageTicks - ls.age)}</span>` : '<span class="muted">nothing yet</span>');
       if (b.seizures || b.brake) row('Seizures', `${b.brake ? '<b>brake on now</b> · ' : ''}the brake has come on ${plural(b.seizures, 'time', 'times')}`, ' alert');
       $('mindRows').innerHTML = rows.join('');
       this.brainView.marks.attended = this.attendedCell(b, att);

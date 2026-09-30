@@ -229,7 +229,7 @@ two hemifields: things to the left and things to the right); y = front (senses) 
 | Touch | contact left/right, mouth left/right, lips (water), back (pat/hit), feet, pain, gentle touch, falling, in water |
 | Taste | sweet, starchy, savoury, fatty, bitter, water |
 | Up close | one cell per vision feature: the look of whatever is at the mouth |
-| Drives | 18 cells (`N_NEEDS`), each driven by whichever chemicals receptor genes attach to it; the founder feels drive k in cell k (`Evo.driveCell`), 2 spare |
+| Drives | 18 cells (`N_DRIVE_CELLS`), each driven by whichever chemicals receptor genes attach to it; the founder feels drive k in cell k (`Evo.driveCell`), 2 spare |
 | Feelings | reward cell, punishment cell and 6 general cells (emitter genes can read these) |
 | Thinking, Side lobes, Central lobe, Brainstem | general-purpose cells |
 | Movement | walk left, walk right, jump, eat, grab/drop, rest, call, run, drink |

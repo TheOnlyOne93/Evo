@@ -121,9 +121,9 @@
       this.carrying = null;            // An item held in the mouth
       this.pregnancy = null;           // { genome, fatherId, generation, parents, progress, reserves }
       this.timesMated = 0;
-      this.lastStimulus = null;        // { key, strength, tick }: the last thing that happened to it (the card shows it)
+      this.lastStimulus = null;        // { key, strength, age }: the last thing that happened to it (the card shows it)
       this.meals = 0;
-      this.recentStimuli = [];         // the last 8 { key, strength, tick } (oldest first), for the observers; nothing in the sim reads it
+      this.recentStimuli = [];         // the last 8 { key, strength, age } (oldest first), for the observers; nothing in the sim reads it
       this.stimCount = 0;              // how many stimuli there have ever been (numbers the ring's entries)
 
       // What the muscles are doing
@@ -142,7 +142,7 @@
       this.novelty = 0;                // How new the thing in front of it looks (0..1)
 
       this.loci = new Float32Array(BODY_LOCI.length);
-      this.drive = new Float32Array(this.brain.N);
+      this.input = new Float32Array(this.brain.N);
       this.senses = null;              // The last sensory reading (for the UI)
       this.visionBuffer = new Float32Array(SIGHT_CELLS); // Sight cell signals (sightIndex order), reused each tick
     }
@@ -192,7 +192,7 @@
     // Something happened to the creature or it did something (a key of Evo.STIMULI): its stimulus
     // genes release their chemicals
     stimulate(key, s = 1) {
-      this.lastStimulus = { key, strength: s, tick: this.ageTicks };
+      this.lastStimulus = { key, strength: s, age: this.ageTicks };
       this.recentStimuli.push(this.lastStimulus);
       if (this.recentStimuli.length > 8) this.recentStimuli.shift();
       this.stimCount++;
@@ -333,8 +333,8 @@
 
       // Scents the body releases (receptor genes decide how much). Queued, like the egg below:
       // they reach the world once every body has run
-      const sex = Math.max(0, c.effect('scentSex')) * SCALE.scentSex;
-      if (sex > 0) world.queueScent(this.x, this.y - this.size * 0.3, this.sex === 'FEMALE' ? Evo.SCENT.muskF : Evo.SCENT.muskM, sex);
+      const sexScent = Math.max(0, c.effect('scentSex')) * SCALE.scentSex;
+      if (sexScent > 0) world.queueScent(this.x, this.y - this.size * 0.3, this.sex === 'FEMALE' ? Evo.SCENT.muskF : Evo.SCENT.muskM, sexScent);
       const alarm = Math.max(0, c.effect('scentAlarm')) * SCALE.scentAlarm;
       if (alarm > 0) world.queueScent(this.x, this.y - this.size * 0.3, Evo.SCENT.alarm, alarm);
 
@@ -385,8 +385,8 @@
 
     // ---------- Senses: the world becomes neuron currents ----------
     sense(world) {
-      const brain = this.brain, T = this.traits, drive = this.drive;
-      drive.fill(0);
+      const brain = this.brain, T = this.traits, input = this.input;
+      input.fill(0);
       const gainScale = this.asleep ? 0.15 : 1;
       const light = world.clock.light;
       const see = T.nightVision + (1 - T.nightVision) * light;
@@ -429,7 +429,7 @@
       if (pond) look(pond.x, pond.y, POND_SIGHT_RADIUS, { blue: 1 });
       const sightGain = NEURAL_GAIN * SIGHT_GAIN * T.opticGain * gainScale;
       const sightIdx = brain.lobes.sight;
-      for (let k = 0; k < SIGHT_CELLS; k++) drive[sightIdx[k]] = sight[k] * sightGain;
+      for (let k = 0; k < SIGHT_CELLS; k++) input[sightIdx[k]] = sight[k] * sightGain;
 
       // Smell: odour at each antenna tip (one reaching left, one right). Receptors respond
       // logarithmically (Weber-Fechner): faint traces register, stronger ones still read as stronger.
@@ -440,8 +440,8 @@
         const l = Math.min(1, world.sampleScent(ex - T.noseReach, ey, o));
         const r = Math.min(1, world.sampleScent(ex + T.noseReach, ey, o));
         scentsL.push(l); scentsR.push(r);
-        drive[smellIdx[smellIndex('L', o)]] = logResponse(l, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
-        drive[smellIdx[smellIndex('R', o)]] = logResponse(r, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
+        input[smellIdx[smellIndex('L', o)]] = logResponse(l, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
+        input[smellIdx[smellIndex('R', o)]] = logResponse(r, RECEPTOR_K, RECEPTOR_NORM) * smellGain;
       }
 
       // Hearing: another's call, louder when near, on the side it came from. A call is made in the
@@ -461,18 +461,18 @@
       }
       this.stim.heardCall = Math.max(this.stim.heardCall * 0.9, heard);
       if (heardNew > 0) this.stimulate('heardCall', heardNew);
-      brain.lobes.hearing.forEach((i, k) => { drive[i] = hear[k] * NEURAL_GAIN * gainScale; });
+      brain.lobes.hearing.forEach((i, k) => { input[i] = hear[k] * NEURAL_GAIN * gainScale; });
 
       // Touch
       const s = this.stim;
-      const mouthItem = this.thingAtMouth(world);
+      const mouthThing = this.thingAtMouth(world);
       const touch = {
-        contactL: Math.max(s.contactL, mouthItem && mouthItem.kind === 'creature' && this.facing < 0 ? 1 : 0),
-        contactR: Math.max(s.contactR, mouthItem && mouthItem.kind === 'creature' && this.facing > 0 ? 1 : 0),
+        contactL: Math.max(s.contactL, mouthThing && mouthThing.kind === 'creature' && this.facing < 0 ? 1 : 0),
+        contactR: Math.max(s.contactR, mouthThing && mouthThing.kind === 'creature' && this.facing > 0 ? 1 : 0),
         // The mouth feels food and objects, the lips feel water; another creature at the mouth is
         // felt as a touch on that side
-        mouthL: this.facing < 0 && mouthItem && mouthItem.kind === 'item' ? 1 : 0,
-        mouthR: this.facing > 0 && mouthItem && mouthItem.kind === 'item' ? 1 : 0,
+        mouthL: this.facing < 0 && mouthThing && mouthThing.kind === 'item' ? 1 : 0,
+        mouthR: this.facing > 0 && mouthThing && mouthThing.kind === 'item' ? 1 : 0,
         lips: this.waterAtMouth(world) ? 1 : 0,
         back: s.back, feet: this.onGround ? 1 : 0, pain: Math.min(1, s.impact + this.chem.get('pain')),
         gentle: s.gentle, falling: this.loci[LOCUS.falling], inWater: this.inWater ? 1 : 0
@@ -480,19 +480,19 @@
       Evo.BRAIN_BODY_PLAN.TOUCH.forEach((t, k) => {
         // Pain, impacts and pats get through even to a sleeper
         const g = (t.key === 'pain' || t.key === 'back') ? 1 : gainScale;
-        drive[brain.lobes.touch[k]] = touch[t.key] * NEURAL_GAIN * g;
+        input[brain.lobes.touch[k]] = touch[t.key] * NEURAL_GAIN * g;
       });
-      Evo.BRAIN_BODY_PLAN.TASTES.forEach((t, k) => { drive[brain.lobes.taste[k]] = this.taste[t.key] * NEURAL_GAIN; });
+      Evo.BRAIN_BODY_PLAN.TASTES.forEach((t, k) => { input[brain.lobes.taste[k]] = this.taste[t.key] * NEURAL_GAIN; });
       // Up close: how the thing at the mouth looks (Up close cells are in vision feature order)
-      const near = !mouthItem ? null : mouthItem.kind === 'item' ? world.lookOf(mouthItem.item) : world.lookOfCreature(mouthItem.creature);
-      brain.lobes.near.forEach((i, k) => { drive[i] = near ? (near[FEATURE_KEYS[k]] || 0) * NEURAL_GAIN * gainScale : 0; });
+      const near = !mouthThing ? null : mouthThing.kind === 'item' ? world.lookOf(mouthThing.item) : world.lookOfCreature(mouthThing.creature);
+      brain.lobes.near.forEach((i, k) => { input[i] = near ? (near[FEATURE_KEYS[k]] || 0) * NEURAL_GAIN * gainScale : 0; });
 
       // Needs and Feelings cells: driven by whichever chemicals receptor genes attached to them
       const fx = this.chem.effects;
-      brain.lobes.needs.forEach((i, k) => { drive[i] = fx[TARGET[`need:${k}`]] * NEURAL_GAIN; });
-      brain.lobes.feelings.forEach((i, k) => { drive[i] = fx[TARGET[`limbic:${k}`]] * NEURAL_GAIN; });
+      brain.lobes.needs.forEach((i, k) => { input[i] = fx[TARGET[`need:${k}`]] * NEURAL_GAIN; });
+      brain.lobes.feelings.forEach((i, k) => { input[i] = fx[TARGET[`limbic:${k}`]] * NEURAL_GAIN; });
 
-      this.senses = { sight, scentsL, scentsR, hear, touch, mouthItem };
+      this.senses = { sight, scentsL, scentsR, hear, touch, mouthThing };
     }
 
     // Water the lips can reach: in the water, it is at the chin (even facing the bank); on the bank
@@ -559,7 +559,7 @@
       const fx = this.chem.effects;
       brain.outcome[0] = fx[TARGET['limbic:0']];
       brain.outcome[1] = fx[TARGET['limbic:1']];
-      brain.tick(this.drive, {
+      brain.tick(this.input, {
         noise: 0.35 + this.chem.get('toxin') * 12,
         arousal: this.chem.effect('arousal'),
         canFire: this.chem.get('glucose') > 0.0005,
@@ -601,10 +601,10 @@
       const strength = this.strength;
       let effort = 0;
       // Muscles integrate their spike trains into a smooth force
-      const act = this.muscle;
-      for (let k = 0; k < act.length; k++) act[k] = act[k] * 0.88 + m[k] * 0.35;
+      const muscle = this.muscle;
+      for (let k = 0; k < muscle.length; k++) muscle[k] = muscle[k] * 0.88 + m[k] * 0.35;
       // Walking: the left and right walk muscles pull against each other; the stronger one wins
-      const pull = act[MOTOR_INDEX.walkR] - act[MOTOR_INDEX.walkL];
+      const pull = muscle[MOTOR_INDEX.walkR] - muscle[MOTOR_INDEX.walkL];
       const push = Math.abs(pull) > 0.08 ? Math.sign(pull) : 0;
       if (m[MOTOR_INDEX.run]) this.runTimer = 20;
       const running = this.runTimer > 0;

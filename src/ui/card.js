@@ -11,7 +11,7 @@
 
   // Why it might be doing it: its strongest need, or else how it feels
   function reason(c) {
-    const [need] = Evo.needsOf(c, 1, Evo.DRIVE_SHOWN.card);
+    const [need] = Evo.shownDrives(c, 1, Evo.DRIVE_SHOWN.card);
     if (need) return need.word.toLowerCase();
     const mood = c.mood;
     return mood === 'calm' ? '' : mood;
@@ -78,7 +78,7 @@
       }
       $('cardSub').textContent = `${Evo.STAGES[c.stage].word} · gen ${c.generation} · ${t.clock(c.ageTicks)} old`;
       $('cardDoing').textContent = doing(c, world);
-      const needs = c.dead ? [] : Evo.needsOf(c, 3);
+      const needs = c.dead ? [] : Evo.shownDrives(c, 3);
       H.setHtml($('cardNeeds'), needs.length
         ? needs.map(n => chip(n.level > Evo.DRIVE_SHOWN.strong ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percent(n.level)}`)).join('')
         : c.dead ? '' : chip('need calm', '🙂', 'No pressing needs'));

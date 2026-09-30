@@ -42,13 +42,13 @@ test('brain: nothing ever synapses onto a sensory cell', (Evo, assert) => {
 
 test('brain: weights stay inside their limits under relentless reward and punishment', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
+  const input = new Float32Array(brain.N);
   for (let t = 0; t < 1500; t++) {
-    for (let i = 0; i < brain.N; i++) drive[i] = brain.isSensory[i] ? 25 * Evo.random() : 0;
+    for (let i = 0; i < brain.N; i++) input[i] = brain.isSensory[i] ? 25 * Evo.random() : 0;
     // Outcomes that keep coming, in pulses, so they never become fully expected
     const pulse = t % 40 < 10 ? 1 : 0;
     brain.outcome[0] = t < 750 ? pulse : 0; brain.outcome[1] = t < 750 ? 0 : pulse;
-    brain.tick(drive, TICK_OPTS);
+    brain.tick(input, TICK_OPTS);
     if (t % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
   }
   const { WEIGHT_MIN, WEIGHT_MAX } = Evo.BRAIN;
@@ -88,13 +88,13 @@ test('brain: founders are born with their reflex arcs', (Evo, assert) => {
 
 test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
+  const input = new Float32Array(brain.N);
   let before = 0, after = 0;
   const cortex = brain.lobes.cortex;
   for (let t = 0; t < 400; t++) {
     const on = t >= 200;
-    for (const i of brain.lobes.sight) drive[i] = on ? 30 : 0;
-    brain.tick(drive, TICK_OPTS);
+    for (const i of brain.lobes.sight) input[i] = on ? 30 : 0;
+    brain.tick(input, TICK_OPTS);
     for (const i of cortex) { const f = brain.hist[i] & 1; if (on) after += f; else before += f; }
   }
   assert.ok(after > before, `cortex spikes: ${before} quiet, ${after} seeing`);
@@ -127,12 +127,12 @@ test('brain: the body plan index helpers match the sensory neurons', (Evo, asser
 
 test('brain: an injected input arrives after its delay', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const i = brain.lobes.cortex[0], drive = new Float32Array(brain.N);
+  const i = brain.lobes.cortex[0], input = new Float32Array(brain.N);
   const opts = { noise: 0, arousal: 0, canFire: false };
-  for (let t = 0; t < 30; t++) brain.tick(drive, opts);
+  for (let t = 0; t < 30; t++) brain.tick(input, opts);
   brain.inject(i, 15, 3);
   const v = [];
-  for (let t = 0; t < 4; t++) { brain.tick(drive, opts); v.push(brain.v[i]); }
+  for (let t = 0; t < 4; t++) { brain.tick(input, opts); v.push(brain.v[i]); }
   assert.ok(v[2] > v[1] + 10, `the input lands on the third tick: ${v.map(x => x.toFixed(1))}`);
 });
 
@@ -140,13 +140,13 @@ test('brain: an injected input arrives after its delay', (Evo, assert) => {
 function twoMuscles(Evo, seed) {
   Evo.seed(seed);
   const brain = founderBrain(Evo);
-  const [L, R] = brain.lobes.motor, drive = new Float32Array(brain.N), opts = TICK_OPTS;
-  for (let t = 0; t < 100; t++) brain.tick(drive, opts);
+  const [L, R] = brain.lobes.motor, input = new Float32Array(brain.N), opts = TICK_OPTS;
+  for (let t = 0; t < 100; t++) brain.tick(input, opts);
   const fired = i => brain.hist[i] & 1;
   let active = 0, both = 0, winner = -1, held = 0;
   for (let t = 0; t < 400; t++) {
-    drive[L] = 2.1; drive[R] = 2.0;
-    brain.tick(drive, opts);
+    input[L] = 2.1; input[R] = 2.0;
+    brain.tick(input, opts);
     if (fired(L) || fired(R)) active++;
     if (fired(L) && fired(R)) both++;
     // held: ticks the loser stays silent after the winner first fires alone
@@ -159,8 +159,8 @@ function twoMuscles(Evo, seed) {
   const loser = winner === L ? R : L;
   let takeover = null;
   for (let t = 0; t < 60 && takeover === null; t++) {
-    drive[loser] = 4.0; drive[winner] = 2.0;
-    brain.tick(drive, opts);
+    input[loser] = 4.0; input[winner] = 2.0;
+    brain.tick(input, opts);
     if (fired(loser) && !fired(winner)) takeover = t;
   }
   return { coFiring: both / Math.max(1, active), held, takeover };
@@ -177,11 +177,11 @@ test('brain: of two muscles driven almost equally, one wins and keeps going; a d
 
 test('brain: decided() names the muscle that is winning, and nothing when all are quiet', (Evo, assert) => {
   Evo.seed(1);
-  const brain = founderBrain(Evo), drive = new Float32Array(brain.N), opts = { noise: 0, arousal: 0, canFire: true };
-  for (let t = 0; t < 100; t++) brain.tick(drive, opts);
+  const brain = founderBrain(Evo), input = new Float32Array(brain.N), opts = { noise: 0, arousal: 0, canFire: true };
+  for (let t = 0; t < 100; t++) brain.tick(input, opts);
   assert.strictEqual(brain.decided(), -1, 'quiet');
   const eat = Evo.MOTORS.findIndex(m => m.key === 'eat');
-  for (let t = 0; t < 40; t++) { drive[brain.lobes.motor[eat]] = 6; brain.tick(drive, opts); }
+  for (let t = 0; t < 40; t++) { input[brain.lobes.motor[eat]] = 6; brain.tick(input, opts); }
   assert.strictEqual(brain.decided(), eat);
 });
 
@@ -190,7 +190,7 @@ function attentionWinner(Evo, seed, drive) {
   Evo.seed(seed);
   const brain = founderBrain(Evo), P = Evo.BRAIN_BODY_PLAN;
   const input = new Float32Array(brain.N), opts = TICK_OPTS;
-  const cell = Evo.founderKit.need(drive);
+  const cell = Evo.driveCell(drive);
   const count = {};
   for (let t = 0; t < 400; t++) {
     input[brain.lobes.sight[P.sightIndex('L', 'low', 'red')]] = 15;
@@ -221,13 +221,13 @@ test('brain: attention goes to what the creature needs', (Evo, assert) => {
 function cortexAfterSight(Evo, seed, genes) {
   Evo.seed(seed);
   const brain = new Evo.Brain(Evo.Genome.founder('X', genes).develop()), P = Evo.BRAIN_BODY_PLAN;
-  const drive = new Float32Array(brain.N), opts = TICK_OPTS;
+  const input = new Float32Array(brain.N), opts = TICK_OPTS;
   const eyes = P.BANDS.map(band => brain.lobes.sight[P.sightIndex('L', band, 'red')]);
   const spikes = { before: 0, seeing: 0, gap: 0, after: 0 };
   for (let t = 0; t < 200; t++) {
     const seeing = t >= 50 && t < 110;
-    for (const i of eyes) drive[i] = seeing ? 20 : 0;
-    brain.tick(drive, opts);
+    for (const i of eyes) input[i] = seeing ? 20 : 0;
+    brain.tick(input, opts);
     let n = 0;
     for (const i of brain.lobes.cortex) n += brain.hist[i] & 1;
     spikes[t < 50 ? 'before' : seeing ? 'seeing' : t < 120 ? 'gap' : 'after'] += n;

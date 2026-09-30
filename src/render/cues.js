@@ -44,11 +44,11 @@
     cardBar: 0.02,  // the card's drive bars
     strip: 0.45,    // the badge and hover words on the strip's avatars
     roster: 0.2,    // the need beside each name in the population roster
-    cue: 0.25,      // needsOf's default: the card's need chips
+    cue: 0.25,      // shownDrives' default: the card's need chips
     strong: 0.6     // a need chip on the card drawn as strong
   };
   // Its strongest needs, strongest first: [{ key, level, icon, word }] for drives above `min`
-  Evo.needsOf = (c, n = 3, min = Evo.DRIVE_SHOWN.cue) => c.topDrives(n).filter(([, v]) => v > min)
+  Evo.shownDrives = (c, n = 3, min = Evo.DRIVE_SHOWN.cue) => c.topDrives(n).filter(([, v]) => v > min)
     .map(([key, level]) => ({ key, level, ...(Evo.DRIVE_LOOK[key] || { icon: '•', word: key }) }));
   // Icons for actions (keys are Evo.MOTORS), shown in dreams
   Evo.MOTOR_ICON = { walkL: '👣', walkR: '👣', jump: '🦘', eat: '🍎', grab: '✊', rest: '💤', call: '🎵', run: '💨', drink: '💧' };

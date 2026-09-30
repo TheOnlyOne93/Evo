@@ -290,7 +290,7 @@
     // Chemistry
     Stimulus(v, x, w) {
       const parts = [[v.chem1, v.amount1], [v.chem2, v.amount2]].filter(([c, a]) => c && a).map(([c, a]) => `${w.chem(c).toLowerCase()} ${signed(a)}`);
-      return `When it ${Evo.STIMULUS_WORDS[Evo.STIMULI[x.event]]}: ${parts.join(', ') || 'nothing'}`;
+      return `When it ${Evo.STIMULUS_WORDS[Evo.STIMULI[x.stimulus]]}: ${parts.join(', ') || 'nothing'}`;
     },
     Emitter(v, x, w) {
       const reading = w.locus(v.locus), out = w.chem(v.chem).toLowerCase(), { invert, digital } = Evo.flagsOf(v.flags);
@@ -359,7 +359,7 @@
     sr: 'senders spread', radius: 'target spread', a: 'input', b: 'second input', c: 'output', d: 'second output',
     yieldC: 'output amount', yieldD: 'second output amount', chem1: 'chemical', amount1: 'amount', chem2: 'second chemical',
     amount2: 'second amount', lobeA: 'input region', indexA: 'input cell', lobeB: 'second input region', indexB: 'second input cell',
-    motor: 'action', flags: 'switches', tau: 'holding time', chemShift: 'chemical shift'
+    motor: 'action', flags: 'switches', tau: 'holding time', chemShift: 'chemical shift', stimulus: 'event'
   };
   const fieldWord = key => FIELD_WORDS[key] || words(key);
 

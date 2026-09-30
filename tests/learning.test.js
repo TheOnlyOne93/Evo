@@ -4,43 +4,43 @@
 const { founderBrain, TICK_OPTS, quietWorld, callThenPat, timeCosts } = require('./helpers');
 
 // Random sensory drive, as a creature looking around would get
-function senseAround(Evo, brain, drive) {
-  for (let i = 0; i < brain.N; i++) drive[i] = brain.isSensory[i] && brain.neurons[i].lobe !== 'needs' ? 25 * Evo.random() : 0;
+function senseAround(Evo, brain, input) {
+  for (let i = 0; i < brain.N; i++) input[i] = brain.isSensory[i] && brain.neurons[i].lobe !== 'needs' ? 25 * Evo.random() : 0;
 }
 
 test('learning: modulator cells stay silent without an outcome', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
+  const input = new Float32Array(brain.N);
   for (let t = 0; t < 600; t++) {
-    senseAround(Evo, brain, drive);
+    senseAround(Evo, brain, input);
     brain.outcome[0] = 0; brain.outcome[1] = 0;
-    brain.tick(drive, TICK_OPTS);
+    brain.tick(input, TICK_OPTS);
   }
   for (const m of brain.modulatorCells) assert.ok(brain.rate[m] < 0.02, `modulator ${m} fires at ${brain.rate[m].toFixed(3)}`);
 });
 
 test('learning: an unexpected outcome is a prediction error; a constant one stops being one', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
-  for (let t = 0; t < 200; t++) brain.tick(drive, TICK_OPTS);
+  const input = new Float32Array(brain.N);
+  for (let t = 0; t < 200; t++) brain.tick(input, TICK_OPTS);
   brain.outcome[0] = 0.5;
-  brain.tick(drive, TICK_OPTS);
+  brain.tick(input, TICK_OPTS);
   assert.ok(brain.delta[0] > 0.3, `error at an unexpected reward: ${brain.delta[0].toFixed(3)}`);
   const m = brain.modulatorCells[0];
   let fired = 0;
-  for (let t = 0; t < 3; t++) { brain.tick(drive, TICK_OPTS); fired += brain.hist[m] & 1; }
+  for (let t = 0; t < 3; t++) { brain.tick(input, TICK_OPTS); fired += brain.hist[m] & 1; }
   assert.ok(fired > 0, 'the reward cell fires on the error');
-  for (let t = 0; t < 400; t++) brain.tick(drive, TICK_OPTS);
+  for (let t = 0; t < 400; t++) brain.tick(input, TICK_OPTS);
   assert.ok(Math.abs(brain.delta[0]) < 0.05, `error once the reward is usual: ${brain.delta[0].toFixed(3)}`);
   // Punishment works the same way on its own channel
   brain.outcome[1] = 0.5;
-  brain.tick(drive, TICK_OPTS);
+  brain.tick(input, TICK_OPTS);
   assert.ok(brain.delta[1] > 0.3 && Math.abs(brain.delta[0]) < 0.05);
 });
 
 test('learning: a cue that comes before reward comes to predict it', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
+  const input = new Float32Array(brain.N);
   const P = Evo.BRAIN_BODY_PLAN;
   const cue = P.SIDES.flatMap(side => P.BANDS.map(band => brain.lobes.sight[P.sightIndex(side, band, 'yellow')]));
   const valueOf = () => brain.valueIn[0].reduce((w, s) => w + (cue.includes(brain.sSrc[s]) ? brain.sW[s] : 0), 0);
@@ -48,9 +48,9 @@ test('learning: a cue that comes before reward comes to predict it', (Evo, asser
   const trial = reward => {
     let error = 0;
     for (let t = 0; t < 120; t++) {
-      for (const i of cue) drive[i] = t < 20 ? 30 : 0;
+      for (const i of cue) input[i] = t < 20 ? 30 : 0;
       brain.outcome[0] = reward && t === 20 ? 0.5 : 0;
-      brain.tick(drive, TICK_OPTS);
+      brain.tick(input, TICK_OPTS);
       // The prediction fades over a few ticks after the cue goes, so the error at the reward is
       // the sum over those ticks
       if (t >= 20 && t < 32) error += brain.delta[0];
@@ -78,14 +78,14 @@ function creditTrial(Evo, channel, weight) {
     if (old !== undefined) brain.removeSynapse(old);
   }
   const ax = brain.addSynapse(A, X, weight), ay = brain.addSynapse(A, Y, weight);
-  const drive = new Float32Array(brain.N), still = { noise: 0, arousal: 0, canFire: true };
-  for (let t = 0; t < 200; t++) brain.tick(drive, still);
+  const input = new Float32Array(brain.N), still = { noise: 0, arousal: 0, canFire: true };
+  for (let t = 0; t < 200; t++) brain.tick(input, still);
   const wx = brain.sW[ax], wy = brain.sW[ay];
   brain.inject(A, 60, 1);
   brain.inject(X, 60, brain.sDelay[ax] + 2);
   for (let t = 0; t < 120; t++) {
     brain.outcome[channel] = t >= 30 && t < 45 ? 0.5 : 0;
-    brain.tick(drive, still);
+    brain.tick(input, still);
   }
   return { dx: brain.sW[ax] - wx, dy: brain.sW[ay] - wy, fieldX: field[X] };
 }
@@ -119,12 +119,12 @@ test('learning: a brain tick stays within its time budget', (Evo, assert) => {
 
 test('learning: flat-out input and relentless reward neither run away nor break the weights', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  const drive = new Float32Array(brain.N);
-  for (let i = 0; i < brain.N; i++) drive[i] = brain.isSensory[i] ? 30 : 0;
+  const input = new Float32Array(brain.N);
+  for (let i = 0; i < brain.N; i++) input[i] = brain.isSensory[i] ? 30 : 0;
   let spikes = 0;
   for (let t = 0; t < 3000; t++) {
     brain.outcome[0] = t % 50 < 25 ? 1 : 0;
-    brain.tick(drive, { noise: 2, arousal: 3, canFire: true });
+    brain.tick(input, { noise: 2, arousal: 3, canFire: true });
     if (t >= 1000) spikes += brain.spikesThisTick;
     if (brain.tickCount % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
   }
@@ -144,23 +144,23 @@ function sleepAfterReward(Evo, forget) {
   const old = brain.incoming(X).find(s => brain.sSrc[s] === A);
   if (old !== undefined) brain.removeSynapse(old);
   const ax = brain.addSynapse(A, X, 0.2);
-  const drive = new Float32Array(brain.N);
+  const input = new Float32Array(brain.N);
   const awake = { ...TICK_OPTS, asleep: false }, asleep = { ...awake, asleep: true };
-  for (let t = 0; t < 200; t++) brain.tick(drive, awake);
+  for (let t = 0; t < 200; t++) brain.tick(input, awake);
   for (let trial = 0; trial < 4; trial++) {
     for (let t = 0; t < 100; t++) {
-      drive[A] = t < 30 ? 30 : 0;
-      drive[X] = t >= 5 && t < 30 ? 20 : 0;
+      input[A] = t < 30 ? 30 : 0;
+      input[X] = t >= 5 && t < 30 ? 20 : 0;
       brain.outcome[0] = t >= 25 && t < 30 ? 0.5 : 0;
-      brain.tick(drive, awake);
+      brain.tick(input, awake);
     }
   }
-  drive.fill(0);
+  input.fill(0);
   if (forget) brain.episodes.length = 0;
   const episodes = brain.episodes.length, w0 = brain.sW[ax];
   for (let t = 0; t < 3000; t++) {
     brain.sleepStep([], null);
-    brain.tick(drive, asleep);
+    brain.tick(input, asleep);
   }
   return { episodes, dw: brain.sW[ax] - w0 };
 }

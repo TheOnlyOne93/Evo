@@ -2,9 +2,9 @@
 (function (Evo) {
   'use strict';
   const { FEELING_TAGS, SIDES, sideX, MUSCLE_Z, FEELING_Z } = Evo.BRAIN_BODY_PLAN;
-  const { approach, guide, prior, need, FEATURES, ODOURS } = Evo.founderKit;
+  const { approach, guide, prior, driveCell, FEATURES, ODOURS } = Evo.founderKit;
   // A drive's own cell in the Drives lobe, as a source window for a guidance gene
-  const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[need(key)], 0.05];
+  const driveWindow = key => [...Evo.DRIVE_CELL_TAGS[driveCell(key)], 0.05];
   // Top-down attention: a drive's cell biases the sight copy's cells for one feature (either side)
   const attend = (drive, feature) => SIDES.map(sideX).map(x =>
     guide('needs', [x, (FEATURES.indexOf(feature) + 0.5) / FEATURES.length, 0.22], { radius: 0.08, weight: 0.3, reach: 1.2, from: driveWindow(drive) }));
