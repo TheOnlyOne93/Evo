@@ -21,7 +21,7 @@ Each system has its own doc. Change the doc with the code it describes.
 | Drawing: the creature pose, the world view, the brain map, the family tree | [RENDERING.md](RENDERING.md) | `src/render/` |
 | The page: the main loop, the hand and tools, the inside view, layout, styles | [INTERFACE.md](INTERFACE.md) | `src/ui/`, `index.html`, `styles/` |
 | Tests, the fingerprint, the behaviour bench and ecology tools, CI, lint | [TESTING.md](TESTING.md) | `tests/`, `tools/`, `.github/`, `eslint.config.js`, `.gitattributes`, `.editorconfig` |
-| Checking drawing and interface changes in a browser; the lab pages | [BROWSER_CHECKS.md](BROWSER_CHECKS.md) | `tools/serve.js`, `dev/` |
+| Opening the game and the lab pages in a browser | [BROWSER_CHECKS.md](BROWSER_CHECKS.md) | `tools/serve.js` |
 
 ## How the *Creatures* ideas map
 

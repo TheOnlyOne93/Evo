@@ -167,7 +167,7 @@
 
     // A hash of every static sprite, by what it shows ('tiles', then each kind of feature), in
     // every season at two of the view's resolutions. A painter refactor must leave every hash as
-    // it was (docs/BROWSER_CHECKS.md). Each sprite is built by the view's own sprite builder and
+    // it was. Each sprite is built by the view's own sprite builder and
     // dropped again, so the view's cache ends as it began.
     function paintHash(levels = [0, 2]) {
       const hashes = {};
@@ -198,7 +198,7 @@
       return Object.fromEntries(Object.entries(hashes).map(([k, h]) => [k, (h >>> 0).toString(16).padStart(8, '0')]));
     }
 
-    // For scripted checks (docs/BROWSER_CHECKS.md)
+    // For scripted checks
     window.lab = {
       world, view, state, hand, clock, focus, refresh, setPhase, paintHash,
       setSeason: s => { setSeason(s); refresh(); },
