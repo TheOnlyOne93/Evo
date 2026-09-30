@@ -19,15 +19,19 @@ Open `index.html` in a browser (double-click works; there is no build step). Run
 * **Add a creature**: a grown female (♀) or male (♂) arrives near the one you follow. On a phone,
   each toolbar group (Food, More, Add) opens from one button.
 * **Inside view**: the followed creature's body chemistry, brain, genes and family, and the world.
+* Zoom: mouse wheel or two-finger pinch. **Sound** (top right) turns the sound on or off, and
+  **Scent** (beside the speed buttons) shows the scents in the air. **Skip to the next season** is
+  in the Inside view's World tab.
 * Keys: arrows / WASD pan, `+` `−` zoom, `0` reset zoom, `F` follow, `Tab` next creature,
-  `Space` pause, `.` step one tick while paused, `1`–`4` speed, `Esc` back to the hand.
+  `Shift+Tab` previous creature, `Space` pause, `.` step one tick while paused, `1`–`4` speed,
+  `Esc` back to the hand.
 
 ## Tests and tools
 
 ```sh
 node tests/run.js              # everything
 node tests/run.js genome       # tests whose name contains "genome"
-node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds non-gating metrics)
+node tools/behave.js 12        # behaviour bench (scenarios in tools/scenarios/; --report adds metrics, printed only with --report)
 node tools/evaluate.js 2 3     # ecology: several seeds in parallel, meals, sleep, births, deaths
 node tools/simulate.js 2 1     # one headless run with a running report
 node tools/fingerprint.js --check  # determinism: sim, pose and text hashes match tools/fingerprint.json (--save rewrites it)

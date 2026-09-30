@@ -17,7 +17,7 @@
     { key: 'more', word: 'Toys & more', short: 'More', tools: ['ball', 'lure', 'egg', 'thorn'] }
   ];
   const DROP_HINTS = {
-    fruit: 'Fruit: sugar', grain: 'Grain: starch and a little protein', dew: 'Dew: water', grub: 'Grub: protein and fat that stays put',
+    fruit: 'Fruit: sugar', grain: 'Grain: starch and a little protein', dew: 'Dew: water', grub: 'Grub: protein and fat that crawls slowly',
     bug: 'Bug: protein that runs away', mimic: 'Mimic: looks and smells like fruit, but it is poisonous', lure: 'Lure: female scent that attracts males',
     ball: 'Ball: a toy to play with', egg: 'Egg: a new founder egg', thorn: 'Thorns: a thorn bush that pricks'
   };

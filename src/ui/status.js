@@ -1,4 +1,4 @@
-// The status line, the toast, and the event log along the bottom of the stage.
+// The status chips in the header, the toast at the top of the stage, and the event log along the bottom.
 (function (Evo) {
   'use strict';
   const $ = id => document.getElementById(id);

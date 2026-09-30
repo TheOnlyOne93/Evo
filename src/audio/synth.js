@@ -64,7 +64,8 @@
   }
 
   // Wire a synthesizer to a world. isFocused(creature) says which creature the player is following:
-  // its meals, sips and calls are heard clearly; the rest of the world stays quiet.
+  // its meals and sips are heard only for it, and its calls at full volume (others' calls at 0.35).
+  // Hatch, death, mate, pat and slap sounds play for every creature.
   function connectAudio(synth, world, isFocused) {
     let lastSip = 0;
     world.events.on('hatch', () => synth.hatchChime());
