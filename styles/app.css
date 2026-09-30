@@ -38,7 +38,8 @@ h2, h3 { font-family: var(--display); font-weight: 650; margin: 0; letter-spacin
 
 /* ===== Stage: the map always fills it; the lab docks, slides or sheets ===== */
 #stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
-#arena { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; background: #0b1a24; }
+#arena { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; overflow: hidden; background: #0b1a24;
+  container-type: inline-size; } /* the strip fits itself to the map, which the docked lab narrows */
 #worldCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: none; }
 @media (hover: none) { #worldCanvas { cursor: default; } }
 
@@ -315,7 +316,7 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .compact #strip { display: none; }
 .compact .tool { width: 50px; }
 .compact .bars.two-col { grid-template-columns: 1fr; }
-@media (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
+@container (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
 .compact .tab-text { display: none; }
 .compact .tab { font-size: 17px; }
 @media (max-width: 420px) {
