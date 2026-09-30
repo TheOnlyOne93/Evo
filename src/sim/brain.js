@@ -12,7 +12,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, mean, TAU, fixedRoll } = Evo.util;
-  const { LOBE_ORDER, LOBE_COUNT, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS } = Evo;
+  const { LOBE_ORDER, LOBE_COUNT, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, DRIVE_CELL_TAGS, TASTES } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -143,11 +143,8 @@
     { key: 'falling', word: 'Falling', tag: [0.80, 0.97], pos: [0.62, 0.97] },
     { key: 'inWater', word: 'In water', tag: [0.97, 0.97], pos: [0.38, 0.97] }
   ];
-  const TASTES = [
-    { key: 'sweet', word: 'Tastes sweet', tag: [0.50, 0.30] }, { key: 'starch', word: 'Tastes starchy', tag: [0.50, 0.30] },
-    { key: 'savoury', word: 'Tastes savoury', tag: [0.50, 0.30] }, { key: 'fat', word: 'Tastes fatty', tag: [0.50, 0.30] },
-    { key: 'bitter', word: 'Tastes bitter', tag: [0.50, 0.96] }, { key: 'water', word: 'Tastes water', tag: [0.50, 0.30] }
-  ];
+  // Each taste cell's chemical address (the tastes themselves are Evo.TASTES)
+  const TASTE_TAGS = { sweet: [0.50, 0.30], starch: [0.50, 0.30], savoury: [0.50, 0.30], fat: [0.50, 0.30], bitter: [0.50, 0.96], water: [0.50, 0.30] };
   // Feelings cells: 0 releases the reward chemical, 1 the punishment chemical. Cell 2's address matches
   // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
   const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENT.alarm + 0.5) / N_ODOURS],
@@ -251,7 +248,7 @@
         [sideX(side), pitch === 'low' ? 0.35 : 0.65, 0.3], [side === 'L' ? 0.08 : 0.92, 0.26 + (k % 2) * 0.04],
         { kind: 'hearing', side, pitch }));
       TOUCH.forEach(t => add('touch', [...t.tag, 0.6], t.pos, { kind: 'touch', key: t.key }, t.word));
-      TASTES.forEach((t, k) => add('taste', [...t.tag, 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }, t.word));
+      TASTES.forEach((t, k) => add('taste', [...TASTE_TAGS[t.key], 0.5], [0.40 + k * 0.04, 0.24], { kind: 'taste', key: t.key }, t.word));
       // Up close: what the thing at the mouth looks like, one cell per vision feature (in feature order)
       VISION_FEATURES.forEach((f, fi) => add('near', [0.5, (fi + 0.5) / NF, 0.45], [0.36 + fi * 0.04, 0.29], { kind: 'near', feature: f.key }));
       for (let k = 0; k < N_DRIVE_CELLS; k++) {
@@ -950,7 +947,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, TASTES, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z,
+      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, FEELING_TAGS, sideX, MUSCLE_Z, DRIVE_Z, FEELING_Z,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

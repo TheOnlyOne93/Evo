@@ -115,3 +115,10 @@ test('biochem: an Initial concentration gene that switches on later sets its che
   const text = Evo.text.describeGene(genome, gene).text;
   assert.ok(/adolescent stage/.test(text), text);
 });
+
+test('biochem: a misspelled chemical name throws', (Evo, assert) => {
+  const b = new Evo.Biochemistry();
+  assert.throws(() => b.get('glucoze'));
+  assert.throws(() => b.set('glucoze', 0.5));
+  assert.throws(() => b.add('glucoze', 0.5));
+});

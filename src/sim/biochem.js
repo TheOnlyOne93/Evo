@@ -50,9 +50,15 @@
       for (const { chem, amount } of entries) this.c[chem] = amount;
     }
 
-    get(key) { return this.c[Evo.CHEM[key]]; }
-    set(key, v) { this.c[Evo.CHEM[key]] = clamp01(v); }
-    add(key, amount) { const i = Evo.CHEM[key]; this.c[i] = clamp01(this.c[i] + amount); }
+    // The slot of a chemical by name; a misspelled name throws instead of quietly reading slot `undefined`
+    slot(key) {
+      const i = Evo.CHEM[key];
+      if (i === undefined) throw new Error(`No chemical called "${key}"`);
+      return i;
+    }
+    get(key) { return this.c[this.slot(key)]; }
+    set(key, v) { this.c[this.slot(key)] = clamp01(v); }
+    add(key, amount) { const i = this.slot(key); this.c[i] = clamp01(this.c[i] + amount); }
 
     // Something happened (stimulus: an index into Evo.STIMULI) with strength s: each stimulus gene for
     // it releases its chemicals (a negative amount removes some)

@@ -117,7 +117,7 @@ The sun's elevation is a sine of the day's phase, and light follows it. `Evo.SEA
 | carrion | A dead creature | What the body held |
 | egg, ball, lure | Laid or placed | Not food. The lure smells of female musk |
 
-Trees and grass build up with light and the season's growth factor, then drop food by chance. Growing food stops while 70 food items exist (`Evo.LIMITS.MAX_FOOD`, carrion not counted), checked once per tick. Items fall and bounce, and those that roll or bounce slide downhill. Most float on ponds, but grubs, bugs and dew sink and crawlers turn back at the water. Items rot at the end of their time unless held. An egg incubates faster in warmth, not at all in the cold or while held, and hatches when its progress reaches 1, if the world has room and nobody holds it.
+Trees and grass build up with light and the season's growth factor, then drop food by chance (the numbers are `GROWTH` in `src/sim/world.js`; a season with no growth factor for a food throws an error). A new world starts each tree with 3 fruit, each grass patch with 4 grain and each log with 2 grubs. Growing food stops while 70 food items exist (`Evo.LIMITS.MAX_FOOD`, carrion not counted), checked once per tick. Items fall and bounce, and those that roll or bounce slide downhill. Most float on ponds, but grubs, bugs and dew sink and crawlers turn back at the water. Items rot at the end of their time unless held. An egg incubates faster in warmth, not at all in the cold or while held, and hatches when its progress reaches 1, if the world has room and nobody holds it.
 
 ## Scent and sound
 

@@ -19,11 +19,11 @@ The body's fixed physiology reads a few of them by name: blood sugar is its fuel
 | Half-life | A chemical's half-life: 1 tick to about 16 minutes, or never. A chemical with no such gene does not decay |
 | Initial concentration | A chemical's level at birth, or when the gene switches on. Reserves given to a creature (an egg's contents, an arriving adult's) override it |
 
-Each body phase, `chem.step(loci)` runs the emitters, then the reactions, then decay (levels are kept in 0 to 1), then the receptors, whose summed output per target is `chem.effect(target)`. `chem.get`, `set` and `add` take a chemical's key.
+Each body phase, `chem.step(loci)` runs the emitters, then the reactions, then decay (levels are kept in 0 to 1), then the receptors, whose summed output per target is `chem.effect(target)`. `chem.get`, `set` and `add` take a chemical's key; a name that is not a chemical (a misspelling) throws an error instead of quietly reading nothing.
 
 | Table | Members |
 |---|---|
-| `Evo.BODY_LOCI`: what an emitter can read | always, body temperature, heat gain, heat loss, darkness, exertion, awake, asleep, resting, injury, health, impact, gentle touch, touching a friend, company, crowding, novelty, falling, in water, held, six tastes, gut fullness, mated, pregnant, heard a call, growth, starving, and the firing rate of each Feelings cell |
+| `Evo.BODY_LOCI`: what an emitter can read | always, body temperature, heat gain, heat loss, darkness, exertion, awake, asleep, resting, injury, health, impact, gentle touch, touching a friend, company, crowding, novelty, falling, in water, held, six tastes (the table `Evo.TASTES` makes their names), gut fullness, mated, pregnant, heard a call, growth, starving, and the firing rate of each Feelings cell |
 | `Evo.TARGETS`: what a receptor can push on | muscle strength, arousal, sleep pressure, damage, healing, fertility, growth, sex scent, alarm scent, metabolic rate, thermogenesis (shivering), cooling (panting), and one Drives cell (`need:k`) or Feelings cell (`limbic:k`) |
 | `Evo.STIMULI`: events | ate, drank, patted, slapped, nuzzled, was nuzzled, shoved, was shoved, called, heard a call, grabbed, dropped, bumped, fell, woke, fell asleep, mated, played, pricked by thorns |
 

@@ -51,7 +51,7 @@ The senses turn the settled world into one current per neuron (30 mV per unit of
 | Smell | Each odour at the two antenna tips, a nose's reach left and right of the head, on a log scale |
 | Hearing | Others' calls, louder when near, by side and pitch |
 | Touch | Contact left and right (a creature, a wall), an item at the mouth, water at the lips, the back, the feet, pain, gentle touch, falling, being in water |
-| Taste | What it has just eaten or drunk |
+| Taste | What it has just eaten or drunk. The six tastes are one table, `Evo.TASTES` in `src/sim/constants.js`: for each, the chemical in a food it reads, how strongly, the body reading emitter genes see, and whether it sits in the gut (the four that do add up to gut fullness) |
 | Up close | The look of the thing at its mouth |
 | Drives, Feelings | Whatever receptor genes attach to each cell |
 

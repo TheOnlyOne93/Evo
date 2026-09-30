@@ -13,11 +13,12 @@
   const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
   const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
   const ADULT_ARRIVAL_AGE = 0.4;    // A grown adult arrives at this fraction of its lifespan
-  // Food growth per tick (rate x light x season): fruit and grain build up to a threshold, then ripen by chance; dew forms in a dawn window
+  // Food growth per tick (rate x light x season): fruit and grain build up to a threshold, then ripen by chance; dew forms in a dawn window.
+  // start: how many a tree, grass patch or log holds when the world begins
   const GROWTH = {
-    fruit: { rate: 0.00009, threshold: 0.3, chance: 0.0025, cost: 0.06 },
-    grain: { rate: 0.0001, threshold: 0.3, chance: 0.003, cost: 0.05 },
-    dew: { from: 0.2, to: 0.3, chance: 0.004 }, bug: 0.0004, grub: 0.0007
+    fruit: { rate: 0.00009, threshold: 0.3, chance: 0.0025, cost: 0.06, start: 3 },
+    grain: { rate: 0.0001, threshold: 0.3, chance: 0.003, cost: 0.05, start: 4 },
+    dew: { from: 0.2, to: 0.3, chance: 0.004 }, bug: { chance: 0.0004 }, grub: { chance: 0.0007, start: 2 }
   };
   // The warm rock: its warmth rises by `warm` a tick in daylight (light above `light`) and falls by `cool` otherwise
   const ROCK = { warm: 0.0004, cool: 0.00025, light: 0.5 };
@@ -522,15 +523,17 @@
     growFood() {
       const s = this.seasonInfo, light = this.clock.light;
       const full = this.foodCount >= LIMITS.MAX_FOOD;
+      // A season that lacks a food would turn its growth into NaN and silently stop it, so fail loudly
+      const grow = key => { const g = s.grow[key]; if (g === undefined) throw new Error(`${s.word} has no growth for ${key}`); return g; };
       for (const f of this.features) {
         if (f.kind === 'tree') {
-          f.fruiting = clamp01(f.fruiting + s.grow[f.yields] * GROWTH.fruit.rate * light);
+          f.fruiting = clamp01(f.fruiting + grow(f.yields) * GROWTH.fruit.rate * light);
           if (!full && f.fruiting > GROWTH.fruit.threshold && Evo.chance(f.fruiting * GROWTH.fruit.chance)) {
             this.spawnItem(f.yields, f.x + Evo.randRange(-0.7, 0.7) * f.canopy, f.y - f.height + f.canopy * 0.5);
             f.fruiting -= GROWTH.fruit.cost;
           }
         } else if (f.kind === 'grass') {
-          f.seeding = clamp01(f.seeding + s.grow.grain * GROWTH.grain.rate * light);
+          f.seeding = clamp01(f.seeding + grow('grain') * GROWTH.grain.rate * light);
           if (!full && f.seeding > GROWTH.grain.threshold && Evo.chance(f.seeding * GROWTH.grain.chance)) {
             const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
             this.spawnItem('grain', x, this.terrain.groundY(x) - f.height);
@@ -541,9 +544,9 @@
             const x = f.x + Evo.randRange(-0.5, 0.5) * f.width;
             this.spawnItem('dew', x, this.terrain.groundY(x) - 2);
           }
-          if (!full && Evo.chance(GROWTH.bug * s.grow.bug)) this.spawnItem('bug', f.x + Evo.randRange(-0.5, 0.5) * f.width, f.y - 4);
+          if (!full && Evo.chance(GROWTH.bug.chance * grow('bug'))) this.spawnItem('bug', f.x + Evo.randRange(-0.5, 0.5) * f.width, f.y - 4);
         } else if (f.kind === 'log') {
-          if (!full && Evo.chance(GROWTH.grub * s.grow.grub)) {
+          if (!full && Evo.chance(GROWTH.grub.chance * grow('grub'))) {
             const x = f.x + (Evo.chance(0.5) ? -1 : 1) * (f.length / 2 + Evo.randRange(0, 30));
             this.spawnItem('grub', x, this.terrain.groundY(x), { home: f.x });
           }
@@ -556,9 +559,9 @@
 
     seedFood() {
       for (const f of this.features) {
-        if (f.kind === 'tree') for (let i = 0; i < 3; i++) this.spawnItem(f.yields, f.x + Evo.randRange(-1, 1) * f.canopy);
-        if (f.kind === 'grass') for (let i = 0; i < 4; i++) this.spawnItem('grain', f.x + Evo.randRange(-0.5, 0.5) * f.width);
-        if (f.kind === 'log') for (let i = 0; i < 2; i++) this.spawnItem('grub', f.x + (i ? 1 : -1) * (f.length / 2 + 10), undefined, { home: f.x });
+        if (f.kind === 'tree') for (let i = 0; i < GROWTH.fruit.start; i++) this.spawnItem(f.yields, f.x + Evo.randRange(-1, 1) * f.canopy);
+        if (f.kind === 'grass') for (let i = 0; i < GROWTH.grain.start; i++) this.spawnItem('grain', f.x + Evo.randRange(-0.5, 0.5) * f.width);
+        if (f.kind === 'log') for (let i = 0; i < GROWTH.grub.start; i++) this.spawnItem('grub', f.x + (i ? 1 : -1) * (f.length / 2 + 10), undefined, { home: f.x });
       }
       this.spawnItem('ball', this.ballX, undefined, { hue: 200 });
     }

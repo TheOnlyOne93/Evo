@@ -138,12 +138,23 @@
 
   const N_DRIVE_CELLS = 18, N_LIMBIC = 8;
 
+  // ---- Tastes: what the tongue reports about what goes in the mouth. food: the chemical in a food
+  // that it reads; scale: how strongly; locus: the body reading emitter genes see; gut: marks the
+  // four that sit in the gut until digested and count toward how full it is ----
+  const TASTES = [
+    { key: 'sweet',   word: 'Tastes sweet',   locus: 'tasteSweet',   food: 'gutSugar',   scale: 4, gut: true },
+    { key: 'starch',  word: 'Tastes starchy', locus: 'tasteStarch',  food: 'gutStarch',  scale: 4, gut: true },
+    { key: 'savoury', word: 'Tastes savoury', locus: 'tasteSavoury', food: 'gutProtein', scale: 4, gut: true },
+    { key: 'fat',     word: 'Tastes fatty',   locus: 'tasteFat',     food: 'gutFat',     scale: 4, gut: true },
+    { key: 'bitter',  word: 'Tastes bitter',  locus: 'tasteBitter',  food: 'toxin',      scale: 4 },
+    { key: 'water',   word: 'Tastes water',   locus: 'tasteWater',   food: 'water',      scale: 6 }
+  ];
+
   // ---- Body loci: what emitter genes can read (all 0..1). Codes 128+ read a chemical instead. ----
   const BODY_LOCI = [
     'none', 'always', 'bodyTemp', 'heatGain', 'heatLoss', 'darkness', 'exertion', 'awake', 'asleep',
     'resting', 'injury', 'health', 'impact', 'gentleTouch', 'touchingFriend', 'company', 'crowding',
-    'novelty', 'falling', 'inWater', 'held', 'tasteSweet', 'tasteStarch', 'tasteSavoury', 'tasteFat',
-    'tasteBitter', 'tasteWater', 'gutFullness', 'mated', 'pregnant', 'heardCall', 'growth', 'starving',
+    'novelty', 'falling', 'inWater', 'held', ...TASTES.map(t => t.locus), 'gutFullness', 'mated', 'pregnant', 'heardCall', 'growth', 'starving',
     ...Array.from({ length: N_LIMBIC }, (_, k) => `limbic${k}`)
   ];
   const LOCUS = Object.fromEntries(BODY_LOCI.map((k, i) => [k, i]));
@@ -225,7 +236,7 @@
     TICKS_PER_SECOND, DAY_TICKS, SEASON_DAYS, STAGES, STAGE,
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
-    STIMULI, STIMULUS, STIMULUS_WORDS, BODY_LOCI, LOCUS, TARGETS, TARGET, N_DRIVE_CELLS, N_LIMBIC,
+    STIMULI, STIMULUS, STIMULUS_WORDS, TASTES, BODY_LOCI, LOCUS, TARGETS, TARGET, N_DRIVE_CELLS, N_LIMBIC,
     LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, DRIVE_CELL_TAGS, driveCell, NEUROCHEMS,
     LIMITS
   });

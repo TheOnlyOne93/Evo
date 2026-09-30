@@ -16,7 +16,7 @@ Coordinates: x runs from the creature's left (0) to its right (1) **in the world
 | Smell | 20: 2 antennae × 10 odours |
 | Hearing | 4: 2 ears × 2 pitches |
 | Touch | 11: contact left and right, mouth left and right, lips (water), back, feet, pain, gentle touch, falling, in water |
-| Taste | 6: sweet, starchy, savoury, fatty, bitter, water |
+| Taste | 6: sweet, starchy, savoury, fatty, bitter, water (the list is `Evo.TASTES`, in `src/sim/constants.js`; this file only gives each cell its address) |
 | Up close | 8: one per vision feature, the look of whatever is at the mouth |
 | Drives | 18 (`N_DRIVE_CELLS`): the founder feels drive k in cell k (`Evo.driveCell`); 2 are spare |
 | Feelings | 8: the reward cell, the punishment cell and 6 general cells |

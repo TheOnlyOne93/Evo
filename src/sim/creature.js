@@ -12,7 +12,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, clamp01 } = Evo.util;
-  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, MOTORS, N_LIMBIC, STIMULUS } = Evo;
+  const { BODY_LOCI, LOCUS, TARGET, STAGES, STAGE, SCENTS, MOTORS, N_LIMBIC, STIMULUS, TASTES } = Evo;
 
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
@@ -27,7 +27,7 @@
   const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
-  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS, SIDES, BANDS, TOUCH, TASTES } = Evo.BRAIN_BODY_PLAN;
+  const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS, SIDES, BANDS, TOUCH } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   const ODOUR_COUNT = SCENTS.length;
@@ -36,6 +36,8 @@
   // impacts and pats do), and the receptor target driving each Needs and Feelings cell
   const TOUCH_KEYS = TOUCH.map(t => t.key), TOUCH_WAKES = TOUCH.map(t => t.key === 'pain' || t.key === 'back');
   const TASTE_KEYS = TASTES.map(t => t.key);
+  const TASTE_LOCI = TASTES.map(t => LOCUS[t.locus]);
+  const GUT = TASTES.filter(t => t.gut).map(t => t.food); // The chemicals in the gut, added up for how full it is
   const NEED_TARGETS = Array.from({ length: Evo.N_DRIVE_CELLS }, (_, k) => TARGET[`need:${k}`]);
   const FEELING_TARGETS = Array.from({ length: N_LIMBIC }, (_, k) => TARGET[`limbic:${k}`]);
   // Sight and smell respond logarithmically (Weber-Fechner): faint signals register, strong ones still read as stronger
@@ -44,8 +46,6 @@
   const RECEPTOR_K = 0.02, RECEPTOR_NORM = Math.log1p(1 / RECEPTOR_K);
   // Timers that count down once a tick in act(). Not here: prickCooldown (World.prickCreatures) and heardCall (sense)
   const ACT_TIMERS = ['mouthTimer', 'drinkTimer', 'jumpCooldown', 'grabCooldown', 'mateCooldown', 'callTimer', 'runTimer', 'restTimer', 'bumpCooldown'];
-  // Each taste: the food key it reads and how strongly
-  const TASTE_FROM_FOOD = { sweet: ['gutSugar', 4], starch: ['gutStarch', 4], savoury: ['gutProtein', 4], fat: ['gutFat', 4], bitter: ['toxin', 4], water: ['water', 6] };
   // Sight cell for each side, band and feature key (a lookup table built from sightIndex, for the hot loop)
   const SIGHT_CELL = {};
   for (const side of SIDES) {
@@ -144,7 +144,7 @@
 
       // Transient sensations, decaying each tick
       this.stim = { impact: 0, gentle: 0, back: 0, mated: 0, heardCall: 0, flinch: 0, contactL: 0, contactR: 0, touchingFriend: 0 };
-      this.taste = { sweet: 0, starch: 0, savoury: 0, fat: 0, bitter: 0, water: 0 };
+      this.taste = Object.fromEntries(TASTES.map(t => [t.key, 0]));
       this.companyCount = 0; this.company = 0; this.crowding = 0; this.exertion = 0; this.heatGain = 0; this.heatLoss = 0;
       this.damageLog = {};             // Recent damage by cause (decaying), to name a cause of death
       this.familiar = new Float32Array(FEATURE_KEYS.length); // How used it is to each look (vision feature)
@@ -233,10 +233,11 @@
       L[LOCUS.falling] = !this.onGround && this.vy > 2 ? Math.min(1, this.vy / 6) : 0;
       L[LOCUS.inWater] = this.inWater ? 1 : 0;
       L[LOCUS.held] = this.held ? 1 : 0;
-      L[LOCUS.tasteSweet] = t.sweet; L[LOCUS.tasteStarch] = t.starch; L[LOCUS.tasteSavoury] = t.savoury;
-      L[LOCUS.tasteFat] = t.fat; L[LOCUS.tasteBitter] = t.bitter; L[LOCUS.tasteWater] = t.water;
+      for (let k = 0; k < TASTE_KEYS.length; k++) L[TASTE_LOCI[k]] = t[TASTE_KEYS[k]];
       const c = this.chem;
-      L[LOCUS.gutFullness] = clamp01(c.get('gutSugar') + c.get('gutStarch') + c.get('gutProtein') + c.get('gutFat'));
+      let full = 0;
+      for (const k of GUT) full += c.get(k);
+      L[LOCUS.gutFullness] = clamp01(full);
       L[LOCUS.mated] = s.mated;
       L[LOCUS.pregnant] = this.pregnancy ? 1 : 0;
       L[LOCUS.heardCall] = s.heardCall;
@@ -687,10 +688,7 @@
     ingest(food) {
       const c = this.chem;
       for (const key in food) c.add(key, food[key]);
-      for (const taste in TASTE_FROM_FOOD) {
-        const [key, scale] = TASTE_FROM_FOOD[taste];
-        this.taste[taste] = Math.min(1, this.taste[taste] + (food[key] || 0) * scale);
-      }
+      for (const t of TASTES) this.taste[t.key] = Math.min(1, this.taste[t.key] + (food[t.food] || 0) * t.scale);
     }
 
     // ---------- Physics ----------
