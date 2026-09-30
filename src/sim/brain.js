@@ -19,18 +19,20 @@
   const SYNAPTIC_GAIN = 20.0;        // mV delivered per unit of synaptic weight
   const WEIGHT_MIN = -1.8, WEIGHT_MAX = 2.0;
   const V_REST = -70, V_RESET = -72;
+  const V_SPIKE_SHOW = 25;           // What a neuron that just fired shows (display only; the real potential resets)
+  const V_FLOOR = -90;               // A neuron cannot be pushed below this
   const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags. CUE: a sight or smell value synapse (what the UI lists as learned)
   const ELIG_MAX = 2.0;              // Largest eligibility trace a synapse can hold
 
-  // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 stress (ST). The third, NO, once let
+  // Modulatory channels (Evo.NEUROCHEMS order): 0 reward (DA), 1 punishment (ST). The third, NO, once let
   // active neighbours share credit; it is retired, and a Neurochemistry gene that picks it does nothing.
   // brain.chem holds one CHEM_SIZE² image per channel, for display only: the learning signal where
-  // each neuron sits (reward, stress; the NO image stays empty).
+  // each neuron sits (reward, punishment; the NO image stays empty).
   const CHEM_CHANNELS = NEUROCHEMS.map(n => n.key);
   const CHEM_SIZE = 20;
   // The brain regrows and prunes its wiring every this many brain ticks
   const MORPHOGENESIS_EVERY = 80;
-  const N_MOD = 2;                   // Reward and stress
+  const N_MOD = 2;                   // Reward and punishment
   const GAMMA = 0.98;                // Temporal-difference discount per tick
   const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
   const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
@@ -94,7 +96,7 @@
     { key: 'savory', word: 'Tastes savoury', tag: [0.50, 0.30] }, { key: 'fat', word: 'Tastes fatty', tag: [0.50, 0.30] },
     { key: 'bitter', word: 'Tastes bitter', tag: [0.50, 0.96] }, { key: 'water', word: 'Tastes water', tag: [0.50, 0.30] }
   ];
-  // Feelings cells: 0 releases the reward chemical, 1 the stress chemical. Cell 2's address matches
+  // Feelings cells: 0 releases the reward chemical, 1 the punishment chemical. Cell 2's address matches
   // the alarm odour's, so a topographic smell gene can make alarm scent excite it.
   const FEELING_TAGS = [[0.2, 0.9], [0.9, 0.2], [0.5, (SCENTS.findIndex(s => s.key === 'alarm') + 0.5) / SCENTS.length],
     [0.3, 0.5], [0.7, 0.5], [0.5, 0.15], [0.1, 0.3], [0.9, 0.7]];
@@ -282,7 +284,8 @@
           // Receptors adapt slowly to a constant stimulus, so what is unchanging fades and what is new stands out
           if (n.lobe !== 'needs') { this.adaptInc[i] = 0.12; this.adaptKeep[i] = 0.996; }
         } else {
-          // The genome's membrane gene applies to every central neuron
+          // The genome's membrane gene (threshold, leak, refractory) applies to central neurons. Muscles
+          // use a fixed leak (tau 0.85) and are fast, so they ignore the leak and refractory genes.
           this.thr[i] = T.baseThreshold;
           this.tau[i] = n.lobe === 'motor' ? 0.85 : T.tauLeak;
           this.homeo[i] = 1;
@@ -557,7 +560,7 @@
             if (s === d) continue;
             const dist = Math.hypot(s.pos[0] - d.pos[0], s.pos[1] - d.pos[1]);
             if (Evo.chance(0.03 * Math.exp(-((dist / 0.18) ** 2)))) {
-              this.addSynapse(s.index, d.index, (Evo.random() - 0.5) * 0.25, { cap: budget + 150, conduction: 0.10 });
+              this.addSynapse(s.index, d.index, (Evo.random() - 0.5) * 0.25, { cap: budget + LIMITS.BACKGROUND_WIRING_EXTRA, conduction: 0.10 });
             }
           }
         }
@@ -578,7 +581,9 @@
           this.prunedCount++;
         }
       }
-      // 2. Sprouting: an active neuron grows a short collateral toward its most depolarized neighbour
+      // 2. Sprouting: an active neuron grows a short collateral toward its most depolarized neighbour.
+      //    This reads vShow, so a neuron that just fired shows as maximally depolarised (V_SPIKE_SHOW):
+      //    sprouting favours co-active cells. This is intended.
       const { hist, rate, vShow, isSensory, posX, posY, N } = this;
       let best = -1, bestDst = -1, bestAffinity = 0;
       for (let si = 0; si < N; si++) {
@@ -649,12 +654,12 @@
             fired = 1;
             spikes++;
             this.vFired[i] = nv;
-            vShow[i] = 25;
+            vShow[i] = V_SPIKE_SHOW;
             v[i] = V_RESET;
             adapt[i] += adaptInc[i];
             refr[i] = fast[i] ? 1 : refrPeriod[i];
           } else {
-            v[i] = nv < -90 ? -90 : nv;
+            v[i] = nv < V_FLOOR ? V_FLOOR : nv;
             vShow[i] = v[i];
           }
         }

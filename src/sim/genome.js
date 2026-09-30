@@ -94,7 +94,7 @@
       describe: (v, x, w) => ({ group: 'brain', text: `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.num(Math.log(0.5) / Math.log(x.traceDecay), 0)} ticks` }) },
     { name: 'Reinforcement', fields: [u('joy'), u('stress')],
       express(v, d) { d.set('joyGain', 0.9 + v.joy * 1.3); d.set('stressGain', 1.1 + v.stress * 1.6); },
-      describe: (v, x, w) => ({ group: 'brain', text: `Feels reward ×${w.num(x.joyGain)}, stress ×${w.num(x.stressGain)}` }) },
+      describe: (v, x, w) => ({ group: 'brain', text: `Feels reward ×${w.num(x.joyGain)}, punishment ×${w.num(x.stressGain)}` }) },
     { name: 'Muscle', fields: [u('speed'), u('jump'), u('run')],
       express(v, d) { d.set('walkSpeed', 0.8 + v.speed * 1.0); d.set('jumpPower', 3.5 + v.jump * 3.5); d.set('runBoost', 1.2 + v.run * 0.8); } },
     { name: 'Life history', fields: [u('lifespan'), u('gestation')],

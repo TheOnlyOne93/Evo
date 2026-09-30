@@ -1,7 +1,7 @@
 // The followed creature's brain, drawn two ways. "Regions": each brain region as a labelled box of
 // its cells (senses at the top, muscles at the bottom, left cells on the left), like a lab chart.
 // "Anatomy": every neuron where it really sits (senses at the front, the world's left on the left),
-// with the reward and stress learning signal as a coloured haze. Either way neurons glow as they
+// with the reward and punishment learning signal as a coloured haze. Either way neurons glow as they
 // fire, spikes travel along the axons, and only recently used connections are drawn (or all of them).
 // Also a small oscilloscope for one neuron's membrane potential.
 (function (Evo) {
@@ -179,7 +179,7 @@
       else { this.probed = -1; this.region = null; }
     }
 
-    // Reward and stress learning signal as a soft image under the neurons (anatomy only)
+    // Reward and punishment learning signal as a soft image under the neurons (anatomy only)
     drawChemistry(ctx) {
       const b = this.brain, n = Evo.BRAIN.CHEM_SIZE;
       if (!this.chemCanvas) {

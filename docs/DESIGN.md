@@ -181,7 +181,7 @@ modulator fire on positive errors (60 mV × δ), so the cells stay silent when n
 happens. Elsewhere, learning is three-factor: when a neuron fires, each input that arrived in the
 4 ticks before (at that axon's delay) becomes eligible (e ← e·λ^Δt + 1, capped at 2; λ from the
 Plasticity memory gene, half-life 14–140 ticks); every 4 ticks each weight moves by
-0.25 × learning rate × e × the summed signal at its target, joy × δ_R × F_R − stress × δ_P × F_P.
+0.25 × learning rate × e × the summed signal at its target, joy × δ_R × F_R − punishment × δ_P × F_P.
 F_c is the modulator's *learning field*: Gaussians around its axon terminals (width set by the
 Neurochemistry gene), so where learning happens depends on where its axons grew. Synapses keep
 their sign (Dale's law) and soft bounds. `brain.chem[0..2]` are 20×20 images of this signal for the
@@ -235,7 +235,7 @@ two hemifields: things to the left and things to the right); y = front (senses) 
 The sensory layouts are defined once, in `Evo.BRAIN_BODY_PLAN`: `sightIndex(side, band, feature)`,
 `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its lobe, and
 `sightCell(k)` / `smellCell(k)` decode it (the body's senses, founder instincts and the pose use
-them). The modulatory channels (DA reward, ST stress, and the retired NO) are listed in `Evo.NEUROCHEMS`.
+them). The modulatory channels (DA reward, ST punishment, and the retired NO) are listed in `Evo.NEUROCHEMS`.
 `brain.inject(neuron, mV, delayTicks)` delivers an input that arrives after a delay (the inspector's
 "stimulate").
 
@@ -363,7 +363,7 @@ class WorldView {
 ```
 
 Colours come from CSS tokens through `Evo.theme` where a colour *means* something (food types,
-sexes, reward/stress). Environment art may use its own palette.
+sexes, reward/punishment). Environment art may use its own palette.
 
 **Time in the views.** Renderers depict sim state in ticks; they never drive it. Pose easing moves
 per sim tick (a paused world freezes, and high speed keeps up); the brain map lights a neuron if it

@@ -61,7 +61,10 @@
 
   // ---- Items: how each looks, smells, what it contains, how it moves ----
   // look: visual features. odour: [[scent channel, rate]]. food: what enters the gut when eaten
-  // (units are chemical concentrations; taste is derived from it). ttl: ticks before it rots.
+  // (units are chemical concentrations; taste is derived from it; 'contents' means whatever a dead body
+  // held, as with carrion). ttl: ticks before it rots. Movement: bounce: fraction of speed kept on a
+  // bounce. crawls: wander speed on the ground. flees: crawls away from creatures. hops: jumps while
+  // fleeing. rolls: rolls downhill and spins.
   const ITEM_TYPES = {
     fruit:   { word: 'fruit', radius: 6, look: { red: 1 }, odour: [[SCENT.sweet, 0.05]], food: { gutSugar: 0.3, water: 0.06 }, ttl: 7200, bounce: 0.3 },
     grain:   { word: 'grain', radius: 5, look: { yellow: 1 }, odour: [[SCENT.starch, 0.04]], food: { gutStarch: 0.3, gutProtein: 0.06 }, ttl: 14400, bounce: 0.2 },
@@ -77,7 +80,7 @@
 
   // ---- Seasons: temperature, day length and what grows ----
   // temp: mean ambient temperature (0 freezing .. 1 hot); swing: day-night difference;
-  // grow: growth multipliers for each food source
+  // dew: how likely dew drops are at dawn (a multiplier). grow: growth multipliers for each food source
   const SEASONS = [
     { key: 'SPRING', word: 'Spring', temp: 0.48, swing: 0.14, dew: 1.0, grow: { fruit: 0.4, grain: 0.5, grub: 1.0, bug: 1.2, mimic: 0.4 } },
     { key: 'SUMMER', word: 'Summer', temp: 0.6, swing: 0.13, dew: 0.5, grow: { fruit: 1.2, grain: 1.0, grub: 1.0, bug: 1.3, mimic: 1.0 } },
@@ -198,7 +201,7 @@
   // terminals (see Brain.buildLearningFields). base: the spread when no gene sets it.
   const NEUROCHEMS = [
     { key: 'DA', word: 'Reward', base: 0.5 },   // Dopamine-like reward chemical
-    { key: 'ST', word: 'Stress', base: 0.5 },   // Stress chemical
+    { key: 'ST', word: 'Punishment', base: 0.5 },   // Punishment chemical
     { key: 'NO', word: 'NO', base: 0.15 }       // Retired (it let active neighbours share credit); kept so gene bytes decode as before
   ];
 
@@ -207,7 +210,8 @@
     MAX_FOOD: 70,         // How much growing food the world holds at once
     SEED_BANK: 24,        // Proven breeders kept for wanderers and re-founding
     SYNAPSE_CAP: 3200,    // Most synapses one brain can hold
-    INNATE_BUDGET: 2400   // Synapses the genome may grow before birth (the rest is room to learn)
+    INNATE_BUDGET: 2400,  // Synapses the genome grows before birth (the rest is room to learn)
+    BACKGROUND_WIRING_EXTRA: 150 // Random local wiring may go this far past the budget
   };
 
   Object.assign(Evo, {

@@ -10,7 +10,8 @@
     reaction('gutStarch', 'water', 'glucose', 'water', 0.004, 0.95, 1),
     reaction('gutProtein', null, 'protein', null, 0.003),
     reaction('gutFat', null, 'fat', null, 0.002, 0.8, 0),
-    // Insulin stores surplus sugar as glycogen and fat; glucagon releases it again (lossy both ways)
+    // Insulin stores surplus sugar as glycogen and fat; glucagon releases it again (glycogen is lossless both ways;
+    // fat yields 1.6 glucose, while glucose to fat and protein to glucose lose some)
     emitter('chem:glucose', 'insulin', 0.55, 0.01),
     emitter('chem:glucose', 'glucagon', 0.35, 0.01, INVERT),
     halfLife('insulin', 100), halfLife('glucagon', 100),
