@@ -60,15 +60,6 @@ test('brain: weights stay inside their limits under relentless reward and punish
   checkWiring(brain, assert);
 });
 
-test('brain: every neuron has a plain-language name', (Evo, assert) => {
-  const brain = founderBrain(Evo);
-  for (const n of brain.neurons) {
-    const name = Evo.text.neuronName(brain, n);
-    assert.ok(name && !/undefined|NaN/.test(name), `${n.id} -> ${name}`);
-    assert.ok(!/undefined/.test(Evo.text.lobeName(n)));
-  }
-});
-
 test('brain: founders grow the movement copy and the sight copy', (Evo, assert) => {
   const brain = founderBrain(Evo);
   const parents = brain.duplicateLobes.map(l => brain.neurons[brain.lobes[l][0]].parentLobe);

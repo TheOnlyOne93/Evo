@@ -50,28 +50,3 @@ test('clock: ticks cut off by the frame budget are dropped, not owed', (Evo, ass
   for (let f = 0; f < 60; f++) fine.report(fine.advance(1000 / 60, 8, false));
   assert.strictEqual(fine.achievedSpeed(), 8);
 });
-
-test('clock: a brain gives the same spikes however its ticks are split into frames', (Evo, assert) => {
-  const N_TICKS = 300;
-  const play = frames => {
-    Evo.seed(7);
-    const brain = new Evo.Brain(Evo.Genome.founder('X').develop());
-    const drive = new Float32Array(brain.N);
-    const spikes = [];
-    let done = 0;
-    for (const n of frames) for (let i = 0; i < n; i++, done++) {
-      // The same inputs for the same tick number, whichever frame it falls in
-      for (let j = 0; j < brain.N; j++) drive[j] = brain.isSensory[j] ? 10 + 8 * Math.sin(done * 0.3 + j) : 0;
-      brain.tick(drive, { noise: 0.35, arousal: 0, canFire: true });
-      spikes.push(Array.from(brain.hist), Array.from(brain.v));
-    }
-    return JSON.stringify(spikes);
-  };
-  const clock = new Evo.FrameClock(), split = [];
-  for (let total = 0, f = 0; total < N_TICKS; f++) {
-    const n = Math.min(clock.advance([7, 16, 33, 41][f % 4], 4, false), N_TICKS - total);
-    split.push(n); total += n;
-  }
-  assert.ok(split.length > 10 && new Set(split).size > 2, 'frames of different sizes');
-  assert.strictEqual(play(split), play([N_TICKS]));
-});

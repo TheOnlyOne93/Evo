@@ -209,6 +209,16 @@ test('world: a life-history gene that switches on later changes the lifespan wit
   assert.strictEqual(c.lifespan, c.traits.lifespanTicks);
 });
 
+test('world: a brain-building gene that switches on after birth has no effect, even in a creature that starts grown', (Evo, assert) => {
+  const world = emptyWorld(Evo);
+  const late = { gene: 'Region duplication', stage: Evo.STAGE.ADULT, source: 'cortex', depth: 0.5, lateral: 0.5, chemShift: 0.5, input: 0.5 };
+  const genome = Evo.Genome.founder('X', [...Evo.FOUNDER_GENOME, late]);
+  const baby = world.addCreature(genome, world.width / 2);
+  const adult = world.addCreature(genome, world.width / 2, { ageTicks: Math.floor(baby.lifespan * 0.5), growth: 1 });
+  assert.ok(adult.stage >= Evo.STAGE.ADULT, `stage ${adult.stage}`);
+  for (const c of [baby, adult]) assert.deepStrictEqual(c.brain.duplicateLobes, ['dup0_motor', 'dup1_sight']);
+});
+
 // Two adults side by side in a world of their own; swap puts the second one first in the array.
 // Long timers keep them from calling, grabbing or jumping by themselves.
 function pair(Evo, swap) {

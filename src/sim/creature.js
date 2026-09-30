@@ -61,7 +61,8 @@
       this.ageTicks = opts.ageTicks || 0;
       this.stage = STAGE.BABY;
 
-      this.traits = genome.develop(this.stage);
+      const birth = genome.develop(this.stage);
+      this.traits = birth;
       this.stage = this.stageForAge();
       if (this.stage !== STAGE.BABY) this.traits = genome.develop(this.stage);
 
@@ -69,7 +70,10 @@
       this.chem.configure(this.traits);
       this.chem.setInitial(this.traits);
       if (opts.reserves) for (const k in opts.reserves) this.chem.set(k, opts.reserves[k]);
-      this.brain = new Evo.Brain(this.traits);
+      // Built from the birth traits, so birth-only genes that switch on later have no effect even
+      // in a creature that starts life grown
+      this.brain = new Evo.Brain(birth);
+      if (this.traits !== birth) this.growBrain(birth);
 
       // Physical state
       this.x = x; this.y = y; this.vx = 0; this.vy = 0;
@@ -135,6 +139,15 @@
       return s;
     }
 
+    // The brain takes up the current traits: guidance genes and pacemakers new since `before` grow
+    // (birth-only genes stay as they were when it was built)
+    growBrain(before) {
+      this.brain.traits = this.traits;
+      this.brain.growTracts(this.traits.axonGuidance);
+      const seen = new Set(before.pacemakers.map(p => p.gene));
+      this.brain.applyPacemakers(this.traits.pacemakers.filter(p => !seen.has(p.gene)));
+    }
+
     // A new life stage: genes that switch on now join the biochemistry, the brain grows any new
     // tracts, and the body adopts the new traits
     enterStage(stage, world) {
@@ -142,10 +155,7 @@
       const before = this.traits;
       this.traits = this.genome.develop(stage);
       this.chem.configure(this.traits);
-      this.brain.traits = this.traits;
-      this.brain.growTracts(this.traits.axonGuidance);
-      const seen = new Set(before.pacemakers.map(p => p.gene));
-      this.brain.applyPacemakers(this.traits.pacemakers.filter(p => !seen.has(p.gene)));
+      this.growBrain(before);
       world.events.emit('stage', { creature: this, stage });
     }
 

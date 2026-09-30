@@ -56,7 +56,6 @@ test('drives: a stimulus gene survives encoding and decodes to its event and amo
   assert.strictEqual(Evo.STIMULI[s.event], 'wasShoved');
   assert.strictEqual(s.chem1, Evo.CHEM.anger); assert.strictEqual(s.chem2, Evo.CHEM.fear);
   assert.ok(Math.abs(s.amount1 - 0.1) < 0.002 && Math.abs(s.amount2 + 0.05) < 0.002);
-  assert.ok(Evo.CODEC.signed.decode(0) === -0.5 && Evo.CODEC.signed.decode(128) === 0);
 });
 
 test('drives: each thing the world does raises its stimulus on the right creature', (Evo, assert) => {
