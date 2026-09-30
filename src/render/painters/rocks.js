@@ -8,67 +8,35 @@
   const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
   const { AUTUMN, WINTER } = Evo.SEASON;
 
-  // ---- Pieces of the grub log
-
-  // A log's body lying from x0 to x1 between top and bottom, rounded at both ends (end radius rx),
-  // lit from above: tone = [highlight mix, mid stop, shade scale, outline scale, outline width]
-  function logBody(g, x0, x1, top, bottom, rx, gradBottom, bark, tone) {
-    const [lit, mid, dark, edge, edgeW] = tone;
-    const yM = (top + bottom) / 2, ry = (bottom - top) / 2;
-    const bg = g.createLinearGradient(0, top, 0, gradBottom);
-    bg.addColorStop(0, rgb(mix(bark, [255, 230, 190], lit)));
-    bg.addColorStop(mid, rgb(bark));
-    bg.addColorStop(1, rgb(scale(bark, dark)));
-    g.fillStyle = bg;
-    g.beginPath();
-    g.moveTo(x0, top);
-    g.lineTo(x1, top);
-    g.ellipse(x1, yM, rx, ry, 0, -Math.PI / 2, Math.PI / 2);
-    g.lineTo(x0, bottom);
-    g.ellipse(x0, yM, rx, ry, 0, Math.PI / 2, Math.PI * 1.5);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = rgba(scale(bark, edge), 0.9);
-    g.lineWidth = edgeW;
-    g.stroke();
-  }
-
-  // A sawn end: pale wood with growth rings, each ring [rx, ry]
-  function cutEnd(g, x, y, rx, ry, rings) {
-    g.fillStyle = '#d6b082';
-    g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill();
-    g.strokeStyle = 'rgba(150,108,70,0.8)';
-    for (const [a, b] of rings) { g.beginPath(); g.ellipse(x, y, a, b, 0, 0, TAU); g.stroke(); }
-  }
-
-  // Moss cushions along a top edge from x0 to x1: spaced gap + R() * gapR, radius r + R() * rR
-  function mossDots(g, R, x0, x1, y, gap, gapR, r, rR) {
-    g.beginPath();
-    for (let x = x0; x < x1; x += gap + R() * gapR) circle(g, x, y, r + R() * rR);
-    g.fill();
-  }
-
-  // A lumpy cap of snow: its foot at y = base from xa to xb, its wavy top near y = top from x0 to x1
-  function snowCap(g, xa, xb, base, x0, x1, top, step, freq, amp) {
-    g.fillStyle = SNOW.body;
-    g.beginPath();
-    g.moveTo(xa, base);
-    for (let x = x0; x <= x1; x += step) g.lineTo(x, top - Math.sin(x * freq) * amp);
-    g.lineTo(xb, base);
-    g.closePath();
-    g.fill();
-  }
-
+  // The grub log: a trunk d deep lying from x0 to x1, hollow at the left end and sawn at the right,
+  // propped on stones where the ground falls away under it
   function paintLog(g, f, si, rec) {
     const R = rng(4000 + (f.id | 0) * 7);
     const L = f.length, d = rec.data.d;
     const x0 = -L / 2, x1 = L / 2, yT = 3 - d, yM = 3 - d / 2;
+    const ex = d * 0.26, ey = d / 2;   // the rounded ends' radii
     const bark = [118, 84, 56];
     for (const p of rec.data.props) {
       const ry = p.gap + 5;
       paintStone(g, p.x, p.gap + 3, Math.max(10, ry * 0.8 + 5), ry, ROCK_TONES[(f.id | 0) % 3], si);
     }
-    logBody(g, x0, x1, yT, 3, d * 0.26, 3, bark, [0.25, 0.5, 0.55, 0.45, 1.2]);
+    // The body, rounded at both ends and lit from above
+    const bg = g.createLinearGradient(0, yT, 0, 3);
+    bg.addColorStop(0, rgb(mix(bark, [255, 230, 190], 0.25)));
+    bg.addColorStop(0.5, rgb(bark));
+    bg.addColorStop(1, rgb(scale(bark, 0.55)));
+    g.fillStyle = bg;
+    g.beginPath();
+    g.moveTo(x0, yT);
+    g.lineTo(x1, yT);
+    g.ellipse(x1, yM, ex, ey, 0, -Math.PI / 2, Math.PI / 2);
+    g.lineTo(x0, 3);
+    g.ellipse(x0, yM, ex, ey, 0, Math.PI / 2, Math.PI * 1.5);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = rgba(scale(bark, 0.45), 0.9);
+    g.lineWidth = 1.2;
+    g.stroke();
     // Bark furrows
     g.strokeStyle = rgba(scale(bark, 0.5), 0.7);
     g.lineWidth = 1;
@@ -89,21 +57,32 @@
     for (let k = 0; k < 4; k++) { g.beginPath(); g.ellipse(x0 + L * (0.25 + k * 0.17), yM + (R() - 0.3) * d * 0.4, 1.8, 1.3, 0, 0, TAU); g.fill(); }
     // The hollow end
     g.fillStyle = rgb(scale(bark, 0.7));
-    g.beginPath(); g.ellipse(x0, yM, d * 0.26, d / 2, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(x0, yM, ex, ey, 0, 0, TAU); g.fill();
     const hg = g.createRadialGradient(x0 + 1, yM, 1, x0, yM, d * 0.42);
     hg.addColorStop(0, '#120a06');
     hg.addColorStop(1, '#3a2618');
     g.fillStyle = hg;
     g.beginPath(); g.ellipse(x0 + 1, yM, d * 0.18, d * 0.38, 0, 0, TAU); g.fill();
-    // The cut end with rings
+    // The cut end: pale wood with three growth rings
+    g.fillStyle = '#d6b082';
+    g.beginPath(); g.ellipse(x1, yM, ex, ey - 1, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(150,108,70,0.8)';
     g.lineWidth = 0.9;
-    cutEnd(g, x1, yM, d * 0.26, d / 2 - 1, [1, 2, 3].map(k => [d * 0.26 * k / 4, (d / 2 - 1) * k / 4]));
-    // Moss, fungi or snow on top
+    for (let k = 1; k <= 3; k++) { g.beginPath(); g.ellipse(x1, yM, ex * k / 4, (ey - 1) * k / 4, 0, 0, TAU); g.stroke(); }
+    // On top: a lumpy cap of snow in winter, else moss cushions and bracket fungi
     if (si === WINTER) {
-      snowCap(g, x0 - 2, x1 + 3, yT + 3, x0, x1 + 1, yT - 2.5, 6, 0.3, 1.2);
+      g.fillStyle = SNOW.body;
+      g.beginPath();
+      g.moveTo(x0 - 2, yT + 3);
+      for (let x = x0; x <= x1 + 1; x += 6) g.lineTo(x, yT - 2.5 - Math.sin(x * 0.3) * 1.2);
+      g.lineTo(x1 + 3, yT + 3);
+      g.closePath();
+      g.fill();
     } else {
       g.fillStyle = MOSS.log[si];
-      mossDots(g, R, x0 + 6, x1 - 4, yT + 1, 5, 6, 2, 2.8);
+      g.beginPath();
+      for (let x = x0 + 6; x < x1 - 4; x += 5 + R() * 6) circle(g, x, yT + 1, 2 + R() * 2.8);
+      g.fill();
       const caps = si === AUTUMN ? 4 : 2;
       for (let k = 0; k < caps; k++) {
         const fx = x0 + L * (0.2 + R() * 0.6), fy = yM + (R() - 0.2) * d * 0.3;
