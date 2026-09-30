@@ -115,7 +115,13 @@
   // Seeds of the per-tree streams (seed + tree index) for branches and crowns, so however many
   // draws a tree takes in a season, later trees sit in the same places in every season
   const HILL_TREE_SEED = 2020, FOREST_TREE_SEED = 3030;
+  const LAYER_SPRITE_CAP = LAYERS.length * 2; // cached layer sprites (two seasons' worth) before unneeded ones are dropped
+  const CLOUD_COUNT = 10;                // cloud shapes made
   const CLOUDS_BY_SEASON = [7, 5, 9, 9]; // clouds in the sky, by season
+  const STAR_COUNT = 170;                // stars in the night sky
+  const LUNAR_DAYS = 8;                  // days in the moon's cycle of phases; equals a year (4 seasons × 2 days): an open question
+  // Sun elevations between which night, day and the stars fade in (smoothstep edges)
+  const NIGHT_FADE = [-0.04, -0.28], DAY_FADE = [0.02, 0.3], STARS_FADE = [-0.03, -0.24];
 
   // A sum of sines whose frequencies fit the period exactly, so the layer tiles seamlessly
   function periodicNoise(R, period, terms) {
@@ -476,13 +482,13 @@
       this.layerRes = 1;
       const R = rng(404);
       this.cloudShapes = [];
-      for (let i = 0; i < 10; i++) this.cloudShapes.push(makeCloudShape(R));
-      this.clouds = this.cloudShapes.map((s, i) => ({ shape: i, x: (i + R() * 0.8) / 10, y: 0.05 + ((i * 7) % 10) / 10 * 0.3, speed: 3 + R() * 6, scale: 0.45 + R() * 0.4 }));
+      for (let i = 0; i < CLOUD_COUNT; i++) this.cloudShapes.push(makeCloudShape(R));
+      this.clouds = this.cloudShapes.map((s, i) => ({ shape: i, x: (i + R() * 0.8) / CLOUD_COUNT, y: 0.05 + ((i * 7) % CLOUD_COUNT) / CLOUD_COUNT * 0.3, speed: 3 + R() * 6, scale: 0.45 + R() * 0.4 }));
       this.cloudSprites = [];
       this.cloudKey = '';
       // Stars: position in [0,1]², size, brightness, twinkle
-      this.stars = new Float32Array(170 * 5);
-      for (let i = 0; i < 170; i++) {
+      this.stars = new Float32Array(STAR_COUNT * 5);
+      for (let i = 0; i < STAR_COUNT; i++) {
         const o = i * 5;
         this.stars[o] = R();
         this.stars[o + 1] = Math.pow(R(), 1.3) * 0.95;
@@ -513,11 +519,11 @@
       mixInto(pal.haze, pal.hor, pal.mid, 0.3);
       pal.elevation = e;
       pal.morning = morning;
-      pal.night = smooth(-0.04, -0.28, e);
-      pal.day = smooth(0.02, 0.3, e);
+      pal.night = smooth(NIGHT_FADE[0], NIGHT_FADE[1], e);
+      pal.day = smooth(DAY_FADE[0], DAY_FADE[1], e);
       pal.twilight = clamp01(1 - pal.night - pal.day);
-      pal.stars = smooth(-0.03, -0.24, e);
-      pal.moonPhase = ((clock.day + clock.phase) / 8 + 0.42) % 1;
+      pal.stars = smooth(STARS_FADE[0], STARS_FADE[1], e);
+      pal.moonPhase = ((clock.day + clock.phase) / LUNAR_DAYS + 0.42) % 1;
       pal.topCss = rgb(pal.top);
       pal.midCss = rgb(pal.mid);
       pal.horCss = rgb(pal.hor);
@@ -561,7 +567,7 @@
       if (res !== this.layerRes) this.layerRes = res;
       this.builtThisFrame = false;
       // Drop sprites of seasons no longer needed
-      if (this.layerSprites.size > 6) {
+      if (this.layerSprites.size > LAYER_SPRITE_CAP) {
         for (const key of [...this.layerSprites.keys()]) {
           const si = key % SEASON_COUNT;
           if (si !== ss.cur && si !== ss.next) this.layerSprites.delete(key);

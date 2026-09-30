@@ -331,7 +331,7 @@
       ctx.font = font(10.5, 700);
       const w = ctx.measureText(word).width + 8, right = x + r + 3 + w < this.width;
       const lx = right ? x + r + 3 : x - r - 3 - w;
-      ctx.fillStyle = 'rgba(10, 22, 25, 0.88)';
+      ctx.fillStyle = T.rgba('--pond-deep', 0.88);
       ctx.beginPath();
       ctx.roundRect(lx, y - 7, w, 14, 7);
       ctx.fill();

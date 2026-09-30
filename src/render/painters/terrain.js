@@ -7,6 +7,8 @@
   const { rgb, rgba, mix, scale } = Evo.color;
   const { GROUND, DETAIL, SNOW, ROCK_TONES, circle, flower } = Evo.Paint;
   const { WINTER } = Evo.SEASON;
+  const CLIFF_REACH = 110;  // px an edge cliff's art reaches in from its side of the world
+  const TILE_MARGIN = 24;   // px of ground a tile paints past its sides (and the view scans for its top)
 
   const SOIL = {
     grad: [[118, 80, 52], [96, 64, 43], [70, 47, 32], [50, 34, 25]],
@@ -91,7 +93,7 @@
   function paintTile(g, info, x0, y0, x1, y1, si) {
     const { surf, wet, W } = info;
     const pal = GROUND[si];
-    const xa = Math.max(-2, x0 - 24), xb = Math.min(W + 2, x1 + 24);
+    const xa = Math.max(-2, x0 - TILE_MARGIN), xb = Math.min(W + 2, x1 + TILE_MARGIN);
     const step = info.step;
     // Soil body
     const soil = new Path2D();
@@ -354,7 +356,7 @@
     }
     // Edge cliffs
     for (const c of info.cliffs) {
-      const cx0 = c.side ? W - 110 : -10, cx1 = c.side ? W + 10 : 110;
+      const cx0 = c.side ? W - CLIFF_REACH : -10, cx1 = c.side ? W + 10 : CLIFF_REACH;
       if (cx1 < x0 || cx0 > x1) continue;
       paintCliff(g, info, c, si);
     }
@@ -521,5 +523,5 @@
     }
   }
 
-  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, paintCliff });
+  Object.assign(Evo.Paint, { buildTerrain, paintTile, paintStone, paintCliff, CLIFF_REACH, TILE_MARGIN });
 })(globalThis.Evo);

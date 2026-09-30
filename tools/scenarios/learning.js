@@ -209,7 +209,8 @@ module.exports = ({ Evo, lab, session, run, trial }) => {
   const moulded = (seed, action, lag) => {
     const s = lab(seed), muscle = s.c.brain.lobes.motor[Evo.MOTORS.findIndex(m => m.key === action)];
     s.hold = { loneliness: 0, sleepiness: 0, tiredness: 0, hunger: 0, thirst: 0 };
-    const did = action === 'jump' ? () => s.c.jumpCooldown === 30 : () => s.c.callTimer === 40;
+    const { JUMP_COOLDOWN, CALL_TICKS } = Evo.CREATURE;
+    const did = action === 'jump' ? () => s.c.jumpCooldown === JUMP_COOLDOWN : () => s.c.callTimer === CALL_TICKS;
     callThenPat(s.world, s.c, muscle, lag, MOULD_ROUNDS, () => { for (const k in s.hold) s.c.chem.set(k, s.hold[k]); });
     let n = 0;
     run(s, COUNT_TICKS, () => { if (did()) n++; });

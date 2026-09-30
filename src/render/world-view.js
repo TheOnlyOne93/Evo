@@ -29,6 +29,8 @@
   const SOUND_LIFE = Evo.WORLD.SOUND_LIFE; // ticks a call stays visible (world.sounds[].age is in ticks)
   const NOTE_HIGH = '#bff3ff', NOTE_LOW = '#ffe2a8'; // a call's music notes, by pitch
   const NOTE_INK = 'rgba(30,24,44,0.75)';           // their dark outline
+  const BODY_CENTRE_OFFSET = 15;        // world px from a creature's feet up to about the middle of its body
+  const TREE_FRUIT_RADIUS = 4.3;        // the fruit drawn hanging on trees
   const KIND = { TILE: 0, TREE: 1, GRASS: 2, LOG: 3, ROCK: 4, REEDS: 5, THORN: 6, PLAT_LOG: 7, PLAT_ROCK: 8 };
   const FEATURE_KIND = { tree: KIND.TREE, grass: KIND.GRASS, log: KIND.LOG, rock: KIND.ROCK, reeds: KIND.REEDS, thornbush: KIND.THORN };
   // Back-to-front passes over world.features; reeds stand in front of the water
@@ -78,7 +80,7 @@
       this.sprites = [];
       this.spritePx = 0;
       this.poses = [];
-      this.fake = { id: 0, type: 'fruit', x: 0, y: 0, radius: 4.2, rot: 0, vx: 0, onGround: false };
+      this.fake = { id: 0, type: 'fruit', x: 0, y: 0, radius: TREE_FRUIT_RADIUS, rot: 0, vx: 0, onGround: false };
       this.box = { x0: 0, y0: 0, x1: 0, y1: 0 };
       this.glows = {
         warm: glowSprite([255, 150, 70], 64), lure: glowSprite([255, 120, 190], 64),
@@ -150,7 +152,7 @@
       let ax = sx, ay = sy;
       if (this.target) { // keep the followed creature where it is on screen
         ax = (this.target.x - this.cam.x) * z0 + this.w / 2;
-        ay = (this.target.y - 15 - this.cam.y) * z0 + this.h / 2;
+        ay = (this.target.y - BODY_CENTRE_OFFSET - this.cam.y) * z0 + this.h / 2;
       }
       const wx = this.cam.x + (ax - this.w / 2) / z0, wy = this.cam.y + (ay - this.h / 2) / z0;
       this.cam.zoom = z1;
@@ -217,8 +219,8 @@
         for (let i = 0; i < cols; i++) {
           const x0 = i * TILE, x1 = x0 + TILE, y1 = (j + 1) * TILE;
           let top = Infinity;
-          for (let x = Math.max(0, x0 - 24); x <= Math.min(world.width, x1 + 24); x += 4) top = Math.min(top, this.info.surf(x));
-          const cliff = (x0 < 110 || x1 > world.width - 110) && y1 > this.info.cliffTop - 50;
+          for (let x = Math.max(0, x0 - Paint.TILE_MARGIN); x <= Math.min(world.width, x1 + Paint.TILE_MARGIN); x += 4) top = Math.min(top, this.info.surf(x));
+          const cliff = (x0 < Paint.CLIFF_REACH || x1 > world.width - Paint.CLIFF_REACH) && y1 > this.info.cliffTop - 50;
           const empty = !cliff && y1 < top - 30;
           this.tiles[j * cols + i] = { kind: KIND.TILE, empty, bx0: x0, by0: j * TILE, bw: TILE, bh: TILE, sp: new Array(SEASON_COUNT * NL).fill(null) };
         }
@@ -643,7 +645,6 @@
       const n = Math.min(pts.length, Math.round(f.fruiting * pts.length));
       const it = this.fake;
       it.type = f.species === 'mimic' ? 'mimic' : 'fruit';
-      it.radius = 4.3;
       const lift = Evo.ItemArt.liftOf(it);
       for (let k = 0; k < n; k++) {
         it.id = k;
@@ -778,7 +779,7 @@
         return Math.hypot(x - (b.x0 + b.x1) / 2, y - (b.y0 + b.y1) / 2);
       }
       const r = c.size * 0.6 + pad;
-      const d = Math.hypot(x - c.x, y - (c.y - 15));
+      const d = Math.hypot(x - c.x, y - (c.y - BODY_CENTRE_OFFSET));
       return d < r ? d : Infinity;
     }
 
@@ -896,12 +897,12 @@
       const rx = size * 0.55 + 6, ry = rx * 0.28;
       const pulse = 0.5 + 0.5 * Math.sin(t * 3);
       g.lineWidth = 2;
-      g.strokeStyle = 'rgba(155,227,200,' + (0.55 + 0.35 * pulse).toFixed(3) + ')';
+      g.strokeStyle = Evo.theme.rgba('--accent', (0.55 + 0.35 * pulse).toFixed(3));
       g.beginPath();
       g.ellipse(c.x, sy, rx, ry, 0, back ? Math.PI : 0, back ? TAU : Math.PI);
       g.stroke();
       if (back) {
-        g.fillStyle = 'rgba(155,227,200,0.14)';
+        g.fillStyle = Evo.theme.rgba('--accent', 0.14);
         g.beginPath(); g.ellipse(c.x, sy, rx, ry, 0, 0, TAU); g.fill();
       }
     }

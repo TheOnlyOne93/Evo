@@ -192,7 +192,7 @@
           g.moveTo(p.x + sx * h, p.y + sy * (h - l)); g.lineTo(p.x + sx * h, p.y + sy * h); g.lineTo(p.x + sx * (h - l), p.y + sy * h);
         }
       }
-      g.globalAlpha = 0.45; g.strokeStyle = '#06131a'; g.lineWidth = 3.6; g.stroke();
+      g.globalAlpha = 0.45; g.strokeStyle = Evo.theme.INK_EDGE; g.lineWidth = 3.6; g.stroke();
       g.globalAlpha = 0.9; g.strokeStyle = Evo.theme.color('--accent'); g.lineWidth = 1.8; g.stroke();
       g.globalAlpha = 1;
     }
@@ -205,7 +205,7 @@
       const gw = g.measureText(glyph + ' ').width, w = gw + g.measureText(name).width + 14, hh = 18 * Math.min(z, 1.15);
       const x = p.x - w / 2, y = p.y + 9 * z;
       g.globalAlpha = alpha * 0.9;
-      g.fillStyle = 'rgba(15, 30, 34, 0.85)';
+      g.fillStyle = Evo.theme.rgba('--pond', 0.85);
       g.beginPath(); g.roundRect(x, y, w, hh, hh / 2); g.fill();
       g.globalAlpha = alpha;
       g.textBaseline = 'middle'; g.textAlign = 'left';

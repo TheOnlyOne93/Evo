@@ -8,6 +8,8 @@
   const { GROUND, circle, isWarm } = Evo.Paint;
 
   const MAX_PARTICLES = 360;
+  const REF_VIEW_AREA = 1100 * 650;  // world px² of view the particle densities are set for
+  const SPAWN_INTERVAL = 0.12;       // s between rounds of leaf and petal spawning
   // Particle kinds (the pool's kind array)
   const LEAF = 0, SNOW = 1, PETAL = 2, POLLEN = 3, FIREFLY = 4;
   const FALLS = [true, true, true, false, false]; // by kind: drifts down and settles or melts on landing
@@ -54,7 +56,7 @@
       const si = ss.blend > 0.5 ? ss.next : ss.cur;
       const x0 = v.vx0, x1 = v.vx1, y0 = v.vy0, y1 = v.vy1;
       const vw = x1 - x0, vh = y1 - y0;
-      const area = clamp((vw * vh) / (1100 * 650), 0.25, 2.5);
+      const area = clamp((vw * vh) / REF_VIEW_AREA, 0.25, 2.5);
       const fresh = si !== this.season;
       this.season = si;
       if (fresh) { // drop the last season's weather at once
@@ -79,9 +81,9 @@
         const kind = si === AUTUMN ? LEAF : PETAL, colors = kind === LEAF ? LEAF_COLORS : PETAL_COLORS;
         this.spawnTimer += dt;
         const fs = v.world.features;
-        if (this.spawnTimer > 0.12) {
-          const steps = Math.min(8, Math.floor(this.spawnTimer / 0.12));
-          this.spawnTimer -= steps * 0.12;
+        if (this.spawnTimer > SPAWN_INTERVAL) {
+          const steps = Math.min(8, Math.floor(this.spawnTimer / SPAWN_INTERVAL));
+          this.spawnTimer -= steps * SPAWN_INTERVAL;
           for (let s = 0; s < steps; s++) {
             for (let k = 0; k < fs.length; k++) {
               const f = fs[k];

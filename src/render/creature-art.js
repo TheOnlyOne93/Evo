@@ -15,6 +15,11 @@
   const EMPTY = {};
 
   const UNITS = 32;                                  // pose.size spans this many units
+  const REF_SIZE = 40;                               // pose.size the gait speed and the outline weight are judged against
+  const MIN_SIZE = 4, MIN_REF_SIZE = 8;              // floors on pose.size: for the scale, and against REF_SIZE
+  const { ADOLESCENT, SENILE } = Evo.STAGE;          // mature (crest, tufts, lashes, heat) from adolescence
+  const EYE = { OPEN: 0, SLEEPY: 1, HAPPY: 2, SHUT: 3, DEAD: 4 };  // r.eyeMode: open, or drawn as a closed shape
+  const CREST_KIND = { TUFT: 0, PLUME: 1, FAN: 2 };  // r.crestKind: the young's tuft, a female plume, a male fan
   const GROWTH = [1, 0, 0.32, 0.58, 0.82, 1, 1, 1];  // toward adult proportions, by stage
   const AGEING = [0, 0, 0, 0, 0, 0, 0.55, 1];        // greying, whiskers, droop, by stage
   const CREST = [1, 0.4, 0.5, 0.66, 0.84, 1, 1, 0.9];
@@ -104,7 +109,7 @@
     p.inner = hsl(hueTo(ah, 345, 0.3), as + 6, al - 7);
     p.innerFar = hsl(hueTo(ah, 345, 0.3), as, al - 18);
     // From adolescence the crest leans toward the colour of its sex, so the sexes tell apart at a glance
-    const ch = r.stage >= 3 ? hueTo(ah, sexHue(r.female), 0.75) : ah;
+    const ch = r.mature ? hueTo(ah, sexHue(r.female), 0.75) : ah;
     p.crest = hsl(ch, (k6 ? 20 : 74) * (1 - 0.45 * ag), k7 ? 66 : 58);
     p.crestHi = hsl(ch, (k6 ? 20 : 86) * (1 - 0.45 * ag), k7 ? 84 : 76);
     p.iris = hsl(hueTo(ah, 30, 0.2), k6 ? 8 : 48, 30);
@@ -131,7 +136,7 @@
   // ---- The rig: every point of the current pose, in units ------------------------------------
 
   const rig = {
-    k: 1, facing: 1, stage: 5, g: 1, ag: 0, female: true, dead: false, held: false, asleep: false,
+    k: 1, facing: 1, stage: 5, mature: true, senile: false, g: 1, ag: 0, female: true, dead: false, held: false, asleep: false,
     air: 0, lying: 0, fear: 0, anger: 0, sick: 0, cold: 0, hot: 0, wet: 0, calling: 0, heat: 0,
     offX: 0, sx: 1, sy: 1, swing: 0, shadowY: 0, shadow: 1, ol: 1, lod: 2, pxScale: 1,
     bx: 0, by: 0, ang: 0, rxF: 10, rxB: 11, ryT: 8, ryB: 9, breath: 1, bristle: 0,
@@ -158,7 +163,8 @@
   function computeRig(pose, t, e, r, advance) {
     const L = pose.looks || EMPTY, M = pose.motion || EMPTY, F = pose.face || EMPTY, S = pose.state || EMPTY;
     const stage = clamp(Math.round(num(pose.stage, 5)), 1, 7);
-    const g = GROWTH[stage], ag = AGEING[stage], senile = stage === 7 ? 1 : 0, baby = 1 - g;
+    r.mature = stage >= ADOLESCENT; r.senile = stage === SENILE;
+    const g = GROWTH[stage], ag = AGEING[stage], senile = r.senile ? 1 : 0, baby = 1 - g;
     const plump = clamp01(num(L.plumpness, 0.5)), legGene = clamp01(num(L.legLength, 0.5));
     const tailGene = clamp01(num(L.tailLength, 0.5)), earGene = clamp01(num(L.earSize, 0.5));
     const eyeGene = clamp01(num(L.eyeSize, 0.5)), crestGene = clamp01(num(L.crest, 0.5));
@@ -176,11 +182,12 @@
     const tempo = 1 - 0.18 * ag - 0.2 * senile;
     const ph0 = e.phase;
     const facing = pose.facing < 0 ? -1 : 1;
+    const size = num(pose.size, 32), toRef = REF_SIZE / Math.max(MIN_REF_SIZE, size);
 
-    r.k = Math.max(4, num(pose.size, 32)) / UNITS; r.facing = facing; r.stage = stage; r.g = g; r.ag = ag;
+    r.k = Math.max(MIN_SIZE, size) / UNITS; r.facing = facing; r.stage = stage; r.g = g; r.ag = ag;
     r.female = pose.sex !== 'MALE'; r.dead = dead; r.held = held; r.asleep = asleep; r.air = air; r.lying = lying;
     r.fear = fear; r.anger = anger; r.sick = sick; r.cold = cold; r.hot = hot; r.wet = wet; r.calling = calling;
-    r.heat = S.inHeat && !dead && stage >= 3 ? 0.62 + 0.38 * Math.sin(t * 3.4 + ph0) : 0;
+    r.heat = S.inHeat && !dead && r.mature ? 0.62 + 0.38 * Math.sin(t * 3.4 + ph0) : 0;
     r.pattern = Math.round(num(L.pattern, 0)); r.patternScale = clamp01(num(L.patternScale, 0.5));
 
     // Proportions: babies are mostly head, with stubby legs
@@ -200,7 +207,7 @@
 
     // Gait: diagonal walk blending into a bounding run. Speed is judged relative to body size, so
     // a baby's scurry reads as a walk and its sprint as a run
-    const speed = Math.abs(num(M.vx, 0)), rel = speed * Math.sqrt(40 / Math.max(8, num(pose.size, 32)));
+    const speed = Math.abs(num(M.vx, 0)), rel = speed * Math.sqrt(toRef);
     const move = held || dead || air ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand;
     const run = smooth(clamp01((rel - 1.45) / 0.9)) * move;
     const cadence = CADENCE[stage] * (1.25 - 0.5 * legGene) * lerp(1, 0.62, run);
@@ -316,7 +323,7 @@
 
     // Crest: a neutral tuft in the young, then a plume (female) or a fan (male)
     r.crest = R * (0.36 + 0.46 * crestGene) * CREST[stage] * (dead ? 0.8 : 1);
-    r.crestKind = stage <= 2 ? 0 : r.female ? 1 : 2;
+    r.crestKind = !r.mature ? CREST_KIND.TUFT : r.female ? CREST_KIND.PLUME : CREST_KIND.FAN;
     r.crestSway = Math.sin(t * 1.3 * tempo + ph0) * 0.06 * live - 0.25 * run - 0.2 * air;
 
     // Eyes
@@ -326,7 +333,8 @@
     closed *= 1 - 0.8 * fear;
     r.closed = clamp01(closed);
     // X when dead, squeezed shut when hurt, happy arcs when patted (or delighted with eyes closed)
-    r.eyeMode = dead ? 4 : flinch > 0.45 ? 3 : joy > 0.4 ? 2 : r.closed > 0.86 ? (smile > 0.35 && !asleep ? 2 : 1) : 0;
+    r.eyeMode = dead ? EYE.DEAD : flinch > 0.45 ? EYE.SHUT : joy > 0.4 ? EYE.HAPPY
+      : r.closed > 0.86 ? (smile > 0.35 && !asleep ? EYE.HAPPY : EYE.SLEEPY) : EYE.OPEN;
     r.eR = R * (0.26 + 0.13 * eyeGene) * lerp(1.14, 1, g) * (1 + 0.12 * fear);
     r.px = clamp(num(F.pupilX, 0), -1, 1) * facing;
     r.py = clamp(num(F.pupilY, 0), -1, 1);
@@ -352,7 +360,7 @@
     r.sx = (1 + 0.12 * flinch) * (air ? 0.95 : 1);
     r.sy = (1 - 0.15 * flinch) * (air ? 1.06 : 1);
     r.swing = held ? Math.sin(t * 2.1 + ph0) * 0.12 : 0;
-    r.ol = 0.95 * Math.pow(40 / Math.max(8, num(pose.size, 32)), 0.3);
+    r.ol = 0.95 * Math.pow(toRef, 0.3);
 
     // Ground: shadow at the feet; while airborne only if the pose says where the ground is
     const gy = typeof pose.groundY === 'number' ? (pose.groundY - pose.y) / r.k : null;
@@ -469,7 +477,7 @@
       ctx.beginPath();
       ctx.ellipse(0, r.shadowY + 0.5, w, w * 0.24, 0, 0, TAU);
       ctx.globalAlpha = focused ? 0.35 : 0.25;
-      ctx.strokeStyle = '#06131a'; ctx.lineWidth = (focused ? 4.4 : 3.2) * px; ctx.stroke();
+      ctx.strokeStyle = Evo.theme.INK_EDGE; ctx.lineWidth = (focused ? 4.4 : 3.2) * px; ctx.stroke();
       ctx.globalAlpha = focused ? 1 : 0.6;
       ctx.strokeStyle = token('--accent'); ctx.lineWidth = (focused ? 2.2 : 1.4) * px; ctx.stroke();
       ctx.globalAlpha = 1;
@@ -620,7 +628,7 @@
       ctx.fillStyle = near ? pal.inner : pal.innerFar; ctx.fill();
       ctx.restore();
     }
-    if (!r.female && r.stage >= 3) {
+    if (!r.female && r.mature) {
       // Male ear-tip tufts
       ctx.beginPath();
       ctx.moveTo(-w * 0.12, -len * 0.95);
@@ -653,7 +661,7 @@
     }
     const fill = r.heat > 0 ? pal.crestHi : pal.crest;
     ctx.strokeStyle = pal.line;
-    if (r.crestKind === 0) {
+    if (r.crestKind === CREST_KIND.TUFT) {
       // Baby tuft: three soft curls
       ctx.beginPath();
       for (let i = -1; i <= 1; i++) {
@@ -664,7 +672,7 @@
       ctx.lineWidth = ol * 1.3; ctx.strokeStyle = fill; ctx.stroke();
     } else {
       // Female: soft round-tipped fronds; male: a spiky fan swept back like a cockatiel's
-      const fem = r.crestKind === 1, F = fem ? FRONDS_F : FRONDS_M;
+      const fem = r.crestKind === CREST_KIND.PLUME, F = fem ? FRONDS_F : FRONDS_M;
       ctx.beginPath();
       for (let i = 0; i < F.length; i += 3) {
         ctx.save(); frond(ctx, F[i], F[i + 1] * cs, F[i + 2] * cs, fem); ctx.restore();
@@ -825,18 +833,18 @@
     const ol = r.ol, mode = r.eyeMode, E = EYES;
     ctx.strokeStyle = pal.line;
     ctx.beginPath();
-    if (mode) {
+    if (mode !== EYE.OPEN) {
       for (let i = 0; i < 10; i += 5) {
         const x = E[i], y = E[i + 1], rx = E[i + 2], ry = E[i + 3], side = E[i + 4];
-        if (mode === 4) {
+        if (mode === EYE.DEAD) {
           // X: dead
           const s = ry * 0.6, sx = s * rx / ry;
           ctx.moveTo(x - sx, y - s); ctx.lineTo(x + sx, y + s);
           ctx.moveTo(x + sx, y - s); ctx.lineTo(x - sx, y + s);
-        } else if (mode === 3) {
+        } else if (mode === EYE.SHUT) {
           // Squeezed shut: > <
           ctx.moveTo(x - side * rx * 0.75, y - ry * 0.55); ctx.lineTo(x + side * rx * 0.6, y); ctx.lineTo(x - side * rx * 0.75, y + ry * 0.55);
-        } else if (mode === 2) {
+        } else if (mode === EYE.HAPPY) {
           // Happy arcs
           ctx.moveTo(x - rx * 0.85, y + ry * 0.2); ctx.quadraticCurveTo(x, y - ry * 0.75, x + rx * 0.85, y + ry * 0.2);
         } else {
@@ -869,7 +877,7 @@
     ctx.beginPath(); eyePath(ctx, 0, 1, 1, 0, 0); eyePath(ctx, 5, 1, 1, 0, 0);
     ctx.lineWidth = ol; ctx.stroke();
     // Lashes (female), at the outer corners
-    if (r.female && r.stage >= 3 && r.lod > 0) {
+    if (r.female && r.mature && r.lod > 0) {
       ctx.beginPath();
       for (let i = 0; i < 10; i += 5) {
         const rx = E[i + 2], ry = E[i + 3], side = E[i + 4];
@@ -994,7 +1002,7 @@
   }
 
   function whiskers(ctx, r) {
-    const R = r.R, droop = 0.12 + 0.2 * (r.stage === 7 ? 1 : 0);
+    const R = r.R, droop = 0.12 + 0.2 * (r.senile ? 1 : 0);
     ctx.beginPath();
     for (let i = 0; i < 3; i++) {
       const a = -0.28 + i * 0.26 + droop, l = R * (0.55 + 0.1 * i);

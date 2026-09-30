@@ -20,6 +20,8 @@
   const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
+  const CALL_TICKS = 40;            // A call lasts this long (callTimer counts down from it)
+  const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const HIGH_BAND_SLOPE = 0.35;     // Sight: a thing rising more than this per px of distance (about 20 degrees) is in the high band
   const EGG_INVESTMENT_BASE = 0.6;  // An egg holds (this + eggInvestment) x EGG_CONTENTS
   const { sightIndex, smellIndex, hearingIndex, SIGHT_CELLS, HEARING_CELLS } = Evo.BRAIN_BODY_PLAN;
@@ -619,7 +621,7 @@
       if (m[MOTOR_INDEX.jump] && this.onGround && this.jumpCooldown === 0) {
         this.vy = -T.jumpPower * Math.sqrt(strength) * (0.7 + 0.3 * this.growth);
         this.onGround = false;
-        this.jumpCooldown = 30;
+        this.jumpCooldown = JUMP_COOLDOWN;
         this.restTimer = 0;
         effort += 1;
       }
@@ -648,7 +650,7 @@
       if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = 90; // move() brakes a resting body
       // Calling
       if (m[MOTOR_INDEX.call] && this.callTimer === 0) {
-        this.callTimer = 40;
+        this.callTimer = CALL_TICKS;
         world.makeSound(this);
       }
       this.exertion = this.exertion * 0.9 + Math.min(1, effort) * 0.1;
@@ -780,5 +782,5 @@
   Evo.EGG_CONTENTS = { glucose: 0.35, glycogen: 0.3, fat: 0.25, protein: 0.45, water: 0.6 };
   Evo.EGG_INVESTMENT_BASE = EGG_INVESTMENT_BASE;
 
-  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX } });
+  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, NEURAL_GAIN, WALK_PHASE_PER_PX, CALL_TICKS, JUMP_COOLDOWN } });
 })(globalThis.Evo);

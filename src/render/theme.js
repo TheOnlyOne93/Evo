@@ -42,5 +42,8 @@
     scale: (c, k) => [Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)],
   };
 
-  Evo.theme = { color, hexRgb, rgbOf, rgba };
+  // The dark edge under a light stroke (the focus ring, attention brackets), so it shows on any ground
+  const INK_EDGE = '#06131a';
+
+  Evo.theme = { color, hexRgb, rgbOf, rgba, INK_EDGE };
 })(globalThis.Evo);

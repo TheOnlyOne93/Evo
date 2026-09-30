@@ -6,6 +6,10 @@
   const { clamp, clamp01 } = Evo.util;
   // creature -> values eased per sim tick (weakly held: forgotten once the creature is gone)
   const smooth = new WeakMap();
+  // Gestures, in ticks: the mouth is open for the first half of a call; a yawn or a lick of the
+  // lips lasts `len` every `period` while its cause lasts, each creature on its own beat (`salt`)
+  const CALL_HALF = Evo.CREATURE.CALL_TICKS / 2;
+  const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
   // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
@@ -112,8 +116,8 @@
     const mouth = Math.max(c.mouthTimer, c.drinkTimer || 0);
     const awake = !c.asleep && !c.dead && !c.held;
     // Yawning when sleepy or tired; licking its lips when hungry or thirsty
-    const yawn = awake && !mouth && Math.max(get('sleepiness'), get('tiredness')) > 0.55 ? every(c, 420, 54, 131) : 0;
-    const lick = awake && !mouth && !yawn && Math.max(get('hunger'), get('thirst'), get('proteinHunger'), get('fatHunger')) > 0.55 ? every(c, 260, 26, 71) : 0;
+    const yawn = awake && !mouth && Math.max(get('sleepiness'), get('tiredness')) > 0.55 ? every(c, YAWN.period, YAWN.len, YAWN.salt) : 0;
+    const lick = awake && !mouth && !yawn && Math.max(get('hunger'), get('thirst'), get('proteinHunger'), get('fatHunger')) > 0.55 ? every(c, LICK.period, LICK.len, LICK.salt) : 0;
     return {
       id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex,
       looks: {
@@ -127,7 +131,7 @@
       face: {
         eyesClosed: ease(s, 'eyes', c.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
-        mouthOpen: c.callTimer > 20 ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : yawn,
+        mouthOpen: c.callTimer > CALL_HALF ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : yawn,
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
         earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6)), 0.05), // the art droops old ears itself
         blush: ease(s, 'blush', clamp01(c.stim.gentle + get('endorphin')), 0.1),
@@ -137,7 +141,7 @@
       },
       state: {
         asleep: c.asleep, held: c.held, dead: c.dead, eating: mouth > 0, // Eating or drinking: the mouth is at work
-        calling: clamp01((c.callTimer - 20) / 20), flinch: c.stim.flinch,
+        calling: clamp01((c.callTimer - CALL_HALF) / CALL_HALF), flinch: c.stim.flinch,
         fear: get('fear'), anger: get('anger'), pain: get('pain'), sick: clamp01(get('nausea') + get('toxin')),
         cold: get('coldness'), hot: get('hotness'),
         wet: ease(s, 'wet', c.inWater ? 1 : 0, c.inWater ? 0.2 : 0.004),
