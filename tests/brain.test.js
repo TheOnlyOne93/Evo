@@ -2,7 +2,7 @@
 
 const founderBrain = (Evo, sex = 'X') => new Evo.Brain(Evo.Genome.founder(sex).develop());
 
-// The synapse arrays, the lookup set and the outgoing lists must always agree
+// The synapse arrays, the lookup set and the outgoing lists must always agree; nothing ends on a sense cell
 function checkWiring(brain, assert) {
   assert.strictEqual(brain.keys.size, brain.S);
   brain.rebuildAdjacency();
@@ -16,7 +16,10 @@ function checkWiring(brain, assert) {
   for (let i = 0; i < brain.N; i++) {
     for (const s of brain.outgoing(i)) assert.ok(brain.sSrc[s] === i && onto(s) < 0);
   }
-  for (let s = 0; s < brain.S; s++) assert.ok(brain.hasSynapse(brain.sSrc[s], brain.sDst[s]));
+  for (let s = 0; s < brain.S; s++) {
+    assert.ok(brain.hasSynapse(brain.sSrc[s], brain.sDst[s]));
+    assert.ok(!brain.isSensory[brain.sDst[s]], `synapse ${s} ends on sense cell ${brain.sDst[s]}`);
+  }
 }
 
 test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, assert) => {
@@ -34,7 +37,7 @@ test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, asser
 
 test('brain: nothing ever synapses onto a sensory cell', (Evo, assert) => {
   const brain = founderBrain(Evo);
-  for (let s = 0; s < brain.S; s++) assert.ok(!brain.isSensory[brain.sDst[s]] || brain.neurons[brain.sDst[s]].copyOf !== null);
+  for (let s = 0; s < brain.S; s++) assert.ok(!brain.isSensory[brain.sDst[s]], `synapse ${s} ends on sense cell ${brain.sDst[s]}`);
 });
 
 test('brain: weights stay inside their limits under relentless reward and punishment', (Evo, assert) => {
@@ -207,7 +210,8 @@ function attentionWinner(Evo, seed, drive) {
     const a = t >= 100 && brain.attended();
     if (a) count[a.feature] = (count[a.feature] || 0) + 1;
   }
-  return (count.red || 0) > (count.blue || 0) ? 'red' : 'blue';
+  const red = count.red || 0, blue = count.blue || 0;
+  return red > blue ? 'red' : blue > red ? 'blue' : 'none';
 }
 
 test('brain: attention goes to what the creature needs', (Evo, assert) => {

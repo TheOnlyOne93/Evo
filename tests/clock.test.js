@@ -38,8 +38,14 @@ test('clock: ticks cut off by the frame budget are dropped, not owed', (Evo, ass
   const wanted = clock.advance(1000 / 60, 8, false);
   clock.report(2);
   assert.ok(wanted > 2);
-  assert.ok(clock.advance(1000 / 60, 8, false) <= 8, 'no backlog on the next frame');
   assert.ok(clock.achievedSpeed() < 8, 'the shortfall shows in the achieved speed');
+  // 1.5 ticks a frame: a frame that ran all its ticks carries the half tick on; a cut-off frame does not
+  const carry = new Evo.FrameClock();
+  carry.report(carry.advance(25, 1, false));
+  assert.strictEqual(carry.advance(25, 1, false), 2);
+  const cut = new Evo.FrameClock();
+  cut.advance(25, 1, false); cut.report(0);
+  assert.strictEqual(cut.advance(25, 1, false), 1, 'no backlog on the next frame');
   const fine = new Evo.FrameClock();
   for (let f = 0; f < 60; f++) fine.report(fine.advance(1000 / 60, 8, false));
   assert.strictEqual(fine.achievedSpeed(), 8);

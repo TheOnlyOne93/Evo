@@ -71,9 +71,13 @@ test('genome: gene loss after a duplication removes a whole gene', (Evo, assert)
     0.99                                         // no small indel
   ];
   let i = 0;
-  Evo.useRandomSource(() => (i < draws.length ? draws[i++] : 0.5));
-  const child = parent.cloneWithMutation(0.004, true);
-  Evo.seed(1);
+  let child;
+  try {
+    Evo.useRandomSource(() => (i < draws.length ? draws[i++] : 0.5));
+    child = parent.cloneWithMutation(0.004, true);
+  } finally {
+    Evo.seed(1);
+  }
   const after = child.findGenes();
   assert.strictEqual(after.length, before.length, 'one gene gained, one whole gene lost');
   const bytes = (g, dna) => Array.from(dna.slice(g.start, g.end)).join(',');
@@ -102,7 +106,13 @@ test('genome: clones and children keep the family line mutation count', (Evo, as
   assert.strictEqual(a.clone().mutationCount, a.mutationCount);
   const child = Evo.Genome.recombine(a, b);
   assert.ok(child.mutationCount >= a.mutationCount);
-  assert.ok(['X', 'Y'].includes(child.sexChrom));
+});
+
+test('genome: a child gets X or Y from its father at random', (Evo, assert) => {
+  const mother = Evo.Genome.founder('X'), father = Evo.Genome.founder('Y');
+  const seen = new Set();
+  for (let i = 0; i < 20; i++) seen.add(Evo.Genome.recombine(mother, father).sexChrom);
+  assert.deepStrictEqual([...seen].sort(), ['X', 'Y']);
 });
 
 test('genome: a hue byte of zero gives a red coat, not the default', (Evo, assert) => {
@@ -138,7 +148,7 @@ test('genome: a misspelled chemical name in a gene throws instead of encoding to
 
 test('genome: a founder guidance weight too weak to keep its sign throws', (Evo, assert) => {
   assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: 0.1 }), /0\.1/);
-  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: -0.1 }));
+  assert.throws(() => Evo.founderKit.guide('touch', [0.5, 0.5, 0.5], { radius: 0.2, weight: -0.1 }), /-0\.1/);
 });
 
 test('genome: a windowed guidance gene grows synapses only from the cells in its window', (Evo, assert) => {

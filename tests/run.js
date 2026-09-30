@@ -20,18 +20,20 @@ if (!selected.length) {
   console.log(`no tests match '${filter}'`);
   process.exit(1);
 }
-let passed = 0, failed = 0;
-for (const t of selected) {
-  Evo.seed(12345);
-  const start = Date.now();
-  try {
-    t.fn(Evo, assert);
-    passed++;
-    console.log(`  ok    ${t.name}  (${Date.now() - start} ms)`);
-  } catch (e) {
-    failed++;
-    console.log(`  FAIL  ${t.name}\n        ${String(e.stack).split('\n').slice(0, 5).join('\n        ')}`);
+(async () => {
+  let passed = 0, failed = 0;
+  for (const t of selected) {
+    Evo.seed(12345);
+    const start = Date.now();
+    try {
+      await t.fn(Evo, assert);
+      passed++;
+      console.log(`  ok    ${t.name}  (${Date.now() - start} ms)`);
+    } catch (e) {
+      failed++;
+      console.log(`  FAIL  ${t.name}\n        ${String(e.stack).split('\n').slice(0, 5).join('\n        ')}`);
+    }
   }
-}
-console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed ? 1 : 0);
+  console.log(`\n${passed} passed, ${failed} failed`);
+  process.exit(failed ? 1 : 0);
+})();

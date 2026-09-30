@@ -12,10 +12,12 @@ test('biochem: reactions conserve mass by their yields, and stop when a reactant
   const { CHEM } = Evo;
   const b = chemistry(Evo, { reactions: [{ a: CHEM.gutSugar, b: 0, c: CHEM.glucose, d: 0, rate: 0.05, yieldC: 1, yieldD: 0 }] });
   b.set('gutSugar', 0.5);
+  let drift = 0;
   for (let t = 0; t < 400; t++) {
     b.step(loci(Evo));
-    assert.ok(Math.abs(b.get('gutSugar') + b.get('glucose') - 0.5) < 1e-5);
+    drift = Math.max(drift, Math.abs(b.get('gutSugar') + b.get('glucose') - 0.5));
   }
+  assert.ok(drift < 1e-5, `mass drifts by ${drift}`);
   assert.ok(b.get('gutSugar') < 0.001 && b.get('glucose') > 0.49);
 });
 

@@ -15,7 +15,6 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   assert.ok(pose.facing === 1 || pose.facing === -1, 'facing is 1 or -1');
   assert.ok(Number.isInteger(pose.stage) && pose.stage >= 1 && pose.stage <= 7, 'stage 1..7');
   assert.ok(pose.sex === 'FEMALE' || pose.sex === 'MALE', 'sex');
-  if (pose.groundY !== undefined) num(pose, 'groundY');
 
   ['hue', 'accentHue'].forEach(k => { num(pose.looks, k); assert.ok(pose.looks[k] >= 0 && pose.looks[k] <= 360, k + ' in 0..360'); });
   num(pose.looks, 'pattern');

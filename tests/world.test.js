@@ -248,7 +248,7 @@ test('world: a nuzzle and a shove reach their targets in the tick they happen, w
     return { gentle: b.stim.gentle, flinch: a.stim.flinch, vy: a.vy, airborne: !a.onGround };
   });
   assert.deepStrictEqual(felt[0], felt[1]);
-  assert.ok(felt[0].gentle < 0.5 && felt[0].flinch < 1, 'felt, then faded once, in the same tick');
+  assert.ok(felt[0].gentle > 0 && felt[0].gentle < 0.5 && felt[0].flinch > 0 && felt[0].flinch < 1, 'felt, then faded once, in the same tick');
   assert.ok(felt[0].vy < 0 && felt[0].airborne, 'the shoved one is already off the ground');
 });
 
