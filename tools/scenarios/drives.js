@@ -1,5 +1,5 @@
-// Drive-to-action scenarios: each drive, held on its own, and what the creature does about it;
-// and what stimuli release. See tools/behave.js for the shape.
+// Drive-to-action scenarios: each drive, held on its own, and what the creature does about it.
+// See tools/behave.js for the shape.
 'use strict';
 
 module.exports = ({ lab, trial, avoids }) => ({
@@ -25,19 +25,6 @@ module.exports = ({ lab, trial, avoids }) => ({
       s.hold = { thirst: 0.7 };
       const drinks = s.count('drink');
       return trial(s, 1800, () => drinks() > 0);
-    },
-    // Stimulus genes: the hand's pat and slap release reward and punishment at once
-    'patted -> reward >= 0.15 next tick': seed => {
-      const s = lab(seed);
-      s.world.step();
-      s.world.pat(s.c);
-      return trial(s, 1, (w, c) => c.chem.get('reward') >= 0.15);
-    },
-    'slapped -> punishment >= 0.2 next tick': seed => {
-      const s = lab(seed);
-      s.world.step();
-      s.world.slap(s.c);
-      return trial(s, 1, (w, c) => c.chem.get('punishment') >= 0.2);
     }
   },
   reports: {

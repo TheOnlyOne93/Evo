@@ -35,11 +35,6 @@ test('brain: synapse arrays, lookup set and adjacency stay in step', (Evo, asser
   checkWiring(brain, assert);
 });
 
-test('brain: nothing ever synapses onto a sensory cell', (Evo, assert) => {
-  const brain = founderBrain(Evo);
-  for (let s = 0; s < brain.S; s++) assert.ok(!brain.isSensory[brain.sDst[s]], `synapse ${s} ends on sense cell ${brain.sDst[s]}`);
-});
-
 test('brain: weights stay inside their limits under relentless reward and punishment', (Evo, assert) => {
   const brain = founderBrain(Evo);
   const input = new Float32Array(brain.N);

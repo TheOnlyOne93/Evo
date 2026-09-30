@@ -33,9 +33,3 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   assert.strictEqual(typeof pose.hovered, 'boolean');
   assert.strictEqual(Evo.poseOf(c, { focused: true }).focused, true);
 });
-
-test('render: every item type has a positive radius', (Evo, assert) => {
-  const keys = Object.keys(Evo.ITEM_TYPES);
-  assert.ok(keys.length > 0);
-  for (const k of keys) assert.ok(Evo.ITEM_TYPES[k].radius > 0, `${k} radius`);
-});

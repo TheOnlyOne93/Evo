@@ -91,20 +91,17 @@ for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
   Object.assign(REPORTS, reports);
 }
 
-// Reports that time the code: run on their own after the pool, so other processes don't slow them
-const isCost = name => name.startsWith('cost:');
-
 // Each selected scenario's and report's result for the given seeds: { name: { seed: value } }
-function measure({ seeds, filter, report, cost }) {
+function measure({ seeds, filter, report }) {
   const out = {};
   const each = table => {
     for (const [name, fn] of Object.entries(table)) {
-      if (!name.includes(filter) || (table === REPORTS && isCost(name) !== cost)) continue;
+      if (!name.includes(filter)) continue;
       out[name] = {};
       for (const seed of seeds) out[name][seed] = fn(seed);
     }
   };
-  if (!cost) each(SCENARIOS);
+  each(SCENARIOS);
   if (report) each(REPORTS);
   return out;
 }
@@ -144,9 +141,8 @@ if (!Number.isInteger(jobs)) { console.error('usage: --jobs N (a whole number)')
 const seeds = Array.from({ length: trials }, (_, i) => i + 1);
 
 (async () => {
-  const opts = { filter, report: showReport, cost: false };
+  const opts = { filter, report: showReport };
   const results = jobs > 1 ? await pool(seeds, jobs, opts) : measure({ ...opts, seeds });
-  if (showReport) Object.assign(results, measure({ ...opts, seeds, cost: true }));
   const nameWidth = Math.max(...Object.keys(SCENARIOS).map(n => n.length));
   for (const name of Object.keys(SCENARIOS)) {
     if (!results[name]) continue;

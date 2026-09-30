@@ -109,7 +109,3 @@ The first two Feelings cells are the modulators: reward (channel 0) and punishme
 ## Other hooks
 
 `brain.inject(neuron, mV, delayTicks)` delivers an input after a delay (the inspector's Stimulate button and dreams use it).
-
-## Cost
-
-About 10 µs of brain and 4–6 µs of senses per creature-tick, and 0.05–0.06 ms per tick of a default two-founder world (headless, wanderers off, on the owner’s PC, September 2026). `node tools/behave.js 12 cost --report` measures it; the means fall with more trials as the JIT warms up.

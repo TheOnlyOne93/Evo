@@ -15,16 +15,16 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 | `biochem` | Reactions, catalysts, emitters, half-lives, receptors and damage blame, the founder's hunger, thirst and reward, staged initial concentrations |
 | `brain` | Wiring, weight bounds, region copies and the neuron budget; growing the same brain every time (no random numbers drawn, the same wiring whatever the seed, the same for the first female and male, taking out any one wiring gene changes only connections it could make, a doubled wiring gene grows more); the founders' reflexes, delays, muscle competition, attention, working memory |
 | `clock` | The frame clock: rate, pause, the hitch cap, the budget |
-| `drives` | Drives cells, stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
+| `drives` | Stimulus genes, world stimuli, thorn pain (a bush planted with the thorn tool), the reward of eating, Up close cells, instincts, novelty, the reward of sleep |
 | `genome` | Encoding round trips, founder genes, the founders (the same bytes every time, no random numbers drawn, differing only in looks and voice), stages, duplication and loss, mutation, inheritance, guidance |
 | `kin` | `Evo.kinOf` and `Evo.kinIndex` |
 | `landscape` | Every map in `Evo.MAPS`: the walkable edge is inside the cliffs; features stand on dry, level ground in reach of a creature; ponds hold drinkable water behind their shore, with climbable banks; wanderers arrive on dry ground clear of thorn bushes; each founder's spot is dry, level, inside the walkable edge, clear of thorn bushes and apart from the other's; no thorn bush stands between other features; mimic trees are 500 px or more from fruit trees; every tree, grass patch, rock and log is within a founder's sight (306 px) of some pond's water, and so is each end of the world, where wanderers arrive |
 | `learning` | The modulators, prediction error, credit assignment, stability, replay (over four seeds), dreams, the timing of pats (over eight seeds, as one seed's effect is noisy) |
-| `render` | The `poseOf` contract, item radii |
+| `render` | The `poseOf` contract |
 | `text` | `Evo.text`: names, gene descriptions, the mutation list |
 | `world` | Ponds, clock and seasons, temperature, scent (spreading, and a nose reading only air), mating and eggs, the population cap, death and re-founding, the hand, regrowth, life-history genes, order independence; the first pair the same in every world (DNA, brain wiring, names, places, age, facing each other); a new world staying at two until babies come; a wanderer or a restart an exact copy of a banked genome of its sex (the starting genome if none) |
 
-`tests/helpers.js` is shared with the behaviour bench: `founderBrain(Evo, sex)` (the first female's unless told otherwise), `TICK_OPTS`, `cortexKnockout` (the first female's genes with no working memory), `quietWorld(Evo, seed, phase)`, `callThenPat`, `timeCosts`.
+`tests/helpers.js` is shared with the behaviour bench: `founderBrain(Evo, sex)` (the first female's unless told otherwise), `TICK_OPTS`, `cortexKnockout` (the first female's genes with no working memory), `quietWorld(Evo, seed, phase)`, `callThenPat`.
 
 ## The fingerprint
 
@@ -43,15 +43,15 @@ Everything here runs headless in Node: `tests/load.js` loads the scripts `index.
 
 **The lab.** `lab(seed)` is a quiet world with one creature on open ground: it takes the landscape's features and platforms away (no tree, rock, log, reeds or thorn bush, so no shade, warmth, sight, scent or footing from them; a scenario adds the few things it needs, as the thorn scenario adds its bush) and stands the creature at the dry spot midway across the widest gap between two ponds, about 500 px from the water on each side. It throws if a pond is in sight of that spot. Every seed's creature has the same brain (the same genes always grow the same one: [BRAIN.md](BRAIN.md)), so the seeds differ only in what happens to it: its firing noise and the world's dice. The pond scenarios use `ponds[0]` (the lake: dry ground to its west, a bank to drink from 12 px inside its water) and `ponds[1]` (the small east pool: one scenario stands at the world's east edge facing it, one 200 px west of it).
 
-**Scenarios.** Each `tools/scenarios/*.js` exports `({ Evo, lab, session, run, trial, avoids }) => ({ scenarios, reports })`. A scenario maps a seed to the tick it passed (null for a fail). A report maps a seed to a number; reports run only with `--report`, and those named `cost:` run on their own after the rest.
+**Scenarios.** Each `tools/scenarios/*.js` exports `({ Evo, lab, session, run, trial, avoids }) => ({ scenarios, reports })`. A scenario maps a seed to the tick it passed (null for a fail). A report maps a seed to a number; reports run only with `--report`.
 
 | File | Scenarios | Reports |
 |---|---|---|
 | `basics.js` | 11: eating, reaching fruit either side, drinking, sleeping at night and not by day, running in pain, calling when lonely, keeping away from thorns | |
-| `drives.js` | 5: nausea, nuzzling, drinking at the world's edge, pats as reward, slaps as punishment | 2 |
-| `learning.js` | 5: fruit before dew, water past fruit, mimic aversion (known to fail), calling and jumping sooner after pats | 17: `modulators:`, `bench:`, `memory:`, `decision:`, `cost:` |
+| `drives.js` | 3: nausea, nuzzling, drinking at the world's edge | 2 |
+| `learning.js` | 5: fruit before dew, water past fruit, mimic aversion (known to fail), calling and jumping sooner after pats | 14: `modulators:`, `bench:`, `memory:`, `decision:` |
 
-The `memory:` and `cost:` reports need about 12 seeds to settle.
+The `memory:` reports need about 12 seeds to settle.
 
 ## CI and lint
 

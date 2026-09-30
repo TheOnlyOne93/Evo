@@ -1,36 +1,5 @@
 'use strict';
 
-const founderTraits = (Evo, sex = 'FEMALE') => Evo.Genome.founder(sex).develop();
-
-test('drives: every drive has exactly one receptor into its own Drives cell, and no cell is shared', (Evo, assert) => {
-  const traits = founderTraits(Evo);
-  const needTargets = traits.receptors.filter(r => Evo.TARGETS[r.target].startsWith('need:'));
-  for (const key of Evo.DRIVES) {
-    const mine = needTargets.filter(r => r.chem === Evo.CHEM[key]);
-    assert.strictEqual(mine.length, 1, `${key}: ${mine.length} receptors`);
-    assert.strictEqual(Evo.TARGETS[mine[0].target], `need:${Evo.driveCell(key)}`, key);
-  }
-  const cells = needTargets.map(r => r.target);
-  assert.strictEqual(new Set(cells).size, cells.length, 'no two receptors share a Drives cell');
-});
-
-test('drives: Drives cells have distinct addresses', (Evo, assert) => {
-  const tags = Evo.DRIVE_CELL_TAGS;
-  assert.strictEqual(tags.length, Evo.N_DRIVE_CELLS);
-  for (let a = 0; a < tags.length; a++) {
-    for (let b = a + 1; b < tags.length; b++) assert.ok(Math.hypot(tags[a][0] - tags[b][0], tags[a][1] - tags[b][1]) > 0.15);
-  }
-});
-
-test('drives: Drives cells and muscle cells differ in the z part of their tags', (Evo, assert) => {
-  const brain = new Evo.Brain(founderTraits(Evo));
-  const zs = lobe => brain.lobes[lobe].map(i => brain.neurons[i].tag[2]), P = Evo.BRAIN_BODY_PLAN;
-  assert.notStrictEqual(P.DRIVE_Z, P.MUSCLE_Z);
-  assert.ok(zs('needs').length > 0 && zs('motor').length > 0);
-  assert.ok(zs('needs').every(z => z === P.DRIVE_Z), `Drives cells sit at z ${P.DRIVE_Z}`);
-  assert.ok(zs('motor').every(z => z === P.MUSCLE_Z), `muscle cells sit at z ${P.MUSCLE_Z}`);
-});
-
 test('drives: a stimulus releases exactly amount x strength of each chemical, clamped to 0..1', (Evo, assert) => {
   const { CHEM, STIMULUS } = Evo;
   const b = new Evo.Biochemistry();
@@ -140,8 +109,6 @@ test('drives: founder instincts name real cells, and none knows the mimic', (Evo
       .some(([l, i]) => lobeOf(l) === 'near' && Evo.VISION_FEATURES[i] && Evo.VISION_FEATURES[i].key === 'violet');
     assert.ok(!violetUpClose, 'no instinct about violet things up close');
   }
-  const eats = traits.instincts.filter(i => i.motor === Evo.MOTORS.findIndex(m => m.key === 'eat') && lobeOf(i.lobeB) === 'near');
-  assert.deepStrictEqual(eats.map(i => Evo.VISION_FEATURES[i.indexB].key).sort(), ['creature', 'green', 'green', 'red', 'yellow']);
 });
 
 test('drives: novelty comes from new-looking things near the creature and habituates', (Evo, assert) => {

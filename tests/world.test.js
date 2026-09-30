@@ -317,17 +317,13 @@ test('world: scent a body gives off reaches every creature\'s nose in the same t
   }
 });
 
-test('world: grown adults arrive past youth, so they can mate', (Evo, assert) => {
-  assert.ok(Evo.WORLD.ADULT_ARRIVAL_AGE > Evo.STAGES[Evo.STAGE.YOUTH].until);
-});
-
 // What makes a first pair the same in every world: the DNA, the wiring of the brain, the name, the
 // place, the age and which way each one faces
 function firstPair(Evo, seed) {
   Evo.seed(seed);
   const world = new Evo.World();
   return world.creatures.map(c => ({
-    sex: c.sex, name: c.name, x: c.x, ageTicks: c.ageTicks, facing: c.facing, dna: Array.from(c.genome.dna),
+    sex: c.sex, name: c.name, stage: c.stage, x: c.x, ageTicks: c.ageTicks, facing: c.facing, dna: Array.from(c.genome.dna),
     wiring: Object.fromEntries(['sSrc', 'sDst', 'sW'].map(k => [k, Array.from(c.brain[k].subarray(0, c.brain.S))]))
   }));
 }
@@ -337,6 +333,7 @@ test('world: the first pair is the same in every world, and they face each other
   assert.deepStrictEqual(a, b, 'the same DNA, wiring, names, places, ages and facing on two seeds');
   assert.deepStrictEqual(a.map(c => c.sex), ['FEMALE', 'MALE']);
   assert.deepStrictEqual(a.map(c => c.name), ['Elani', 'Fenro']);
+  assert.ok(a.every(c => c.stage === Evo.STAGE.ADULT), 'both arrive grown, old enough to mate');
   assert.ok(a[0].wiring.sSrc.length > 1000, 'a grown brain');
   assert.deepStrictEqual(a.map(c => c.dna), ['FEMALE', 'MALE'].map(sex => Array.from(Evo.Genome.founder(sex).dna)), 'the starting genomes');
   const land = Evo.buildLandscape();

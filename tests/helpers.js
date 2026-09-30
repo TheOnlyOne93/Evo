@@ -37,22 +37,4 @@ function callThenPat(world, c, muscle, lag, rounds, calm) {
   }
 }
 
-// Run body(reset) with the brain (tick and morphogenesis) and senses timed. body calls reset() when
-// its warm-up is over. Returns the microseconds per creature-tick of each since then.
-function timeCosts(Evo, body) {
-  const B = Evo.Brain.prototype, C = Evo.Creature.prototype;
-  const { tick, runMorphogenesis } = B, { sense } = C;
-  let brainNs = 0n, senseNs = 0n, creatureTicks = 0;
-  const timed = (fn, add) => function (...a) { const t0 = process.hrtime.bigint(); const r = fn.apply(this, a); add(process.hrtime.bigint() - t0); return r; };
-  B.tick = timed(tick, d => { brainNs += d; creatureTicks++; });
-  B.runMorphogenesis = timed(runMorphogenesis, d => { brainNs += d; });
-  C.sense = timed(sense, d => { senseNs += d; });
-  try {
-    body(() => { brainNs = 0n; senseNs = 0n; creatureTicks = 0; });
-  } finally {
-    Object.assign(B, { tick, runMorphogenesis }); C.sense = sense;
-  }
-  return { brain: Number(brainNs) / 1000 / creatureTicks, senses: Number(senseNs) / 1000 / creatureTicks };
-}
-
-module.exports = { founderBrain, TICK_OPTS, cortexKnockout, quietWorld, callThenPat, timeCosts };
+module.exports = { founderBrain, TICK_OPTS, cortexKnockout, quietWorld, callThenPat };

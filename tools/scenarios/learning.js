@@ -10,7 +10,7 @@
 //   punishment could strengthen. And while a mimic sits uneaten in view, the discounted punishment
 //   prediction (GAMMA) gives a steady trickle of relief that strengthens the eat muscle's inputs.
 'use strict';
-const { cortexKnockout, callThenPat, timeCosts } = require('../../tests/helpers');
+const { cortexKnockout, callThenPat } = require('../../tests/helpers');
 
 module.exports = ({ Evo, lab, session, run, trial }) => {
   const cached = fn => { const memo = new Map(); return seed => { if (!memo.has(seed)) memo.set(seed, fn(seed)); return memo.get(seed); }; };
@@ -50,26 +50,6 @@ module.exports = ({ Evo, lab, session, run, trial }) => {
       bout,
       modRate: ticks ? modSpikes / (2 * ticks) : 0
     };
-  });
-
-  // Microseconds of brain (tick + morphogenesis) and senses per creature-tick, and milliseconds per
-  // world tick, in a default world (its 2 founders, as the game starts; no wanderers)
-  const COST_WARMUP = 300, COST_TICKS = 900;   // Ticks before timing starts, and in all
-  const BRAIN_BUDGET_US = 60;                  // A brain tick should cost less than this per creature
-  const cost = cached(seed => {
-    Evo.seed(seed);
-    const world = new Evo.World();
-    world.maybeWanderer = () => {};
-    let worldMs = 0;
-    const { brain, senses } = timeCosts(Evo, reset => {
-      let t0 = 0n;
-      for (let t = 0; t < COST_TICKS; t++) {
-        if (t === COST_WARMUP) { reset(); t0 = process.hrtime.bigint(); }
-        world.step();
-      }
-      worldMs = Number(process.hrtime.bigint() - t0) / 1e6 / (COST_TICKS - COST_WARMUP);
-    });
-    return { brain, senses, worldMs };
   });
 
   // Two things in view, one on each side: does the creature go for the one its need is about?
@@ -238,9 +218,6 @@ module.exports = ({ Evo, lab, session, run, trial }) => {
       'memory: walks left after fruit there vanishes (share above control)': seed => walksTowardHidden(lab(seed), -1) - walksTowardHidden(lab(seed), -1, false),
       'decision: share of active ticks with >1 muscle': seed => busy(seed).multi,
       'decision: median action bout, by time (ticks)': seed => busy(seed).bout,
-      [`cost: brain us per creature-tick (budget ${BRAIN_BUDGET_US})`]: seed => cost(seed).brain,
-      'cost: senses us per creature-tick': seed => cost(seed).senses,
-      'cost: ms per world tick (default world, 2 founders)': seed => cost(seed).worldMs,
       ...memoryReports
     }
   };
