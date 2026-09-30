@@ -1,5 +1,19 @@
-# Claude Code: per-machine settings and agent worktrees (the shared settings.json is committed)
-.claude/settings.local.json
-.claude/worktrees/
+# Claude Code: settings, the desktop app's preview config, agent worktrees and scratch (all per machine)
+.claude/
+
+# Node: the repo needs no install (npx keeps eslint in its own cache)
 node_modules/
+npm-debug.log*
+
+# Profiles from node --cpu-prof, --heap-prof and --prof
 *.cpuprofile
+*.heapprofile
+*.heapsnapshot
+isolate-*.log
+
+# Editors and operating systems
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

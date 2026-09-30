@@ -52,6 +52,8 @@ The `memory:` and `cost:` reports need about 12 seeds to settle.
 
 ## CI and lint
 
-`.github/workflows/test.yml` runs on pushes to `main` and on pull requests (Node 24): `node tests/run.js` and `npx --yes eslint@10 .`.
+`.github/workflows/test.yml` runs on pushes to `main`, on pull requests and by hand (Node 24, a read-only token, a newer push cancelling an older run): `node tests/run.js` and `npx --yes eslint@10 .`.
 
-`eslint.config.js` is a flat config for plain ES2022 scripts: `src/` and `dev/` get browser globals and a writable `Evo`, `tests/` and `tools/` Node globals and `test`. Undefined names, redeclarations, duplicate keys, unreachable code and bad assignments are errors; unused variables only warn.
+`eslint.config.js` is a flat config for plain ES2022 scripts. The scripts `index.html` marks `data-headless` (it reads the list with `tests/load.js`'s `headlessScripts()`) get only the globals browsers and Node share and a writable `Evo`: a headless script touching the page fails `no-undef`, and `Math.random`, `Date.now` and `new Date` are errors there, so the simulation stays deterministic. The other `src/` and `dev/` scripts get browser globals and a writable `Evo`, `tests/` and `tools/` Node globals and `test`. ESLint's recommended correctness rules (undefined names, redeclarations, duplicates, unreachable code, bad assignments, fallthrough, `NaN` comparisons and the like) are errors, listed one by one because the config can't import `@eslint/js` without an install; unused variables only warn, and an unused `eslint-disable` comment is an error.
+
+`.gitattributes` keeps every text file LF whatever `core.autocrlf` says, and `.editorconfig` gives editors the same defaults (UTF-8, LF, two-space indents, a final newline). `.claude/` (Claude Code's settings and the desktop app's preview config) is ignored.

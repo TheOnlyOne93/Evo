@@ -3,8 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 
-module.exports = function loadEvo() {
-  const root = path.join(__dirname, '..');
+const root = path.join(__dirname, '..');
+
+// The src of every data-headless script in index.html, in page order (eslint.config.js reads it too)
+function headlessScripts() {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const srcs = [];
   for (const [, attrs] of html.matchAll(/<script\b([^>]*)>/gi)) {
@@ -15,6 +17,11 @@ module.exports = function loadEvo() {
     srcs.push(m[1] ?? m[2] ?? m[3]);
   }
   if (!srcs.length) throw new Error('tests/load.js: no data-headless scripts found in index.html');
-  for (const src of srcs) require(path.join(root, src));
+  return srcs;
+}
+
+module.exports = function loadEvo() {
+  for (const src of headlessScripts()) require(path.join(root, src));
   return globalThis.Evo;
 };
+module.exports.headlessScripts = headlessScripts;

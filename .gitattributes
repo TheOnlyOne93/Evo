@@ -1,2 +1,10 @@
 # Keep every text file LF on every machine, whatever core.autocrlf says
 * text=auto eol=lf
+
+# Hunk headers in git diff name the heading, rule or element a change is in
+*.md diff=markdown
+*.css diff=css
+*.html diff=html
+
+# Written by node tools/fingerprint.js --save
+tools/fingerprint.json linguist-generated=true

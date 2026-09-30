@@ -59,3 +59,4 @@ preview the creature and world art with the game's own code
 | `dev/` | The creature and world lab pages |
 | `docs/` | One doc per system. `docs/DESIGN.md` is the overview and lists them |
 | `.github/`, `eslint.config.js` | CI (tests and lint) and the lint config |
+| `.gitattributes`, `.editorconfig` | LF line endings everywhere, and the editor defaults |

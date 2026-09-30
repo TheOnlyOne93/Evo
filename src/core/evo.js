@@ -40,8 +40,9 @@
   // Every run starts from the same seed so the app is deterministic; ?seed=N overrides it.
   Evo.DEFAULT_SEED = 20260929;
   let startSeed = Evo.DEFAULT_SEED;
-  if (typeof location !== 'undefined' && location.search) {
-    const m = /[?&]seed=(-?\d+)/.exec(location.search);
+  const search = globalThis.location?.search; // Only in the page: Node has no location
+  if (search) {
+    const m = /[?&]seed=(-?\d+)/.exec(search);
     if (m) startSeed = Number(m[1]);
   }
   let rng = mulberry32(startSeed);

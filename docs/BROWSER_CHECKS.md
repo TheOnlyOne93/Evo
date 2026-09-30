@@ -20,9 +20,20 @@ Run the server only for the check and stop it when the check is done.
 
 | Where | How |
 |---|---|
-| Claude Code desktop app | It has a built-in browser. `.claude/launch.json` has a `static` entry that starts this server: start the preview by that name. |
+| Claude Code desktop app | It has a built-in browser. Start the preview named `static` from `.claude/launch.json` (below), which runs this server. |
 | Claude Code in VS Code | It has no built-in browser. Start the server in the background and drive Chrome through the Claude in Chrome extension, at the `http://127.0.0.1:8123/` address (the extension can't open `file://` pages). |
 | By hand | Any browser. `index.html` and the lab pages also open straight from disk. |
+
+`.claude/` is not committed, so on a new machine the desktop app's `.claude/launch.json` needs this entry:
+
+```json
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "static", "runtimeExecutable": "node", "runtimeArgs": ["tools/serve.js"], "port": 8123 }
+  ]
+}
+```
 
 ## Every check
 
