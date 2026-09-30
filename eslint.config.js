@@ -22,23 +22,22 @@ const rules = {
   'no-const-assign': 'error',
   'no-func-assign': 'error',
   'no-import-assign': 'error',
-  'no-cond-assign': ['error', 'except-parens'],
-  'no-shadow': 'off'
+  'no-cond-assign': ['error', 'except-parens']
 };
 
 module.exports = [
-  { ignores: ['node_modules/**'] },
+  { ignores: ['node_modules/**', '.claude/**'] },
   {
     files: ['**/*.js'],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'script',
-      globals: { ...asGlobals(browser), Evo: 'writable', globalThis: 'readonly' }
-    },
+    languageOptions: { ecmaVersion: 2022, sourceType: 'script' },
     rules
   },
   {
+    files: ['src/**/*.js', 'dev/**/*.js'],
+    languageOptions: { globals: { ...asGlobals(browser), Evo: 'writable' } }
+  },
+  {
     files: ['tests/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
-    languageOptions: { globals: { ...asGlobals(node), test: 'writable', Evo: 'off' } }
+    languageOptions: { globals: { ...asGlobals(node), test: 'writable' } }
   }
 ];
