@@ -120,8 +120,8 @@
         d.set('mouthReach', 4 + v.mouthReach * 8);
         d.set('crest', v.crest);
       } },
-    { name: 'Eyes', group: 'body', fields: [u('range'), u('gain'), u('night')],
-      express(v, d) { d.set('visionRange', R.eyes.decode(v.range)); d.set('opticGain', 0.6 + v.gain); d.set('nightVision', v.night); } },
+    { name: 'Eyes', group: 'body', fields: [u('range'), u('gain'), u('night'), u('rear')],
+      express(v, d) { d.set('visionRange', R.eyes.decode(v.range)); d.set('opticGain', 0.6 + v.gain); d.set('nightVision', v.night); d.set('rearVision', v.rear); } },
     { name: 'Nose', group: 'body', fields: [u('reach'), u('gain')],
       express(v, d) { d.set('noseReach', R.nose.decode(v.reach)); d.set('scentGain', 0.6 + v.gain); } },
     { name: 'Membrane', group: 'brain', fields: [u('threshold'), u('leak'), u('refractory')],
@@ -217,7 +217,7 @@
     return {
       hue: 30, accentHue: 45, pattern: 0, patternScale: 0.5, earSize: 0.5, tailLength: 0.5, eyeSize: 0.5, plumpness: 0.5,
       adultSize: F ? 40 : 38, legLength: 0.5, mouthReach: 8, crest: 0.5,
-      visionRange: 300, opticGain: 1.0, nightVision: 0.3, noseReach: 26, scentGain: 1.0,
+      visionRange: 300, opticGain: 1.0, nightVision: 0.3, rearVision: 0.5, noseReach: 26, scentGain: 1.0,
       baseThreshold: -52, tauLeak: 0.82, refractoryTicks: 2,
       learningRate: 0.038, traceDecay: 0.982, sproutingThreshold: 6, pruningRate: 0.035,
       joyGain: 1.45, stressGain: 1.85,

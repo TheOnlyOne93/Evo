@@ -86,7 +86,7 @@
   Evo.founderBody = sex => [
     { gene: 'Appearance', ...Evo.FOUNDERS[sex].looks },
     { gene: 'Morphology', size: 0.5, legLength: 0.5, mouthReach: 0.5, crest: 0.5 },
-    { gene: 'Eyes', range: 0.45, gain: 0.4, night: 0.3 },
+    { gene: 'Eyes', range: 0.45, gain: 0.4, night: 0.3, rear: 0.5 },
     { gene: 'Nose', reach: 0.4, gain: 0.4 },
     { gene: 'Membrane', threshold: 0.6, leak: 0.5, refractory: 0.5 },
     { gene: 'Plasticity', rate: 0.33, memory: 0.44, sprouting: 0.43, pruning: 0.5 },

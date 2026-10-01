@@ -236,7 +236,7 @@
     Appearance: (v, x) => `${hueWord(x.hue)} fur with ${hueWord(x.accentHue)} markings, ${PATTERNS[x.pattern]}; ` +
       `${level(x.earSize, 0, 1, ['small', 'medium', 'big'])} ears, ${level(x.tailLength, 0, 1, ['short', 'medium', 'long'])} tail`,
     Morphology: (v, x) => `Grows to ${Math.round(x.adultSize)} px, ${level(x.legLength, 0, 1, ['short', 'medium', 'long'])} legs, reaches ${num(x.mouthReach, 0)} px with its mouth`,
-    Eyes: (v, x) => `Sees ${Math.round(x.visionRange)} px, ${level(x.nightVision, 0, 1, ['poorly', 'fairly', 'well'])} at night`,
+    Eyes: (v, x) => `Sees ${Math.round(x.visionRange)} px, ${level(x.nightVision, 0, 1, ['poorly', 'fairly', 'well'])} at night, ${level(x.rearVision, 0, 1, ['barely', 'partly', 'well'])} behind it`,
     Nose: (v, x) => `Smells ${Math.round(x.noseReach)} px around it, sensitivity ×${num(x.scentGain, 1)}`,
     Muscle: (v, x) => `Walks at ${num(x.walkSpeed)}, runs ×${num(x.runBoost, 1)}, jumps ${num(x.jumpPower, 1)}`,
     'Life history': (v, x, w) => `Lives about ${w.duration(x.lifespanTicks)}; carries an egg for ${w.duration(x.gestationTicks)}`,

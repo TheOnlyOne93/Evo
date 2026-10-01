@@ -22,7 +22,7 @@ Each row of `Evo.GENES` decodes its payload bytes (`fields`, one codec per byte)
 |---|---|---|
 | body | Appearance | Hue, accent hue, pattern (plain, stripes, spots, patches) and its scale, ear size, tail length, eye size, plumpness |
 | | Morphology | Adult size (30–46 px; females 2 px more), leg length, mouth reach, crest |
-| | Eyes, Nose | Vision range (180–460 px), gain, night vision; smell reach (14–44 px), gain |
+| | Eyes, Nose | Vision range (180–460 px), gain, night vision, how well it sees behind; smell reach (14–44 px), gain |
 | | Muscle | Walk speed, jump power, run boost |
 | | Life history | Lifespan (20–44 minutes), gestation (3000–9000 ticks) |
 | | Voice | Pitch, loudness |

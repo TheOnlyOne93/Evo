@@ -47,7 +47,7 @@ The senses turn the settled world into one current per neuron (30 mV per unit of
 
 | Sense | What drives it |
 |---|---|
-| Sight | Every item, creature, thorn bush, fruiting tree and the nearest pond within vision range excites the feature cells for the side it is on, in the low band or (steeper than about 20° up) the high one. The signal is its apparent size, on a log scale, dimmed in the dark by night vision |
+| Sight | Every item, creature, thorn bush, fruiting tree and the nearest pond within vision range excites the feature cells for the side it is on, in the low band or (steeper than about 20° up) the high one. The signal is its apparent size, on a log scale, dimmed in the dark by night vision, and for things behind the creature (on the side it is not facing) by rear vision |
 | Smell | Each odour at the two antenna tips, a nose's reach left and right of the head, on a log scale |
 | Hearing | Others' calls, louder when near, by side and pitch |
 | Touch | Contact left and right (a creature, a wall), an item at the mouth, water at the lips, the back, the feet, pain, gentle touch, falling, being in water |

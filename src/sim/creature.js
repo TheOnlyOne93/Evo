@@ -416,7 +416,9 @@
         const dx = tx - ex, dy = ty - ey;
         const dist = Math.hypot(dx, dy);
         if (dist > range || dist < 1) return;
-        const intensity = logResponse(Math.min(1, radius / Math.max(8, dist)), LOOK_K, LOOK_NORM) * see;
+        let intensity = logResponse(Math.min(1, radius / Math.max(8, dist)), LOOK_K, LOOK_NORM) * see;
+        // Eyes set to the sides of the head see behind, but less well
+        if (Math.abs(dx) >= 3 && dx * this.facing < 0) intensity *= T.rearVision;
         const band = dy < -dist * HIGH_BAND_SLOPE ? 'high' : 'low';
         const sides = Math.abs(dx) < 3 ? BOTH_SIDES : dx < 0 ? LEFT : RIGHT;
         for (const f in features) {
