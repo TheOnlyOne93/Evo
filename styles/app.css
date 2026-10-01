@@ -220,7 +220,7 @@ section.block > h3 { font-size: 16px; }
 .link:hover { background: rgba(255,255,255,0.04); }
 .link.active { background: color-mix(in srgb, var(--pulse) 8%, transparent); }
 .link .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.link .delay { color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+.link .delay { color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .strength { height: 6px; border-radius: 3px; background: var(--track); position: relative; overflow: hidden; }
 .strength span { position: absolute; top: 0; bottom: 0; }
 

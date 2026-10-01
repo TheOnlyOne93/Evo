@@ -175,7 +175,7 @@
   // (1). Every region is a box on it, [x0, y0, x1, y1]; a cell's address is its spot inside its box, and
   // where it is drawn follows from the box. grid: [columns, rows] of the spots (per side for a two-sided
   // region), which also gives the region's usual cell count. The touch and movement cells have spots of
-  // their own (see brain.js and MOTORS below). sided: the box is the LEFT box and the right one is its
+  // their own (see TOUCH and MOTORS below). sided: the box is the LEFT box and the right one is its
   // mirror image (x becomes 1 - x); a spot's left-right position is measured from the box's outer edge,
   // so a left cell and its twin on the right share one spot.
   const LOBES = [
@@ -213,6 +213,22 @@
     { key: 'drink', word: 'Drink',      spot: [0.833, 0.5] }
   ];
 
+  // Touch cells: each has a spot of its own in the Touch box (and a side, where it has one). The mouth
+  // cells sit at the front, next to the lips; the feet, falling and water cells at the back.
+  const TOUCH = [
+    { key: 'contactL', word: 'Touch on its left', spot: [0.05, 0.50], side: 'L' },
+    { key: 'contactR', word: 'Touch on its right', spot: [0.95, 0.50], side: 'R' },
+    { key: 'mouthL', word: 'Something at its mouth (left)', spot: [0.35, 0.10], side: 'L' },
+    { key: 'mouthR', word: 'Something at its mouth (right)', spot: [0.65, 0.10], side: 'R' },
+    { key: 'lips', word: 'Water at its lips', spot: [0.50, 0.30], side: null },
+    { key: 'back', word: 'Touch on its back', spot: [0.50, 0.50], side: null },
+    { key: 'feet', word: 'Ground under its feet', spot: [0.50, 0.90], side: null },
+    { key: 'pain', word: 'Pain', spot: [0.35, 0.65], side: null },
+    { key: 'gentle', word: 'Gentle touch', spot: [0.65, 0.65], side: null },
+    { key: 'falling', word: 'Falling', spot: [0.25, 0.90], side: null },
+    { key: 'inWater', word: 'In water', spot: [0.75, 0.90], side: null }
+  ];
+
   // Drives region: one cell per drive chemical (cell k feels Evo.DRIVES[k], by the founder's receptor
   // genes), plus spare cells. What a drive makes the creature do is up to guidance genes aimed at single
   // cells.
@@ -241,7 +257,7 @@
     SCENTS, SCENT, VISION_FEATURES, hueFeatures, ITEM_TYPES, SEASONS,
     N_CHEM, CHEMICALS, CHEM, CHEM_BY_ID, DRIVES,
     STIMULI, STIMULUS, STIMULUS_WORDS, TASTES, BODY_LOCI, LOCUS, TARGETS, TARGET, N_DRIVE_CELLS, N_LIMBIC,
-    LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, driveCell, NEUROCHEMS,
+    LOBE_ORDER, LOBE_COUNT: LOBES.length, LOBE_INFO, SENSORY_LOBES, MOTORS, TOUCH, driveCell, NEUROCHEMS,
     LIMITS
   });
 })(globalThis.Evo);

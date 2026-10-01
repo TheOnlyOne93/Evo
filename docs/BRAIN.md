@@ -19,7 +19,7 @@ Most regions are a grid (`grid: [columns, rows]`, per side for a two-sided regio
 - **Sight**: the column is the vision feature (red at the outer edge); the row is the height, `v` 0.35 for high and 0.65 for low (closer together than the grid would put them, so one source window can take a colour's two cells without its neighbours).
 - **Attention**: the column is the vision feature, `v` 0.5: the same columns as Sight.
 - **Smell**: column = odour mod 5, row = odour div 5. **Hearing**: one column, row 0 for the high pitch and row 1 for the low one.
-- **Touch** and **Movement**: each cell has a spot of its own (the `TOUCH` table in `brain.js`, `Evo.MOTORS`). The muscles sit along one row, left to right: walk left, jump, eat, grab or drop, rest, call, run, drink, walk right.
+- **Touch** and **Movement**: each cell has a spot of its own (`Evo.TOUCH` and `Evo.MOTORS`, in `constants.js`). The muscles sit along one row, left to right: walk left, jump, eat, grab or drop, rest, call, run, drink, walk right.
 
 | Region | Box | Sided | Cells |
 |---|---|---|---|
@@ -40,7 +40,7 @@ Most regions are a grid (`grid: [columns, rows]`, per side for a two-sided regio
 
 The founder's brain has 224 neurons and 1,367 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
 
-`Evo.BRAIN_BODY_PLAN` defines the cell layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its region, and `sightCell(k)` and `smellCell(k)` decode it. `gridSpot(region, i)`, `colourSpot(feature)` and `smellSpot(odour)` give a cell's spot, and `TOUCH` and `Evo.MOTORS` carry the spots of the touch cells and the muscles; the founder's wiring genes read their spots from these (`founderKit`, [GENOME.md](GENOME.md)), so no number is copied.
+`Evo.BRAIN_BODY_PLAN` defines the cell layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its region, and `sightCell(k)` and `smellCell(k)` decode it. `gridSpot(region, i)`, `colourSpot(feature)` and `smellSpot(odour)` give a cell's spot, and `Evo.TOUCH` and `Evo.MOTORS` (in `constants.js`) carry the spots of the touch cells and the muscles; the founder's wiring genes read their spots from these (`founderKit`, [GENOME.md](GENOME.md)), so no number is copied.
 
 **Anatomy genes** reshape a region's box, not its cells: *shift* moves the box front or back, *lateral* scales its distance from the map's middle (x − 0.5), *size* stretches its height about its middle, and *count* changes the number of cells in the four general-purpose regions (the grid gets more or fewer rows, and a two-sided region keeps an even count). The box stays inside the map. Spots, and so addresses, don't change with position or size.
 

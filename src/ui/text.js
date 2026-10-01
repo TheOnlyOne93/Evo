@@ -244,8 +244,8 @@
     Insulation: (v, x) => `${graded(x.insulation, R.fur, ['Thin', 'Medium', 'Thick'])} fur (${percent(x.insulation)}), ${level(x.bodyHeat, 0, 1, ['cool', 'warm', 'hot'])}-blooded`,
     Reproduction: (v, x, w) => `Fills each egg to ${w.percent(Evo.eggShare(x))} of a standard egg, which hatches in about ${w.duration(x.incubationTicks)}`,
     // Brain
-    Membrane: (v, x, w) => `Neurons fire at ${w.num(x.baseThreshold, 0)} mV`,
-    Plasticity: (v, x, w) => `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.num(Math.log(0.5) / Math.log(x.traceDecay), 0)} ticks`,
+    Membrane: (v) => `Brain cells are ${level(v.threshold, 0, 1, ['easy', 'fairly easy', 'fairly hard', 'hard'])} to set off`,
+    Plasticity: (v, x, w) => `Learns at rate ${w.num(x.learningRate, 3)}; a memory trace halves in ${w.duration(Math.log(0.5) / Math.log(x.traceDecay))}`,
     Reinforcement: (v, x, w) => `Feels reward ×${w.num(x.joyGain)}, punishment ×${w.num(x.stressGain)}`,
     Curiosity: (v, x, w) => `Gets used to things at rate ${w.num(x.habituationRate, 4)}, loves novelty ×${w.num(x.noveltyGain, 1)}`,
     Anatomy: (v, x, w) => `${w.lobe(v.region)} region: ${w.percent(x.count)} cells, ${w.percent(x.size)} size`,
@@ -254,7 +254,7 @@
       return `${w.lobe(x.lobeIdx)}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
     'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity; when quiet they get ${x.thrDrop < 4 ? 'a little' : x.thrDrop < 10 ? 'somewhat' : 'much'} easier to set off`,
-    Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own (+${w.num(x.bias)} mV)`,
+    Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own ${level(x.bias, 0, 3, ['now and then', 'often', 'a lot'])}`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
     'Axon guidance'(v, x, w, brain) {
       const src = x.source, reach = guidanceReach(brain, x), verb = x.weightSign > 0 ? 'excites' : 'inhibits';

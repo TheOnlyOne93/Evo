@@ -136,7 +136,7 @@ test('brain: a doubled wiring gene grows more connections than one copy (the cop
 
 test('brain: the first female and male are born with their reflex arcs', (Evo, assert) => {
   const motor = key => Evo.MOTORS.findIndex(m => m.key === key);
-  const touch = key => Evo.BRAIN_BODY_PLAN.TOUCH.findIndex(t => t.key === key);
+  const touch = key => Evo.TOUCH.findIndex(t => t.key === key);
   for (const sex of ['FEMALE', 'MALE']) {
     const b = founderBrain(Evo, sex);
     const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)], D = k => b.lobes.needs[Evo.driveCell(k)];

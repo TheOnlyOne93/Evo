@@ -51,11 +51,11 @@
   const { driveCell } = Evo;
   const driveTarget = key => `need:${driveCell(key)}`;
   const { sightIndex: sight, smellIndex: smell, gridSpot, colourSpot, smellSpot: odourSpot } = Evo.BRAIN_BODY_PLAN;
-  const TOUCH = Object.fromEntries(Evo.BRAIN_BODY_PLAN.TOUCH.map((t, i) => [t.key, i]));
-  // Where things sit in their regions, for wire(): read from the layout (brain.js, constants.js)
+  const TOUCH = Object.fromEntries(Evo.TOUCH.map((t, i) => [t.key, i]));
+  // Where things sit in their regions, for wire(): read from the layout (constants.js)
   const muscleSpot = key => Evo.MOTORS[MOTOR[key]].spot;
   const driveSpot = key => gridSpot('needs', driveCell(key));
-  const touchSpot = key => Evo.BRAIN_BODY_PLAN.TOUCH[TOUCH[key]].spot;
+  const touchSpot = key => Evo.TOUCH[TOUCH[key]].spot;
   const feelingSpot = k => gridSpot('feelings', k);
 
   Evo.founderKit = {

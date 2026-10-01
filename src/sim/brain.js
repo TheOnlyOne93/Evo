@@ -13,7 +13,7 @@
 (function (Evo) {
   'use strict';
   const { clamp, fixedRoll } = Evo.util;
-  const { LOBE_ORDER, LOBE_INFO, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, TASTES } = Evo;
+  const { LOBE_ORDER, LOBE_INFO, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, TOUCH, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, TASTES } = Evo;
 
   const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
   const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
@@ -131,22 +131,6 @@
   // …and back: what the sight / smell cell at index k within its lobe reports
   const sightCell = k => ({ side: SIDES[Math.floor(k / (BANDS.length * NF))], band: BANDS[Math.floor(k / NF) % BANDS.length], feature: VISION_FEATURES[k % NF].key });
   const smellCell = k => ({ side: SIDES[Math.floor(k / N_ODOURS)], odour: SCENTS[k % N_ODOURS].key });
-  // Touch cells: each has a spot of its own in the Touch box (and a side, where it has one). The mouth
-  // cells sit at the front, next to the lips; the feet, falling and water cells at the back.
-  const TOUCH = [
-    { key: 'contactL', word: 'Touch on its left', spot: [0.05, 0.50], side: 'L' },
-    { key: 'contactR', word: 'Touch on its right', spot: [0.95, 0.50], side: 'R' },
-    { key: 'mouthL', word: 'Something at its mouth (left)', spot: [0.35, 0.10], side: 'L' },
-    { key: 'mouthR', word: 'Something at its mouth (right)', spot: [0.65, 0.10], side: 'R' },
-    { key: 'lips', word: 'Water at its lips', spot: [0.50, 0.30], side: null },
-    { key: 'back', word: 'Touch on its back', spot: [0.50, 0.50], side: null },
-    { key: 'feet', word: 'Ground under its feet', spot: [0.50, 0.90], side: null },
-    { key: 'pain', word: 'Pain', spot: [0.35, 0.65], side: null },
-    { key: 'gentle', word: 'Gentle touch', spot: [0.65, 0.65], side: null },
-    { key: 'falling', word: 'Falling', spot: [0.25, 0.90], side: null },
-    { key: 'inWater', word: 'In water', spot: [0.75, 0.90], side: null }
-  ];
-
   // The spot of cell i in a region laid out as a grid (see LOBE_INFO grid): n cells (per side for a
   // two-sided region; usually the grid's full size, but Anatomy genes can change it). Cells fill the
   // rows from left to right, and the grid gets as many rows as it needs.
@@ -934,7 +918,7 @@
   Object.assign(Evo, {
     Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      TOUCH, SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, gridSpot, colourSpot, smellSpot,
+      SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, gridSpot, colourSpot, smellSpot,
       sightIndex, smellIndex, hearingIndex, sightCell, smellCell
     }
   });

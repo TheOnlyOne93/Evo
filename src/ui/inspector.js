@@ -372,7 +372,7 @@
     }
 
     renderNeuron(b, i) {
-      const n = b.neurons[i], now = b.tickCount;
+      const n = b.neurons[i], now = b.tickCount, rest = Evo.BRAIN.V_REST;
       $('neuronName').textContent = T.neuronName(b, n);
       $('neuronLobe').textContent = T.lobeName(b, n);
       $('neuronRole').textContent = T.neuronRole(b, n);
@@ -384,8 +384,8 @@
       }
       $('neuronFacts').innerHTML = [
         `<span>Fires <b>${percent(b.rate[i])}</b> of the time</span>`,
-        `<span>Last fired <b>${last < 0 ? 'over half a second ago' : last === 0 ? 'just now' : `${last} ticks ago`}</b></span>`,
-        `<span>Charge <b>${b.vShow[i] > 0 ? 'firing' : `${Math.max(0, Math.round(b.thr[i] - b.vShow[i]))} mV below firing`}</b></span>`,
+        `<span>Last fired <b>${last < 0 ? 'over half a second ago' : last < Evo.TICKS_PER_SECOND / 10 ? 'just now' : `${(last / Evo.TICKS_PER_SECOND).toFixed(1)} seconds ago`}</b></span>`,
+        `<span>Charge <b>${b.vShow[i] > 0 ? 'firing' : `${Math.max(0, Math.min(100, Math.round(100 * (b.vShow[i] - rest) / (b.thr[i] - rest))))}% of the way to firing`}</b></span>`,
         `<span><b>${ins.length}</b> in, <b>${outs.length}</b> out</span>`
       ].join('');
       const list = (title, syns, otherEnd) => {
@@ -396,7 +396,7 @@
           const name = T.neuronName(b, b.neurons[other]);
           const grown = b.sFlags[s] & Evo.BRAIN.SPROUTED ? '<i class="grown" title="grown in life"></i>' : '';
           return `<button class="link" data-neuron="${other}" data-syn="${s}" title="${esc(name)}"><span class="who">${grown}${esc(name)}</span>` +
-            `<span class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></span><span class="delay">${b.sDelay[s]}t</span></button>`;
+            `<span class="strength"><span style="left:0;width:${width}%;background:${w >= 0 ? 'var(--water)' : 'var(--stress)'}"></span></span><span class="delay">${(b.sDelay[s] / Evo.TICKS_PER_SECOND).toFixed(2)} s</span></button>`;
         }).join('');
         const more = syns.length > SYNAPSES_SHOWN ? `<p class="note">and ${syns.length - SYNAPSES_SHOWN} weaker</p>` : '';
         return `<div class="link-list"><h4>${title}</h4>${rows}${more}</div>`;
@@ -405,7 +405,7 @@
       const html = list(predicts ? 'Predicts from' : 'Listens to', ins, s => b.sSrc[s]) + list('Sends to', outs, s => b.sDst[s]);
       const links = $('neuronLinks');
       setHtml(links, html
-        ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: travel time in ticks.</p>${html}`
+        ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: how long a signal takes to cross, in seconds.</p>${html}`
         : '<p class="empty">No connections yet.</p>');
       // The glow changes every refresh: set it in place, so the buttons stay put under a finger
       for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActive[+el.dataset.syn] < GLOW_TICKS);
