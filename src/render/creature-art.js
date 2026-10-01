@@ -756,7 +756,9 @@
     ctx.save();
     ctx.translate(r.hx, r.hy);
     ctx.rotate(r.hAng);
+    // Both ears sit behind the head, so its outline crosses their bases
     drawEar(ctx, r, pal, false);
+    drawEar(ctx, r, pal, true);
 
     headPath(ctx, r);
     ctx.lineWidth = ol * 2; ctx.strokeStyle = pal.line; ctx.stroke();
@@ -782,7 +784,6 @@
     }
     ctx.restore();
 
-    drawEar(ctx, r, pal, true);
     drawCrest(ctx, r, pal);
     drawFace(ctx, r, pal);
     ctx.restore();
