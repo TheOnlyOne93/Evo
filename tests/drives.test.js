@@ -90,10 +90,10 @@ test('drives: the Up close cells report the look of what is at the mouth', (Evo,
   const c = world.creatures[0];
   world.items = []; world.creatures = [c];
   Object.assign(c, { facing: 1, asleep: false });
-  const near = () => { c.sense(world); return Object.fromEntries(c.brain.lobes.near.map((i, k) => [Evo.VISION_FEATURES[k].key, c.input[i]])); };
+  const near = () => { Evo.senses.sense(c, world); return Object.fromEntries(c.brain.lobes.near.map((i, k) => [Evo.VISION_FEATURES[k].key, c.input[i]])); };
   assert.ok(Object.values(near()).every(v => v === 0), 'nothing at the mouth');
   world.spawnItem('mimic', c.mouthX + 2, c.y);
-  const d = near(), N = Evo.CREATURE.NEURAL_GAIN, look = Evo.ITEM_TYPES.mimic.look;
+  const d = near(), N = Evo.senses.NEURAL_GAIN, look = Evo.ITEM_TYPES.mimic.look;
   for (const k in d) assert.ok(Math.abs(d[k] - (look[k] || 0) * N) < 1e-6, `${k}: ${d[k]}`);
   assert.ok(Object.keys(look).length > 0 && Object.keys(look).every(k => d[k] > 0), JSON.stringify(d));
 });
@@ -115,15 +115,15 @@ test('drives: novelty comes from new-looking things near the creature and habitu
   const world = new Evo.World();
   const c = world.creatures[0];
   world.items = []; world.creatures = [c];
-  assert.strictEqual(c.noticeNovelty(world), 0, 'nothing near: nothing new');
+  assert.strictEqual(Evo.senses.noticeNovelty(c, world), 0, 'nothing near: nothing new');
   const fruit = world.spawnItem('fruit', c.x + 30, c.y);
-  const first = c.noticeNovelty(world);
+  const first = Evo.senses.noticeNovelty(c, world);
   assert.ok(first > 0.9, `a first fruit is new (${first})`);
-  for (let t = 0; t < 150; t++) c.noticeNovelty(world);
-  assert.ok(c.noticeNovelty(world) < 0.2, `…and becomes familiar (${c.noticeNovelty(world)})`);
+  for (let t = 0; t < 150; t++) Evo.senses.noticeNovelty(c, world);
+  assert.ok(Evo.senses.noticeNovelty(c, world) < 0.2, `…and becomes familiar (${Evo.senses.noticeNovelty(c, world)})`);
   fruit.x = c.x + 200;
   world.spawnItem('dew', c.x - 30, c.y);
-  assert.ok(c.noticeNovelty(world) > 0.6, 'a blue dew drop is new again');
+  assert.ok(Evo.senses.noticeNovelty(c, world) > 0.6, 'a blue dew drop is new again');
 });
 
 test('drives: falling asleep rewards a sleepy creature once, not all night', (Evo, assert) => {

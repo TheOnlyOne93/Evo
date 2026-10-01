@@ -1,6 +1,6 @@
 # Creature
 
-A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** (`src/sim/body.js`, `Evo.Body`: the chemistry and everything inside the skin) and a **brain** ([BRAIN.md](BRAIN.md)). `src/sim/creature.js` (`Evo.Creature`) is the shell around them: its name and family, its life stages, where it is and how it moves, its senses and muscles, and the order of each tick. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)). The body reads the creature it belongs to (where it is, how hard its muscles work, how much its brain fired) but writes only its own state.
+A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** (`src/sim/body.js`, `Evo.Body`: the chemistry and everything inside the skin) and a **brain** ([BRAIN.md](BRAIN.md)). Two files join them: the senses (`src/sim/senses.js`) carry everything into the brain, and the muscles carry everything out. `src/sim/creature.js` (`Evo.Creature`) is the shell around them all: its name and family, its life stages, where it is and how it moves, its muscles, and the order of each tick. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)). The body reads the creature it belongs to (where it is, how hard its muscles work, how much its brain fired) but writes only its own state.
 
 ## What other code reads
 
@@ -52,9 +52,18 @@ Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: ru
 
 Causes of death: `poison`, `old age`, `illness`, `starvation`, `dehydration`, `cold`, `heat`, `injury`.
 
+## How the body and the brain reach each other
+
+| Body → brain (`src/sim/senses.js`) | Brain → body |
+|---|---|
+| Sight, smell, hearing, touch, taste, up close | Its muscle cells → actions (Act, below) |
+| Needs and Feelings cells, through receptor genes | Every spike costs ready energy (`body.js`) |
+| Reward and punishment it learns from | How fast each Feelings cell fires, which genes can read (`body.js` readings) |
+| Arousal, noise from toxin, energy to fire, sleep (`senses.fromBody`) | Dreams: an instinct gene puts its chemical into the body (`Brain.sleepStep`) |
+
 ## Mind
 
-The senses turn the settled world into one current per neuron (30 mV per unit of signal, times the optic or scent gain for sight and smell). Asleep, sight, smell, hearing, up close and most touch are dulled to 15%; pain, a touch on the back, taste, Drives and Feelings are not.
+`Evo.senses.sense(creature, world)` turns the settled world into one current per neuron (30 mV per unit of signal, times the optic or scent gain for sight and smell). Asleep, sight, smell, hearing, up close and most touch are dulled to 15%; pain, a touch on the back, taste, Drives and Feelings are not.
 
 | Sense | What drives it |
 |---|---|
@@ -66,9 +75,9 @@ The senses turn the settled world into one current per neuron (30 mV per unit of
 | Up close | The look of the thing at its mouth |
 | Drives, Feelings | Whatever receptor genes attach to each cell |
 
-Asleep, the brain dreams first. Then the brain ticks once. Noise rises with toxin, and the arousal receptor target (adrenaline, in the founder) arouses it.
+Asleep, the brain dreams first. Then the brain ticks once, with what `Evo.senses.fromBody(creature)` passes on from the chemistry: noise rises with toxin, the arousal receptor target (adrenaline, in the founder) arouses it, and with no ready energy no cell fires.
 
-**Novelty** comes from things. A creature keeps a familiarity for each vision feature. The thing at its mouth, or else the nearest loose item within 60 px of its feet, is novel in as far as its look is unfamiliar. Looking makes it familiar, and familiarity fades slowly. The Curiosity gene sets how fast a look becomes familiar and how strongly novelty registers.
+**Novelty** (`Evo.senses.noticeNovelty`, read by the body for genes) comes from things. A creature keeps a familiarity for each vision feature. The thing at its mouth, or else the nearest loose item within 60 px of its feet, is novel in as far as its look is unfamiliar. Looking makes it familiar, and familiarity fades slowly. The Curiosity gene sets how fast a look becomes familiar and how strongly novelty registers.
 
 ## Act
 

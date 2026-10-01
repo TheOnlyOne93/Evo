@@ -106,7 +106,7 @@
       L[LOCUS.touchingFriend] = s.touchingFriend;
       L[LOCUS.company] = creature.company;
       L[LOCUS.crowding] = creature.crowding;
-      L[LOCUS.novelty] = creature.noticeNovelty(world);
+      L[LOCUS.novelty] = Evo.senses.noticeNovelty(creature, world);
       L[LOCUS.falling] = !creature.onGround && creature.vy > 2 ? Math.min(1, creature.vy / 6) : 0;
       L[LOCUS.inWater] = creature.inWater ? 1 : 0;
       L[LOCUS.held] = creature.held ? 1 : 0;
