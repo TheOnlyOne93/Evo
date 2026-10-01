@@ -249,26 +249,16 @@
     }
 
     renderHistory() {
-      const h = this.history, ctx = this.chartCtx;
+      const h = this.history;
       const legend = $('historyLegend');
       if (!legend.firstChild) legend.innerHTML = HISTORY.map(k => `<span><i style="background:${chemColor(k)}"></i>${T.CHEM_WORDS[k]}</span>`).join('');
-      const w = this.chart.clientWidth, hh = this.chart.clientHeight;
-      ctx.clearRect(0, 0, w, hh);
-      if (!h || h.n < 2) return;
-      const n = Math.min(h.n, HISTORY_LEN), start = h.n - n;
-      HISTORY.forEach((key, i) => {
-        ctx.strokeStyle = Evo.theme.color(chemToken(key));
-        ctx.lineWidth = key === 'reward' || key === 'punishment' ? 1 : 1.6;
-        ctx.globalAlpha = key === 'reward' || key === 'punishment' ? 0.6 : 0.9;
-        ctx.beginPath();
-        for (let j = 0; j < n; j++) {
-          const v = h.data[i][(start + j) % HISTORY_LEN];
-          const x = (j + HISTORY_LEN - n) / (HISTORY_LEN - 1) * w, y = hh - 2 - v * (hh - 4);
-          if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+      const n = h ? Math.min(h.n, HISTORY_LEN) : 0;
+      // Reward and punishment are drawn thinner and fainter, behind the drives
+      const series = HISTORY.map((key, i) => {
+        const faint = key === 'reward' || key === 'punishment';
+        return { data: h ? h.data[i] : null, color: Evo.theme.color(chemToken(key)), width: faint ? 1 : 1.6, alpha: faint ? 0.6 : 0.9 };
       });
-      ctx.globalAlpha = 1;
+      Evo.Charts.ringLines(this.chartCtx, this.chart.clientWidth, this.chart.clientHeight, series, HISTORY_LEN, n, h ? h.n - n : 0);
     }
 
     // ---------- Brain ----------
@@ -698,16 +688,9 @@
     }
 
     renderPopulation() {
-      const ctx = this.popCtx, w = this.popChart.clientWidth, h = this.popChart.clientHeight, data = this.population;
-      ctx.clearRect(0, 0, w, h);
-      if (data.length < 2) return;
-      const max = Math.max(Evo.LIMITS.MAX_POPULATION, ...data);
-      ctx.strokeStyle = Evo.theme.color('--accent'); ctx.lineWidth = 1.6;
-      ctx.fillStyle = Evo.theme.rgba('--accent', 0.12);
-      ctx.beginPath();
-      data.forEach((v, i) => { const x = i / (data.length - 1) * w, y = h - 2 - v / max * (h - 6); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
-      ctx.stroke();
-      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+      const data = this.population;
+      Evo.Charts.area(this.popCtx, this.popChart.clientWidth, this.popChart.clientHeight, data,
+        Math.max(Evo.LIMITS.MAX_POPULATION, ...data), Evo.theme.color('--accent'), Evo.theme.rgba('--accent', 0.12));
     }
   }
 

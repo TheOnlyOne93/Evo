@@ -21,6 +21,7 @@
 | `world-view.js` | `WorldView` (below) |
 | `brain-view.js` | `BrainView` (the brain map: every region as a box, every cell at its spot) and `VoltageScope` (one neuron's membrane potential) |
 | `family-view.js` | `FamilyView`: the family tree |
+| `charts.js` | `Charts`: the inside view's two charts (`ringLines`: the drive history from ring buffers; `area`: the population as a filled line); they draw only what the inspector gives them |
 
 ## Creature pose
 
