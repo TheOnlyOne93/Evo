@@ -79,6 +79,7 @@ Evo.CreatureArt = {
                                       // w×h box at the origin, clipped; used by the card, the strip and the family tree
   //  framing: 'body' | 'face' | 'auto' (default: the face in boxes under 100 px)
   bounds(pose)                        // { x0, y0, x1, y1 } in world coordinates, for picking
+  mouthAt(pose, t, out)               // out = [x, y]: where draw puts the middle of the mouth, in world coordinates
   // The framing and bounds take in the ears along the outline that draws them
 }
 
@@ -124,7 +125,7 @@ What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nea
 
 1. Sync the terrain, move the camera, update the sky palette, and pose the visible creatures.
 2. The parallax backdrop, terrain tiles, then back features (trees, the log and rock, thorn bushes, grass).
-3. Shadows, loose items, creatures (the focused one last), held items, water, reeds.
+3. Shadows, loose items, creatures (the focused one last), held items, water, reeds. An item in a creature's mouth is drawn at `mouthAt`, which moves with the head, keeping the offset at which the simulation hangs it from its own fixed mouth point; the simulation's point still decides where it is picked at and dropped.
 4. Weather, then the day-night light tint over everything drawn so far.
 5. The sky behind it all (drawn beneath): gradient, stars, sun, moon, clouds.
 6. Glows (the warm rock, lures, ripe eggs, fireflies, water glints) and the vignette.
@@ -140,7 +141,7 @@ If posing or drawing a creature ever throws, the view warns once and draws place
 
 - **Static art** (terrain tiles of 256 px, plants, the log, the rock) is painted once per season into offscreen sprites at 1, 1.5, 2, 3 or 4 device px per world px, whichever first covers the zoom (4 is for phones at 3 device px per CSS px), and blitted each frame. At most 3 sprites are upgraded per frame; until then another resolution stands in. The next season's sprites are built from 80% of the way through a season. Sprites are evicted least recently used when they pass 24 Mpx. A feature's sprite is rebuilt when its shape changes, the terrain's when `terrain.heights` is replaced.
 - **The sky** caches its parallax layers per season, its clouds and a stepped moon.
-- **CreatureArt** keeps up to 300 creatures' layouts, palettes and gradients, keyed by `pose.id`, so ids must be stable and unique. Only `draw` advances the leg phase (from `walkPhase`); portraits and `bounds` don't.
+- **CreatureArt** keeps up to 300 creatures' layouts, palettes and gradients, keyed by `pose.id`, so ids must be stable and unique. Only `draw` advances the leg phase (from `walkPhase`); portraits, `bounds` and `mouthAt` don't.
 - **Theme tokens** are read once from the page's CSS and kept; a missing token draws magenta.
 
 ## Time and randomness

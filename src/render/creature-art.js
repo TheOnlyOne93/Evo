@@ -51,6 +51,7 @@
   const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;
   const GRIP_Y = -Evo.WORLD.HOLD_GRIP * UNITS;        // held: the hand is HOLD_GRIP × size above (x, y)
   const HEAD_RX = 1.04, HEAD_RY = 0.95;               // the head's outline: an ellipse this wide and tall, in units of R
+  const MOUTH_X = 0.98, MOUTH_Y = 0.44;               // the middle of the mouth in the head, in units of R
   // Held: the hand grips the scruff, on the head's outline this far round from the nose (radians:
   // the back of the head just above the cheek tufts, where the neck starts), and the head hangs
   // tipped forward by HELD_TILT (radians), so that spot is the highest on its back
@@ -980,7 +981,7 @@
 
   function drawMouth(ctx, r, pal) {
     const R = r.R, s = r.smile, o = r.mouthOpen, ol = r.ol;
-    const cx = R * 0.98, cy = R * 0.44, wn = R * 0.26, wf = R * 0.11, cornerY = cy - s * R * 0.1;
+    const cx = R * MOUTH_X, cy = R * MOUTH_Y, wn = R * 0.26, wf = R * 0.11, cornerY = cy - s * R * 0.1;
     ctx.strokeStyle = pal.line; ctx.lineWidth = ol;
     if (o > MOUTH_OPEN) {
       const h = R * (0.08 + 0.34 * o) * (1 + 0.7 * r.yawn);   // a yawn opens wide
@@ -1224,6 +1225,22 @@
     render(ctx, pose, t || 0, true);
   }
 
+  // Where draw puts the middle of the mouth for this pose at time t, in world coordinates: out
+  // gets [x, y]. Carried items hang from it.
+  function mouthAt(pose, t, out) {
+    const r = rig;
+    computeRig(pose, t || 0, entryFor(pose), r, false);
+    headPoint(r, r.R * MOUTH_X, r.R * MOUTH_Y, P);
+    // render's transforms, innermost first: stretch, offset, swing about the grip, facing, size
+    let x = P[0] * r.sx + r.offX, y = P[1] * r.sy;
+    if (r.swing) {
+      const c = Math.cos(r.swing), s = Math.sin(r.swing), dy = y - GRIP_Y;
+      y = GRIP_Y + x * s + dy * c; x = x * c - dy * s;
+    }
+    out[0] = pose.x + x * r.facing * r.k; out[1] = pose.y + y * r.k;
+    return out;
+  }
+
   // Extent of the current rig, in units: [x0, y0, x1, y1]
   const EXT = new Float32Array(4);
   function grow(x, y, rad) {
@@ -1328,5 +1345,5 @@
     ctx.restore();
   }
 
-  Evo.CreatureArt = { draw, drawPortrait, bounds };
+  Evo.CreatureArt = { draw, drawPortrait, bounds, mouthAt };
 })(globalThis.Evo);

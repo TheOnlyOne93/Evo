@@ -96,4 +96,4 @@ Asleep, the brain dreams first. Then the brain ticks once, with what `Evo.senses
 
 ## Settle
 
-The body moves under gravity. A ledge more than 10 px high blocks walking (a bump) until it jumps; platforms hold it from above only; a hard landing hurts; in water deeper than half its body it floats. A carried item follows the mouth. Then passing sensations and tastes fade.
+The body moves under gravity. A ledge more than 10 px high blocks walking (a bump) until it jumps; platforms hold it from above only; a hard landing hurts; in water deeper than half its body it floats. A carried item follows the mouth point (`mouthX`, `mouthY`: a fixed point ahead of and above the body's centre; the view draws the item at the drawn mouth instead). Then passing sensations and tastes fade.

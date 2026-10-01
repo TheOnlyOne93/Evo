@@ -22,6 +22,7 @@
   const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;
   const GROUND_AT = 0.72;               // where the ground line sits on screen (fraction of height)
   const SKY_ROOM = 420;                 // world px of scenery kept visible above the ground by default
+  const MOUTH = [0, 0];                 // scratch: a drawn mouth's position
   const LEVELS = [1, 1.5, 2, 3, 4];     // sprite resolutions, in device px per world px (4: a phone at 3 device px per CSS px, zoomed in)
   const NL = LEVELS.length;
   const TILE = 256;                     // terrain tile size (world px)
@@ -754,10 +755,25 @@
           g.fillStyle = 'rgba(255,255,255,0.14)';
           g.fill();
         }
+        if (held && it.heldBy !== 'hand' && this._drawCarried(g, it, t)) continue;
         // Things floating on a pond sit half in the water and bob
         const float = held ? -1 : this._floatDepth(it);
         art.draw(g, it, t, float >= 0 ? it.radius * 0.55 + Math.sin(t * 1.7 + (it.id | 0)) * 0.9 : 0);
       }
+    }
+
+    // An item in a creature's mouth hangs from the mouth as drawn, which moves with the head,
+    // instead of the simulation's fixed mouth point (it keeps the same offset from it). False when
+    // the creature isn't drawn from a pose
+    _drawCarried(g, it, t) {
+      const c = this.world.creatureById(it.heldBy), i = c ? this.world.creatures.indexOf(c) : -1;
+      if (i < 0 || !this.poses[i] || this.artBroken) return false;
+      Evo.CreatureArt.mouthAt(this.poses[i], t, MOUTH);
+      g.save();
+      g.translate(MOUTH[0] - c.mouthX, MOUTH[1] - c.mouthY);
+      Evo.ItemArt.draw(g, it, t, 0);
+      g.restore();
+      return true;
     }
 
     // >= 0 when an item rests on a pond's surface (how far above the bed), else -1
