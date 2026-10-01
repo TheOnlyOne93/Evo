@@ -1,8 +1,9 @@
-// Creature lab: an animated preview of the creature art, for tuning it by eye. Every creature is a
-// real one (Evo.Creature from a founder genome with random looks and voice), posed by Evo.poseOf
-// and drawn by Evo.CreatureArt; states are set on the creature (its chemistry, timers and flags)
-// and read back through poseOf. The page loads the same src/ scripts as index.html, in the same
-// order. Open dev/creature-lab.html straight from disk. Nothing here is used by the game.
+// Creature lab: an animated preview of the creature art and the item art, for tuning it by eye.
+// Every creature is a real one (Evo.Creature from a founder genome with random looks and voice),
+// posed by Evo.poseOf and drawn by Evo.CreatureArt; states are set on the creature (its chemistry,
+// timers and flags) and read back through poseOf. Items are drawn by Evo.ItemArt, and lab.artHash()
+// fingerprints every pixel. The page loads the same src/ scripts as index.html, in the same order.
+// Open dev/creature-lab.html straight from disk. Nothing here is used by the game.
 (function (Evo) {
   'use strict';
   const Art = Evo.CreatureArt;
@@ -402,6 +403,93 @@
     });
   });
 
+  // 8. Items: every item type at zoom 3, one column each, in four rows: lying on the ground,
+  // tumbling in the air, floating half-sunk in water, and the toolbar icon. Each type is one plain
+  // item (the fields Evo.ItemArt reads), moved from row to row; progress 0.9 shows the egg's cracks.
+  const ITEM_ZOOM = 3;
+  const ICON = 22;   // a toolbar icon's CSS size (src/ui/toolbar.js)
+  const ITEM_ROW = { ground: 115, air: 125, water: 112, icon: 90 };   // each row's height
+  // A position rounded to whole screen pixels, so an icon drawn there shows its pixels as they are
+  const snap = (v, dpr) => Math.round(v * dpr) / dpr;
+  scene('items', s => {
+    const dpr = window.devicePixelRatio || 1;
+    s.items = Object.keys(Evo.ITEM_TYPES).map((type, i) => ({
+      id: i + 1, type, radius: Evo.ITEM_TYPES[type].radius, x: 0, y: 0, rot: 0, vx: 0, onGround: true,
+      hue: 30, accentHue: 220, progress: 0.9
+    }));
+    // Each toolbar icon drawn as src/ui/toolbar.js draws it: 22 CSS px at the screen's pixel ratio
+    s.icons = s.items.map(it => {
+      const cv = Evo.makeCanvas(Math.round(ICON * dpr), Math.round(ICON * dpr)), g = cv.getContext('2d');
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      Evo.ItemArt.drawIcon(g, it.type, 11, 11, 20, 0);
+      return cv;
+    });
+    s.water = Evo.theme.rgba('--water', 0.55);
+    s.chip = Evo.theme.color('--panel-raised');   // a chosen tool button's background (styles/app.css)
+  }, (s, t) => {
+    const { ctx, w, items, icons } = s, n = items.length, cw = w / n, z = ITEM_ZOOM, art = Evo.ItemArt;
+
+    // Lying on the ground, each type's name under it
+    let y0 = 0, rh = ITEM_ROW.ground;
+    const gy = rh - 26;
+    dayBackdrop(ctx, 0, y0, w, rh, gy);
+    ctx.save(); ctx.scale(z, z);
+    for (let i = 0; i < n; i++) {
+      const it = items[i];
+      it.x = (i + 0.5) * cw / z; it.y = gy / z; it.onGround = true; it.rot = 0;
+      art.draw(ctx, it, t, 0);
+    }
+    ctx.restore();
+    for (let i = 0; i < n; i++) label(ctx, items[i].type, (i + 0.5) * cw, gy + 18);
+
+    // Tumbling in the air: the body's centre 82 px down the row, as a lure's puffs rise high
+    y0 += rh + 1; rh = ITEM_ROW.air;
+    dayBackdrop(ctx, 0, y0, w, rh, y0 + rh - 4);
+    ctx.save(); ctx.scale(z, z);
+    for (let i = 0; i < n; i++) {
+      const it = items[i];
+      it.onGround = false; it.rot = t * 1.5;
+      it.x = (i + 0.5) * cw / z; it.y = (y0 + 82) / z + art.liftOf(it);
+      art.draw(ctx, it, t, 0);
+    }
+    ctx.restore();
+
+    // Floating: sunk and bobbing as src/render/world-view.js draws things on a pond, under a band of
+    // water that stands in for Evo.Water
+    y0 += rh + 1; rh = ITEM_ROW.water;
+    const wy = y0 + 82;   // the water line
+    dayBackdrop(ctx, 0, y0, w, rh, y0 + rh - 6);
+    ctx.save(); ctx.scale(z, z);
+    for (let i = 0; i < n; i++) {
+      const it = items[i];
+      it.onGround = true; it.rot = 0;
+      it.x = (i + 0.5) * cw / z; it.y = wy / z;
+      art.draw(ctx, it, t, it.radius * 0.55 + Math.sin(t * 1.7 + (it.id | 0)) * 0.9);
+    }
+    ctx.restore();
+    ctx.fillStyle = s.water;
+    ctx.fillRect(0, wy, w, y0 + rh - wy);
+
+    // The toolbar icon at its real size (one icon pixel to one screen pixel) on a chip, then 3×
+    // larger without smoothing, so its real pixels show
+    y0 += rh + 1; rh = ITEM_ROW.icon;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = s.chip;
+    for (let i = 0; i < n; i++) {
+      const icon = icons[i], size = icon.width / dpr, left = (i + 0.5) * cw - (size * 4 + 24) / 2;
+      const x1 = snap(left + 4, dpr), y1 = snap(y0 + (rh - size) / 2, dpr);
+      const x3 = snap(left + size + 20, dpr), y3 = snap(y0 + (rh - size * 3) / 2, dpr);
+      ctx.beginPath();
+      ctx.roundRect(x1 - 4, y1 - 4, size + 8, size + 8, 6);
+      ctx.roundRect(x3 - 4, y3 - 4, size * 3 + 8, size * 3 + 8, 8);
+      ctx.fill();
+      ctx.drawImage(icon, x1, y1, size, size);
+      ctx.drawImage(icon, x3, y3, size * 3, size * 3);
+    }
+    ctx.imageSmoothingEnabled = true;
+  });
+
   // ---- Loop and controls -------------------------------------------------------------------------
 
   const ticksAt = t => Math.floor(t * Evo.TICKS_PER_SECOND);
@@ -414,17 +502,23 @@
     }
   }
 
+  // The lab's time at the clock time `now` (seconds)
+  const timeAt = now => paused ? pauseT : now - pauseAt;
+
+  // Clear one scene and paint it at time t (dt: seconds since the last paint)
+  function paintScene(s, t, dt) {
+    s.ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+    s.ctx.clearRect(0, 0, s.w, s.h);
+    s.paint(s, t, dt, ticksAt(t));
+  }
+
   let last = performance.now() / 1000;
   function frame() {
     const now = performance.now() / 1000;
     const dt = paused ? 0 : Math.min(0.05, now - last);
     last = now;
-    const t = paused ? pauseT : now - pauseAt;
-    for (const s of scenes) {
-      s.ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
-      s.ctx.clearRect(0, 0, s.w, s.h);
-      s.paint(s, t, dt, ticksAt(t));
-    }
+    const t = timeAt(now);
+    for (const s of scenes) paintScene(s, t, dt);
     requestAnimationFrame(frame);
   }
 
@@ -484,6 +578,40 @@
     document.getElementById('benchOut').textContent =
       `${r.creatures} creatures: ${r.msPerFrame} ms/frame (${r.msPerFrameFlushed} ms flushed)`;
   });
+
+  // A fingerprint of the pixels: { <scene id>: hash, ..., all: hash over every scene in page order },
+  // each a running mix of every pixel (FNV-1a, as paintHash in dev/world-lab.js). Take it with time
+  // frozen (?t=S&seed=N), the same window size and the same browser, before and after a change to
+  // the creature or item art: equal hashes mean no pixel moved, and a scene whose hash changed is
+  // where something moved. It clears the hover highlight and paints every scene once at the current
+  // time first; a creature clicked to focus it keeps its ring, so don't click before taking it.
+  // The pixels are read from a copy: after a read or two of a canvas's own pixels, Chrome moves its
+  // drawing from the graphics card to the main processor, which smooths edges a little differently,
+  // so the same picture would hash differently from one call to the next.
+  const FNV_START = 0x811c9dc5, FNV_PRIME = 0x01000193;
+  const copy = Evo.makeCanvas(1, 1), copyCtx = copy.getContext('2d', { willReadFrequently: true });
+  function artHash() {
+    for (const s of scenes) for (const sub of s.subs) sub.hovered = false;
+    const t = timeAt(performance.now() / 1000), hashes = {};
+    let all = FNV_START;
+    for (const s of scenes) {
+      paintScene(s, t, 0);
+      const { width, height } = s.canvas;
+      copy.width = width; copy.height = height;   // also clears it
+      copyCtx.drawImage(s.canvas, 0, 0);
+      const px = new Uint32Array(copyCtx.getImageData(0, 0, width, height).data.buffer);
+      let h = Math.imul(FNV_START ^ width, FNV_PRIME);
+      all = Math.imul(all ^ width, FNV_PRIME);
+      for (let i = 0; i < px.length; i++) {
+        h = Math.imul(h ^ px[i], FNV_PRIME);
+        all = Math.imul(all ^ px[i], FNV_PRIME);
+      }
+      hashes[s.id] = h >>> 0;
+    }
+    hashes.all = all >>> 0;
+    return hashes;
+  }
+  window.lab = { artHash };
 
   requestAnimationFrame(frame);
 })(globalThis.Evo);
