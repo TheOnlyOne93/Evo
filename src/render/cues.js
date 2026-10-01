@@ -103,7 +103,8 @@
         const c = cs[i];
         if (!view.poses[i]) continue;
         const r = this.rec(c);
-        const head = view.worldToScreen(c.x + c.facing * c.size * 0.3, c.y - c.size * (c.lying ? 0.7 : 1.05));
+        // Above the drawn head, which lowers as the pose eases into lying down
+        const head = view.worldToScreen(c.x + c.facing * c.size * 0.3, c.y - c.size * (1.05 - 0.35 * view.poses[i].motion.lying));
         this._reactions(g, r, head, z, t);
         if (!c.held && !c.dead) this._bubble(g, c, r, head, z, t, c === focused);
       }
