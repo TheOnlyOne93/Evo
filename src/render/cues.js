@@ -13,6 +13,7 @@
   const BURSTS = { slapped: '#ffe27a', pricked: '#f28bc0', fell: '#e8dcc8' };
   const FX_LIFE = 1.3;          // s hearts stay on screen
   const BURST_LIFE = 0.7;       // s a burst stays on screen
+  const HIT_BURST = 1.6;        // a burst where the hand struck is this much larger
   const REPEAT_TICKS = 600;     // the same event again within this many ticks adds to the last entry
   const DREAM_HOLD = 2.5;       // s a dream bubble stays up after the dream (which is brief)
   const BUBBLE_PERIOD = 8;      // s: a need bubble shows for part of each period
@@ -105,7 +106,7 @@
         const r = this.rec(c);
         // Above the drawn head, which lowers as the pose eases into lying down
         const head = view.worldToScreen(c.x + c.facing * c.size * 0.3, c.y - c.size * (1.05 - 0.35 * view.poses[i].motion.lying));
-        this._reactions(g, r, head, z, t);
+        this._reactions(g, view, c, r, head, z, t);
         if (!c.held && !c.dead) this._bubble(g, c, r, head, z, t, c === focused);
       }
       if (focused) {
@@ -120,7 +121,8 @@
     }
 
     // Hearts rise after a pat, a nuzzle or mating; a burst flashes after a slap, thorns or a hard fall
-    _reactions(g, r, head, z, t) {
+    // (a slap's where the hand struck, if it is still there when first drawn; the others' at the head)
+    _reactions(g, view, c, r, head, z, t) {
       for (let k = r.fx.length - 1; k >= 0; k--) {
         const fx = r.fx[k], age = t - fx.t0;
         if (age > FX_LIFE || age < 0) { r.fx.splice(k, 1); continue; }
@@ -134,9 +136,14 @@
             heart(g, x, y, (4.5 + 1.5 * Math.sin(u * 3.1)) * z);
           }
         } else if (age < BURST_LIFE) {
+          if (fx.hit === undefined) fx.hit = fx.key === 'slapped' ? strikeSpot(view, c) : null;
           const u = age / BURST_LIFE, s = (7 + 9 * Math.sqrt(u)) * z;
           g.globalAlpha = 1 - u * u;
-          burst(g, head.x - 6 * z, head.y + 2 * z, s, BURSTS[fx.key]);
+          if (fx.hit) {
+            // Larger, so it shows round the hand when the pointer stays where it struck
+            const p = view.worldToScreen(c.x + fx.hit.dx * c.facing, c.y + fx.hit.dy);
+            burst(g, p.x, p.y, s * HIT_BURST, BURSTS[fx.key]);
+          } else burst(g, head.x - 6 * z, head.y + 2 * z, s, BURSTS[fx.key]);
         }
       }
       g.globalAlpha = 1;
@@ -252,6 +259,15 @@
     g.bezierCurveTo(x + s * 0.8, y - s * 1.3, x + s * 1.5, y - s * 0.1, x, y + s * 0.9);
     g.fillStyle = '#ff7fa6'; g.fill();
     g.strokeStyle = INK; g.lineWidth = 1.3; g.stroke();
+  }
+
+  // Where the slapping hand is on creature c, from its centre in world units with x along its
+  // facing (so the spot stays on the same part of the body as it moves or turns), or null
+  function strikeSpot(view, c) {
+    const hand = view.options.hand;
+    if (!hand || hand.mode !== 'slap' || view.creatureAt(hand.x, hand.y) !== c) return null;
+    const w = view.screenToWorld(hand.x, hand.y);
+    return { dx: (w.x - c.x) * c.facing, dy: w.y - c.y };
   }
 
   function burst(g, x, y, s, fill) {

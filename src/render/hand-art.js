@@ -17,8 +17,8 @@
   }
   const OUTLINE = 2.6;     // the ink outline (and the shadow) is this much wider than each finger
   const SLAP_TILT = -0.42; // the slapping hand (and its shadow) tilts by this angle
-  // The patting hand bobs up and down
-  const patBob = t => -2.5 - Math.abs(Math.sin(t * 5)) * 3;
+  // The patting hand bobs up and down, its palm touching the pointer at the bottom of each pat
+  const patBob = t => -Math.abs(Math.sin(t * 5)) * 3;
 
   function handOutlineAndFill(g, parts, palm) {
     // parts: [x0, y0, x1, y1, width] capsules; palm: [x, y, w, h, r]
