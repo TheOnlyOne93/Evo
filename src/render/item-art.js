@@ -157,23 +157,50 @@
     }
   }
 
-  // A pale curled larva; the curl breathes
+  // The grub's segments, worked out again each time one is drawn: x, y and radius for each of 6
+  const GRUB_SEG = new Float32Array(18);
+
+  // A pale curled larva in one outline, with faint lines where its segments meet; the curl breathes
   function grubBody(g, r, c, t, item) {
     const wig = Math.sin(t * 3 + (item.id | 0)) * 0.25;
     const R0 = r * 0.62, a0 = 0.35 + wig * 0.4, a1 = Math.PI * 1.55 + wig;
-    const n = 6;
+    const n = 6, S = GRUB_SEG;
     for (let k = 0; k < n; k++) {
       const u = k / (n - 1);
       const a = a0 + (a1 - a0) * u;
-      const x = Math.cos(a) * R0, y = Math.sin(a) * R0 * 0.85 + r * 0.1;
-      const sr = r * (0.34 + 0.12 * Math.sin(u * Math.PI)) ;
-      g.fillStyle = c.grub;
-      g.strokeStyle = c.grubDark;
-      g.lineWidth = lineW(r, 0.09);
-      g.beginPath(); g.arc(x, y, sr, 0, TAU); g.fill(); g.stroke();
-      g.fillStyle = c.grubLight;
-      g.beginPath(); g.arc(x - sr * 0.3, y - sr * 0.35, sr * 0.35, 0, TAU); g.fill();
+      S[k * 3] = Math.cos(a) * R0;
+      S[k * 3 + 1] = Math.sin(a) * R0 * 0.85 + r * 0.1;
+      S[k * 3 + 2] = r * (0.34 + 0.12 * Math.sin(u * Math.PI));
     }
+    // All segments as one shape: stroked at twice the width, then filled, which covers the inner
+    // half of every stroke so only the outline round the whole curl is left
+    g.beginPath();
+    for (let k = 0; k < n; k++) circle(g, S[k * 3], S[k * 3 + 1], S[k * 3 + 2]);
+    g.strokeStyle = c.grubDark;
+    g.lineWidth = lineW(r, 0.09) * 2;
+    g.stroke();
+    g.fillStyle = c.grub;
+    g.fill();
+    // A faint line across the body at each joint, along the curl's radius
+    g.beginPath();
+    for (let k = 0; k < n - 1; k++) {
+      const aj = a0 + (a1 - a0) * (k + 0.5) / (n - 1);
+      const w = 0.75 * Math.min(S[k * 3 + 2], S[k * 3 + 5]);
+      const cx = Math.cos(aj), sy = Math.sin(aj) * 0.85;
+      g.moveTo(cx * (R0 - w), sy * (R0 - w) + r * 0.1);
+      g.lineTo(cx * (R0 + w), sy * (R0 + w) + r * 0.1);
+    }
+    g.globalAlpha = 0.35;
+    g.lineWidth = lineW(r, 0.06);
+    g.stroke();
+    g.globalAlpha = 1;
+    // One sheen along the body, lit from the upper left
+    g.strokeStyle = c.grubLight;
+    g.lineWidth = r * 0.16;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.ellipse(-r * 0.1, r * -0.02, R0, R0 * 0.85, 0, a0 + 0.25, a1 - 0.25);
+    g.stroke();
     // Head at the end of the curl
     const ah = a1 + 0.35;
     const hx = Math.cos(ah) * R0 * 0.95, hy = Math.sin(ah) * R0 * 0.8 + r * 0.1;
