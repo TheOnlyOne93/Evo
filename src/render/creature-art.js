@@ -205,6 +205,11 @@
   };
   const LAND_DIP = 0.35;         // a full landing squash bends the legs by this share of their length
   const LAND_SQUASH = 0.1;       // and squashes the body this much wider and lower
+  // Flying backwards (thrown, or knocked) faster than FLAIL_FROM px per tick against the way it is
+  // drawn facing, fully past FLAIL_FROM + FLAIL_SPAN, it flails: legs paddling in circles, leaning
+  // back, eyes wide and yelping
+  const FLAIL_FROM = 2, FLAIL_SPAN = 2;
+  const FLAIL_HZ = 3;            // leg circles a second
 
   // Where the near legs join the body: x in units of rxF (front) or rxB (hind), y in units of ryB.
   // The haunch line is centred on the hind hip, so it follows the leg.
@@ -240,6 +245,7 @@
     r.k = Math.max(MIN_SIZE, size) / UNITS; r.stage = stage; r.g = g; r.ag = ag;
     r.facing = turn < 0 ? -1 : turn > 0 ? 1 : facing;   // the way it is drawn: still the old way for the first half of a turn
     r.flip = Math.max(TURN_NARROW, Math.abs(turn));     // the share of its width it is drawn at: narrowest halfway round, facing the viewer
+    const flail = air * smooth(clamp01((-num(M.vx, 0) * r.facing - FLAIL_FROM) / FLAIL_SPAN));
     r.female = pose.sex !== 'MALE'; r.dead = dead; r.held = held; r.asleep = asleep; r.lying = lying;
     r.fear = fear; r.anger = anger; r.sick = sick; r.cold = cold; r.hot = hot; r.wet = wet; r.calling = calling;
     r.heat = S.inHeat && !dead && r.mature ? 0.62 + 0.38 * Math.sin(t * 3.4 + ph0) : 0;
@@ -276,6 +282,7 @@
     let ang = -0.05 + 0.09 * run + 0.11 * Math.sin(ph) * run + 0.15 * eat - 0.1 * calling + 0.07 * ag - 0.1 * flinch;
     ang = lerp(ang, dead ? 0.02 : 0.03, lying);
     ang = lerp(ang, fall < 0 ? lerp(AIR_ANG.top, AIR_ANG.rise, -fall) : lerp(AIR_ANG.top, AIR_ANG.fall, fall), air);
+    ang = lerp(ang, -0.32, flail);   // leaning back
     let bx = -((rxF * 0.72 + R * 1.12) - rxB) / 2;
     // Held by the scruff: the body hangs straight down below the head
     if (held) { ang = -1.42; bx = -R * 0.12; by = R * 0.5 + rxF * 0.8; }
@@ -307,6 +314,11 @@
         const A = fall < 0 ? AIR_FEET.rise : AIR_FEET.fall, s = Math.abs(fall), o = front ? 0 : 2;
         fx = lerp(fx, hx + reach * lerp(AIR_FEET.top[o], A[o], s), air);
         fy = lerp(fy, hy + reach * lerp(AIR_FEET.top[o + 1], A[o + 1], s) + pawRy, air);
+        if (flail > 0) {
+          const a = t * FLAIL_HZ * TAU + i * 1.7;
+          fx = lerp(fx, hx + reach * ((front ? 0.35 : -0.2) + 0.35 * Math.cos(a)), flail);
+          fy = lerp(fy, hy + reach * (0.6 + 0.3 * Math.sin(a)) + pawRy, flail);
+        }
       }
       if (lying > 0) {
         const lfx = dead ? hx + (front ? 1 : -1) * (reach + 2.5) : hx + reach * (front ? 0.62 : 0.42) + 1;
@@ -326,6 +338,7 @@
     let curl = 1.5 - 0.9 * run + 0.2 * anger - 0.3 * cold - 0.4 * wet;
     up = lerp(up, dead ? 0.02 : 0.1, lying); curl = lerp(curl, dead ? 0.15 : 1.1, lying);
     up = lerp(up, 0.45 + 0.3 * fall, air); curl = lerp(curl, 0.6, air);   // trails low rising, floats up falling
+    up = lerp(up, 1.05, flail); curl = lerp(curl, 1.3, flail);   // blown up over the back
     const tLen = (8 + 17 * tailGene) * lerp(0.55, 1, g);
     const tW = (2.3 + 1.1 * plump) * lerp(0.8, 1, g) * (1 + 0.5 * anger) * (1 - 0.3 * wet);
     const wagA = dead ? 0 : (0.06 + 0.2 * happy + 0.06 * move) * (asleep ? 0.3 : 1);
@@ -370,6 +383,7 @@
       hAng = lerp(hAng, dead ? -0.38 : asleep ? 0.12 : 0.04, lying);
     }
     hAng -= 0.1 * air;
+    hAng -= 0.2 * flail;
     hy -= (r.breath - 1) * ryT * (1.2 - 0.8 * lying);
     if (held) { hx = 0; hy = 0; hAng = HELD_TILT + Math.sin(t * 1.3 + ph0) * 0.05; }
     r.hx = hx; r.hy = hy; r.hAng = hAng;
@@ -379,7 +393,7 @@
       cold * 0.35, hot * 0.3, wet * 0.45, dead ? 1 : 0, 0.15 * baby));
     const tw = (t + e.twitchO) % e.twitchP, twitch = tw < 0.28 && live && !asleep ? Math.sin(tw / 0.28 * PI) * 0.32 : 0;
     const twNear = ((t + e.twitchO) / e.twitchP | 0) & 1;
-    const back = 1.0 * fear + 0.42 * anger + 0.35 * run + 0.3 * air + 0.25 * flinch - 0.22 * calling + (held ? 0.3 : 0);
+    const back = 1.0 * fear + 0.42 * anger + 0.35 * run + 0.3 * air + 0.25 * flinch - 0.22 * calling + (held ? 0.3 : 0) - 0.5 * flail;
     r.earN = -0.8 - droop * 1.0 - back - (twNear ? twitch : 0);
     r.earF = 0.26 - droop * 1.35 - back * 0.95 - (twNear ? 0 : twitch);
     r.earLen = R * (0.8 + 0.72 * earGene) * lerp(1.05, 1, g);
@@ -395,6 +409,7 @@
     const blink = blinkT < 0.17 ? Math.sin(blinkT / 0.17 * PI) : 0;
     let closed = Math.max(num(F.eyesClosed, 0), blink, asleep ? 1 : 0, sick * 0.42, senile * 0.3, ag * 0.12, anger * 0.22, pain * 0.4);
     closed *= 1 - 0.8 * fear;
+    closed *= 1 - flail;
     r.closed = clamp01(closed);
     // X when dead, squeezed shut when hurt, happy arcs when patted (or delighted with eyes closed)
     r.eyeMode = dead ? EYE.DEAD : flinch > 0.45 ? EYE.SHUT : joy > 0.4 ? EYE.HAPPY
@@ -402,20 +417,20 @@
     r.eR = R * (0.26 + 0.13 * eyeGene) * lerp(1.14, 1, g) * (1 + 0.12 * fear);
     r.px = clamp(num(F.pupilX, 0), -1, 1) * r.facing;
     r.py = clamp(num(F.pupilY, 0), -1, 1);
-    r.pupil = 0.5 + 0.06 * baby - 0.24 * fear;
+    r.pupil = 0.5 + 0.06 * baby - 0.24 * fear - 0.15 * flail;
     r.lidTilt = anger * 0.5 - 0.25 * Math.max(fear, sick * 0.5, pain);
 
     // Mouth and face
     r.smile = clamp(smile - 0.4 * sick - 0.3 * fear - 0.5 * anger - 0.3 * cold, -1, 1);
     const pant = hot > 0.25 ? (0.35 + 0.15 * Math.sin(t * TAU * 3)) * hot : 0;
     const chewOpen = eat * (0.12 + 0.38 * Math.max(0, Math.sin(t * 9)));
-    r.mouthOpen = dead ? 0.22 : clamp01(Math.max(num(F.mouthOpen, 0), calling * 0.85, pant, chewOpen, fear * 0.2));
+    r.mouthOpen = dead ? 0.22 : clamp01(Math.max(num(F.mouthOpen, 0), calling * 0.85, pant, chewOpen, fear * 0.2, flail * 0.55));
     r.tongue = dead ? 0.6 : hot > 0.25 ? hot : 0;
     r.fang = anger > 0.35 ? anger : 0;
     r.wavy = sick > 0.45 && r.mouthOpen < MOUTH_OPEN ? 1 : 0;
     r.blush = clamp01(Math.max(num(F.blush, 0), hot * 0.7, 0.28 * baby, cold * 0.4)) * live;
     r.browAnger = anger;
-    r.browWorry = Math.max(fear, sick * 0.5, Math.max(0, -smile) * 0.6, clamp01(num(F.worry, 0)) * awake);
+    r.browWorry = Math.max(fear, sick * 0.5, Math.max(0, -smile) * 0.6, clamp01(num(F.worry, 0)) * awake, flail);
     r.lick = clamp01(num(F.lick, 0)) * awake;
     r.yawn = yawn;
 

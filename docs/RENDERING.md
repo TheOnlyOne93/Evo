@@ -44,7 +44,7 @@ pose = {
     patternScale, earSize, tailLength, eyeSize, plumpness, legLength, crest
   },
   motion: {
-    vx,                     // px per tick, signed
+    vx,                     // px per tick, signed (flying backwards fast, the art flails)
     vy,                     // px per tick, + = falling
     air,                    // 0..1, eased: into the jump's pose after it leaves the ground, 0 from the tick it lands
     land,                   // 0..1: a landing's squash (full when it lands at 7 px a tick), easing off
