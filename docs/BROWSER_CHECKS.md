@@ -30,3 +30,25 @@ and stop it when done.
   ]
 }
 ```
+
+## Looking at a moment tick by tick in the world lab
+
+`dev/world-lab.html` gives scripts `window.lab` (`world`, `view`, `state`, `step(n)`, `focus(c)`, …).
+To look at a pose tick by tick (a jump, a turn, a bite), and compare shots from before and after a
+change:
+
+- Pause (`lab.state.paused = true`) and stop the lab's own frames, which run on the real clock.
+  Keep the view's real render first: `const render = Object.getPrototypeOf(lab.view).render.bind(lab.view)`,
+  then `lab.view.render = () => {}`. Take it from the prototype: if a script that binds
+  `lab.view.render` runs twice, the second time it binds the empty one and nothing is drawn.
+- Step and draw one tick at a time on a clock of your own: `lab.step(1); render(T += 1 / 60)`.
+  Poses ease by the world ticks since the last pose, so draw every tick you step, or the easing
+  jumps in one go.
+- `lab.step` tracks the cues (hearts, bursts, bubbles) at the real time. To see them on your own
+  clock, start it at `performance.now() / 1000` and call `lab.view.cues.track(lab.world, T)` right
+  after causing what they show, before stepping.
+- Let the camera settle on the creature, then stop following (`lab.view.follow(null);
+  lab.state.following = false`) so it holds still. To set several ticks side by side, copy the
+  region round `lab.view.worldToScreen(x, y)` from the `#world` canvas into small canvases laid over
+  the page.
+- The first run after a reload can come out blank: run it again after a moment.

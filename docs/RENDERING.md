@@ -152,7 +152,7 @@ If posing or drawing a creature ever throws, the view warns once and draws place
 
 ## Time and randomness
 
-Renderers depict sim state in ticks; they never drive it. Pose easing moves per sim tick (a paused world freezes, and high speed keeps up). The brain map lights a neuron that fired in any tick since the last frame (up to 31). What watches the simulation samples after each tick ([TIME.md](TIME.md)). Everything animated between ticks uses wall seconds: idle motion (blinks, breath, tail wags, chewing), cue effects, plant sway, clouds, weather, water, the camera. The hand converts its own timing into ticks ([INTERFACE.md](INTERFACE.md)).
+Renderers depict sim state in ticks; they never drive it. Pose easing moves per sim tick (a paused world freezes, and high speed keeps up). The brain map lights a neuron that fired in any tick since the last frame (up to 31). What watches the simulation samples after each tick ([TIME.md](TIME.md)). Everything animated between ticks uses wall seconds: idle motion (blinks, breath, tail wags, chewing, the legs' flailing and dog paddle), cue effects, plant sway, clouds, weather, water, the camera. The hand converts its own timing into ticks ([INTERFACE.md](INTERFACE.md)).
 
 Scenery and creature markings use their own `mulberry32` streams or `hash2`, seeded from ids. Passing effects (weather, shooting stars) use `Math.random`, so two frames never match pixel for pixel.
 
