@@ -8,7 +8,6 @@
   const { rgb, rgba, mix, scale } = Evo.color;
   const { GROUND, DETAIL, SNOW, circle, isWarm, flower } = Evo.Paint;
   const { SPRING, AUTUMN, WINTER } = Evo.SEASON;
-  const PETAL_STEP = 1.2566; // the angle between petals (see Evo.Paint.flower)
 
   const CANOPY = { // [base, dark, light] per season; autumn picks per clump
     fruit: [
@@ -217,7 +216,7 @@
         for (const k of open) {
           if (k % 3 !== c) continue;
           const d = s.dots[k], pr = 0.75 + d.r * 0.28;
-          flower(g, d.x, d.y - 1, pr, pr * 0.8, d.a, PETAL_STEP);
+          flower(g, d.x, d.y - 1, pr, pr * 0.8, d.a);
         }
         g.fill();
       }
@@ -449,7 +448,7 @@
       g.beginPath();
       for (let k = 0; k < 4; k++) {
         const a = Math.PI * (1.2 + k * 0.2), x = Math.cos(a) * mr * 0.6, y = Math.sin(a) * mr * 0.72;
-        flower(g, x, y, 1.4, 1.1, 0, PETAL_STEP);
+        flower(g, x, y, 1.4, 1.1);
       }
       g.fill();
       g.fillStyle = '#f7c948';

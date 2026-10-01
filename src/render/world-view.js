@@ -14,7 +14,7 @@
   'use strict';
   const { TAU, clamp, clamp01, hash2 } = Evo.util;
   const { makeCanvas } = Evo;
-  const { rgb, rgba, scale } = Evo.color;
+  const { rgba } = Evo.color;
   const Paint = Evo.Paint;
   const { seasonPasses } = Evo.Sky;
   const SEASON_COUNT = Evo.SEASON_COUNT;
@@ -607,7 +607,7 @@
       const heads = rec.data.heads;
       const n = Math.min(heads.length, Math.round(f.seeding * heads.length));
       if (!n) return;
-      const IC = this._itemColors();
+      const IC = Evo.ItemArt.colors();
       g.strokeStyle = Paint.DETAIL.seedHead[this.ss.cur];
       g.lineWidth = 1;
       g.beginPath();
@@ -633,14 +633,6 @@
       }
       g.fill();
       g.stroke();
-    }
-
-    _itemColors() {
-      if (!this.ic) {
-        const grain = Evo.theme.color('--grain');
-        this.ic = { grain, grainDark: rgb(scale(Evo.theme.hexRgb(grain), 0.6)) };
-      }
-      return this.ic;
     }
 
     // Warm air rising off the rock: faint wavering strands that fade as they rise

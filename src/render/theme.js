@@ -63,5 +63,5 @@
   // The dark edge under a light stroke (the focus ring, attention brackets), so it shows on any ground
   const INK_EDGE = '#06131a';
 
-  Evo.theme = { color, hexRgb, rgbOf, rgba, INK_EDGE };
+  Evo.theme = { color, rgbOf, rgba, INK_EDGE };
 })(globalThis.Evo);

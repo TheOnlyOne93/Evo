@@ -468,5 +468,5 @@
     draw(g, iconItem, t || 0);
   }
 
-  Evo.ItemArt = { draw, centerY, liftOf, drawIcon };
+  Evo.ItemArt = { draw, centerY, liftOf, drawIcon, colors };
 })(globalThis.Evo);

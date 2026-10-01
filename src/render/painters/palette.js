@@ -43,10 +43,12 @@
   const isWarm = si => si <= Evo.SEASON.SUMMER;
 
   // A five-petalled flower as circle subpaths: petals of radius pr, r from (x, y), the first at
-  // angle a0 and the rest a step apart. The plants pass their older step, 1.2566, which is a hair
-  // short of TAU / 5: kept so their art stays pixel-identical.
-  function flower(g, x, y, r, pr, a0 = 0, step = TAU / 5) {
-    for (let q = 0; q < 5; q++) circle(g, x + Math.cos(a0 + q * step) * r, y + Math.sin(a0 + q * step) * r, pr);
+  // angle a0 and the rest evenly spaced around it.
+  function flower(g, x, y, r, pr, a0 = 0) {
+    for (let q = 0; q < 5; q++) {
+      const a = a0 + q * (TAU / 5);
+      circle(g, x + Math.cos(a) * r, y + Math.sin(a) * r, pr);
+    }
   }
 
   Object.assign(Evo.Paint, { GROUND, MOSS, DETAIL, SNOW, ROCK_TONES, isWarm, flower });

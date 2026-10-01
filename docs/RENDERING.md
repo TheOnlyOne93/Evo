@@ -6,13 +6,13 @@
 
 | File | Puts on `Evo` |
 |---|---|
-| `theme.js` | `theme` (`color(token)`, `rgbOf`, `rgba`, `hexRgb`) reads the CSS tokens in `styles/app.css`; `color` has the `[r, g, b]` helpers |
+| `theme.js` | `theme` (`color(token)`, `rgbOf`, `rgba`) reads the CSS tokens in `styles/app.css`; `color` has the `[r, g, b]` helpers |
 | `canvas.js` | `fitCanvas(canvas, ctx)` sizes a canvas's buffer to its on-screen size at the device pixel ratio and returns the CSS size; `makeCanvas(w, h)`; `Paint`, the shared path helpers |
 | `pose.js` | `poseOf`, `looksOf`, `attentionOf` (below) |
 | `creature-art.js` | `CreatureArt` (below) |
 | `season.js` | `SEASON` (`SPRING` 0 … `WINTER` 3, the order of `world.season.index`) |
 | `sky.js` | `Sky`: gradient, sun, moon, stars, clouds and three parallax layers; the light palette the view tints with. Reads `world.clock` and `world.season` only |
-| `item-art.js` | `ItemArt`: items from their data, one row per type in `ART` (lift, icon size, tilt, the function that draws it; a type without a row warns and draws as a grey circle); `drawIcon` for the toolbar |
+| `item-art.js` | `ItemArt`: items from their data, one row per type in `ART` (lift, icon size, tilt, the function that draws it; a type without a row warns and draws as a grey circle); `drawIcon` for the toolbar; `colors()`, the food colours it draws with (the grass seed heads use its grain) |
 | `painters/` | Add the static-art painters to `Paint`: `palette.js` (seasonal palettes), `terrain.js` (tiles, stones, cliffs: the art reaches `terrain.cliffs.width` in from each end and stands as high as the ground at the ends, the higher of the two; turf and snow thin out to nothing at a pond's edge), `plants.js` (trees, grass, reeds, thorn bush), `rocks.js` (the log and the rock, shaped to their platforms) |
 | `water.js` | `Water`: ponds (the water is as deep as the pond's `bed`), their ice and snow in winter, the sun's glints |
 | `weather.js` | `Weather`: snow, leaves, petals, pollen and fireflies, pooled around the visible area |
