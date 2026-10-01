@@ -137,7 +137,7 @@ If posing or drawing a creature ever throws, the view warns once and draws place
 
 ## Caching
 
-- **Static art** (terrain tiles of 256 px, plants, the log, the rock) is painted once per season into offscreen sprites at 1, 1.5, 2 or 3 device px per world px, whichever first covers the zoom, and blitted each frame. At most 3 sprites are upgraded per frame; until then another resolution stands in. The next season's sprites are built from 80% of the way through a season. Sprites are evicted least recently used when they pass 24 Mpx. A feature's sprite is rebuilt when its shape changes, the terrain's when `terrain.heights` is replaced.
+- **Static art** (terrain tiles of 256 px, plants, the log, the rock) is painted once per season into offscreen sprites at 1, 1.5, 2, 3 or 4 device px per world px, whichever first covers the zoom (4 is for phones at 3 device px per CSS px), and blitted each frame. At most 3 sprites are upgraded per frame; until then another resolution stands in. The next season's sprites are built from 80% of the way through a season. Sprites are evicted least recently used when they pass 24 Mpx. A feature's sprite is rebuilt when its shape changes, the terrain's when `terrain.heights` is replaced.
 - **The sky** caches its parallax layers per season, its clouds and a stepped moon.
 - **CreatureArt** keeps up to 300 creatures' layouts, palettes and gradients, keyed by `pose.id`, so ids must be stable and unique. Only `draw` advances the leg phase (from `walkPhase`); portraits and `bounds` don't.
 - **Theme tokens** are read once from the page's CSS and kept; a missing token draws magenta.

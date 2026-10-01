@@ -22,7 +22,7 @@
   const ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;
   const GROUND_AT = 0.72;               // where the ground line sits on screen (fraction of height)
   const SKY_ROOM = 420;                 // world px of scenery kept visible above the ground by default
-  const LEVELS = [1, 1.5, 2, 3];        // sprite resolutions, in device px per world px
+  const LEVELS = [1, 1.5, 2, 3, 4];     // sprite resolutions, in device px per world px (4: a phone at 3 device px per CSS px, zoomed in)
   const NL = LEVELS.length;
   const TILE = 256;                     // terrain tile size (world px)
   const SPRITE_BUDGET = 24e6;           // cached sprite pixels before old ones are dropped
