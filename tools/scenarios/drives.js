@@ -12,7 +12,7 @@ module.exports = ({ lab, trial, avoids }) => ({
     'sated, creature at mouth -> rarely nuzzles': seed => {
       const s = lab(seed);
       const other = s.world.addAdult('MALE', { x: s.c.mouthX + 12 });
-      for (const phase of ['body', 'mind', 'act', 'settle']) other[phase] = () => {}; // A friend standing still at its mouth
+      for (const phase of ['tickBody', 'mind', 'act', 'settle']) other[phase] = () => {}; // A friend standing still at its mouth
       const nuzzles = s.count('nuzzle', e => e.from === s.c);
       // A friendly nuzzle or two is fine; more than 3 in 900 ticks is nuzzling without a need
       return avoids(s, 900, () => nuzzles() > 3);
