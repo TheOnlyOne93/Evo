@@ -52,7 +52,7 @@ pose = {
   face: {
     eyesClosed,             // 0..1
     pupilX, pupilY,         // -1..1: where it is looking (pupilX +1 = world right, whichever way it faces; pupilY -1 = up)
-    mouthOpen,              // 0..1
+    mouthOpen,              // 0..1: calling or yawning (while eating, the art chews by itself)
     smile,                  // -1 (miserable) .. 1 (delighted)
     earDroop,               // 0..1 (tired, queasy or lonely; the art adds old age itself)
     blush,                  // 0..1 (pleasure, e.g. being patted)

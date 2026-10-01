@@ -138,7 +138,7 @@
       face: {
         eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
-        mouthOpen: c.callTimer > CALL_HALF ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : yawn,
+        mouthOpen: c.callTimer > CALL_HALF ? 0.8 : yawn,   // while eating the art opens and shuts it to chew
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
         earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6)), 0.05), // the art droops old ears itself
         blush: ease(s, 'blush', clamp01(c.body.stim.gentle + get('endorphin')), 0.1),
