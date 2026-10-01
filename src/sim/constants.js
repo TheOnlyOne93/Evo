@@ -100,25 +100,25 @@
     [9, 'water', 'Water', 'nutrient', '--water'], [10, 'toxin', 'Toxin', 'other', '--toxin'],
     [11, 'insulin', 'Insulin', 'hormone', '--muted'], [12, 'glucagon', 'Glucagon', 'hormone', '--muted'],
     [13, 'adrenaline', 'Adrenaline', 'hormone', '--alarm'], [14, 'adenosine', 'Adenosine', 'hormone', '--muted'],
-    [15, 'melatonin', 'Melatonin', 'hormone', '--bored'], [16, 'growthHormone', 'Growth hormone', 'hormone', '--protein'],
+    [15, 'melatonin', 'Melatonin', 'hormone', '--sleepy'], [16, 'growthHormone', 'Growth hormone', 'hormone', '--protein'],
     [17, 'sexHormone', 'Sex hormone', 'hormone', '--female'], [18, 'endorphin', 'Endorphin', 'hormone', '--joy'],
     [19, 'ageing', 'Ageing', 'other', '--faint'], [20, 'liverEnzyme', 'Liver enzyme', 'hormone', '--toxin'],
     [21, 'readyEnergy', 'Ready energy', 'energy', '--energy'], [51, 'spentEnergy', 'Spent energy', 'energy', '--faint'],
     [22, 'pain', 'Pain', 'drive', '--injury'], [23, 'hunger', 'Hunger', 'drive', '--energy'],
     [24, 'proteinHunger', 'Protein hunger', 'drive', '--protein'], [25, 'fatHunger', 'Fat hunger', 'drive', '--fat'],
     [26, 'thirst', 'Thirst', 'drive', '--water'], [27, 'tiredness', 'Tiredness', 'drive', '--muted'],
-    [28, 'sleepiness', 'Sleepiness', 'drive', '--bored'], [29, 'coldness', 'Coldness', 'drive', '--water'],
-    [30, 'hotness', 'Hotness', 'drive', '--fruit'], [31, 'loneliness', 'Loneliness', 'drive', '--bored'],
-    [32, 'crowdedness', 'Crowdedness', 'drive', '--stress'], [33, 'fear', 'Fear', 'drive', '--toxin'],
+    [28, 'sleepiness', 'Sleepiness', 'drive', '--sleepy'], [29, 'coldness', 'Coldness', 'drive', '--cold'],
+    [30, 'hotness', 'Hotness', 'drive', '--fruit'], [31, 'loneliness', 'Loneliness', 'drive', '--lonely'],
+    [32, 'crowdedness', 'Crowdedness', 'drive', '--crowded'], [33, 'fear', 'Fear', 'drive', '--toxin'],
     [34, 'anger', 'Anger', 'drive', '--stress'], [35, 'boredom', 'Boredom', 'drive', '--bored'],
-    [36, 'sexDrive', 'Sex drive', 'drive', '--female'], [37, 'nausea', 'Nausea', 'drive', '--toxin'],
+    [36, 'sexDrive', 'Sex drive', 'drive', '--female'], [37, 'nausea', 'Nausea', 'drive', '--nausea'],
     [38, 'reward', 'Reward', 'reinforcer', '--joy'], [39, 'punishment', 'Punishment', 'reinforcer', '--stress'],
     [40, 'warmth', 'Warmth', 'relief', '--fruit'], [41, 'coolness', 'Coolness', 'relief', '--water'],
     [42, 'company', 'Company', 'relief', '--female'], [43, 'restRelief', 'Rest', 'relief', '--muted'],
-    [44, 'sleepSignal', 'Sleep', 'relief', '--bored'], [45, 'novelty', 'Novelty', 'relief', '--accent'],
+    [44, 'sleepSignal', 'Sleep', 'relief', '--sleepy'], [45, 'novelty', 'Novelty', 'relief', '--accent'],
     [46, 'drink', 'Drinking', 'relief', '--water'], [47, 'mating', 'Mating', 'relief', '--female'],
     [48, 'sweetTaste', 'Sweet taste', 'relief', '--fruit'], [49, 'savouryTaste', 'Savoury taste', 'relief', '--protein'],
-    [50, 'sleepOnset', 'Dozing off', 'relief', '--bored']
+    [50, 'sleepOnset', 'Dozing off', 'relief', '--sleepy']
   ];
   const CHEMICALS = CHEMICAL_LIST.map(([id, key, word, kind, token]) => ({ id, key, word, kind, token }));
   const CHEM = Object.fromEntries(CHEMICALS.map(c => [c.key, c.id]));

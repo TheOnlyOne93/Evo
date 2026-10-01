@@ -7,7 +7,9 @@
   --fruit: #f0605d; --grain: #e8a33d; --water: #3fc1d9; --protein: #7bc96f; --fat: #d9b26a;
   --grub: #d9c38a; --carrion: #8f8a84; --mimic-spot: #581c87; --alarm: #fb923c;
   --energy: #f5c542; --toxin: #a77bf3; --injury: #e86fa8; --joy: #ffb86b; --stress: #f0607a;
-  --bored: #7aa7f0; --female: #ec6fa8; --male: #6aa8f0; --gas: #e2e8f0; --pulse: #fde68a; --copy: #c4b5fd;
+  --female: #ec6fa8; --male: #6aa8f0; --gas: #e2e8f0; --pulse: #fde68a; --copy: #c4b5fd;
+  /* Drives that would otherwise share a colour (each line in the drive chart needs its own) */
+  --sleepy: #7aa7f0; --bored: #4fd1a5; --lonely: #f29ac0; --cold: #c4e4ff; --nausea: #a3c94a; --crowded: #e8925a;
   --ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
