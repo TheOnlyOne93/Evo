@@ -16,6 +16,7 @@
   const AIR_RATE = 0.4;          // per tick: from pushing off to the jump's pose in about 4 ticks
   const LAND_FULL = 7;           // px per tick: landing this fast squashes the body fully (a landing starts to hurt at this speed)
   const LAND_RATE = 0.25;        // per tick: the body springs back from a landing in about 8 ticks
+  const SWIM_RATE = 0.2;         // per tick: into the swimming pose, or out of it, in about 10 ticks
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
   // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
@@ -149,6 +150,8 @@
       if (!c.held && s.n > 0) land = s.land = Math.max(land, clamp01(s.fall / LAND_FULL));
       s.fall = undefined;
     }
+    // Floating in deep water: held up by it, its feet clear of the bed (needs the world)
+    const floating = !!world && c.inWater && c.onGround && !c.held && world.surfaceBelow(c.x, c.y - 1) > c.y + 1;
     return {
       id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex,
       looks: Evo.looksOf(c),
@@ -157,7 +160,8 @@
         air: ease(s, 'air', airborne ? 1 : 0, airborne ? AIR_RATE : 1), land,
         lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08),
         headDown: ease(s, 'down', mouth > 0 ? 1 : 0, HEAD_DOWN_RATE),
-        turn: approach(s, 'turn', c.facing, TURN_STEP)
+        turn: approach(s, 'turn', c.facing, TURN_STEP),
+        swim: ease(s, 'swim', floating ? 1 : 0, SWIM_RATE)
       },
       face: {
         eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),

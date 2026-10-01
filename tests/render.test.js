@@ -22,7 +22,7 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   ['patternScale', 'earSize', 'tailLength', 'eyeSize', 'plumpness', 'legLength', 'crest'].forEach(k => unit(pose.looks, k));
 
   num(pose.motion, 'vx'); num(pose.motion, 'vy'); unit(pose.motion, 'air'); unit(pose.motion, 'land'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying'); unit(pose.motion, 'headDown');
-  num(pose.motion, 'turn'); assert.ok(pose.motion.turn >= -1 && pose.motion.turn <= 1, 'turn in -1..1');
+  num(pose.motion, 'turn'); assert.ok(pose.motion.turn >= -1 && pose.motion.turn <= 1, 'turn in -1..1'); unit(pose.motion, 'swim');
 
   ['eyesClosed', 'mouthOpen', 'earDroop', 'blush', 'happy', 'worry', 'yawn', 'lick'].forEach(k => unit(pose.face, k));
   ['pupilX', 'pupilY', 'smile'].forEach(k => { num(pose.face, k); assert.ok(pose.face[k] >= -1 && pose.face[k] <= 1, k + ' in -1..1'); });
@@ -83,4 +83,25 @@ test('render: a jump eases into the air pose, and a landing squashes and springs
   assert.strictEqual(landed.air, 0, 'the tick it lands it is out of the air pose');
   assert.ok(landed.land > 0.5, `landing at 5 px a tick squashes it (got ${landed.land})`);
   assert.ok(motionAfter(30).land < 0.05, 'half a second later it has sprung back');
+});
+
+test('render: a creature floating in deep water eases into swimming, and out again on land', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0], pond = world.terrain.ponds[0];
+  // poseOf eases by the world ticks since its last call, so the clock is moved on by hand
+  const swimAfter = ticks => { world.clock.tick += ticks; return Evo.poseOf(c, { world }).motion.swim; };
+  const shore = pond.x0 - 60;
+  const putOnLand = () => { c.x = shore; c.y = world.terrain.groundY(shore); c.vx = 0; c.vy = 0; c.onGround = true; c.inWater = false; };
+  c.held = false;
+  putOnLand();
+  assert.strictEqual(swimAfter(0), 0, 'on dry land it is not swimming');
+  c.x = (pond.x0 + pond.x1) / 2; c.y = pond.level; c.onGround = false;
+  for (let i = 0; i < 100 && !c.onGround; i++) c.move(world);   // drops in and floats
+  assert.ok(c.inWater && c.onGround, 'it floats in the middle of the pond');
+  const first = swimAfter(1);
+  assert.ok(first > 0 && first < 1, `one tick afloat it is part way into the swimming pose (got ${first})`);
+  assert.ok(swimAfter(30) > 0.95, 'half a second on it is swimming');
+  putOnLand();
+  const out = swimAfter(1);
+  assert.ok(out > 0 && out < 1, `one tick back on land it is part way out of the swimming pose (got ${out})`);
 });

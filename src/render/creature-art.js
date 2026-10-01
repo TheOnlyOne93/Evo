@@ -210,6 +210,10 @@
   // back, eyes wide and yelping
   const FLAIL_FROM = 2, FLAIL_SPAN = 2;
   const FLAIL_HZ = 3;            // leg circles a second
+  // Swimming: the body's tilt, the paddling's pace when still (circles a second; swimming forward
+  // adds the walk's pace), the size of each foot's circle and where it circles from its hip, as
+  // shares of the leg's reach (x forward, y down)
+  const SWIM = { ang: -0.12, hz: 1.2, circle: 0.28, front: [0.3, 0.62], hind: [-0.25, 0.62] };
 
   // Where the near legs join the body: x in units of rxF (front) or rxB (hind), y in units of ryB.
   // The haunch line is centred on the hind hip, so it follows the leg.
@@ -236,6 +240,7 @@
     const fall = clamp(num(M.vy, 0) / AIR_VY, -1, 1);          // -1 rising fast, 0 at the top, 1 falling fast
     const lying = dead ? 1 : held ? 0 : clamp01(num(M.lying, asleep ? 1 : 0)) * (1 - air);
     const stand = 1 - lying;
+    const swim = held || dead ? 0 : clamp01(num(M.swim, 0)) * stand;   // 0..1: paddling in deep water (lying afloat, it just floats)
     const tempo = 1 - 0.18 * ag - 0.2 * senile;
     const ph0 = e.phase;
     const facing = pose.facing < 0 ? -1 : 1;
@@ -269,7 +274,7 @@
     // Gait: diagonal walk blending into a bounding run. Speed is judged relative to body size, so
     // a baby's scurry reads as a walk and its sprint as a run
     const speed = Math.abs(num(M.vx, 0)), rel = speed * Math.sqrt(toRef);
-    const move = held || dead ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand * (1 - air);
+    const move = held || dead ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand * (1 - air) * (1 - swim);
     const run = smooth(clamp01((rel - 1.45) / 0.9)) * move;
     const cadence = BY_STAGE[stage].cadence * (1.25 - 0.5 * legGene) * lerp(1, 0.62, run);
     const ph = legPhase(e, num(M.walkPhase, 0), cadence, advance);
@@ -283,6 +288,7 @@
     ang = lerp(ang, dead ? 0.02 : 0.03, lying);
     ang = lerp(ang, fall < 0 ? lerp(AIR_ANG.top, AIR_ANG.rise, -fall) : lerp(AIR_ANG.top, AIR_ANG.fall, fall), air);
     ang = lerp(ang, -0.32, flail);   // leaning back
+    ang = lerp(ang, SWIM.ang, swim);
     let bx = -((rxF * 0.72 + R * 1.12) - rxB) / 2;
     // Held by the scruff: the body hangs straight down below the head
     if (held) { ang = -1.42; bx = -R * 0.12; by = R * 0.5 + rxF * 0.8; }
@@ -320,6 +326,12 @@
           fy = lerp(fy, hy + reach * (0.6 + 0.3 * Math.sin(a)) + pawRy, flail);
         }
       }
+      if (swim > 0) {
+        // Dog-paddling: each foot circles below its hip, forward at the top and back at the bottom
+        const a = t * TAU * SWIM.hz + ph + (front ? 0 : PI / 2) + (far ? PI : 0), mid = front ? SWIM.front : SWIM.hind;
+        fx = lerp(fx, hx + reach * (mid[0] + SWIM.circle * Math.cos(a)), swim);
+        fy = lerp(fy, hy + reach * (mid[1] + SWIM.circle * Math.sin(a)) + pawRy, swim);
+      }
       if (lying > 0) {
         const lfx = dead ? hx + (front ? 1 : -1) * (reach + 2.5) : hx + reach * (front ? 0.62 : 0.42) + 1;
         fx = lerp(fx, lfx, lying); fy = lerp(fy, 0, lying);
@@ -339,6 +351,7 @@
     up = lerp(up, dead ? 0.02 : 0.1, lying); curl = lerp(curl, dead ? 0.15 : 1.1, lying);
     up = lerp(up, 0.45 + 0.3 * fall, air); curl = lerp(curl, 0.6, air);   // trails low rising, floats up falling
     up = lerp(up, 1.05, flail); curl = lerp(curl, 1.3, flail);   // blown up over the back
+    up = lerp(up, 0.12, swim); curl = lerp(curl, 0.4, swim);   // floats out behind
     const tLen = (8 + 17 * tailGene) * lerp(0.55, 1, g);
     const tW = (2.3 + 1.1 * plump) * lerp(0.8, 1, g) * (1 + 0.5 * anger) * (1 - 0.3 * wet);
     const wagA = dead ? 0 : (0.06 + 0.2 * happy + 0.06 * move) * (asleep ? 0.3 : 1);
@@ -384,6 +397,7 @@
     }
     hAng -= 0.1 * air;
     hAng -= 0.2 * flail;
+    hAng -= 0.12 * swim;   // chin up out of the water
     hy -= (r.breath - 1) * ryT * (1.2 - 0.8 * lying);
     if (held) { hx = 0; hy = 0; hAng = HELD_TILT + Math.sin(t * 1.3 + ph0) * 0.05; }
     r.hx = hx; r.hy = hy; r.hAng = hAng;
@@ -445,7 +459,7 @@
 
     // Ground: shadow at the feet; while airborne only if the pose says where the ground is
     const gy = typeof pose.groundY === 'number' ? (pose.groundY - pose.y) / r.k : null;
-    r.shadow = held ? 0 : air > 0 ? (gy === null ? 0 : clamp01(1 - gy / 60)) : 1;
+    r.shadow = held ? 0 : air > 0 ? (gy === null ? 0 : clamp01(1 - gy / 60)) : 1 - swim;
     r.shadowY = air > 0 && gy !== null ? gy : 0;
 
     if (held) shiftForScruff(r);

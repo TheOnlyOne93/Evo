@@ -51,7 +51,8 @@ pose = {
     walkPhase,              // radians; advances with distance walked (Evo.CREATURE.WALK_PHASE_PER_PX)
     lying,                  // 0..1 (1 = lying down: resting or asleep)
     headDown,               // 0..1, eased: the head is down while the mouth works (eating or drinking)
-    turn                    // -1..1, eased toward facing: which way it is drawn (it passes 0 as it turns round, where the art narrows the body)
+    turn,                   // -1..1, eased toward facing: which way it is drawn (it passes 0 as it turns round, where the art narrows the body)
+    swim                    // 0..1, eased: floating in deep water, held up by it rather than standing on the bed (needs the world)
   },
   face: {
     eyesClosed,             // 0..1
