@@ -8,6 +8,7 @@
   const { GROUND, DETAIL, SNOW, ROCK_TONES, circle, flower } = Evo.Paint;
   const { WINTER } = Evo.SEASON;
   const TILE_MARGIN = 24;   // px of ground a tile paints past its sides (and the view scans for its top)
+  const SHORE = 12;         // px over which turf and snow thin out into a pond
 
   const SOIL = {
     grad: [[118, 80, 52], [96, 64, 43], [70, 47, 32], [50, 34, 25]],
@@ -240,7 +241,12 @@
       g.stroke();
     }
 
-    // Turf (or snow) along the dry surface
+    // Turf (or snow) along the dry surface. It thins out over the last SHORE px before a pond, so
+    // it meets the water instead of ending in a step: 0 at the last dry x, 1 from SHORE px inland.
+    const inland = x => {
+      for (let d = 3; d < SHORE; d += 3) if (wet(x - d) || wet(x + d)) return (d - 3) / (SHORE - 3);
+      return 1;
+    };
     const runs = [];
     let cur = null;
     for (let x = xa; x <= xb + 0.01; x += 3) {
@@ -249,8 +255,8 @@
     if (si === WINTER) {
       for (const xs of runs) {
         // Soft drifts: thicker in hollows, lumpy on top, a blue shade where they meet the soil
-        const topY = x => surf(x) - 5.5 - 2.2 * Math.sin(x * 0.061) - 1.3 * Math.sin(x * 0.23 + 1) - 0.8 * Math.sin(x * 0.53);
-        const botY = x => surf(x) + 5 + 1.2 * Math.sin(x * 0.17);
+        const topY = x => surf(x) - inland(x) * (5.5 + 2.2 * Math.sin(x * 0.061) + 1.3 * Math.sin(x * 0.23 + 1) + 0.8 * Math.sin(x * 0.53));
+        const botY = x => surf(x) + inland(x) * (5 + 1.2 * Math.sin(x * 0.17));
         g.beginPath();
         g.moveTo(xs[0], topY(xs[0]));
         for (const x of xs) g.lineTo(x, topY(x));
@@ -280,7 +286,7 @@
       }
     } else {
       // The turf's ragged underside, filled to and then outlined
-      const edgeY = x => surf(x) + 5 + 1.4 * Math.sin(x * 0.31) + 0.8 * Math.sin(x * 0.9);
+      const edgeY = x => surf(x) - 1 + inland(x) * (6 + 1.4 * Math.sin(x * 0.31) + 0.8 * Math.sin(x * 0.9));
       for (const xs of runs) {
         g.beginPath();
         g.moveTo(xs[0], surf(xs[0]) - 1);
