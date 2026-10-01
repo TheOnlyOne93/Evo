@@ -76,7 +76,7 @@ What it samples each tick: drive history every 30 ticks (240 samples), the mind 
 | `drawer` | Otherwise, 700 px wide or more, or landscape | Slides over the map from the right |
 | `sheet` | Otherwise | A bottom sheet with stops at 70 px, 55% and 92%: tap the handle to cycle, drag to snap |
 
-Under 560 px wide the page is also `.compact`: two header chips, no strip, the tool groups open from one button each, icon-only tabs (the words are hidden from view but still name the tabs for screen readers). Wider than that, the tool tray scrolls sideways when it does not fit, and an edge with tools hidden past it fades out. The card starts folded in the sheet layout or under 560 px tall.
+Under 560 px wide the page is also `.compact`: two header chips, no strip, the tool groups open from one button each, tabs with each icon over a small word. Wider than that, the tool tray scrolls sideways when it does not fit, and an edge with tools hidden past it fades out. The card starts folded in the sheet layout or under 560 px tall.
 
 ## Styles
 

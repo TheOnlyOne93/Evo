@@ -323,8 +323,8 @@ details.dna summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
 .compact .tool { width: 50px; }
 .compact .bars.two-col { grid-template-columns: 1fr; }
 @container (max-width: 1100px) { #strip { max-width: calc(100% - 330px); left: auto; right: 10px; transform: none; top: 60px; } }
-.compact .tab-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* hidden, but still the tab's name */
-.compact .tab { font-size: 17px; }
+.compact .tab { flex-direction: column; gap: 2px; font-size: 16px; line-height: 1; }   /* the icon over a small word */
+.compact .tab-text { font-size: 10px; line-height: 1.1; }
 @media (max-width: 420px) {
   .tiles { grid-template-columns: repeat(2, 1fr); } .learn-row { grid-template-columns: 1fr 70px 92px; }
   .gene { grid-template-columns: 96px 1fr; } .gene-tags { grid-column: 2; justify-content: flex-start; } .gene.bare { grid-template-columns: 1fr; } .gene.bare .gene-tags { grid-column: 1; }
