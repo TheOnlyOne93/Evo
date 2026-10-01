@@ -76,7 +76,10 @@
       fruit.push({ x: c.x + Math.cos(a) * c.r * 0.62, y: c.y + Math.sin(a) * c.r * 0.55 + 2 });
     }
     fruit.sort((a, b) => a.y - b.y);
-    return { H, cr, cy, trunkTop, branches, clumps, dots, fruit };
+    // The box its sprite is painted in, in world px around the base
+    const box = { x0: -cr * 1.4, w: cr * 2.8, y0: -H - cr * 0.2 - 8 };
+    box.h = -box.y0 + 10;
+    return { H, cr, cy, trunkTop, branches, clumps, dots, fruit, box };
   }
 
   function paintTree(g, f, si, rec) {
@@ -255,7 +258,10 @@
     }
     // Show heads in a scattered order as `seeding` rises
     for (let k = heads.length - 1; k > 0; k--) { const j = (R() * (k + 1)) | 0; const t = heads[k]; heads[k] = heads[j]; heads[j] = t; }
-    return { w, h, blades, heads };
+    // The box its sprite is painted in, in world px around the base
+    const box = { x0: -w * 0.5 - h * 0.6 - 4, w: w + h * 1.2 + 8, y0: -h * 1.25 - 10 };
+    box.h = -box.y0 + 6;
+    return { w, h, blades, heads, box };
   }
 
   const GRASS_COLS = [
@@ -297,7 +303,9 @@
     for (let k = 0; k < n; k++) leaves.push({ x: (R() - 0.5) * w, h: 34 + R() * 42, lean: (R() - 0.5) * 0.7 });
     const m = Math.round(w / 9) + 2;
     for (let k = 0; k < m; k++) stems.push({ x: (R() - 0.5) * w * 0.8, h: 52 + R() * 38, lean: (R() - 0.5) * 0.25 });
-    return { w, leaves, stems };
+    // The box its sprite is painted in, in world px around the base
+    const box = { x0: -w / 2 - 36, w: w + 72, y0: -110, h: 116 };
+    return { w, leaves, stems, box };
   }
 
   const REED_COLS = [['#5e9e48', '#7cba58'], ['#4a8a3c', '#66a64c'], ['#a89048', '#c4aa5c'], ['#b8a67c', '#d2c296']];
@@ -329,6 +337,13 @@
       g.beginPath(); g.ellipse(hx - 0.8, hy - 1.5, 0.9, 4.5, st.lean * 0.8, 0, TAU); g.fill();
       if (si === WINTER) { g.fillStyle = SNOW.top; g.beginPath(); g.ellipse(hx, hy - 6.5, 2.4, 1.3, 0, 0, TAU); g.fill(); }
     }
+  }
+
+  // The thornbush's shape is drawn fresh by paintThorn; this gives only its sprite's box, in world
+  // px around the base
+  function thornShape(f) {
+    const r = f.radius;
+    return { box: { x0: -r * 1.75 - 6, w: r * 3.5 + 12, y0: -r * 2.2 - 6, h: r * 2.2 + 12 } };
   }
 
   // A bramble: a low, leafy mound in dark plum with thorny canes arching out of it. Purple and
@@ -459,5 +474,5 @@
     drawCanes(false);
   }
 
-  Object.assign(Evo.Paint, { treeStructure, paintTree, grassStructure, paintGrass, reedStructure, paintReeds, paintThorn });
+  Object.assign(Evo.Paint, { treeStructure, paintTree, grassStructure, paintGrass, reedStructure, paintReeds, thornShape, paintThorn });
 })(globalThis.Evo);

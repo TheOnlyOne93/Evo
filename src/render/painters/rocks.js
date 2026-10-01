@@ -3,10 +3,27 @@
 // negative.
 (function (Evo) {
   'use strict';
-  const { TAU, mulberry32: rng } = Evo.util;
+  const { TAU, clamp, mulberry32: rng } = Evo.util;
   const { rgb, rgba, mix, scale } = Evo.color;
   const { GROUND, MOSS, SNOW, ROCK_TONES, circle, paintStone } = Evo.Paint;
   const { AUTUMN, WINTER } = Evo.SEASON;
+
+  // The grub log's depth d (shaped to its platform `top` when it has one) and the stones under it.
+  // groundAt(x) is the ground's height at world x.
+  function logShape(f, top, groundAt) {
+    const L = f.length;
+    const d = top ? clamp(top + 3, 14, 44) : clamp(L * 0.24, 20, 34);
+    // Where the ground falls away under the log, a stone props it up
+    const props = [];
+    let deepest = 0;
+    for (const u of [-0.36, 0.36]) {
+      const gap = groundAt(f.x + u * L) - f.y;
+      if (gap > 3) { props.push({ x: u * L, gap }); deepest = Math.max(deepest, gap); }
+    }
+    // The box its sprite is painted in, in world px around the base
+    const box = { x0: -L / 2 - d * 0.4, w: L + d * 0.8, y0: -d - 12, h: d + 18 + deepest };
+    return { d, props, box };
+  }
 
   // The grub log: a trunk d deep lying from x0 to x1, hollow at the left end and sawn at the right,
   // propped on stones where the ground falls away under it
@@ -121,7 +138,9 @@
         pts.push([Math.cos(a) * w / 2 * (0.92 + R() * 0.1), -h * flat * (0.9 + R() * 0.12)]);
       }
     }
-    return { w, h, pts, tone: ROCK_TONES[(f.id | 0) % ROCK_TONES.length] };
+    // The box its sprite is painted in, in world px around the base
+    const box = { x0: -w / 2 - 10, w: w + 20, y0: -h * 1.2 - 10, h: h * 1.2 + 18 };
+    return { w, h, pts, tone: ROCK_TONES[(f.id | 0) % ROCK_TONES.length], box };
   }
 
   function rockPath(s) {
@@ -204,5 +223,5 @@
     g.stroke();
   }
 
-  Object.assign(Evo.Paint, { paintLog, rockShape, paintRock });
+  Object.assign(Evo.Paint, { logShape, paintLog, rockShape, paintRock });
 })(globalThis.Evo);

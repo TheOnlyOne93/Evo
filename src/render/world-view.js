@@ -410,53 +410,17 @@
       let rec = this.featRecs.get(f.id);
       if (rec && rec.sig === sig && rec.kind === kind) { rec.f = f; return rec; }
       rec = { kind, f, sig, top, sp: new Array(SEASON_COUNT * NL).fill(null), data: null, bx0: 0, by0: 0, bw: 1, bh: 1, phase: hash2(f.id | 0, 5) * TAU };
+      // The painter's shape function gives the feature's fixed shape and the box its sprite is painted in
       switch (kind) {
-        case KIND.TREE: {
-          const s = rec.data = Paint.treeStructure(f);
-          rec.bx0 = -s.cr * 1.4; rec.bw = s.cr * 2.8;
-          rec.by0 = -s.H - s.cr * 0.2 - 8; rec.bh = -rec.by0 + 10;
-          break;
-        }
-        case KIND.GRASS: {
-          const s = rec.data = Paint.grassStructure(f);
-          rec.bx0 = -s.w * 0.5 - s.h * 0.6 - 4; rec.bw = s.w + s.h * 1.2 + 8;
-          rec.by0 = -s.h * 1.25 - 10; rec.bh = -rec.by0 + 6;
-          break;
-        }
-        case KIND.LOG: {
-          const L = f.length;
-          const d = top ? clamp(top + 3, 14, 44) : clamp(L * 0.24, 20, 34);
-          // Where the ground falls away under the log, a stone props it up
-          const props = [];
-          let deepest = 0;
-          for (const u of [-0.36, 0.36]) {
-            const gap = this.info.surf(f.x + u * L) - f.y;
-            if (gap > 3) { props.push({ x: u * L, gap }); deepest = Math.max(deepest, gap); }
-          }
-          rec.data = { d, props };
-          rec.bx0 = -L / 2 - d * 0.4; rec.bw = L + d * 0.8;
-          rec.by0 = -d - 12; rec.bh = d + 18 + deepest;
-          break;
-        }
-        case KIND.ROCK: {
-          const s = rec.data = Paint.rockShape(f, rec.top);
-          rec.bx0 = -s.w / 2 - 10; rec.bw = s.w + 20;
-          rec.by0 = -s.h * 1.2 - 10; rec.bh = s.h * 1.2 + 18;
-          break;
-        }
-        case KIND.REEDS: {
-          const s = rec.data = Paint.reedStructure(f);
-          rec.bx0 = -s.w / 2 - 36; rec.bw = s.w + 72;
-          rec.by0 = -110; rec.bh = 116;
-          break;
-        }
-        case KIND.THORN: {
-          const r = f.radius;
-          rec.bx0 = -r * 1.75 - 6; rec.bw = r * 3.5 + 12;
-          rec.by0 = -r * 2.2 - 6; rec.bh = r * 2.2 + 12;
-          break;
-        }
+        case KIND.TREE: rec.data = Paint.treeStructure(f); break;
+        case KIND.GRASS: rec.data = Paint.grassStructure(f); break;
+        case KIND.LOG: rec.data = Paint.logShape(f, top, x => this.info.surf(x)); break;
+        case KIND.ROCK: rec.data = Paint.rockShape(f, rec.top); break;
+        case KIND.REEDS: rec.data = Paint.reedStructure(f); break;
+        case KIND.THORN: rec.data = Paint.thornShape(f); break;
       }
+      const b = rec.data.box;
+      rec.bx0 = b.x0; rec.by0 = b.y0; rec.bw = b.w; rec.bh = b.h;
       this.featRecs.set(f.id, rec);
       return rec;
     }
