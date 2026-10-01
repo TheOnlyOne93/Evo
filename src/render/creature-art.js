@@ -1,9 +1,10 @@
 // Creature art (docs/RENDERING.md): draws one creature from its pose object and nothing else.
 // The species, a "tuftkin", is a soft round quadruped: a big head seen in three-quarter view,
-// large eyes, long leaf-shaped ears, a pom-pom tail and a head crest whose shape shows the sex
-// and which glows in the breeding season. Geometry is built in units (an adult is about 32 units
-// from rump to nose; baby proportions differ), facing right with the origin on the ground under
-// the body, then scaled by pose.size and mirrored by pose.facing.
+// large eyes, long leaf-shaped ears, a long tail of fluffy puffs that curls up to a pale tip, and
+// a head crest whose shape shows the sex and which glows in the breeding season. Geometry is
+// built in units (an adult is about 32 units from rump to nose; baby proportions differ), facing
+// right with the origin on the ground under the body, then scaled by pose.size and mirrored by
+// pose.facing.
 (function (Evo) {
   'use strict';
   const { TAU } = Evo.util;

@@ -166,7 +166,7 @@
 
   // This frame's pose, with the timers and stimuli that would run down in the world kept going
   function animate(sub, t, ticks) {
-    if (sub.eating) sub.c.mouthTimer = 30 - ticks % 30;
+    if (sub.eating) sub.c.mouthTimer = Evo.muscles.MOUTH_TICKS - ticks % Evo.muscles.MOUTH_TICKS;   // a bite every MOUTH_TICKS, as in the game
     if (sub.flinch) sub.c.body.stim.flinch = Math.max(0, 1 - ((t * 0.8) % 1) * 2.2);
     const p = poseAt(sub, ticks);
     if (sub.heat) inHeat(p);

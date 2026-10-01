@@ -8,6 +8,7 @@
   const { MOTORS } = Evo;
 
   const CALL_TICKS = 40;            // A call lasts this long (callTimer counts down from it)
+  const MOUTH_TICKS = 12;           // A bite or a sip keeps the mouth at work this long (mouthTimer, drinkTimer)
   const CALLING_ABOVE = CALL_TICKS - 10; // Its action reads 'calling' while callTimer is above this (the call's first 10 ticks)
   const REST_TICKS = 90;            // Each spike of the rest muscle keeps it resting this long (restTimer counts down from it)
   const LYING_ABOVE = 30;           // It lies down while restTimer is above this (the rest's first 60 ticks)
@@ -58,11 +59,11 @@
     }
     // Eating: the mouth opens and works on whatever is there. Drinking: the lips take a sip.
     if (m[MOTOR_INDEX.eat]) {
-      c.mouthTimer = 12;
+      c.mouthTimer = MOUTH_TICKS;
       useMouth(c, world);
     }
     if (m[MOTOR_INDEX.drink] && c.waterAtMouth(world)) {
-      c.drinkTimer = 12;
+      c.drinkTimer = MOUTH_TICKS;
       c.body.ingest(Evo.BODY.sip);
       c.stimulate('drank');
       world.events.emit('drink', { creature: c });
@@ -104,5 +105,5 @@
     }
   }
 
-  Evo.muscles = { act, CALL_TICKS, LYING_ABOVE, JUMP_COOLDOWN };
+  Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE, JUMP_COOLDOWN };
 })(globalThis.Evo);
