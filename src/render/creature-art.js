@@ -50,6 +50,11 @@
   // short-legged, and slower in a bounding run
   const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;
   const GRIP_Y = -Evo.WORLD.HOLD_GRIP * UNITS;        // held: the hand is HOLD_GRIP × size above (x, y)
+  const HEAD_RX = 1.04, HEAD_RY = 0.95;               // the head's outline: an ellipse this wide and tall, in units of R
+  // Held: the hand grips the scruff, on the head's outline this far round from the nose (radians:
+  // the back of the head just above the cheek tufts, where the neck starts), and the head hangs
+  // tipped forward by HELD_TILT (radians), so that spot is the highest on its back
+  const SCRUFF_AT = 2.8, HELD_TILT = 0.15;
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
 
@@ -335,7 +340,7 @@
     }
     if (air) { hAng -= 0.1; }
     hy -= (r.breath - 1) * ryT * (1.2 - 0.8 * lying);
-    if (held) { hx = 0; hy = 0; hAng = -0.08 + Math.sin(t * 1.3 + ph0) * 0.05; }
+    if (held) { hx = 0; hy = 0; hAng = HELD_TILT + Math.sin(t * 1.3 + ph0) * 0.05; }
     r.hx = hx; r.hy = hy; r.hAng = hAng;
 
     // Ears: droop from tiredness, illness and age; pinned back by fear and anger
@@ -398,10 +403,10 @@
     if (held) shiftForScruff(r);
   }
 
-  // While held, the hand grips the scruff (the nape, behind the head) 0.7 × size above (x, y), as
-  // the simulation places a held creature: move the rig so the scruff sits there
+  // While held, the hand grips the scruff (SCRUFF_AT) HOLD_GRIP × size above (x, y), as the
+  // simulation places a held creature: move the rig so the scruff sits there
   function shiftForScruff(r) {
-    headPoint(r, -r.R * 0.66, r.R * 0.5, P);
+    headPoint(r, Math.cos(SCRUFF_AT) * r.R * HEAD_RX, Math.sin(SCRUFF_AT) * r.R * HEAD_RY, P);
     const dx = -P[0], dy = GRIP_Y - P[1];
     r.bx += dx; r.by += dy; r.hx += dx; r.hy += dy;
     for (let i = 0; i < 16; i += 2) { r.legs[i] += dx; r.legs[i + 1] += dy; }
@@ -449,7 +454,7 @@
   function headPath(ctx, r) {
     const R = r.R, cheek = R * (0.2 + 0.06 * (1 - r.g));
     ctx.beginPath();
-    ctx.ellipse(0, 0, R * 1.04, R * 0.95, 0, 0, TAU);
+    ctx.ellipse(0, 0, R * HEAD_RX, R * HEAD_RY, 0, 0, TAU);
     ctx.moveTo(R * 0.78 + R * 0.34, R * 0.3);
     ctx.ellipse(R * 0.78, R * 0.3, R * 0.34, R * 0.29, -0.12, 0, TAU);
     for (let i = 0; i < 3; i++) {

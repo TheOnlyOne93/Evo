@@ -53,7 +53,8 @@
     g.beginPath(); g.moveTo(-w / 2 + 2, h / 2 - 2.2); g.lineTo(w / 2 - 2, h / 2 - 2.2); g.stroke();
     g.restore();
   }
-  // The cuff under an upright hand (open, fist or slapping): it overlaps the bottom of the palm
+  // The cuff under an upright hand (open or slapping; the holding fist is drawn upside down, so its
+  // cuff is above): it overlaps the bottom of the palm
   const uprightCuff = g => drawCuff(g, 0, 12, 21, 7);
 
   const OPEN_HAND = [-6.4, -4, -7.8, -16.5, 4.6, -2.1, -5, -2.3, -19.5, 4.8, 2.2, -5, 3.1, -18, 4.6, 6.3, -3.8, 8.4, -13.8, 4.1, -8.2, 3, -14.4, -4.2, 5.2];
@@ -97,6 +98,8 @@
       return;
     }
     if (holding) {
+      // The arm comes down from above: the fist hangs below its cuff, fingers curled underneath
+      g.scale(1, -1);
       handOutlineAndFill(g, FIST_THUMB, [-9.5, -9.5, 19, 19, 7]);
       // Folded fingers
       g.strokeStyle = SKIN_SHADE;
@@ -134,6 +137,7 @@
       return;
     }
     if (mode === 'slap') g.rotate(SLAP_TILT);
+    if (holding) g.scale(1, -1);
     g.beginPath(); g.roundRect(-11, -8, 22, 24, 7); g.fill();
     if (!holding) {
       const parts = mode === 'slap' ? SLAP_HAND : OPEN_HAND;
