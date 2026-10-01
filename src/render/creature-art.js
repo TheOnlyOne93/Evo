@@ -17,7 +17,7 @@
   const UNITS = 32;                                  // pose.size spans this many units
   const REF_SIZE = 40;                               // pose.size the gait speed and the outline weight are judged against
   const MIN_SIZE = 4, MIN_REF_SIZE = 8;              // floors on pose.size: for the scale, and against REF_SIZE
-  const { ADOLESCENT, SENILE } = Evo.STAGE;          // mature (crest, tufts, lashes, heat) from adolescence
+  const { ADOLESCENT, SENILE } = Evo.STAGE;          // mature (crest, lashes, heat) from adolescence
   const EYE = { OPEN: 0, SLEEPY: 1, HAPPY: 2, SHUT: 3, DEAD: 4 };  // r.eyeMode: open, or drawn as a closed shape
   const CREST_KIND = { TUFT: 0, PLUME: 1, FAN: 2 };  // r.crestKind: the young's tuft, a female plume, a male fan
 
@@ -458,8 +458,6 @@
   // (each two control points and an end point). x is in units of the ear's width, y of its length.
   // headExtent bounds the ear by the same curves.
   const EAR = [-0.5, 0, -0.9, -0.42, -0.56, -0.98, 0, -1, 0.52, -0.98, 0.82, -0.4, 0.5, 0];
-  // A male's ear-tip tuft: two bends from the tip and back (each a control point and an end point)
-  const TUFT = [-0.12, -0.95, -0.04, -1.16, -0.26, -1.32, 0.1, -1.14, 0.1, -0.96];
 
   function earPath(ctx, len, w) {
     const E = EAR;
@@ -668,15 +666,6 @@
       earPath(ctx, len * 0.74, w * 0.54);
       ctx.fillStyle = near ? pal.inner : pal.innerFar; ctx.fill();
       ctx.restore();
-    }
-    if (!r.female && r.mature) {
-      // Male ear-tip tufts
-      const T = TUFT;
-      ctx.beginPath();
-      ctx.moveTo(T[0] * w, T[1] * len);
-      ctx.quadraticCurveTo(T[2] * w, T[3] * len, T[4] * w, T[5] * len);
-      ctx.quadraticCurveTo(T[6] * w, T[7] * len, T[8] * w, T[9] * len);
-      ctx.fillStyle = pal.line; ctx.fill();
     }
     ctx.restore();
   }
@@ -1245,7 +1234,7 @@
     headPoint(r, R * 0.3, 0, P); grow(P[0], P[1], R * 1.1);
     headPoint(r, R * 1.15, R * 0.3, P); grow(P[0], P[1], R * 0.2);
     for (let near = 0; near < 2; near++) {
-      // Points along the ear's outline (and a male's tuft)
+      // Points along the ear's outline
       const E = earAt(r, near), c = Math.cos(E.rot), s = Math.sin(E.rot);
       for (let i = 0; i < 12; i += 6) {
         for (let k = 1; k <= 6; k++) {
@@ -1254,7 +1243,6 @@
             b0 * EAR[i + 1] + b1 * EAR[i + 3] + b2 * EAR[i + 5] + b3 * EAR[i + 7]);
         }
       }
-      if (!r.female && r.mature) for (let i = 0; i < TUFT.length; i += 2) growEar(r, E, c, s, TUFT[i], TUFT[i + 1]);
     }
     if (r.crest >= 0.6) { headPoint(r, R * 0.04 - r.crest * 0.25, -R * 0.9 - r.crest, P); grow(P[0], P[1], r.crest * 0.3); }
   }

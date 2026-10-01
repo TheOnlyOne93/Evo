@@ -78,7 +78,7 @@ Evo.CreatureArt = {
                                       // w×h box at the origin, clipped; used by the card, the strip and the family tree
   //  framing: 'body' | 'face' | 'auto' (default: the face in boxes under 100 px)
   bounds(pose)                        // { x0, y0, x1, y1 } in world coordinates, for picking
-  // The framing and bounds take in the ears (and a male's ear tufts) along the outline that draws them
+  // The framing and bounds take in the ears along the outline that draws them
 }
 
 class WorldView {
