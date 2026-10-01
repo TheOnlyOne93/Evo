@@ -144,17 +144,21 @@
       ctx.setLineDash([]);
     }
 
-    // Region names just above the top left corner of each region's (left) box, and the left and right hints
+    // Region names just above the top left corner of each region's (left) box, each on a dark tag so
+    // it reads over the glow and the wiring, and the left and right hints
     drawTitles(ctx, T) {
       ctx.font = font(10);
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
-      const named = new Set();
+      const named = new Set(), tag = T.rgba('--pond-deep', 0.8);
       for (const bx of this.boxes) {
         if (named.has(bx.lobe)) continue;
         named.add(bx.lobe);
+        const name = Evo.text.regionName(this.brain, bx.lobe);
+        ctx.fillStyle = tag;
+        ctx.beginPath(); ctx.roundRect(bx.x - 3, bx.y - 13.5, ctx.measureText(name).width + 6, 12, 3); ctx.fill();
         ctx.fillStyle = T.rgba('--text', bx.lobe === this.region ? 1 : 0.72);
-        ctx.fillText(Evo.text.regionName(this.brain, bx.lobe), bx.x, bx.y - 3);
+        ctx.fillText(name, bx.x, bx.y - 4);
       }
       ctx.fillStyle = T.rgba('--text', 0.4);
       ctx.fillText('← left', PAD, this.height - 4);
