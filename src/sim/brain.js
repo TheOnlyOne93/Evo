@@ -15,8 +15,8 @@
   const { clamp, fixedRoll } = Evo.util;
   const { LOBE_ORDER, LOBE_INFO, SENSORY_LOBES, VISION_FEATURES, SCENTS, SCENT, MOTORS, TOUCH, N_DRIVE_CELLS, N_LIMBIC, LIMITS, NEUROCHEMS, TASTES } = Evo;
 
-  const MAX_DELAY = 20;              // Longest axonal delay, in ticks (spike history holds 32)
-  const SLOTS = MAX_DELAY + 1;       // Ring buffer of future input per neuron
+  const MAX_DELAY_TICKS = 20;        // Longest axonal delay (spike history holds 32)
+  const SLOTS = MAX_DELAY_TICKS + 1; // Ring buffer of future input per neuron
   const SYNAPTIC_GAIN = 20.0;        // mV delivered per unit of synaptic weight
   const WEIGHT_MIN = -1.8, WEIGHT_MAX = 2.0;
   const V_REST = -70, V_RESET = -72;
@@ -24,7 +24,7 @@
   const V_FLOOR = -90;               // A neuron cannot be pushed below this
   const SPROUTED = 1, CUE = 2, INHIBITORY = 4; // Synapse flags. CUE: a sight or smell value synapse (what the UI lists as learned)
   const ELIG_MAX = 2.0;              // Largest eligibility trace a synapse can hold
-  const TRACE_HORIZON = 1024;        // Ticks after which an untouched eligibility trace counts as gone
+  const TRACE_HORIZON_TICKS = 1024;  // Ticks after which an untouched eligibility trace counts as gone
   // Homeostasis may raise a threshold at most this far above its base; a neuron within half a mV
   // of that ceiling counts as being at it (synaptic scaling)
   const THR_RISE_MAX = 10, THR_AT_CEILING = THR_RISE_MAX - 0.5;
@@ -39,14 +39,14 @@
   const MORPHOGENESIS_EVERY = 80;
   const N_MOD = 2;                   // Reward and punishment
   const GAMMA = 0.98;                // Temporal-difference discount per tick
-  const OUTCOME_MEMORY = 120;        // Ticks over which an outcome becomes the expected baseline
+  const OUTCOME_MEMORY_TICKS = 120;  // Ticks over which an outcome becomes the expected baseline
   const ERROR_DRIVE = 60;            // mV a positive prediction error drives into its modulator cell
   const VALUE_RATE = 0.03;           // Step size of value (TD) learning
   const RATE_ALPHA = 0.012;          // Firing-rate smoothing per tick
   const SEIZURE_SHARE = 0.25, SEIZURE_TICKS = 3, SEIZURE_BRAKE = 10; // See tick()
   const LEARN_EVERY = 4;             // Ticks between weight updates (the signal is summed in between)
   const EPISODES = 8;                // Remembered moments of surprise, replayed in sleep
-  const EPISODE_GAP = 20, EPISODE_INPUTS = 24; // Fewest ticks between remembered episodes; most senses one keeps
+  const EPISODE_GAP_TICKS = 20, EPISODE_INPUTS = 24; // Fewest ticks between remembered episodes; most senses one keeps
 
   // Axon conduction speed (distance per tick) of wiring no guidance gene sets
   const CONDUCTION = { default: 0.12, local: 0.10, sprout: 0.10 };
@@ -83,7 +83,7 @@
   };
 
   // Morphogenesis. The tick windows assume it runs every MORPHOGENESIS_EVERY ticks.
-  const PRUNE = { idle: 800, trial: 1500, keepWeight: 0.14 }; // A weak sprout idle this long dies; so does one below keepWeight after its trial
+  const PRUNE = { idleTicks: 800, trialTicks: 1500, keepWeight: 0.14 }; // A weak sprout idle this long dies; so does one below keepWeight after its trial
   const SPROUT = {
     minRate: 0.16,                   // A source that didn't just spike must fire faster than this
     maxDist2: 0.09, spread: 0.04,    // Squared reach, and the squared distance over which affinity falls by e
@@ -163,7 +163,7 @@
 
   // The per-synapse arrays: a synapse is an index into every one of them. allocate() creates them
   // by name, not in a loop over this list: assigning them by computed key slows the brain by about 10%.
-  const SYN_FIELDS = ['sSrc', 'sDst', 'sW', 'sDelay', 'sCue', 'sX', 'sElig', 'sEligAt', 'sActive', 'sBorn', 'sFlags'];
+  const SYN_FIELDS = ['sSrc', 'sDst', 'sW', 'sDelay', 'sCue', 'sX', 'sElig', 'sEligAt', 'sActiveAt', 'sBornAt', 'sFlags'];
 
   // Compressed rows: the synapses s (below S) with keep[s] set, grouped by the neuron row[s], in
   // synapse order. Neuron i's are list[start[i]] up to list[start[i + 1]].
@@ -194,7 +194,7 @@
       this.overdrive = 0;     // Consecutive ticks with too many neurons firing
       this.brake = 0;         // mV held back from every non-sensory neuron this tick
       this.awake = true;
-      this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, t }
+      this.dream = null;      // The instinct or episode being dreamt: { instinct | episode, ticks (since it began) }
       this.episodes = [];     // Up to EPISODES recent surprises: { inputs, motor, value, tick }
       this.replayOutcome = new Float32Array(N_MOD); // Outcome a replayed episode adds this tick
       // The outcome each modulatory channel learns to predict (0 reward, 1 punishment); the creature sets it
@@ -301,7 +301,7 @@
       this.sSrc = new Int32Array(S); this.sDst = new Int32Array(S); this.sW = new Float32Array(S);
       this.sDelay = new Uint8Array(S); this.sCue = new Float32Array(S); this.sX = new Float32Array(S);
       this.sElig = new Float32Array(S); this.sEligAt = new Int32Array(S); // Eligibility as of tick sEligAt (it decays lazily)
-      this.sActive = new Int32Array(S); this.sBorn = new Int32Array(S); this.sFlags = new Uint8Array(S);
+      this.sActiveAt = new Int32Array(S); this.sBornAt = new Int32Array(S); this.sFlags = new Uint8Array(S); // sActiveAt, sBornAt: the tick it last carried a spike, and the tick it was made
       this.keys = new Set();
       this.adjacencyDirty = true;
       // Display images of the learning signal, and each modulator's learning field
@@ -466,9 +466,9 @@
       const a = this.neurons[src].pos, b = this.neurons[dst].pos;
       const s = this.S++;
       this.sSrc[s] = src; this.sDst[s] = dst; this.sW[s] = weight;
-      this.sDelay[s] = clamp(1 + Math.round(Math.hypot(a[0] - b[0], a[1] - b[1]) / conduction), 1, MAX_DELAY);
+      this.sDelay[s] = clamp(1 + Math.round(Math.hypot(a[0] - b[0], a[1] - b[1]) / conduction), 1, MAX_DELAY_TICKS);
       this.sElig[s] = 0; this.sEligAt[s] = this.tickCount; this.sCue[s] = 0; this.sX[s] = 0;
-      this.sActive[s] = this.tickCount; this.sBorn[s] = this.tickCount;
+      this.sActiveAt[s] = this.tickCount; this.sBornAt[s] = this.tickCount;
       const lobe = this.neurons[src].lobe;
       this.sFlags[s] = (sprouted ? SPROUTED : 0) | (weight < 0 ? INHIBITORY : 0) | (this.modulator[dst] >= 0 && (lobe === 'sight' || lobe === 'smell') ? CUE : 0);
       this.keys.add(key);
@@ -646,7 +646,7 @@
       for (let s = this.S - 1; s >= 0; s--) {
         if (!(this.sFlags[s] & SPROUTED)) continue;
         const w = Math.abs(this.sW[s]);
-        if ((w < T.pruningRate && this.tickCount - this.sActive[s] > PRUNE.idle) || (this.tickCount - this.sBorn[s] > PRUNE.trial && w < PRUNE.keepWeight)) {
+        if ((w < T.pruningRate && this.tickCount - this.sActiveAt[s] > PRUNE.idleTicks) || (this.tickCount - this.sBornAt[s] > PRUNE.trialTicks && w < PRUNE.keepWeight)) {
           this.removeSynapse(s);
           this.prunedCount++;
         }
@@ -754,13 +754,13 @@
       if (this.overdrive === SEIZURE_TICKS) this.seizures++;
 
       // 2. New spikes depart along their axons
-      const { sDst, sW, sDelay, sActive, outStart, outList } = this;
+      const { sDst, sW, sDelay, sActiveAt, outStart, outList } = this;
       for (let i = 0; i < N; i++) {
         if (!(hist[i] & 1)) continue;
         for (let k = outStart[i], end = outStart[i + 1]; k < end; k++) {
           const s = outList[k];
           inbox[sDst[s] * SLOTS + (now + sDelay[s]) % SLOTS] += sW[s] * SYNAPTIC_GAIN;
-          sActive[s] = now;
+          sActiveAt[s] = now;
         }
       }
 
@@ -769,10 +769,10 @@
     }
 
     // A surprise worth dreaming about (value: + good, - bad): the senses active just then and the
-    // action under way. At most one every EPISODE_GAP ticks; the oldest is forgotten.
+    // action under way. At most one every EPISODE_GAP_TICKS; the oldest is forgotten.
     rememberEpisode(value) {
       const now = this.tickCount, last = this.episodes[this.episodes.length - 1];
-      if (last && now - last.tick < EPISODE_GAP) return;
+      if (last && now - last.tick < EPISODE_GAP_TICKS) return;
       const { rate, isSensory, modulator } = this;
       const inputs = [];
       for (let i = 0; i < this.N; i++) if (isSensory[i] && modulator[i] < 0 && rate[i] > 0.05) inputs.push(i);
@@ -790,12 +790,12 @@
     sleepStep(instincts, chem) {
       if (!this.dream) {
         if (Evo.chance(DREAM.startChance)) {
-          if (this.episodes.length && Evo.chance(0.5)) this.dream = { episode: Evo.pick(this.episodes), t: 0 };
-          else if (instincts.length) this.dream = { instinct: Evo.pick(instincts), t: 0 };
+          if (this.episodes.length && Evo.chance(0.5)) this.dream = { episode: Evo.pick(this.episodes), ticks: 0 };
+          else if (instincts.length) this.dream = { instinct: Evo.pick(instincts), ticks: 0 };
         }
         return;
       }
-      const d = this.dream, t = d.t;
+      const d = this.dream, t = d.ticks;
       if (d.episode) {
         const { inputs, motor, value } = d.episode, E = DREAM.episode;
         if (t < E.inputsUntil) for (const i of inputs) this.inject(i, E.inputMV, 1);
@@ -811,7 +811,7 @@
         if (t >= I.motorFrom && t < I.motorUntil) this.inject(this.lobes.motor[inst.motor % MOTORS.length], I.motorMV, 1);
         if (t === I.chemAt && inst.chem) chem.c[inst.chem] = Math.min(1, chem.c[inst.chem] + inst.amount);
       }
-      if (++d.t >= DREAM.length) this.dream = null;
+      if (++d.ticks >= DREAM.length) this.dream = null;
     }
 
     // The neuron that is cell index of lobe LOBE_ORDER[lobeIdx], or -1 if the lobe has fewer cells
@@ -822,19 +822,19 @@
 
     // Deliver mV of input to neuron i, arriving delayTicks ticks from now (1 = on the next tick)
     inject(i, mV, delayTicks = 1) {
-      const d = clamp(Math.round(delayTicks), 1, MAX_DELAY);
+      const d = clamp(Math.round(delayTicks), 1, MAX_DELAY_TICKS);
       this.inbox[i * SLOTS + (this.tickCount + d) % SLOTS] += mV;
     }
 
     // Powers of the trace decay lambda, for eligibility that decays lazily
     setTraceDecay(lambda) {
       this.decayOf = lambda;
-      this.decayPow = Float32Array.from({ length: TRACE_HORIZON }, (_, k) => lambda ** k);
+      this.decayPow = Float32Array.from({ length: TRACE_HORIZON_TICKS }, (_, k) => lambda ** k);
     }
 
     learn() {
       const T = this.traits;
-      const { hist, field, sSrc, sDst, sW, sDelay, sElig, sEligAt, sCue, sX, sActive, sFlags, learns, N } = this;
+      const { hist, field, sSrc, sDst, sW, sDelay, sElig, sEligAt, sCue, sX, sActiveAt, sFlags, learns, N } = this;
       const now = this.tickCount;
 
       // 1. Reward prediction errors. Each modulator channel's value V is what its value synapses
@@ -848,14 +848,14 @@
       for (let c = 0; c < N_MOD; c++) {
         const O = this.outcome[c], usual = this.outcomeMean[c];
         const r = (O > usual ? O - usual : 0) + this.replayOutcome[c];
-        this.outcomeMean[c] += (O - usual) / OUTCOME_MEMORY;
+        this.outcomeMean[c] += (O - usual) / OUTCOME_MEMORY_TICKS;
         this.replayOutcome[c] = 0;
         const list = this.valueIn[c];
         let V = 0;
         for (let k = 0; k < list.length; k++) {
           const s = list[k];
           const arrived = (hist[sSrc[s]] >>> sDelay[s]) & 3;
-          if (arrived & 1) sActive[s] = now;
+          if (arrived & 1) sActiveAt[s] = now;
           sX[s] = sX[s] * 0.7 + (arrived ? 0.3 : 0); // Input in the last two ticks (senses pulse every other tick), smoothed
           V += sW[s] * sX[s];
         }
@@ -887,7 +887,7 @@
           const s = inList[k];
           if (!((hist[sSrc[s]] >>> sDelay[s]) & 0xF)) continue;
           const age = now - sEligAt[s];
-          const e = sElig[s] * (age < TRACE_HORIZON ? decayPow[age] : 0) + 1;
+          const e = sElig[s] * (age < TRACE_HORIZON_TICKS ? decayPow[age] : 0) + 1;
           sElig[s] = e > ELIG_MAX ? ELIG_MAX : e;
           sEligAt[s] = now;
         }
@@ -913,7 +913,7 @@
           const s = inList[k];
           if (sElig[s] === 0) continue;
           const age = now - sEligAt[s];
-          if (age >= TRACE_HORIZON) { sElig[s] = 0; continue; }
+          if (age >= TRACE_HORIZON_TICKS) { sElig[s] = 0; continue; }
           const e = sElig[s] * decayPow[age];
           if (e > 1e-3) sW[s] = softBounded(sW[s], step * e, sFlags[s] & INHIBITORY);
         }

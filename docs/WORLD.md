@@ -25,7 +25,7 @@ world.features  = [{ id, kind, x, y, ...props }]    // y = base on the ground
   //  'rock'      { width, height, warm: 0..1 }          the sun-warmed rock
   //  'reeds'     { width }
   //  'thornbush' { radius }                             looks violet; moving through it pricks
-world.items = [{ id, type, x, y, vx, vy, radius, rot, age, heldBy, onGround, ... }]
+world.items = [{ id, type, x, y, vx, vy, radius, rot, ageTicks, heldBy, onGround, ... }]
   //  type: 'fruit' | 'grain' | 'grub' | 'bug' | 'mimic' | 'dew' | 'lure' | 'carrion' | 'egg' | 'ball'
   //  heldBy: null, 'hand', or the id of the creature carrying it
   //  egg: { hue, accentHue, progress: 0..1 (it may pass 1 while the egg waits for room to hatch),
@@ -41,7 +41,7 @@ world.temperatureAt(x, y)            // 0..1 (0 freezing, 0.5 mild, 1 hot)
 world.scent = { cols, rows, cell, channels }   // one Float32Array per channel of Evo.SCENTS
 world.scentSolid                     // Uint8Array, one per scent cell (like a channel): 1 where the cell is solid ground
 world.sampleScent(x, y, channel)     // a nose's reading: bilinear over the air cells only (Scent and sound)
-world.sounds = [{ x, y, pitch, loudness, age, sourceId }]   // calls, kept Evo.WORLD.SOUND_LIFE ticks
+world.sounds = [{ x, y, pitch, loudness, ageTicks, sourceId }]   // calls, kept Evo.WORLD.SOUND_LIFE_TICKS
 world.nearestWater(x, range)         // { x, y }: the nearest pond surface within range of x, or null
 world.surfaceBelow(x, fromY)         // the highest surface (ground or platform) at or below fromY at x
 world.lookOf(item), lookOfCreature(c), lookOfFeature(f)     // what an eye sees: vision features
@@ -51,7 +51,7 @@ world.events                         // an Evo.EventBus (below)
 world.setTime(day, phase)            // jump the clock (the world lab, tests, the season skip)
 ```
 
-Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE`, `Evo.muscles.CALL_TICKS`, `Evo.muscles.MOUTH_TICKS` (the creature lab's eating creature bites at the game's pace) and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
+Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE_TICKS`, `Evo.muscles.CALL_TICKS`, `Evo.muscles.MOUTH_TICKS` (the creature lab's eating creature bites at the game's pace) and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
 
 ## Land, light and weather
 

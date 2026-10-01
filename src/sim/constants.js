@@ -63,18 +63,18 @@
   // ---- Items: how each looks, smells, what it contains, how it moves ----
   // look: visual features. odour: [[scent channel, rate]]. food: what enters the gut when eaten
   // (units are chemical concentrations; taste is derived from it; 'contents' means whatever a dead body
-  // held, as with carrion). ttl: ticks before it rots. Movement: bounce: fraction of speed kept on a
+  // held, as with carrion). lifeTicks: ticks before it rots. Movement: bounce: fraction of speed kept on a
   // bounce. crawls: wander speed on the ground. flees: crawls away from creatures. hops: jumps while
   // fleeing. rolls: rolls and spins. Items that roll or bounce slide downhill.
   const ITEM_TYPES = {
-    fruit:   { word: 'fruit', radius: 6, look: { red: 1 }, odour: [[SCENT.sweet, 0.05]], food: { gutSugar: 0.3, water: 0.06 }, ttl: 7200, bounce: 0.3 },
-    grain:   { word: 'grain', radius: 5, look: { yellow: 1 }, odour: [[SCENT.starch, 0.04]], food: { gutStarch: 0.3, gutProtein: 0.06 }, ttl: 14400, bounce: 0.2 },
-    grub:    { word: 'grub', radius: 5, look: { yellow: 0.5, red: 0.2 }, odour: [[SCENT.earthy, 0.05]], food: { gutProtein: 0.18, gutFat: 0.08, water: 0.02 }, ttl: 9000, crawls: 0.15 },
-    bug:     { word: 'bug', radius: 4.5, look: { green: 1 }, odour: [[SCENT.prey, 0.05]], food: { gutProtein: 0.2, gutFat: 0.1, water: 0.02 }, ttl: 12000, crawls: 0.6, flees: true, hops: true },
-    mimic:   { word: 'mimic berry', radius: 6, look: { red: 0.9, violet: 0.25 }, odour: [[SCENT.sweet, 0.035], [SCENT.bitter, 0.02]], food: { gutSugar: 0.08, toxin: 0.35 }, ttl: 7200, bounce: 0.3 },
-    dew:     { word: 'dew drop', radius: 4, look: { blue: 0.8 }, odour: [[SCENT.moist, 0.03]], food: { water: 0.14 }, ttl: 3600 },
-    lure:    { word: 'lure', radius: 6, look: { pink: 1 }, odour: [[SCENT.muskF, 0.12]], food: null, ttl: 2400 },
-    carrion: { word: 'carrion', radius: 9, look: { red: 0.2, violet: 0.2 }, odour: [[SCENT.carrion, 0.06]], food: 'contents', ttl: 5400 },
+    fruit:   { word: 'fruit', radius: 6, look: { red: 1 }, odour: [[SCENT.sweet, 0.05]], food: { gutSugar: 0.3, water: 0.06 }, lifeTicks: 7200, bounce: 0.3 },
+    grain:   { word: 'grain', radius: 5, look: { yellow: 1 }, odour: [[SCENT.starch, 0.04]], food: { gutStarch: 0.3, gutProtein: 0.06 }, lifeTicks: 14400, bounce: 0.2 },
+    grub:    { word: 'grub', radius: 5, look: { yellow: 0.5, red: 0.2 }, odour: [[SCENT.earthy, 0.05]], food: { gutProtein: 0.18, gutFat: 0.08, water: 0.02 }, lifeTicks: 9000, crawls: 0.15 },
+    bug:     { word: 'bug', radius: 4.5, look: { green: 1 }, odour: [[SCENT.prey, 0.05]], food: { gutProtein: 0.2, gutFat: 0.1, water: 0.02 }, lifeTicks: 12000, crawls: 0.6, flees: true, hops: true },
+    mimic:   { word: 'mimic berry', radius: 6, look: { red: 0.9, violet: 0.25 }, odour: [[SCENT.sweet, 0.035], [SCENT.bitter, 0.02]], food: { gutSugar: 0.08, toxin: 0.35 }, lifeTicks: 7200, bounce: 0.3 },
+    dew:     { word: 'dew drop', radius: 4, look: { blue: 0.8 }, odour: [[SCENT.moist, 0.03]], food: { water: 0.14 }, lifeTicks: 3600 },
+    lure:    { word: 'lure', radius: 6, look: { pink: 1 }, odour: [[SCENT.muskF, 0.12]], food: null, lifeTicks: 2400 },
+    carrion: { word: 'carrion', radius: 9, look: { red: 0.2, violet: 0.2 }, odour: [[SCENT.carrion, 0.06]], food: 'contents', lifeTicks: 5400 },
     egg:     { word: 'egg', radius: 7, look: {}, odour: [], food: null, bounce: 0.2 },
     ball:    { word: 'ball', radius: 8, look: {}, odour: [], food: null, bounce: 0.7, rolls: true }
   };

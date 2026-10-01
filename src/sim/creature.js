@@ -17,6 +17,7 @@
   const { LYING_ABOVE } = Evo.muscles;
 
   const GRAVITY = 0.28;
+  const BUMP_COOLDOWN_TICKS = 30;   // A bump is felt as a stimulus at most this often
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const { SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
@@ -71,9 +72,9 @@
       this.held = false;               // Carried by the player's hand
       this.carrying = null;            // An item held in the mouth
       this.timesMated = 0;
-      this.lastStimulus = null;        // { key, strength, age }: the last thing that happened to it (the card shows it)
+      this.lastStimulus = null;        // { key, strength, atAge }: the last thing that happened to it (the card shows it)
       this.meals = 0;
-      this.recentStimuli = [];         // the last 8 { key, strength, age } (oldest first), for the observers; nothing in the sim reads it
+      this.recentStimuli = [];         // the last 8 { key, strength, atAge } (oldest first), for the observers; nothing in the sim reads it
       this.stimCount = 0;              // how many stimuli there have ever been (numbers the ring's entries)
 
       // What the muscles are doing
@@ -136,7 +137,7 @@
     // Something happened to the creature or it did something (a key of Evo.STIMULI): its stimulus
     // genes release their chemicals
     stimulate(key, s = 1) {
-      this.lastStimulus = { key, strength: s, age: this.ageTicks };
+      this.lastStimulus = { key, strength: s, atAge: this.ageTicks };
       this.recentStimuli.push(this.lastStimulus);
       if (this.recentStimuli.length > 8) this.recentStimuli.shift();
       this.stimCount++;
@@ -284,10 +285,10 @@
       if (Math.abs(this.vx) > 0.05 && this.onGround) this.walkPhase += Math.abs(this.vx) * WALK_PHASE_PER_PX;
     }
 
-    // Walking into a wall or ledge: felt on that side, and a 'bumped' stimulus at most every 30 ticks
+    // Walking into a wall or ledge: felt on that side, and a 'bumped' stimulus at most every BUMP_COOLDOWN_TICKS
     bump(side) {
       this.body.stim[side] = 1;
-      if (this.bumpCooldown === 0) { this.bumpCooldown = 30; this.stimulate('bumped'); }
+      if (this.bumpCooldown === 0) { this.bumpCooldown = BUMP_COOLDOWN_TICKS; this.stimulate('bumped'); }
     }
 
     die(cause, world) {

@@ -11,13 +11,13 @@
   Evo.setupStatus = function setupStatus(app) {
     const { world } = app;
 
-    let toastTimer = 0;
+    let toastTimeout = 0;
     app.toast = message => {
       const el = $('toast');
       el.textContent = message;
       el.classList.remove('hidden');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.add('hidden'), TOAST_MS);
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => el.classList.add('hidden'), TOAST_MS);
     };
 
     app.who = c => `<b style="color:${H.sexColor(c.sex)}">${H.esc(c.name)}</b>`;

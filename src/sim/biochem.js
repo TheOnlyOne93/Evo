@@ -38,8 +38,8 @@
       this.stimuli = STIMULI.map(() => []);
       for (const g of traits.stimuli || []) this.stimuli[g.stimulus].push(g);
       this.keep.fill(1);
-      for (const chem in traits.halfLives) {
-        const hl = traits.halfLives[chem];
+      for (const chem in traits.halfLifeTicks) {
+        const hl = traits.halfLifeTicks[chem];
         this.keep[chem] = Math.pow(0.5, 1 / Math.max(1, hl)); // An infinite half-life keeps 1
       }
     }

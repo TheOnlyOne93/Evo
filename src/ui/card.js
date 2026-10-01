@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const H = Evo.uiHelpers;
 
-  const EVENT_SHOWN_S = 120;   // An event stays on the card this long (simulated seconds)
+  const EVENT_SHOWN_SECONDS = 120;   // An event stays on the card this long (simulated seconds)
   const BAR_FLOOR = 0.02;      // The drive bars show its strongest drives that are there at all (bars are meters, not signs of a need)
   // What an idle creature is about to do, by the muscle it has decided on (keys are Evo.MOTORS)
   const ABOUT_TO = { eat: 'Trying to eat', grab: 'Reaching for', drink: 'About to drink', call: 'About to call', rest: 'Settling down' };
@@ -83,7 +83,7 @@
       H.setHtml($('cardNeeds'), needs.length
         ? needs.map(n => chip(n.level > Evo.DRIVE_SHOWN.strong ? 'need strong' : 'need', n.icon, n.word, `${n.word}: ${H.percent(n.level)}`)).join('')
         : c.dead ? '' : chip('need calm', '🙂', 'No pressing needs'));
-      const now = world.clock.tick, recent = view.cues.recent(c).filter(e => now - e.tick < EVENT_SHOWN_S * Evo.TICKS_PER_SECOND);
+      const now = world.clock.tick, recent = view.cues.recent(c).filter(e => now - e.tick < EVENT_SHOWN_SECONDS * Evo.TICKS_PER_SECOND);
       H.setHtml($('cardEvents'), recent.map(e => {
         const look = Evo.EVENT_LOOK[e.key], ago = t.ago(now - e.tick);
         return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago}`);

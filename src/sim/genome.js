@@ -229,7 +229,7 @@
       insulation: 0.6, bodyHeat: 0.5,
       eggInvestment: 0.35, incubationTicks: 5400,
       axonGuidance: [], pacemakers: [], lobeDynamics: [], cellTypes: [],
-      reactions: [], emitters: [], receptors: [], halfLives: {}, initial: [], instincts: [], stimuli: [],
+      reactions: [], emitters: [], receptors: [], halfLifeTicks: {}, initial: [], instincts: [], stimuli: [],
       neurochem: Object.fromEntries(NEUROCHEMS.map(n => [n.key, n.base])),
       anatomy: {}
     };
@@ -427,7 +427,7 @@
           add: (list, entry) => traits[list].push({ ...entry, gene: gene.start, stage: gene.stage, dice }),
           neurochem: (name, v) => push(chemAcc, name, v),
           anatomy: (region, v) => push(anatomyAcc, region, v),
-          halfLife: (chem, ticks) => { traits.halfLives[chem] = ticks; }
+          halfLife: (chem, ticks) => { traits.halfLifeTicks[chem] = ticks; }
         });
       }
 

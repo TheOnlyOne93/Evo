@@ -107,8 +107,8 @@
         // px per wall ms x wall ms per tick = px per tick: the thing leaves at the hand's on-screen
         // speed at any sim speed. Paused, no tick passes, so it is dropped with no velocity.
         const msPerTick = this.opts.msPerTick();
-        const dt = b && a && b.t > a.t && msPerTick > 0 ? (b.t - a.t) / msPerTick : 0;
-        this.world.releaseHand(dt ? (b.x - a.x) / dt : 0, dt ? (b.y - a.y) / dt : 0);
+        const ticks = b && a && b.t > a.t && msPerTick > 0 ? (b.t - a.t) / msPerTick : 0;
+        this.world.releaseHand(ticks ? (b.x - a.x) / ticks : 0, ticks ? (b.y - a.y) / ticks : 0);
         this.opts.onRelease();
         return;
       }

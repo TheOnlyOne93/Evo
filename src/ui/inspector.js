@@ -28,7 +28,7 @@
   const REMEMBER_EVERY = Evo.TICKS_PER_SECOND;    // Ticks between noting every living creature's genome and looks
   const POP_EVERY = 10 * Evo.TICKS_PER_SECOND;    // Ticks between population chart samples
   const POP_LEN = 400;                            // Population samples kept
-  const WINNER_HOLD = Evo.TICKS_PER_SECOND;       // Undecided ticks before the winning muscle is dropped
+  const WINNER_HOLD_TICKS = Evo.TICKS_PER_SECOND;       // Undecided ticks before the winning muscle is dropped
   const STIM_MV = 40;          // mV each pulse of Stimulate injects into the probed cell
   const MUSCLE_GAIN = 8;       // A muscle bar fills at this multiple of the cell's firing rate
   const BUSY_RATE = 0.04;      // A cell firing faster than this counts as busy
@@ -171,7 +171,7 @@
       if (best >= 0) {
         m.idle = 0;
         if (best !== m.winner) { m.winner = best; m.since = tick; }
-      } else if (++m.idle > WINNER_HOLD) m.winner = -1;
+      } else if (++m.idle > WINNER_HOLD_TICKS) m.winner = -1;
       m.tick = tick;
     }
 
@@ -327,7 +327,7 @@
 
       // The last thing that happened to it
       const ls = c.lastStimulus;
-      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.ago(c.ageTicks - ls.age)}</span>` : '<span class="muted">nothing yet</span>');
+      row('Last event', ls ? `${esc(T.STIMULUS_PAST[ls.key] || ls.key)} <span class="muted">· ${T.ago(c.ageTicks - ls.atAge)}</span>` : '<span class="muted">nothing yet</span>');
       if (b.seizures || b.brake) row('Seizures', `${b.brake ? '<b>brake on now</b> · ' : ''}the brake has come on ${plural(b.seizures, 'time', 'times')}`, ' alert');
       $('mindRows').innerHTML = rows.join('');
       this.brainView.marks.attended = this.attendedCell(b, att);
@@ -400,7 +400,7 @@
         ? `<p class="note">Strongest first; tap one to go there. Blue excites, rose holds back; a green dot marks a connection grown in life, a glow one just used. Last column: how long a signal takes to cross, in seconds.</p>${html}`
         : '<p class="empty">No connections yet.</p>');
       // The glow changes every refresh: set it in place, so the buttons stay put under a finger
-      for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActive[+el.dataset.syn] < GLOW_TICKS);
+      for (const el of links.querySelectorAll('[data-syn]')) el.classList.toggle('active', now - b.sActiveAt[+el.dataset.syn] < GLOW_TICKS);
     }
 
     stimulate() {

@@ -31,6 +31,8 @@
     growthProtein: 0.6,   // Body protein built into a body growing from newborn to adult
     sip: { water: 0.05 }, // What one sip puts in
     matingProtein: 0.04,  // Body protein a male spends mating
+    // What the skin and tongue felt fades each tick to this share of itself
+    fade: { impact: 0.8, gentle: 0.95, back: 0.85, mated: 0.95, flinch: 0.85, contactL: 0.7, contactR: 0.7, touchingFriend: 0.9, taste: 0.93 },
     eggBase: 0.6,         // An egg holds (this + the Reproduction gene's eggInvestment) x EGG_CONTENTS
     // A dead body's food: gut protein (capped) from body protein and growth, fat and sugar from its stores
     carrion: { proteinCap: 0.5, protein: 0.6, growth: 0.1, fat: 0.5, sugar: 0.3 },
@@ -250,10 +252,10 @@
 
     // What the skin and tongue felt fades
     fade() {
-      const s = this.stim;
-      s.impact *= 0.8; s.gentle *= 0.95; s.back *= 0.85; s.mated *= 0.95; s.flinch *= 0.85;
-      s.contactL *= 0.7; s.contactR *= 0.7; s.touchingFriend *= 0.9;
-      for (const k in this.taste) this.taste[k] *= 0.93;
+      const s = this.stim, F = BODY.fade;
+      s.impact *= F.impact; s.gentle *= F.gentle; s.back *= F.back; s.mated *= F.mated; s.flinch *= F.flinch;
+      s.contactL *= F.contactL; s.contactR *= F.contactR; s.touchingFriend *= F.touchingFriend;
+      for (const k in this.taste) this.taste[k] *= F.taste;
     }
 
     // What the dead body leaves to eat

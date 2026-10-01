@@ -9,9 +9,9 @@
   const SCENT_CELL = 30;
   const SCENT_EVERY = 3;            // Scent spreads slowly, so it diffuses every third tick (at triple rate)
   const GRAVITY = CREATURE.GRAVITY;
-  const WANDER_INTERVAL = 1800;
+  const WANDER_EVERY = 1800;        // Ticks between chances for a wanderer to arrive
   const HOLD_GRIP = 0.7;            // A creature in the hand hangs with its feet this many body lengths below it
-  const SOUND_LIFE = 90;            // Ticks a call stays in world.sounds
+  const SOUND_LIFE_TICKS = 90;      // Ticks a call stays in world.sounds
   const ADULT_ARRIVAL_AGE = 0.4;    // A grown adult arrives at this fraction of its lifespan
   // Food growth per tick (rate x light x season): fruit and grain build up to a threshold, then ripen by chance; dew forms in a dawn window.
   // start: how many a tree, grass patch or log holds when the world begins
@@ -22,11 +22,12 @@
   };
   // The warm rock: its warmth rises by `warm` a tick in daylight (light above `light`) and falls by `cool` otherwise
   const ROCK = { warm: 0.0004, cool: 0.00025, light: 0.5 };
-  // Mating: reach is a share of the two body sizes (horizontal), vertical is px
-  const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldown: 1800 };
+  // Mating: reach is a share of the two body sizes (horizontal), vertical is px, cooldownTicks the wait before either mates again
+  const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldownTicks: 1800 };
   // Egg incubation speed: (temperature - cold) / span, at most max
   const INCUBATION = { cold: 0.15, span: 0.3, max: 1.3 };
   const POND_SCENT = { spacing: 60, amount: 0.02 };
+  const PRICK_COOLDOWN_TICKS = 30;  // A creature in a thorn bush is pricked at most this often
 
   class World {
     constructor({ map = Evo.DEFAULT_MAP } = {}) {
@@ -211,7 +212,7 @@
       const item = {
         id: Evo.nextId(), type, x, y: y === undefined ? this.terrain.groundY(x) : y,
         vx: 0, vy: 0, radius: def.radius, rot: Evo.random() * TAU,
-        age: 0, heldBy: null, onGround: false, ...props
+        ageTicks: 0, heldBy: null, onGround: false, ...props
       };
       this.items.push(item);
       return item;
@@ -300,7 +301,7 @@
     makeSound(creature) {
       const T = creature.traits;
       const baby = creature.stage <= STAGE.CHILD;
-      this.sounds.push({ x: creature.headX, y: creature.headY, pitch: Math.min(1, T.voicePitch + (baby ? 0.3 : 0)), loudness: T.voiceLoudness, age: 0, sourceId: creature.id });
+      this.sounds.push({ x: creature.headX, y: creature.headY, pitch: Math.min(1, T.voicePitch + (baby ? 0.3 : 0)), loudness: T.voiceLoudness, ageTicks: 0, sourceId: creature.id });
       creature.stimulate('called');
       this.events.emit('call', { creature });
     }
@@ -385,7 +386,7 @@
             parents: [f, m], progress: 0, reserves: Object.fromEntries(Object.keys(Evo.EGG_CONTENTS).map(k => [k, 0])) };
           f.body.stim.mated = 1; m.body.stim.mated = 1;
           f.stimulate('mated'); m.stimulate('mated');
-          f.mateCooldown = m.mateCooldown = MATING.cooldown;
+          f.mateCooldown = m.mateCooldown = MATING.cooldownTicks;
           f.timesMated++; m.timesMated++;
           m.body.chem.add('protein', -Evo.BODY.matingProtein);
           this.bankGenome(f); this.bankGenome(m);
@@ -559,14 +560,14 @@
       this.spawnItem('ball', this.ballX, undefined, { hue: 200 });
     }
 
-    // A creature pushing through a thornbush is pricked (at most every 30 ticks); what that feels
+    // A creature pushing through a thornbush is pricked (at most every PRICK_COOLDOWN_TICKS); what that feels
     // like is up to its stimulus genes
     prickCreatures() {
       for (const c of this.creatures) {
         if (c.prickCooldown > 0) { c.prickCooldown--; continue; }
         if (c.held || c.body.asleep || Math.abs(c.vx) < 0.2) continue;
         const bush = this.features.find(f => f.kind === 'thornbush' && Math.abs(c.x - f.x) < f.radius && c.y > f.y - f.radius * 1.2);
-        if (bush) { c.prickCooldown = 30; c.stimulate('pricked'); }
+        if (bush) { c.prickCooldown = PRICK_COOLDOWN_TICKS; c.stimulate('pricked'); }
       }
     }
 
@@ -575,7 +576,7 @@
       const hatching = [];
       for (const item of this.items) {
         const def = ITEM_TYPES[item.type];
-        item.age++;
+        item.ageTicks++;
         // A held item moves with its holder: the hand (moveHand), or a carrier's mouth (Creature.settle)
         if (item.heldBy) continue;
         // Little animals move by themselves
@@ -618,7 +619,7 @@
       }
       // Hatch after the loop: removing an egg from this.items mid-loop would skip the next item
       for (const egg of hatching) this.hatch(egg);
-      this.items = this.items.filter(i => !ITEM_TYPES[i.type].ttl || i.age < ITEM_TYPES[i.type].ttl || i.heldBy);
+      this.items = this.items.filter(i => !ITEM_TYPES[i.type].lifeTicks || i.ageTicks < ITEM_TYPES[i.type].lifeTicks || i.heldBy);
     }
 
     // Odours rise from items and ponds (the creatures queue their own), spread through the air, and fade
@@ -712,9 +713,9 @@
       for (const c of living) c.act(this);
       for (const c of living) c.settle(this);
       this.tryMating();
-      for (const s of this.sounds) s.age++;
-      this.sounds = this.sounds.filter(s => s.age < SOUND_LIFE);
-      if (this.clock.tick % WANDER_INTERVAL === 0) this.maybeWanderer();
+      for (const s of this.sounds) s.ageTicks++;
+      this.sounds = this.sounds.filter(s => s.ageTicks < SOUND_LIFE_TICKS);
+      if (this.clock.tick % WANDER_EVERY === 0) this.maybeWanderer();
       if (this.creatures.length === 0 && !this.items.some(i => i.type === 'egg')) this.found();
     }
 
@@ -722,5 +723,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE } });
+  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE_TICKS } });
 })(globalThis.Evo);

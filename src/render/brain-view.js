@@ -176,7 +176,7 @@
     // Connections: the probed neuron's, else recently used ones (or all), fading with time since use
     drawWiring(ctx, T) {
       const b = this.brain, S = this.screen, probe = this.probed, now = b.tickCount;
-      const { sSrc, sDst, sW, sActive, sFlags } = b;
+      const { sSrc, sDst, sW, sActiveAt, sFlags } = b;
       const line = s => { ctx.moveTo(S[sSrc[s] * 2], S[sSrc[s] * 2 + 1]); ctx.lineTo(S[sDst[s] * 2], S[sDst[s] * 2 + 1]); };
       if (probe >= 0) {
         for (let s = 0; s < b.S; s++) {
@@ -212,7 +212,7 @@
           ctx.beginPath();
           for (let s = 0; s < b.S; s++) {
             const w = sW[s], m = w < 0 ? -w : w;
-            if (now - sActive[s] > TRAIL_TICKS || m < lo || m >= hi || (w >= 0) !== excite) continue;
+            if (now - sActiveAt[s] > TRAIL_TICKS || m < lo || m >= hi || (w >= 0) !== excite) continue;
             if (!this.touchesRegion(s)) continue;
             line(s);
           }

@@ -11,12 +11,12 @@
 
   const HEARTS = { patted: 3, wasNuzzled: 2, mated: 4 };
   const BURSTS = { slapped: '#ffe27a', pricked: '#f28bc0', fell: '#e8dcc8' };
-  const FX_LIFE = 1.3;          // s hearts stay on screen
-  const BURST_LIFE = 0.7;       // s a burst stays on screen
+  const FX_SECONDS = 1.3;       // How long hearts stay on screen
+  const BURST_SECONDS = 0.7;    // How long a burst stays on screen
   const HIT_BURST = 1.6;        // a burst where the hand struck is this much larger
   const REPEAT_TICKS = 600;     // the same event again within this many ticks adds to the last entry
-  const DREAM_HOLD = 2.5;       // s a dream bubble stays up after the dream (which is brief)
-  const BUBBLE_PERIOD = 8;      // s: a need bubble shows for part of each period
+  const DREAM_HOLD_SECONDS = 2.5; // How long a dream bubble stays up after the dream (which is brief)
+  const BUBBLE_EVERY_SECONDS = 8; // A need bubble shows for part of every this many seconds
   const INK = 'rgba(30, 24, 44, 0.7)';
   const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
@@ -87,7 +87,7 @@
         r.seen = c.stimCount;
         const d = c.brain.dream;
         if (c.body.asleep && d) {
-          r.dreamUntil = t + DREAM_HOLD;
+          r.dreamUntil = t + DREAM_HOLD_SECONDS;
           r.dreamIcon = dreamIcon(c, d);
         } else if (!c.body.asleep) r.dreamUntil = 0;
       }
@@ -125,19 +125,19 @@
     _reactions(g, view, c, r, head, z, t) {
       for (let k = r.fx.length - 1; k >= 0; k--) {
         const fx = r.fx[k], age = t - fx.t0;
-        if (age > FX_LIFE || age < 0) { r.fx.splice(k, 1); continue; }
+        if (age > FX_SECONDS || age < 0) { r.fx.splice(k, 1); continue; }
         const n = HEARTS[fx.key];
         if (n) {
           for (let j = 0; j < n; j++) {
-            const u = (age - j * 0.14) / (FX_LIFE - 0.3);
+            const u = (age - j * 0.14) / (FX_SECONDS - 0.3);
             if (u <= 0 || u >= 1) continue;
             const x = head.x + (j - (n - 1) / 2) * 9 * z + Math.sin(u * 7 + j) * 3 * z, y = head.y - 6 * z - u * 34 * z;
             g.globalAlpha = Math.min(1, u * 5) * (1 - u * u);
             heart(g, x, y, (4.5 + 1.5 * Math.sin(u * 3.1)) * z);
           }
-        } else if (age < BURST_LIFE) {
+        } else if (age < BURST_SECONDS) {
           if (fx.hit === undefined) fx.hit = fx.key === 'slapped' ? strikeSpot(view, c) : null;
-          const u = age / BURST_LIFE, s = (7 + 9 * Math.sqrt(u)) * z;
+          const u = age / BURST_SECONDS, s = (7 + 9 * Math.sqrt(u)) * z;
           g.globalAlpha = 1 - u * u;
           if (fx.hit) {
             // Larger, so it shows round the hand when the pointer stays where it struck
@@ -149,7 +149,7 @@
       g.globalAlpha = 1;
     }
 
-    // Asleep: a dream bubble while it dreams. Awake: its strongest need, for part of each period
+    // Asleep: a dream bubble while it dreams. Awake: its strongest need, for part of every BUBBLE_EVERY_SECONDS
     // (most of it for the followed creature), when the need is strong enough to matter
     _bubble(g, c, r, head, z, t, focused) {
       let icon = null, alpha = 0, dream = false;
@@ -159,7 +159,7 @@
         let best = null, v = focused ? Evo.DRIVE_SHOWN.shown : Evo.DRIVE_SHOWN.strong;
         for (const k of Evo.DRIVES) { const x = c.body.chem.get(k); if (x > v) { v = x; best = k; } }
         if (best) {
-          const on = focused ? 6 : 4, u = (t + c.id * 2.3) % BUBBLE_PERIOD;
+          const on = focused ? 6 : 4, u = (t + c.id * 2.3) % BUBBLE_EVERY_SECONDS;
           alpha = u < on ? Math.min(1, u / 0.35, (on - u) / 0.35) : 0;
           icon = DRIVE_LOOK[best] && DRIVE_LOOK[best].icon;
         }

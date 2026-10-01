@@ -3,7 +3,7 @@
 test('drives: a stimulus releases exactly amount x strength of each chemical, clamped to 0..1', (Evo, assert) => {
   const { CHEM, STIMULUS } = Evo;
   const b = new Evo.Biochemistry();
-  b.configure({ reactions: [], emitters: [], receptors: [], halfLives: {},
+  b.configure({ reactions: [], emitters: [], receptors: [], halfLifeTicks: {},
     stimuli: [{ stimulus: STIMULUS.patted, chem1: CHEM.reward, amount1: 0.2, chem2: CHEM.fear, amount2: -0.1 },
       { stimulus: STIMULUS.slapped, chem1: 0, amount1: 0.4, chem2: CHEM.pain, amount2: 0.3 }] });
   b.set('fear', 0.5);

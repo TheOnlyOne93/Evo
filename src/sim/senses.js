@@ -37,6 +37,7 @@
   const NOVELTY_GAIN_MID = 8;       // The Curiosity gene's mid value (genome: noveltyGain = 4 + v.novelty * 8, so 0.5 gives 8)
   const SIGHT_GAIN = 1.4;           // Sight drive relative to the other senses
   const POND_SIGHT_RADIUS = 30;     // A pond is seen as a blue blob of this radius
+  const HEARD_CALL_FADE = 0.9;      // Per tick, the share of a heard call the body still feels
   const HEARING_FALLOFF = { x: 200, y: 400 }; // Distance (px) at which a call's loudness halves, sideways and vertically
 
   // What the brain learns from is whatever receptor genes make its reward and punishment cells feel
@@ -142,15 +143,15 @@
     let heard = 0, heardNew = 0;
     const hear = new Array(HEARING_CELLS).fill(0);
     for (const snd of world.sounds) {
-      if (snd.age < 1 || snd.age > 2 || snd.sourceId === c.id) continue;
+      if (snd.ageTicks < 1 || snd.ageTicks > 2 || snd.sourceId === c.id) continue;
       const dx = snd.x - c.x;
       const v = snd.loudness / (1 + Math.abs(dx) / HEARING_FALLOFF.x + Math.abs(snd.y - c.y) / HEARING_FALLOFF.y);
       const k = hearingIndex(dx < 0 ? 'L' : 'R', snd.pitch < 0.5 ? 'low' : 'high');
       hear[k] = Math.max(hear[k], v);
       heard = Math.max(heard, v);
-      if (snd.age === 1) heardNew = Math.max(heardNew, v);
+      if (snd.ageTicks === 1) heardNew = Math.max(heardNew, v);
     }
-    c.body.stim.heardCall = Math.max(c.body.stim.heardCall * 0.9, heard);
+    c.body.stim.heardCall = Math.max(c.body.stim.heardCall * HEARD_CALL_FADE, heard);
     if (heardNew > 0) c.stimulate('heardCall', heardNew);
     const L = brain.lobes;
     for (let k = 0; k < L.hearing.length; k++) input[L.hearing[k]] = hear[k] * NEURAL_GAIN * gainScale;

@@ -9,7 +9,7 @@
 
   const MAX_PARTICLES = 360;
   const REF_VIEW_AREA = 1100 * 650;  // world px² of view the particle densities are set for
-  const SPAWN_INTERVAL = 0.12;       // s between rounds of leaf and petal spawning
+  const SPAWN_EVERY_SECONDS = 0.12; // Seconds between rounds of leaf and petal spawning
   // Particle kinds (the pool's kind array)
   const LEAF = 0, SNOW = 1, PETAL = 2, POLLEN = 3, FIREFLY = 4;
   const FALLS = [true, true, true, false, false]; // by kind: drifts down and settles or melts on landing
@@ -26,7 +26,7 @@
         ph: new Float32Array(N), kind: new Uint8Array(N), col: new Uint8Array(N), rest: new Uint8Array(N),
       };
       this.season = -1;     // the season the particles belong to
-      this.spawnTimer = 0;  // seconds of leaf and petal spawning owed
+      this.spawnOwedSeconds = 0;  // seconds of leaf and petal spawning owed
     }
 
     // Drop every particle (a new world)
@@ -51,7 +51,7 @@
     }
 
     // Spawn, move and retire particles for this frame. v is the WorldView (view bounds, season, wind).
-    update(v, dt, t) {
+    update(v, frameSeconds, t) {
       const P = this.p, ss = v.ss, pal = v.sky.pal, R = Math.random;
       const si = ss.blend > 0.5 ? ss.next : ss.cur;
       const x0 = v.vx0, x1 = v.vx1, y0 = v.vy0, y1 = v.vy1;
@@ -79,11 +79,11 @@
         }
       } else if (si === AUTUMN || si === SPRING) { // leaves from the trees in autumn, petals in spring
         const kind = si === AUTUMN ? LEAF : PETAL, colors = kind === LEAF ? LEAF_COLORS : PETAL_COLORS;
-        this.spawnTimer += dt;
+        this.spawnOwedSeconds += frameSeconds;
         const fs = v.world.features;
-        if (this.spawnTimer > SPAWN_INTERVAL) {
-          const steps = Math.min(8, Math.floor(this.spawnTimer / SPAWN_INTERVAL));
-          this.spawnTimer -= steps * SPAWN_INTERVAL;
+        if (this.spawnOwedSeconds > SPAWN_EVERY_SECONDS) {
+          const steps = Math.min(8, Math.floor(this.spawnOwedSeconds / SPAWN_EVERY_SECONDS));
+          this.spawnOwedSeconds -= steps * SPAWN_EVERY_SECONDS;
           for (let s = 0; s < steps; s++) {
             for (let k = 0; k < fs.length; k++) {
               const f = fs[k];
@@ -114,7 +114,7 @@
       for (let i = 0; i < P.n; i++) {
         const kind = P.kind[i];
         let dead = false;
-        P.life[i] -= dt;
+        P.life[i] -= frameSeconds;
         if (P.rest[i]) {
           if (P.life[i] <= 0) dead = true;
         } else {
@@ -124,7 +124,7 @@
               const light = kind === PETAL ? 0.7 : 1;
               P.vx[i] = wind * 22 * light + Math.sin(t * 2.1 + ph) * 16;
               P.vy[i] = (15 + Math.sin(t * 3.3 + ph) * 9) * light;
-              P.rot[i] += P.vr[i] * dt * (1 + Math.sin(t * 2 + ph));
+              P.rot[i] += P.vr[i] * frameSeconds * (1 + Math.sin(t * 2 + ph));
               break;
             }
             case SNOW:
@@ -136,12 +136,12 @@
               P.vy[i] = Math.sin(t * 0.9 + ph * 2) * 4 - 1;
               break;
             case FIREFLY:
-              P.vx[i] += (Math.sin(t * 1.1 + ph * 3) * 14 - P.vx[i]) * dt;
-              P.vy[i] += (Math.cos(t * 0.8 + ph * 5) * 9 - P.vy[i]) * dt;
+              P.vx[i] += (Math.sin(t * 1.1 + ph * 3) * 14 - P.vx[i]) * frameSeconds;
+              P.vy[i] += (Math.cos(t * 0.8 + ph * 5) * 9 - P.vy[i]) * frameSeconds;
               break;
           }
-          P.x[i] += P.vx[i] * dt;
-          P.y[i] += P.vy[i] * dt;
+          P.x[i] += P.vx[i] * frameSeconds;
+          P.y[i] += P.vy[i] * frameSeconds;
           if (FALLS[kind]) {
             const gy = v.world.surfaceBelow(P.x[i], P.y[i] - 2);
             if (P.y[i] >= gy - 1) {
@@ -153,8 +153,8 @@
           if (P.life[i] <= 0) dead = true;
         }
         if (P.x[i] < x0 - 150 || P.x[i] > x1 + 150 || P.y[i] > y1 + 60 || P.y[i] < y0 - 300) dead = true;
-        if (kind === SNOW && si !== WINTER && R() < dt * 0.5) dead = true;
-        if (kind === FIREFLY && pal.night < 0.2 && R() < dt) dead = true;
+        if (kind === SNOW && si !== WINTER && R() < frameSeconds * 0.5) dead = true;
+        if (kind === FIREFLY && pal.night < 0.2 && R() < frameSeconds) dead = true;
         if (dead) this.kill(i--);
       }
     }

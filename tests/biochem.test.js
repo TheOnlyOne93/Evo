@@ -3,7 +3,7 @@
 // A chemistry with hand-written genes (traits in the shape Genome.develop() returns)
 function chemistry(Evo, genes) {
   const b = new Evo.Biochemistry();
-  b.configure({ reactions: [], emitters: [], receptors: [], halfLives: {}, ...genes });
+  b.configure({ reactions: [], emitters: [], receptors: [], halfLifeTicks: {}, ...genes });
   return b;
 }
 const loci = Evo => new Float32Array(Evo.BODY_LOCI.length);
@@ -49,7 +49,7 @@ test('biochem: emitters respond above their threshold, or below it when inverted
 });
 
 test('biochem: a half-life halves a chemical in that many ticks', (Evo, assert) => {
-  const b = chemistry(Evo, { halfLives: { [Evo.CHEM.fear]: 100 } });
+  const b = chemistry(Evo, { halfLifeTicks: { [Evo.CHEM.fear]: 100 } });
   b.set('fear', 0.8);
   for (let t = 0; t < 100; t++) b.step(loci(Evo));
   assert.ok(Math.abs(b.get('fear') - 0.4) < 0.002, `fear ${b.get('fear')}`);

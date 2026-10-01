@@ -152,7 +152,7 @@ test('world: a hatching egg does not make the next item skip its tick', (Evo, as
   const ball = world.spawnItem('ball', world.width / 2 + 40, undefined, { hue: 0 });
   world.moveItems();
   assert.ok(!world.items.includes(egg) && world.creatures.length === 1, 'the egg hatched');
-  assert.strictEqual(ball.age, 1, 'the item after the egg still moved this tick');
+  assert.strictEqual(ball.ageTicks, 1, 'the item after the egg still moved this tick');
 });
 
 test('world: the population cap holds for adults and hatchlings', (Evo, assert) => {
@@ -367,7 +367,7 @@ test('world: a new world stays at two grown adults until babies arrive, as newco
   const pair = [...world.creatures];
   world.maybeWanderer();
   assert.strictEqual(world.creatures.length, 2, 'one of each sex is enough');
-  for (let t = 0; t < 2 * 1800 + 100; t++) world.step(); // more than two wanderer intervals (WANDER_INTERVAL)
+  for (let t = 0; t < 2 * 1800 + 100; t++) world.step(); // more than two wanderer intervals (WANDER_EVERY)
   assert.ok(pair.every(c => world.creatures.includes(c)), 'both founders are still alive');
   assert.strictEqual(world.stats.wanderers, 0);
 });

@@ -12,7 +12,9 @@
   const CALLING_ABOVE = CALL_TICKS - 10; // Its action reads 'calling' while callTimer is above this (the call's first 10 ticks)
   const REST_TICKS = 90;            // Each spike of the rest muscle keeps it resting this long (restTimer counts down from it)
   const LYING_ABOVE = 30;           // It lies down while restTimer is above this (the rest's first 60 ticks)
-  const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
+  const JUMP_COOLDOWN_TICKS = 30;   // Ticks after a jump before the next
+  const GRAB_COOLDOWN_TICKS = 40;   // Ticks after a grab or drop before the next
+  const RUN_TICKS = 20;             // Each spike of the run muscle keeps it running this long (runTimer counts down from it)
   const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
   // Timers that count down once a tick in act(). Not here: prickCooldown (World.prickCreatures) and heardCall (sense)
   const ACT_TIMERS = ['mouthTimer', 'drinkTimer', 'jumpCooldown', 'grabCooldown', 'mateCooldown', 'callTimer', 'runTimer', 'restTimer', 'bumpCooldown'];
@@ -38,7 +40,7 @@
     // Walking: the left and right walk muscles pull against each other; the stronger one wins
     const pull = muscle[MOTOR_INDEX.walkR] - muscle[MOTOR_INDEX.walkL];
     const push = Math.abs(pull) > 0.08 ? Math.sign(pull) : 0;
-    if (m[MOTOR_INDEX.run]) c.runTimer = 20;
+    if (m[MOTOR_INDEX.run]) c.runTimer = RUN_TICKS;
     const running = c.runTimer > 0;
     const maxSpeed = T.walkSpeed * (running ? T.runBoost : 1) * strength * (c.inWater ? 0.5 : 1) * (0.6 + 0.4 * c.body.growth);
     const target = push * Math.min(1, Math.abs(pull) * 2) * maxSpeed;
@@ -53,7 +55,7 @@
     if (m[MOTOR_INDEX.jump] && c.onGround && c.jumpCooldown === 0) {
       c.vy = -T.jumpPower * Math.sqrt(strength) * (0.7 + 0.3 * c.body.growth);
       c.onGround = false;
-      c.jumpCooldown = JUMP_COOLDOWN;
+      c.jumpCooldown = JUMP_COOLDOWN_TICKS;
       c.restTimer = 0;
       effort += 1;
     }
@@ -70,7 +72,7 @@
     }
     // Grab or drop an item; with another creature at the mouth, a shove
     if (m[MOTOR_INDEX.grab] && c.grabCooldown === 0) {
-      c.grabCooldown = 40;
+      c.grabCooldown = GRAB_COOLDOWN_TICKS;
       if (c.carrying) world.dropCarried(c);
       else {
         const t = c.thingAtMouth(world);
@@ -105,5 +107,5 @@
     }
   }
 
-  Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE, JUMP_COOLDOWN };
+  Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE, JUMP_COOLDOWN_TICKS };
 })(globalThis.Evo);

@@ -136,9 +136,9 @@
     let last = null, fpsAvg = 60, renderAvg = 0, shown = 0;
     let measuring = null;
     function frame(now) {
-      const dtMs = last === null ? 0 : now - last;
+      const frameMs = last === null ? 0 : now - last;
       last = now;
-      const ticks = clock.advance(dtMs, state.speed, state.paused);
+      const ticks = clock.advance(frameMs, state.speed, state.paused);
       let ran = 0;
       const frameStart = performance.now();
       while (ran < ticks) {
@@ -155,10 +155,10 @@
       if (measuring && measuring.flush) view.ctx.getImageData(0, 0, 1, 1); // make the raster work count
       const ms = performance.now() - t0;
       renderAvg += (ms - renderAvg) * 0.05;
-      if (dtMs > 0) fpsAvg += (1000 / dtMs - fpsAvg) * 0.05;
+      if (frameMs > 0) fpsAvg += (1000 / frameMs - fpsAvg) * 0.05;
       if (measuring) {
         measuring.render.push(ms);
-        measuring.frame.push(dtMs);
+        measuring.frame.push(frameMs);
         if (measuring.render.length >= measuring.n) { const m = measuring; measuring = null; m.done(); }
       }
       if (now - shown > 500) {

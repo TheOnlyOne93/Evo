@@ -66,8 +66,9 @@
   // Wire a synthesizer to a world. isFocused(creature) says which creature the player is following:
   // its meals and sips are heard only for it, and its calls at full volume (others' calls at 0.35).
   // Hatch, death, mate, pat and slap sounds play for every creature.
+  const SIP_GAP_MS = 400;   // The focused creature's sips are heard at most this often
   function connectAudio(synth, world, isFocused) {
-    let lastSip = 0;
+    let lastSipMs = 0;
     world.events.on('hatch', () => synth.hatchChime());
     world.events.on('death', () => synth.deathTone());
     world.events.on('mate', () => synth.loveChime());
@@ -77,8 +78,8 @@
     });
     world.events.on('drink', ({ creature }) => {
       const now = performance.now();
-      if (!isFocused(creature) || now - lastSip < 400) return;
-      lastSip = now;
+      if (!isFocused(creature) || now - lastSipMs < SIP_GAP_MS) return;
+      lastSipMs = now;
       synth.sip();
     });
     world.events.on('call', ({ creature }) => synth.voice(creature.traits.voicePitch, isFocused(creature) ? 1 : 0.35));

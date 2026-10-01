@@ -30,7 +30,7 @@
   const SPRITE_BUDGET = 24e6;           // cached sprite pixels before old ones are dropped
   const BUILDS_PER_FRAME = 3;           // sprite upgrades per frame (in the current season, one with nothing to stand in is built at once)
   const ALPHA_MIN = 0.002;              // in the season crossfade, sprites fainter than this aren't drawn
-  const SOUND_LIFE = Evo.WORLD.SOUND_LIFE; // ticks a call stays visible (world.sounds[].age is in ticks)
+  const SOUND_LIFE_TICKS = Evo.WORLD.SOUND_LIFE_TICKS; // ticks a call stays visible
   const NOTE_HIGH = '#bff3ff', NOTE_LOW = '#ffe2a8'; // a call's music notes, by pitch
   const NOTE_INK = 'rgba(30,24,44,0.75)';           // their dark outline
   const BODY_CENTRE_OFFSET = 15;        // world px from a creature's feet up to about the middle of its body
@@ -314,13 +314,13 @@
       this.camReady = true;
     }
 
-    _updateCamera(dt) {
+    _updateCamera(frameSeconds) {
       if (!this.camReady) {
         if (!this.target) this.cam.x = this.world.width / 2;
         this._snapToGoal();
       }
       const p = this._cameraGoal(this.box);
-      const k = 1 - Math.exp(-dt * 3.4);
+      const k = 1 - Math.exp(-frameSeconds * 3.4);
       if (this.target) this.cam.x += (p.x - this.cam.x) * k;
       this.cam.y += (p.y - this.cam.y) * k * 0.7;
       this._clampCamera();
@@ -442,13 +442,13 @@
       const world = this.world;
       if (!world) return;
       if (t === undefined) t = performance.now() / 1000;
-      const dt = this.lastT === null ? 1 / 60 : clamp(t - this.lastT, 0, 0.1);
+      const frameSeconds = this.lastT === null ? 1 / 60 : clamp(t - this.lastT, 0, 0.1);
       this.lastT = t;
       this.t = t;
       this.frameNo++;
       this._sync();
       if (this.w <= 1) this.resize();
-      this._updateCamera(dt);
+      this._updateCamera(frameSeconds);
       this.sky.update(world);
       this.wind = 0.65 + 0.35 * Math.sin(t * 0.21) + 0.15 * Math.sin(t * 0.53 + 1);
       this.buildsLeft = BUILDS_PER_FRAME;
@@ -475,7 +475,7 @@
       this._drawGhosts(g, t);
       Evo.Water.draw(g, this, t);
       this._drawFeatures(g, t, true);
-      this.weather.update(this, dt, t);
+      this.weather.update(this, frameSeconds, t);
       this._setWorldTransform(g);
       this.weather.draw(g);
       this._applyLight(g);
@@ -999,7 +999,7 @@
       const ss = this.world.sounds;
       for (let i = 0; i < ss.length; i++) {
         const s = ss[i];
-        const a = s.age / SOUND_LIFE;
+        const a = s.ageTicks / SOUND_LIFE_TICKS;
         if (a < 0 || a >= 1 || s.x < this.vx0 - 40 || s.x > this.vx1 + 40) continue;
         const loud = clamp01(s.loudness);
         const alpha = Math.min(1, a * 8) * Math.pow(1 - a, 1.2);

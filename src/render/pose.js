@@ -9,7 +9,7 @@
   const smooth = new WeakMap();
   // Gestures, in ticks: the mouth is open for the first half of a call; a yawn or a lick of the
   // lips lasts `len` every `period` while its cause lasts, each creature on its own beat (`salt`)
-  const CALL_HALF = Evo.muscles.CALL_TICKS / 2;
+  const CALL_HALF_TICKS = Evo.muscles.CALL_TICKS / 2;
   const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
   const HEAD_DOWN_RATE = 0.35;   // per tick: the head goes down to eat or drink, and back up, in about 5 ticks
   const TURN_STEP = 0.25;        // per tick, at a steady pace: turning round takes 8 ticks
@@ -166,7 +166,7 @@
       face: {
         eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
-        mouthOpen: c.callTimer > CALL_HALF ? 0.8 : yawn,   // while eating the art opens and shuts it to chew
+        mouthOpen: c.callTimer > CALL_HALF_TICKS ? 0.8 : yawn,   // while eating the art opens and shuts it to chew
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
         earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6)), 0.05), // the art droops old ears itself
         blush: ease(s, 'blush', clamp01(c.body.stim.gentle + get('endorphin')), 0.1),
@@ -176,7 +176,7 @@
       },
       state: {
         asleep: c.body.asleep, held: c.held, dead: c.dead,
-        calling: clamp01((c.callTimer - CALL_HALF) / CALL_HALF), flinch: c.body.stim.flinch,
+        calling: clamp01((c.callTimer - CALL_HALF_TICKS) / CALL_HALF_TICKS), flinch: c.body.stim.flinch,
         fear: get('fear'), anger: get('anger'), pain: get('pain'), sick: clamp01(get('nausea') + get('toxin')),
         cold: get('coldness'), hot: get('hotness'),
         wet: ease(s, 'wet', c.inWater ? 1 : 0, c.inWater ? 0.2 : 0.004),

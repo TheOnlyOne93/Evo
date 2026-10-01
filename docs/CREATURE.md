@@ -26,7 +26,7 @@ A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** 
 | `stim`, `taste` | What the skin and tongue feel, fading each tick |
 | `loci`, `damageLog`, `heatGain`, `heatLoss` | Its readings for genes, recent damage by cause, and heat flowing in and out |
 
-Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: running costs, water, heat, harm, what a sip holds, the protein a male spends mating, what a dead body leaves to eat (`body.remains()`), and the stores a creature starts with when it arrives grown.
+Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: running costs, water, heat, harm, what a sip holds, the protein a male spends mating, how fast what the skin and tongue felt fades, what a dead body leaves to eat (`body.remains()`), and the stores a creature starts with when it arrives grown.
 
 `new Evo.Creature(genome, x, y, opts)` takes `opts` `{ generation, parents, reserves, ageTicks, growth, facing, syllables }`. Left out, `facing` (1 or -1) is chosen at random, and `syllables` (the two syllables of its name, such as `['el', 'ani']` for Elani) are made from its parents' syllables, or at random when it has none. `name` is the syllables joined and capitalised.
 
