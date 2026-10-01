@@ -15,6 +15,8 @@
   const num = (k, d) => (params.has(k) ? Number(params.get(k)) : d);
   const FRAME_BUDGET_MS = 11;   // Sim time allowed per frame, as in src/ui/app.js
   const YEAR_DAYS = Evo.SEASON_DAYS * Evo.SEASONS.length;
+  const EDGE_ALPHA = 24;        // paintHash: a sprite's edge pixel at least this opaque (of 255) means drawing was cut off
+  const SIDES = ['top', 'bottom', 'left', 'right'];
 
   function start() {
     if (params.get('ui') === '0') document.body.classList.add('noui');
@@ -173,9 +175,21 @@
     // every season at two of the view's resolutions. A painter refactor must leave every hash as
     // it was. Each sprite is built by the view's own sprite builder and
     // dropped again, so the view's cache ends as it began.
+    // `clipped` lists each feature ('tree 7: top, left') that has a visible pixel on an outer edge of
+    // its sprite in any season or resolution: its painter drew past the box _featRec gave it, so
+    // the drawing is cut off on those sides. Terrain tiles fill their sprites by design and are left out.
     function paintHash(levels = [0, 2]) {
-      const hashes = {};
-      const add = (key, rec) => {
+      const hashes = {}, touched = new Map(); // touched: feature name -> sides as bits (top 1, bottom 2, left 4, right 8)
+      // The sides of a w × h sprite whose outer 1 px has a pixel of alpha EDGE_ALPHA or more
+      const edges = (rgba, w, h) => {
+        const solid = (x, y) => rgba[(y * w + x) * 4 + 3] >= EDGE_ALPHA;
+        let bits = 0;
+        for (let x = 0; x < w; x++) bits |= (solid(x, 0) ? 1 : 0) | (solid(x, h - 1) ? 2 : 0);
+        for (let y = 0; y < h; y++) bits |= (solid(0, y) ? 4 : 0) | (solid(w - 1, y) ? 8 : 0);
+        return bits;
+      };
+      // name: the feature's name for `clipped` (null for terrain tiles, whose edges aren't scanned)
+      const add = (key, rec, name) => {
         let h = hashes[key] === undefined ? 0x811c9dc5 : hashes[key];
         const perSeason = rec.sp.length / Evo.SEASON_COUNT;
         for (let si = 0; si < Evo.SEASON_COUNT; si++) {
@@ -183,9 +197,11 @@
             const idx = si * perSeason + li, cached = rec.sp[idx];
             const sp = view._buildSprite(rec, si, li);
             const canvas = sp.canvas;
-            const px = new Uint32Array(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+            const rgba = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+            const px = new Uint32Array(rgba.buffer);
             h = Math.imul(h ^ canvas.width, 0x01000193);
             for (let i = 0; i < px.length; i++) h = Math.imul(h ^ px[i], 0x01000193);
+            if (name) touched.set(name, (touched.get(name) || 0) | edges(rgba, canvas.width, canvas.height));
             view.sprites.splice(view.sprites.indexOf(sp), 1);
             view.spritePx -= sp.px;
             canvas.width = canvas.height = 0;
@@ -194,12 +210,14 @@
         }
         hashes[key] = h;
       };
-      for (const rec of view.tiles) if (!rec.empty) add('tiles', rec);
+      for (const rec of view.tiles) if (!rec.empty) add('tiles', rec, null);
       for (const f of world.features) {
         const rec = view._featRec(f);
-        if (rec) add(f.kind, rec);
+        if (rec) add(f.kind, rec, `${f.kind} ${f.id}`);
       }
-      return Object.fromEntries(Object.entries(hashes).map(([k, h]) => [k, (h >>> 0).toString(16).padStart(8, '0')]));
+      const clipped = [...touched].filter(([, bits]) => bits)
+        .map(([name, bits]) => `${name}: ${SIDES.filter((s, i) => bits & (1 << i)).join(', ')}`).sort();
+      return { ...Object.fromEntries(Object.entries(hashes).map(([k, h]) => [k, (h >>> 0).toString(16).padStart(8, '0')])), clipped };
     }
 
     // For scripted checks
