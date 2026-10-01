@@ -16,6 +16,7 @@
     return cuff;
   }
   const OUTLINE = 2.6;     // the ink outline (and the shadow) is this much wider than each finger
+  const PALM_OUTLINE = 1.3; // the ink round the palm
   const SLAP_TILT = -0.42; // the slapping hand (and its shadow) tilts by this angle
   // The patting hand bobs up and down, its palm touching the pointer at the bottom of each pat
   const patBob = t => -Math.abs(Math.sin(t * 5)) * 3;
@@ -31,7 +32,7 @@
       }
       if (palm) {
         g.fillStyle = pass ? SKIN : INK;
-        const e = pass ? 0 : 1.3;
+        const e = pass ? 0 : PALM_OUTLINE;
         g.beginPath();
         g.roundRect(palm[0] - e, palm[1] - e, palm[2] + e * 2, palm[3] + e * 2, palm[4] + e);
         g.fill();
@@ -59,6 +60,10 @@
 
   const OPEN_HAND = [-6.4, -4, -7.8, -16.5, 4.6, -2.1, -5, -2.3, -19.5, 4.8, 2.2, -5, 3.1, -18, 4.6, 6.3, -3.8, 8.4, -13.8, 4.1, -8.2, 3, -14.4, -4.2, 5.2];
   const FIST_THUMB = [-8.6, 1.5, -1.5, -1.8, 5];
+  const FIST_PALM = [-9.5, -9.5, 19, 19, 7];
+  // While the hand holds an item of radius r (CSS px) centred on the pointer, the fist is drawn
+  // this much higher, so its lower edge covers only the top quarter of the item
+  const liftFor = r => FIST_PALM[1] + FIST_PALM[3] + PALM_OUTLINE + r * 0.5;
   const SLAP_HAND = [-4.6, -4, -5.4, -18, 4.7, -0.8, -5, -1, -20, 4.9, 3, -5, 3.4, -18.6, 4.7, 6.6, -3.6, 7.6, -14.8, 4.2, -8.6, 2, -14.6, -3, 5];
 
   function drawHandShape(g, mode, holding, t) {
@@ -100,7 +105,7 @@
     if (holding) {
       // The arm comes down from above: the fist hangs below its cuff, fingers curled underneath
       g.scale(1, -1);
-      handOutlineAndFill(g, FIST_THUMB, [-9.5, -9.5, 19, 19, 7]);
+      handOutlineAndFill(g, FIST_THUMB, FIST_PALM);
       // Folded fingers
       g.strokeStyle = SKIN_SHADE;
       g.lineWidth = 1.1;
@@ -148,5 +153,5 @@
     }
   }
 
-  Evo.HandArt = { draw: drawHandShape, drawSilhouette: drawHandSilhouette };
+  Evo.HandArt = { draw: drawHandShape, drawSilhouette: drawHandSilhouette, liftFor };
 })(globalThis.Evo);

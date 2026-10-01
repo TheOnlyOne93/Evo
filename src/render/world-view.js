@@ -993,7 +993,9 @@
     _drawHand(g, t) {
       const hand = this.options.hand;
       if (!hand || hand.x == null) return;
-      const sx = hand.x, sy = hand.y;
+      // An item in the hand hangs on the pointer: the fist is drawn above it, so the item shows
+      const held = hand.holding && this.world.hand.holding;
+      const sx = hand.x, sy = hand.y - (held && held.item ? Evo.HandArt.liftFor(held.item.radius * this.k / this.dpr) : 0);
       const dpr = this.dpr;
       // Drop shadow, then the hand
       for (let pass = 0; pass < 2; pass++) {
