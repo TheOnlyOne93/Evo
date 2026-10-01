@@ -20,16 +20,35 @@
   const { ADOLESCENT, SENILE } = Evo.STAGE;          // mature (crest, tufts, lashes, heat) from adolescence
   const EYE = { OPEN: 0, SLEEPY: 1, HAPPY: 2, SHUT: 3, DEAD: 4 };  // r.eyeMode: open, or drawn as a closed shape
   const CREST_KIND = { TUFT: 0, PLUME: 1, FAN: 2 };  // r.crestKind: the young's tuft, a female plume, a male fan
-  const GROWTH = [1, 0, 0.32, 0.58, 0.82, 1, 1, 1];  // toward adult proportions, by stage
-  const AGEING = [0, 0, 0, 0, 0, 0, 0.55, 1];        // greying, whiskers, droop, by stage
-  const CREST = [1, 0.4, 0.5, 0.66, 0.84, 1, 1, 0.9];
+
+  // How a creature's looks change with its life stage, a row per stage (by Evo.STAGES key):
+  //   growth   how far toward adult proportions (babies are mostly head, with stubby legs)
+  //   ageing   greying, whiskers and droop
+  //   crest    the crest's size
+  //   cadence  how fast the legs step: leg radians per walkPhase radian (see below)
+  const STAGE_LOOKS = {
+    embryo:     { growth: 1,    ageing: 0,    crest: 1,    cadence: 1    },   // never drawn: an egg is an item
+    baby:       { growth: 0,    ageing: 0,    crest: 0.4,  cadence: 2    },
+    child:      { growth: 0.32, ageing: 0,    crest: 0.5,  cadence: 1.65 },
+    adolescent: { growth: 0.58, ageing: 0,    crest: 0.66, cadence: 1.35 },
+    youth:      { growth: 0.82, ageing: 0,    crest: 0.84, cadence: 1.15 },
+    adult:      { growth: 1,    ageing: 0,    crest: 1,    cadence: 1    },
+    old:        { growth: 1,    ageing: 0.55, crest: 1,    cadence: 1    },
+    senile:     { growth: 1,    ageing: 1,    crest: 0.9,  cadence: 1.05 },
+  };
+  // The rows by stage number. A stage with no row says so once when the page loads and looks like an adult
+  const BY_STAGE = Evo.STAGES.map(s => {
+    if (STAGE_LOOKS[s.key]) return STAGE_LOOKS[s.key];
+    console.warn('CreatureArt: no looks for life stage "' + s.key + '"');
+    return STAGE_LOOKS.adult;
+  });
+
   const TAIL_N = 9;
   const MOUTH_OPEN = 0.06;                           // the mouth shows open (and a sick one stops looking wavy) above this
   // The simulation advances walkPhase by Evo.CREATURE.WALK_PHASE_PER_PX per px walked, whatever the size. The legs step
-  // at a cadence (leg radians per walkPhase radian) that is quicker for the young and short-legged
-  // and slower in a bounding run
+  // at a cadence (leg radians per walkPhase radian) that is quicker for the young (the stage's cadence, above) and the
+  // short-legged, and slower in a bounding run
   const PHASE_PER_PX = Evo.CREATURE.WALK_PHASE_PER_PX;
-  const CADENCE = [1, 2, 1.65, 1.35, 1.15, 1, 1, 1.05];
   const GRIP_Y = -Evo.WORLD.HOLD_GRIP * UNITS;        // held: the hand is HOLD_GRIP × size above (x, y)
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
@@ -68,6 +87,16 @@
 
   // ---- Colours ---------------------------------------------------------------------------------
 
+  // Colours that are the same on every creature
+  const FIXED = {
+    eyeWhite: '#fffcf4', pupil: '#17121c', eyeShine: '#ffffff', fang: '#ffffff', heatSparkle: '#ffffff',
+    noseShine: 'rgba(255,255,255,0.7)', whiskers: 'rgba(255, 255, 255, 0.85)',
+    blush: '#ff7f9e', sickWash: '#7fcf5a',
+    callArcs: '#fff6d8', sleepZ: '#eaf2ff', sweat: '#bfeaff', breath: '#f4f8ff', angerMark: '#e8364f',
+    // The ground shadow, from its middle out to its edge
+    shadowMiddle: 'rgba(0, 0, 0, 0.32)', shadowRing: 'rgba(0, 0, 0, 0.2)', shadowEdge: 'rgba(0, 0, 0, 0)',
+  };
+
   // Pleasant fur saturation and lightness every 30° of hue (greens and yellows a little darker,
   // blues and violets softer), so every genome gets an attractive coat
   const FUR_S = [58, 64, 62, 52, 42, 40, 44, 50, 46, 42, 44, 52, 58];
@@ -84,7 +113,7 @@
     const k5 = Math.round(r.wet * 10), k6 = r.dead ? 1 : 0, k7 = r.heat > 0 ? 1 : 0;
     if (k[0] === k0 && k[1] === k1 && k[2] === k2 && k[3] === k3 && k[4] === k4 && k[5] === k5 && k[6] === k6 && k[7] === k7) return e.pal;
     k[0] = k0; k[1] = k1; k[2] = k2; k[3] = k3; k[4] = k4; k[5] = k5; k[6] = k6; k[7] = k7;
-    const sick = k3 / 10, cold = k4 / 10, wet = k5 / 10, ag = AGEING[r.stage];
+    const sick = k3 / 10, cold = k4 / 10, wet = k5 / 10, ag = BY_STAGE[r.stage].ageing;
 
     const f = hue / 30, i = Math.floor(f) % 12, u = f - Math.floor(f);
     let h = hue, s = lerp(FUR_S[i], FUR_S[i + 1], u), l = lerp(FUR_L[i], FUR_L[i + 1], u);
@@ -124,12 +153,7 @@
   const SEX_HUE = {};
   function sexHue(female) {
     const key = female ? '--female' : '--male';
-    if (SEX_HUE[key] === undefined) {
-      const [r, g, b] = Evo.theme.rgbOf(key).map(v => v / 255);
-      const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
-      const h = !d ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-      SEX_HUE[key] = (h * 60 + 360) % 360;
-    }
+    if (SEX_HUE[key] === undefined) SEX_HUE[key] = Evo.color.hue(Evo.theme.rgbOf(key));
     return SEX_HUE[key];
   }
 
@@ -164,7 +188,7 @@
     const L = pose.looks || EMPTY, M = pose.motion || EMPTY, F = pose.face || EMPTY, S = pose.state || EMPTY;
     const stage = clamp(Math.round(num(pose.stage, 5)), 1, 7);
     r.mature = stage >= ADOLESCENT; r.senile = stage === SENILE;
-    const g = GROWTH[stage], ag = AGEING[stage], senile = r.senile ? 1 : 0, baby = 1 - g;
+    const g = BY_STAGE[stage].growth, ag = BY_STAGE[stage].ageing, senile = r.senile ? 1 : 0, baby = 1 - g;
     const plump = clamp01(num(L.plumpness, 0.5)), legGene = clamp01(num(L.legLength, 0.5));
     const tailGene = clamp01(num(L.tailLength, 0.5)), earGene = clamp01(num(L.earSize, 0.5));
     const eyeGene = clamp01(num(L.eyeSize, 0.5)), crestGene = clamp01(num(L.crest, 0.5));
@@ -210,7 +234,7 @@
     const speed = Math.abs(num(M.vx, 0)), rel = speed * Math.sqrt(toRef);
     const move = held || dead || air ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand;
     const run = smooth(clamp01((rel - 1.45) / 0.9)) * move;
-    const cadence = CADENCE[stage] * (1.25 - 0.5 * legGene) * lerp(1, 0.62, run);
+    const cadence = BY_STAGE[stage].cadence * (1.25 - 0.5 * legGene) * lerp(1, 0.62, run);
     const ph = legPhase(e, num(M.walkPhase, 0), cadence, advance);
     const bob = move * lerp((0.5 - 0.5 * Math.cos(2 * ph)) * (0.5 + 0.5 * legGene), (0.5 - 0.5 * Math.cos(ph - 0.7)) * 2.4, run) * lerp(0.6, 1, g);
 
@@ -322,7 +346,7 @@
     r.earW = R * (0.66 + 0.24 * earGene);
 
     // Crest: a neutral tuft in the young, then a plume (female) or a fan (male)
-    r.crest = R * (0.36 + 0.46 * crestGene) * CREST[stage] * (dead ? 0.8 : 1);
+    r.crest = R * (0.36 + 0.46 * crestGene) * BY_STAGE[stage].crest * (dead ? 0.8 : 1);
     r.crestKind = !r.mature ? CREST_KIND.TUFT : r.female ? CREST_KIND.PLUME : CREST_KIND.FAN;
     r.crestSway = Math.sin(t * 1.3 * tempo + ph0) * 0.06 * live - 0.25 * run - 0.2 * air;
 
@@ -711,7 +735,7 @@
     }
     if (r.heat > 0.7 && r.lod > 0) {
       sparkle(ctx, cs * 0.95, -cs * 1.35, cs * 0.26 * (r.heat - 0.6) * 2.5);
-      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.fillStyle = FIXED.heatSparkle; ctx.fill();
     }
     ctx.restore();
   }
@@ -765,7 +789,7 @@
     if (r.sick > 0.2) {
       // Queasy green wash over the lower face
       ctx.beginPath(); ctx.ellipse(R * 0.3, R * 0.55, R * 1.1, R * 0.62, 0, 0, TAU);
-      ctx.globalAlpha = 0.4 * r.sick; ctx.fillStyle = '#7fcf5a'; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.4 * r.sick; ctx.fillStyle = FIXED.sickWash; ctx.fill(); ctx.globalAlpha = 1;
     }
     ctx.restore();
 
@@ -818,7 +842,7 @@
     // Blush
     if (r.blush > 0.02) {
       ctx.globalAlpha = r.blush * 0.6;
-      ctx.fillStyle = '#ff7f9e';
+      ctx.fillStyle = FIXED.blush;
       ctx.beginPath();
       ctx.ellipse(-R * 0.08, R * 0.5, R * 0.22, R * 0.12, 0, 0, TAU);
       ctx.moveTo(R * 0.68, R * 0.46);
@@ -837,7 +861,7 @@
     ctx.fillStyle = pal.nose; ctx.fill();
     if (r.lod > 0) {
       ctx.beginPath(); ctx.ellipse(nX - R * 0.05, nY - R * 0.05, R * 0.05, R * 0.03, -0.2, 0, TAU);
-      ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fill();
+      ctx.fillStyle = FIXED.noseShine; ctx.fill();
     }
     drawMouth(ctx, r, pal);
     if (r.ag > 0 && r.lod > 0) whiskers(ctx, r);
@@ -874,13 +898,13 @@
       return;
     }
     eyePath(ctx, 0, 1, 1, 0, 0); eyePath(ctx, 5, 1, 1, 0, 0);
-    ctx.fillStyle = '#fffcf4'; ctx.fill();
+    ctx.fillStyle = FIXED.eyeWhite; ctx.fill();
     // Iris and pupil follow the gaze
     const gx = r.px * 0.2, gy = r.py * 0.18, p = r.pupil;
     ctx.beginPath(); eyePath(ctx, 0, 0.8, 0.8, gx, gy); eyePath(ctx, 5, 0.8, 0.8, gx, gy);
     ctx.fillStyle = pal.iris; ctx.fill();
     ctx.beginPath(); eyePath(ctx, 0, p, p * 1.05, gx * 1.25, gy); eyePath(ctx, 5, p, p * 1.05, gx * 1.25, gy);
-    ctx.fillStyle = '#17121c'; ctx.fill();
+    ctx.fillStyle = FIXED.pupil; ctx.fill();
     ctx.beginPath();
     for (let i = 0; i < 10; i += 5) {
       const rx = E[i + 2], ry = E[i + 3], ix = E[i] + gx * rx, iy = E[i + 1] + gy * ry;
@@ -888,7 +912,7 @@
       ctx.ellipse(ix - rx * 0.24, iy - ry * 0.3, rx * 0.26, ry * 0.26, 0, 0, TAU);
       if (r.lod > 0) { ctx.moveTo(ix + rx * 0.37, iy + ry * 0.3); ctx.ellipse(ix + rx * 0.26, iy + ry * 0.3, rx * 0.11, ry * 0.11, 0, 0, TAU); }
     }
-    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.fillStyle = FIXED.eyeShine; ctx.fill();
     if (r.closed > 0.03 || Math.abs(r.lidTilt) > 0.05) {
       for (let i = 0; i < 10; i += 5) lid(ctx, r, pal, E[i], E[i + 1], E[i + 2], E[i + 3], E[i + 4]);
     }
@@ -1008,7 +1032,7 @@
       ctx.moveTo(cx - wn * 0.5, cornerY + R * 0.02);
       ctx.lineTo(cx - wn * 0.38, cornerY + R * (0.1 + 0.08 * r.fang));
       ctx.lineTo(cx - wn * 0.26, cornerY + R * 0.03);
-      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.fillStyle = FIXED.fang; ctx.fill();
     }
   }
 
@@ -1032,7 +1056,7 @@
       ctx.moveTo(R * 0.5, y);
       ctx.quadraticCurveTo(R * 0.1, y - R * 0.04, -R * (0.2 + 0.05 * i), y + R * (0.06 + droop * 0.4));
     }
-    ctx.lineWidth = r.ol * 0.6; ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; ctx.stroke();
+    ctx.lineWidth = r.ol * 0.6; ctx.strokeStyle = FIXED.whiskers; ctx.stroke();
   }
 
   // ---- Effects (sound, sleep, weather on the fur) ------------------------------------------------
@@ -1056,7 +1080,7 @@
         ctx.beginPath(); ctx.arc(P[0], P[1], rad, dir - 0.7, dir + 0.7);
         ctx.globalAlpha = r.calling * (1 - u);
         ctx.lineWidth = ol * 2.6; ctx.strokeStyle = pal.line; ctx.stroke();
-        ctx.lineWidth = ol * 1.2; ctx.strokeStyle = '#fff6d8'; ctx.stroke();
+        ctx.lineWidth = ol * 1.2; ctx.strokeStyle = FIXED.callArcs; ctx.stroke();
       }
       ctx.globalAlpha = 1;
     }
@@ -1071,7 +1095,7 @@
         ctx.beginPath(); ctx.moveTo(-s, -s); ctx.lineTo(s, -s); ctx.lineTo(-s, s); ctx.lineTo(s, s);
         ctx.globalAlpha = Math.sin(u * PI) * 0.95;
         ctx.lineWidth = ol * 2.8; ctx.strokeStyle = pal.line; ctx.stroke();
-        ctx.lineWidth = ol * 1.3; ctx.strokeStyle = '#eaf2ff'; ctx.stroke();
+        ctx.lineWidth = ol * 1.3; ctx.strokeStyle = FIXED.sleepZ; ctx.stroke();
         ctx.restore();
       }
     }
@@ -1096,7 +1120,7 @@
       const u = (t * 0.7 + e.phase) % 1;
       headPoint(r, -R * 0.62, -R * 0.35 + u * R * 0.5, P);
       ctx.globalAlpha = (r.hot - 0.3) * 1.4 * Math.sin(u * PI);
-      drop(ctx, P[0], P[1], R * 0.13, '#bfeaff', pal.line, ol);
+      drop(ctx, P[0], P[1], R * 0.13, FIXED.sweat, pal.line, ol);
       ctx.globalAlpha = 1;
     }
     if (r.cold > 0.3) {
@@ -1108,7 +1132,7 @@
         ctx.beginPath();
         const x = P[0] + u * R * 0.9, y = P[1] - u * R * 0.35, s = R * (0.1 + 0.18 * u);
         ctx.arc(x, y, s, 0, TAU); ctx.arc(x + s * 0.9, y - s * 0.3, s * 0.8, 0, TAU);
-        ctx.fillStyle = '#f4f8ff'; ctx.fill();
+        ctx.fillStyle = FIXED.breath; ctx.fill();
       }
       ctx.globalAlpha = 1;
     }
@@ -1126,7 +1150,7 @@
         ctx.moveTo(cx + Math.cos(a + 2.2) * s * 0.55, cy + Math.sin(a + 2.2) * s * 0.55);
         ctx.quadraticCurveTo(cx - Math.cos(a) * s * 0.35, cy - Math.sin(a) * s * 0.35, cx + Math.cos(a - 2.2) * s * 0.55, cy + Math.sin(a - 2.2) * s * 0.55);
       }
-      ctx.lineWidth = ol * 1.4; ctx.strokeStyle = '#e8364f'; ctx.stroke();
+      ctx.lineWidth = ol * 1.4; ctx.strokeStyle = FIXED.angerMark; ctx.stroke();
       ctx.restore();
     }
   }
@@ -1160,7 +1184,7 @@
         return radial([0, c(0.8), 0.45, c(0.32), 1, c(0)]);
       };
       g = {
-        shadow: radial([0, 'rgba(0, 0, 0, 0.32)', 0.6, 'rgba(0, 0, 0, 0.2)', 1, 'rgba(0, 0, 0, 0)']),
+        shadow: radial([0, FIXED.shadowMiddle, 0.6, FIXED.shadowRing, 1, FIXED.shadowEdge]),
         female: glow('--female'), male: glow('--male')
       };
       shared.set(ctx, g);

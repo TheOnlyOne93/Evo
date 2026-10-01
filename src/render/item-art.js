@@ -7,7 +7,7 @@
   'use strict';
   const { TAU } = Evo.util;
   const { circle } = Evo.Paint;
-  const { rgb, rgba, scale, mix: tint } = Evo.color;
+  const { rgb, rgba, scale, mix: tint, hslRgb } = Evo.color;
 
   // Outlines and strokes scale with the item's radius r (k per unit of radius) but stay at least
   // MIN_LINE wide, or a site's own floor
@@ -262,13 +262,6 @@
     g.stroke();
     g.fillStyle = c.lureLight;
     g.beginPath(); g.ellipse(-r * 0.28, -r * 0.2, r * 0.18, r * 0.32, 0.3, 0, TAU); g.fill();
-  }
-
-  // hsl (degrees, 0..1, 0..1) -> [r, g, b]
-  function hslRgb(h, sat, l) {
-    const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
-    const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
-    return [f(0), f(8), f(4)];
   }
 
   // Carrion colours: the --carrion grey, faintly tinted by the coat of whoever it was

@@ -34,12 +34,30 @@
     out[2] = a[2] + (b[2] - a[2]) * t;
     return out;
   }
+
+  // hsl (hue in degrees, saturation and lightness 0..1) -> [r, g, b]
+  function hslRgb(h, sat, l) {
+    const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
+    const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+    return [f(0), f(8), f(4)];
+  }
+
+  // [r, g, b] (0..255) -> its hue in degrees, 0 for a grey
+  function hue(c) {
+    const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+    const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+    const h = !d ? 0 : max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  }
+
   Evo.color = {
     rgb: c => 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')',
     rgba: (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')',
     mix: (a, b, t) => mixInto([0, 0, 0], a, b, t),
     mixInto,
     scale: (c, k) => [Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)],
+    hslRgb,
+    hue,
   };
 
   // The dark edge under a light stroke (the focus ring, attention brackets), so it shows on any ground
