@@ -51,7 +51,7 @@ world.events                         // an Evo.EventBus (below)
 world.setTime(day, phase)            // jump the clock (the world lab, tests, the season skip)
 ```
 
-Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE`, `Evo.CREATURE.CALL_TICKS` and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
+Constants renderers share with the simulation: `Evo.WORLD.HOLD_GRIP` (a creature in the hand hangs with its feet `HOLD_GRIP × size` below it), `Evo.WORLD.SOUND_LIFE`, `Evo.muscles.CALL_TICKS` and `Evo.CREATURE.WALK_PHASE_PER_PX` (walk-cycle radians per px walked).
 
 ## Land, light and weather
 

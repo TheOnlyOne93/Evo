@@ -1,6 +1,6 @@
 # Creature
 
-A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** (`src/sim/body.js`, `Evo.Body`: the chemistry and everything inside the skin) and a **brain** ([BRAIN.md](BRAIN.md)). Two files join them: the senses (`src/sim/senses.js`) carry everything into the brain, and the muscles carry everything out. `src/sim/creature.js` (`Evo.Creature`) is the shell around them all: its name and family, its life stages, where it is and how it moves, its muscles, and the order of each tick. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)). The body reads the creature it belongs to (where it is, how hard its muscles work, how much its brain fired) but writes only its own state.
+A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** (`src/sim/body.js`, `Evo.Body`: the chemistry and everything inside the skin) and a **brain** ([BRAIN.md](BRAIN.md)). Two files join them: the senses (`src/sim/senses.js`) carry everything into the brain, and the muscles (`src/sim/muscles.js`) carry everything out. `src/sim/creature.js` (`Evo.Creature`) is the shell around them all: its name and family, its life stages, where it is and how it moves, what its mouth can reach, and the order of each tick. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)). The body reads the creature it belongs to (where it is, how hard its muscles work, how much its brain fired) but writes only its own state.
 
 ## What other code reads
 
@@ -56,7 +56,7 @@ Causes of death: `poison`, `old age`, `illness`, `starvation`, `dehydration`, `c
 
 | Body → brain (`src/sim/senses.js`) | Brain → body |
 |---|---|
-| Sight, smell, hearing, touch, taste, up close | Its muscle cells → actions (Act, below) |
+| Sight, smell, hearing, touch, taste, up close | Its muscle cells → actions (`src/sim/muscles.js`, Act below) |
 | Needs and Feelings cells, through receptor genes | Every spike costs ready energy (`body.js`) |
 | Reward and punishment it learns from | How fast each Feelings cell fires, which genes can read (`body.js` readings) |
 | Arousal, noise from toxin, energy to fire, sleep (`senses.fromBody`) | Dreams: an instinct gene puts its chemical into the body (`Brain.sleepStep`) |
@@ -81,7 +81,7 @@ Asleep, the brain dreams first. Then the brain ticks once, with what `Evo.senses
 
 ## Act
 
-The muscle cells that fired this tick act. A creature that is asleep or held does nothing.
+`Evo.muscles.act(creature, world)`: the muscle cells that fired this tick act. A creature that is asleep or held does nothing. How hard they worked (`exertion`) goes back to the body as running costs and heat; food and water go in through `body.ingest`, a sip being `Evo.BODY.sip`.
 
 | Muscle | What it does |
 |---|---|

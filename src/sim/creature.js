@@ -1,32 +1,27 @@
 // A creature: its genes, its body (body.js: the chemistry and everything inside the skin) and its
-// brain, living in the side-view world. The creature itself is the shell around them: its name and
-// family, its life stages, where it is and how it moves, and the order of each tick.
+// brain, living in the side-view world. The senses (senses.js) carry everything into the brain, and
+// the muscles (muscles.js) everything out. The creature itself is the shell around them: its name
+// and family, its life stages, where it is and how it moves, and the order of each tick.
 //
 // A tick is four phases, each run for every creature before the next (see World.step):
 //   body    the body takes its readings, its chemistry steps, and its workings follow (energy,
 //           water, heat, growth, healing, damage, sleep). The only phase where a creature dies.
-//   mind    the senses turn the settled world into neuron currents; the brain ticks (once per tick)
-//   act     the muscles that fired act: mouth, hands, calls
+//   mind    the senses turn the settled world and the body into neuron currents; the brain ticks
+//   act     the muscles that fired act: legs, mouth, calls
 //   settle  the creature moves, a carried item follows the mouth, and what the skin felt fades
 // A stimulus (stimulate) changes chemistry at once and is read by the next body phase.
 // Geometry: x = centre, y = feet on the ground, facing ±1; `size` is the body length in px.
 (function (Evo) {
   'use strict';
   const { STAGES, STAGE, MOTORS, STIMULUS } = Evo;
+  const { LYING_ABOVE } = Evo.muscles;
 
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
-  const CALL_TICKS = 40;            // A call lasts this long (callTimer counts down from it)
-  const CALLING_ABOVE = CALL_TICKS - 10; // Its action reads 'calling' while callTimer is above this (the call's first 10 ticks)
-  const REST_TICKS = 90;            // Each spike of the rest muscle keeps it resting this long (restTimer counts down from it)
-  const LYING_ABOVE = 30;           // It lies down while restTimer is above this (the rest's first 60 ticks)
-  const JUMP_COOLDOWN = 30;         // Ticks after a jump before the next
   const { SIGHT_CELLS } = Evo.BRAIN_BODY_PLAN;
   const { MORPHOGENESIS_EVERY } = Evo.BRAIN;
-  const MOTOR_INDEX = Object.fromEntries(MOTORS.map((m, i) => [m.key, i]));
-  // Timers that count down once a tick in act(). Not here: prickCooldown (World.prickCreatures) and heardCall (sense)
-  const ACT_TIMERS = ['mouthTimer', 'drinkTimer', 'jumpCooldown', 'grabCooldown', 'mateCooldown', 'callTimer', 'runTimer', 'restTimer', 'bumpCooldown'];
+
   // Pronounceable names of two syllables; children mix syllables from their parents' names
   const SYLLABLES = ['ka', 'mi', 'ro', 'lu', 'sa', 'vi', 'no', 'pip', 'bo', 'ki', 'ar', 'el', 'ju', 'zo', 'fen', 'wy', 'dru', 'ta', 'po', 'lin', 'ose', 'mar', 'tuk', 'bel', 'ren', 'ani', 'qui', 'da'];
   const capital = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -231,93 +226,9 @@
       item.vy = 0;
     }
 
-    // ---------- Muscles ----------
+    // The muscles that fired act (see muscles.js)
     act(world) {
-      const brain = this.brain, T = this.traits;
-      const m = this.lastMotors;
-      for (let k = 0; k < MOTORS.length; k++) m[k] = brain.hist[brain.lobes.motor[k]] & 1;
-      for (const timer of ACT_TIMERS) if (this[timer] > 0) this[timer]--;
-      if (this.body.asleep || this.held) {
-        this.exertion *= 0.95;
-        this.muscle.fill(0);
-        if (this.onGround) this.vx *= 0.8;
-        this.action = this.body.asleep ? 'sleeping' : 'held';
-        return;
-      }
-
-      const strength = this.body.strength;
-      let effort = 0;
-      // Muscles integrate their spike trains into a smooth force
-      const muscle = this.muscle;
-      for (let k = 0; k < muscle.length; k++) muscle[k] = muscle[k] * 0.88 + m[k] * 0.35;
-      // Walking: the left and right walk muscles pull against each other; the stronger one wins
-      const pull = muscle[MOTOR_INDEX.walkR] - muscle[MOTOR_INDEX.walkL];
-      const push = Math.abs(pull) > 0.08 ? Math.sign(pull) : 0;
-      if (m[MOTOR_INDEX.run]) this.runTimer = 20;
-      const running = this.runTimer > 0;
-      const maxSpeed = T.walkSpeed * (running ? T.runBoost : 1) * strength * (this.inWater ? 0.5 : 1) * (0.6 + 0.4 * this.body.growth);
-      const target = push * Math.min(1, Math.abs(pull) * 2) * maxSpeed;
-      if (push !== 0) {
-        this.facing = push;
-        if (Math.abs(pull) > 0.3) this.restTimer = 0;
-        effort += Math.abs(target) / T.walkSpeed * (running ? 0.9 : 0.5);
-      }
-      if (this.onGround) this.vx += (target - this.vx) * 0.25;
-      else this.vx += (target - this.vx) * 0.03;
-      // Jumping
-      if (m[MOTOR_INDEX.jump] && this.onGround && this.jumpCooldown === 0) {
-        this.vy = -T.jumpPower * Math.sqrt(strength) * (0.7 + 0.3 * this.body.growth);
-        this.onGround = false;
-        this.jumpCooldown = JUMP_COOLDOWN;
-        this.restTimer = 0;
-        effort += 1;
-      }
-      // Eating: the mouth opens and works on whatever is there. Drinking: the lips take a sip.
-      if (m[MOTOR_INDEX.eat]) {
-        this.mouthTimer = 12;
-        this.useMouth(world);
-      }
-      if (m[MOTOR_INDEX.drink] && this.waterAtMouth(world)) {
-        this.drinkTimer = 12;
-        this.body.ingest(Evo.BODY.sip);
-        this.stimulate('drank');
-        world.events.emit('drink', { creature: this });
-      }
-      // Grab or drop an item; with another creature at the mouth, a shove
-      if (m[MOTOR_INDEX.grab] && this.grabCooldown === 0) {
-        this.grabCooldown = 40;
-        if (this.carrying) world.dropCarried(this);
-        else {
-          const t = this.thingAtMouth(world);
-          if (t && t.kind === 'item' && !t.item.heldBy) world.pickUpItem(this, t.item);
-          else if (t && t.kind === 'creature') world.shove(this, t.creature);
-        }
-      }
-      // Resting: each spike of the rest muscle keeps the creature lying down for a while
-      if (m[MOTOR_INDEX.rest] && push === 0) this.restTimer = REST_TICKS; // move() brakes a resting body
-      // Calling
-      if (m[MOTOR_INDEX.call] && this.callTimer === 0) {
-        this.callTimer = CALL_TICKS;
-        world.makeSound(this);
-      }
-      this.exertion = this.exertion * 0.9 + Math.min(1, effort) * 0.1;
-      this.action = this.drinkTimer > 0 ? 'drinking' : this.mouthTimer > 0 ? 'eating' : this.restTimer > LYING_ABOVE ? 'resting' : this.callTimer > CALLING_ABOVE ? 'calling'
-        : !this.onGround ? 'jumping' : Math.abs(this.vx) > 0.25 ? (running ? 'running' : 'walking') : 'idle';
-    }
-
-    useMouth(world) {
-      const t = this.thingAtMouth(world);
-      if (!t) return;
-      if (t.kind === 'item') {
-        const food = world.foodOf(t.item);
-        if (food) {
-          this.body.ingest(food);
-          this.stimulate('ate');
-          world.consumeItem(this, t.item, food);
-        }
-      } else if (t.kind === 'creature') {
-        world.nuzzle(this, t.creature);
-      }
+      Evo.muscles.act(this, world);
     }
 
     // ---------- Physics ----------
@@ -408,5 +319,5 @@
     }
   }
 
-  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, WALK_PHASE_PER_PX, CALL_TICKS, LYING_ABOVE, JUMP_COOLDOWN } });
+  Object.assign(Evo, { Creature, CREATURE: { GRAVITY, WALK_PHASE_PER_PX } });
 })(globalThis.Evo);

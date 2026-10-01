@@ -9,7 +9,7 @@
   const smooth = new WeakMap();
   // Gestures, in ticks: the mouth is open for the first half of a call; a yawn or a lick of the
   // lips lasts `len` every `period` while its cause lasts, each creature on its own beat (`salt`)
-  const CALL_HALF = Evo.CREATURE.CALL_TICKS / 2;
+  const CALL_HALF = Evo.muscles.CALL_TICKS / 2;
   const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
