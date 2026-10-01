@@ -11,6 +11,7 @@
   // lips lasts `len` every `period` while its cause lasts, each creature on its own beat (`salt`)
   const CALL_HALF = Evo.muscles.CALL_TICKS / 2;
   const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
+  const HEAD_DOWN_RATE = 0.35;   // per tick: the head goes down to eat or drink, and back up, in about 5 ticks
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
   // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
@@ -133,7 +134,8 @@
       looks: Evo.looksOf(c),
       motion: {
         vx: c.vx, airborne: !c.onGround && !c.held, walkPhase: c.walkPhase,
-        lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08)
+        lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08),
+        headDown: ease(s, 'down', mouth > 0 ? 1 : 0, HEAD_DOWN_RATE)
       },
       face: {
         eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
@@ -147,7 +149,7 @@
         yawn, lick
       },
       state: {
-        asleep: c.body.asleep, held: c.held, dead: c.dead, eating: mouth > 0, // Eating or drinking: the mouth is at work
+        asleep: c.body.asleep, held: c.held, dead: c.dead,
         calling: clamp01((c.callTimer - CALL_HALF) / CALL_HALF), flinch: c.body.stim.flinch,
         fear: get('fear'), anger: get('anger'), pain: get('pain'), sick: clamp01(get('nausea') + get('toxin')),
         cold: get('coldness'), hot: get('hotness'),

@@ -23,6 +23,7 @@
   const GROUND_AT = 0.72;               // where the ground line sits on screen (fraction of height)
   const SKY_ROOM = 420;                 // world px of scenery kept visible above the ground by default
   const MOUTH = [0, 0];                 // scratch: a drawn mouth's position
+  const GHOST_TICKS = 6;                // a just-eaten item takes this many ticks to slide into the mouth
   const LEVELS = [1, 1.5, 2, 3, 4];     // sprite resolutions, in device px per world px (4: a phone at 3 device px per CSS px, zoomed in)
   const NL = LEVELS.length;
   const TILE = 256;                     // terrain tile size (world px)
@@ -91,6 +92,8 @@
       };
       this.weather = new Evo.Weather();
       this.cues = new Evo.CreatureCues();
+      this.ghosts = [];                  // just-eaten items on their way into the mouth: { item, creature, tick }
+      this._offEat = null;
       this.setWorld(world);
       this.resize();
     }
@@ -103,6 +106,12 @@
       this._dropCaches();
       this.camReady = false;
       this.weather.clear();
+      if (this._offEat) this._offEat();
+      this.ghosts.length = 0;
+      this._offEat = world ? world.events.on('eat', ({ creature, item }) => {
+        this.ghosts.push({ item, creature, tick: world.clock.tick });
+        if (this.ghosts.length > 8) this.ghosts.shift();
+      }) : null;
       if (world) this._sync();
     }
 
@@ -463,6 +472,7 @@
       this._drawItems(g, t, false);
       this._drawCreatures(g, t);
       this._drawItems(g, t, true);
+      this._drawGhosts(g, t);
       Evo.Water.draw(g, this, t);
       this._drawFeatures(g, t, true);
       this.weather.update(this, dt, t);
@@ -779,6 +789,24 @@
       Evo.ItemArt.draw(g, it, t, 0);
       g.restore();
       return true;
+    }
+
+    // A just-eaten item slides from where it lay into the drawn mouth, shrinking, over GHOST_TICKS
+    // (counted in world ticks, so it waits while the world is paused)
+    _drawGhosts(g, t) {
+      const tick = this.world.clock.tick, cs = this.world.creatures;
+      for (let k = this.ghosts.length - 1; k >= 0; k--) {
+        const gh = this.ghosts[k], u = (tick - gh.tick) / GHOST_TICKS, i = cs.indexOf(gh.creature);
+        if (u >= 1 || u < 0 || i < 0 || !this.poses[i] || this.artBroken) { this.ghosts.splice(k, 1); continue; }
+        Evo.CreatureArt.mouthAt(this.poses[i], t, MOUTH);
+        const it = gh.item, cy = Evo.ItemArt.centerY(it), e = u * u * (3 - 2 * u), s = 1 - 0.8 * e;
+        g.save();
+        g.translate(it.x + (MOUTH[0] - it.x) * e, cy + (MOUTH[1] - cy) * e);
+        g.scale(s, s);
+        g.translate(-it.x, -cy);
+        Evo.ItemArt.draw(g, it, t, 0);
+        g.restore();
+      }
     }
 
     // >= 0 when an item rests on a pond's surface (how far above the bed), else -1

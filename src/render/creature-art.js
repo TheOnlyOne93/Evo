@@ -211,7 +211,7 @@
     const flinch = clamp01(num(S.flinch, 0)) * live, calling = asleep ? 0 : clamp01(num(S.calling, 0)) * live;
     const awake = asleep ? 0 : live, pain = clamp01(num(S.pain, 0)) * awake;
     const joy = clamp01(num(F.happy, 0)) * awake, yawn = clamp01(num(F.yawn, 0)) * awake;
-    const eat = S.eating && !dead && !held && !asleep ? 1 : 0;
+    const eat = dead || held || asleep ? 0 : clamp01(num(M.headDown, 0));   // 0..1: how far the head is down to eat or drink
     const air = M.airborne && !held && !dead ? 1 : 0;
     const lying = dead ? 1 : held || air ? 0 : clamp01(num(M.lying, asleep ? 1 : 0));
     const stand = 1 - lying;
@@ -330,17 +330,18 @@
     let hAng = Math.sin(t * 0.6 * tempo + ph0 * 2) * 0.035 * live + 0.08 * senile + 0.05 * sick;
     hy -= 2.4 * calling; hAng -= 0.42 * calling + 0.3 * yawn;
     hx -= 2 * flinch + 1.2 * fear; hy += 1.2 * flinch + 1.6 * fear; hAng -= 0.2 * flinch;
-    if (eat) {
-      const chew = Math.sin(t * 9), lap = 0.6 * Math.max(0, chew);
-      hx = lerp(hx, bx + rxF + R * 0.25, 0.85);
-      hy = lerp(hy, -R * 0.88 - lap, 0.85);
-      hAng += 0.22 + 0.04 * chew;
+    if (eat > 0) {
+      const chew = Math.sin(t * 9), lap = 0.6 * Math.max(0, chew), tip = 0.22 + 0.04 * chew;
+      // Where the head goes to eat: down to the ground, or, drinking, until the lips touch the water
+      // (down a bank or just a dip of the chin when floating)
+      let down = lerp(hy, -R * 0.88 - lap, 0.85);
       if (typeof pose.waterY === 'number') {
-        // Drinking: the lips go to the water's surface, down a bank or just a dip of the chin when
-        // floating
-        const lips = R * (MOUTH_X * Math.sin(hAng) + MOUTH_Y * Math.cos(hAng));
-        hy = Math.min((pose.waterY - pose.y) / r.k - lips - lap, hy + R * DRINK_REACH);
+        const lips = R * (MOUTH_X * Math.sin(hAng + tip) + MOUTH_Y * Math.cos(hAng + tip));
+        down = Math.min((pose.waterY - pose.y) / r.k - lips - lap, down + R * DRINK_REACH);
       }
+      hx = lerp(hx, bx + rxF + R * 0.25, 0.85 * eat);
+      hy = lerp(hy, down, eat);
+      hAng += tip * eat;
     }
     if (lying > 0) {
       const lhx = bx + rxF * 0.9 + R * (dead ? 0.45 : 0.18), lhy = -R * (dead ? 0.86 : 0.93);
@@ -386,7 +387,7 @@
     // Mouth and face
     r.smile = clamp(smile - 0.4 * sick - 0.3 * fear - 0.5 * anger - 0.3 * cold, -1, 1);
     const pant = hot > 0.25 ? (0.35 + 0.15 * Math.sin(t * TAU * 3)) * hot : 0;
-    const chewOpen = eat ? 0.12 + 0.38 * Math.max(0, Math.sin(t * 9)) : 0;
+    const chewOpen = eat * (0.12 + 0.38 * Math.max(0, Math.sin(t * 9)));
     r.mouthOpen = dead ? 0.22 : clamp01(Math.max(num(F.mouthOpen, 0), calling * 0.85, pant, chewOpen, fear * 0.2));
     r.tongue = dead ? 0.6 : hot > 0.25 ? hot : 0;
     r.fang = anger > 0.35 ? anger : 0;
@@ -1319,7 +1320,7 @@
       pupilX: lerp(-0.45, lookX, glance), pupilY: lerp(0.05, num(F.pupilY, 0), glance),
     };
     return {
-      still: { ...base, motion, face, state: { ...S, held: false, eating: false }, focused: false, hovered: false },
+      still: { ...base, motion, face, state: { ...S, held: false }, focused: false, hovered: false },
       // The framing comes from the calm pose alone, so a call or a flinch doesn't zoom the card
       calm: { ...base, motion, face: EMPTY, state: { dead: !!S.dead, asleep: !!S.asleep, pregnant: S.pregnant } },
     };

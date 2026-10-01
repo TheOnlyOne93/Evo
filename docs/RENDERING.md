@@ -47,7 +47,8 @@ pose = {
     vx,                     // px per tick, signed
     airborne,               // true while jumping or falling
     walkPhase,              // radians; advances with distance walked (Evo.CREATURE.WALK_PHASE_PER_PX)
-    lying                   // 0..1 (1 = lying down: resting or asleep)
+    lying,                  // 0..1 (1 = lying down: resting or asleep)
+    headDown                // 0..1, eased: the head is down while the mouth works (eating or drinking)
   },
   face: {
     eyesClosed,             // 0..1
@@ -61,7 +62,7 @@ pose = {
     yawn, lick              // 0..1 (brief gestures: sleepy or tired; hungry for any food or thirsty)
   },
   state: {
-    asleep, held, dead, eating,   // eating: the mouth is at work (eating or drinking)
+    asleep, held, dead,
     calling,                // 0..1 (show a call)
     flinch,                 // 0..1 (just hurt)
     fear, anger, pain, sick, cold, hot, wet, pregnant,   // 0..1
@@ -126,7 +127,7 @@ What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nea
 
 1. Sync the terrain, move the camera, update the sky palette, and pose the visible creatures.
 2. The parallax backdrop, terrain tiles, then back features (trees, the log and rock, thorn bushes, grass).
-3. Shadows, loose items, creatures (the focused one last), held items, water, reeds. An item in a creature's mouth is drawn at `mouthAt`, which moves with the head, keeping the offset at which the simulation hangs it from its own fixed mouth point; the simulation's point still decides where it is picked at and dropped.
+3. Shadows, loose items, creatures (the focused one last), held items, water, reeds. An item in a creature's mouth is drawn at `mouthAt`, which moves with the head, keeping the offset at which the simulation hangs it from its own fixed mouth point; the simulation's point still decides where it is picked at and dropped. A just-eaten item (from the world's eat event) slides from where it lay into the drawn mouth, shrinking, over 6 ticks.
 4. Weather, then the day-night light tint over everything drawn so far.
 5. The sky behind it all (drawn beneath): gradient, stars, sun, moon, clouds.
 6. Glows (the warm rock, lures, ripe eggs, fireflies, water glints) and the vignette.

@@ -21,15 +21,32 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   assert.ok(pose.looks.pattern >= 0 && pose.looks.pattern <= 3, 'pattern in 0..3');
   ['patternScale', 'earSize', 'tailLength', 'eyeSize', 'plumpness', 'legLength', 'crest'].forEach(k => unit(pose.looks, k));
 
-  num(pose.motion, 'vx'); bool(pose.motion, 'airborne'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying');
+  num(pose.motion, 'vx'); bool(pose.motion, 'airborne'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying'); unit(pose.motion, 'headDown');
 
   ['eyesClosed', 'mouthOpen', 'earDroop', 'blush', 'happy', 'worry', 'yawn', 'lick'].forEach(k => unit(pose.face, k));
   ['pupilX', 'pupilY', 'smile'].forEach(k => { num(pose.face, k); assert.ok(pose.face[k] >= -1 && pose.face[k] <= 1, k + ' in -1..1'); });
 
-  ['asleep', 'held', 'dead', 'eating', 'inHeat'].forEach(k => bool(pose.state, k));
+  ['asleep', 'held', 'dead', 'inHeat'].forEach(k => bool(pose.state, k));
   ['calling', 'flinch', 'fear', 'anger', 'pain', 'sick', 'cold', 'hot', 'wet', 'pregnant'].forEach(k => unit(pose.state, k));
 
   assert.strictEqual(typeof pose.focused, 'boolean');
   assert.strictEqual(typeof pose.hovered, 'boolean');
   assert.strictEqual(Evo.poseOf(c, { focused: true }).focused, true);
+});
+
+test('render: the head eases down while the mouth works, and back up', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  // poseOf eases by the world ticks since its last call, so the clock is moved on by hand
+  const headDownAfter = ticks => { world.clock.tick += ticks; return Evo.poseOf(c, { world }).motion.headDown; };
+  c.mouthTimer = 0; c.drinkTimer = 0;
+  assert.strictEqual(headDownAfter(0), 0, 'the head is up while the mouth is idle');
+  c.mouthTimer = Evo.muscles.MOUTH_TICKS;
+  const first = headDownAfter(1);
+  assert.ok(first > 0 && first < 1, `one tick into a bite the head is part way down (got ${first})`);
+  const later = headDownAfter(10);
+  assert.ok(later > 0.9, `ten ticks on the head is nearly all the way down (got ${later})`);
+  c.mouthTimer = 0;
+  const after = headDownAfter(1);
+  assert.ok(after > 0 && after < 1, `one tick after the bite the head is part way back up (got ${after})`);
 });
