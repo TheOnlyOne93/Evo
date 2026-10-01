@@ -317,7 +317,7 @@
     // Body and head as one lumpy outline
     g.beginPath();
     g.ellipse(-r * 0.15, r * 0.3, r * 1.0, r * 0.6, -0.06, 0, TAU);
-    g.moveTo(r * 1.23, r * 0.42);
+    g.moveTo(r * 1.232, r * 0.503);   // where the head's tilted ellipse starts, so no stray spike
     g.ellipse(r * 0.82, r * 0.42, r * 0.42, r * 0.38, 0.2, 0, TAU);
     g.fillStyle = s.body;
     g.fill();
@@ -340,14 +340,21 @@
       g.moveTo(x, r * 0.05); g.lineTo(x + r * 0.12, r * 0.28);
     }
     g.stroke();
-    // Flies circling above
+    // Two flies buzzing close over the body: a dark dot under a pair of beating wings, each wing
+    // pale with a thin dark edge so it shows against the sky
+    g.lineWidth = lineW(r, 0.02, 0.3);
+    g.strokeStyle = 'rgba(40,40,52,0.55)';
     for (let k = 0; k < 2; k++) {
       const a = t * (3.2 + k) + id + k * 2;
-      const fx = Math.cos(a) * r * (1.0 + k * 0.4), fy = -r * (1.1 + k * 0.5) + Math.sin(a * 1.7) * r * 0.35;
-      g.fillStyle = 'rgba(220,230,240,0.65)';
-      g.beginPath(); g.ellipse(fx, fy - r * 0.1, r * 0.13, r * 0.06, Math.sin(t * 40 + k) * 0.6, 0, TAU); g.fill();
+      const fx = Math.cos(a) * r * (0.7 + k * 0.3), fy = -r * (0.6 + k * 0.25) + Math.sin(a * 1.7) * r * 0.2;
+      const flap = Math.sin(t * 40 + k * 1.3) * 0.5;
       g.fillStyle = '#2a2a30';
-      g.beginPath(); g.arc(fx, fy, Math.max(0.5, r * 0.09), 0, TAU); g.fill();
+      g.beginPath(); g.arc(fx, fy, Math.max(0.5, r * 0.075), 0, TAU); g.fill();
+      g.fillStyle = 'rgba(240,246,255,0.85)';
+      for (let s = -1; s <= 1; s += 2) {
+        g.beginPath(); g.ellipse(fx + s * r * 0.06, fy - r * 0.07, r * 0.11, r * 0.05, -s * (0.6 + flap), 0, TAU);
+        g.fill(); g.stroke();
+      }
     }
   }
 
