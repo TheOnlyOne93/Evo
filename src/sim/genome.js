@@ -203,9 +203,10 @@
     // What a kind of cell is like when nothing drives it. rest: the share of ticks a cell of this
     // region fires on its own, which its balancing aims for (0.001 to about 0.3, on a log scale).
     // twitch: how many mV easier to fire a quiet cell may become (0 to 16). The last gene for a
-    // region wins.
-    { name: 'Cell type', group: 'brain', fields: [['lobe', CODEC.lobe], u('rest'), u('twitch')],
-      express(v, d) { d.add('cellTypes', { lobeIdx: v.lobe, restingRate: 10 ** (-3 + 2.5 * v.rest), thrDrop: v.twitch * 16 }); },
+    // region wins. learns: how much the connections onto these cells change in life (0 to 1): 0 keeps
+    // them as the genes grew them, like a brainstem's hard-wired reflex circuits.
+    { name: 'Cell type', group: 'brain', fields: [['lobe', CODEC.lobe], u('rest'), u('twitch'), u('learns')],
+      express(v, d) { d.add('cellTypes', { lobeIdx: v.lobe, restingRate: 10 ** (-3 + 2.5 * v.rest), thrDrop: v.twitch * 16, learns: v.learns }); },
       birthOnly: true }
   ];
   GENES.forEach(g => { g.payload = g.fields.length; });

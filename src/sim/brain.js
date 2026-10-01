@@ -287,6 +287,7 @@
       this.v = f32(); this.vShow = f32(); this.thr = f32(); this.thrBase = f32(); this.tau = f32();
       this.bias = f32(); this.adapt = f32(); this.adaptInc = f32(); this.adaptKeep = f32(); this.rate = f32(); this.targetRate = f32();
       this.thrDrop = f32(); // How far homeostasis may lower each threshold
+      this.learns = f32().fill(1); // How much the connections onto each cell change in life (see the Cell type gene)
       this.lateralI = f32(); this.vFired = f32();
       this.posX = f32(); this.posY = f32();
       this.refr = new Uint8Array(N); this.refrPeriod = new Uint8Array(N);
@@ -350,13 +351,15 @@
       this.modulatorCells = this.lobes.feelings.slice(0, N_MOD);
       this.modulatorCells.forEach((i, c) => { this.modulator[i] = c; this.homeo[i] = 0; this.adaptInc[i] = NEURON.modulatorAdaptInc; });
 
-      // Cell type genes: what each kind of cell rests at, and how much easier to fire it may get when
-      // quiet (several genes for one region: the last one wins). Sensory cells have no balancing.
+      // Cell type genes: what each kind of cell rests at, how much easier to fire it may get when
+      // quiet, and how much its incoming connections change in life (several genes for one region: the
+      // last one wins). Sensory cells have no balancing.
       for (const e of T.cellTypes) {
         for (const i of this.lobes[LOBE_ORDER[e.lobeIdx]]) {
           if (this.isSensory[i]) continue;
           this.targetRate[i] = e.restingRate;
           this.thrDrop[i] = e.thrDrop;
+          this.learns[i] = e.learns;
         }
       }
 
@@ -658,7 +661,7 @@
         if (!spiked && rate[si] <= SPROUT.minRate) continue;
         for (let di = 0; di < N; di++) {
           const depol = vShow[di] - V_REST;
-          if (depol <= T.sproutingThreshold || isSensory[di] || di === si) continue;
+          if (depol <= T.sproutingThreshold || isSensory[di] || di === si || this.learns[di] === 0) continue;
           const dx = posX[si] - posX[di], dy = posY[si] - posY[di], d2 = dx * dx + dy * dy;
           if (d2 > SPROUT.maxDist2) continue;
           const affinity = depol * (spiked ? SPROUT.spikedAffinity : SPROUT.affinity) * Math.exp(-d2 / SPROUT.spread);
@@ -679,12 +682,14 @@
     // as it can go has its excitatory inputs scaled down; one that has fallen silent, scaled up.
     // This keeps learning from running away into seizures or silence.
     scaleSynapses() {
-      const { sDst, sW, rate, targetRate, thr, thrBase, isSensory, modulator } = this;
+      const { sDst, sW, rate, targetRate, thr, thrBase, isSensory, modulator, learns } = this;
       for (let s = 0; s < this.S; s++) {
         const d = sDst[s];
-        if (isSensory[d] || modulator[d] >= 0 || sW[s] <= 0) continue;
-        if (rate[d] > targetRate[d] * SCALING.overBy + SCALING.overMargin && thr[d] >= thrBase[d] + THR_AT_CEILING) sW[s] *= SCALING.down;
-        else if (rate[d] < targetRate[d] * SCALING.underBy && sW[s] < SCALING.upBelow) sW[s] *= SCALING.up;
+        if (isSensory[d] || modulator[d] >= 0 || sW[s] <= 0 || learns[d] === 0) continue;
+        // A cell that learns only a little gets only that share of each step
+        const share = learns[d];
+        if (rate[d] > targetRate[d] * SCALING.overBy + SCALING.overMargin && thr[d] >= thrBase[d] + THR_AT_CEILING) sW[s] *= 1 + (SCALING.down - 1) * share;
+        else if (rate[d] < targetRate[d] * SCALING.underBy && sW[s] < SCALING.upBelow) sW[s] *= 1 + (SCALING.up - 1) * share;
       }
     }
 
@@ -829,7 +834,7 @@
 
     learn() {
       const T = this.traits;
-      const { hist, field, sSrc, sW, sDelay, sElig, sEligAt, sCue, sX, sActive, sFlags, N } = this;
+      const { hist, field, sSrc, sDst, sW, sDelay, sElig, sEligAt, sCue, sX, sActive, sFlags, learns, N } = this;
       const now = this.tickCount;
 
       // 1. Reward prediction errors. Each modulator channel's value V is what its value synapses
@@ -864,7 +869,7 @@
         for (let k = 0; k < list.length; k++) {
           const s = list[k];
           // Plain (not soft-bounded) steps: TD needs increases and decreases to weigh the same
-          if (d !== 0 && sCue[s] > 1e-4) sW[s] = hardBounded(sW[s], VALUE_RATE * d * sCue[s], sFlags[s] & INHIBITORY);
+          if (d !== 0 && sCue[s] > 1e-4) sW[s] = hardBounded(sW[s], VALUE_RATE * d * sCue[s] * learns[sDst[s]], sFlags[s] & INHIBITORY);
           sCue[s] = sCue[s] * lambda + (1 - lambda) * sX[s]; // A running average of the input
         }
         // A positive error makes the modulator cell fire (on the next tick)
@@ -902,14 +907,15 @@
       for (let i = 0; i < N; i++) {
         const m = sumR * FR[i] - sumP * FP[i];
         if (m > 0) imgR[cell[i]] += m; else imgP[cell[i]] -= m;
-        if (m > -1e-4 && m < 1e-4) continue;
+        if ((m > -1e-4 && m < 1e-4) || learns[i] === 0) continue;
+        const step = eta * m * learns[i];
         for (let k = inStart[i], end = inStart[i + 1]; k < end; k++) {
           const s = inList[k];
           if (sElig[s] === 0) continue;
           const age = now - sEligAt[s];
           if (age >= TRACE_HORIZON) { sElig[s] = 0; continue; }
           const e = sElig[s] * decayPow[age];
-          if (e > 1e-3) sW[s] = softBounded(sW[s], eta * m * e, sFlags[s] & INHIBITORY);
+          if (e > 1e-3) sW[s] = softBounded(sW[s], step * e, sFlags[s] & INHIBITORY);
         }
       }
     }

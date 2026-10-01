@@ -189,7 +189,7 @@
     { key: 'feelings', word: 'Feelings',     color: '#10b981', box: [0.41, 0.63, 0.59, 0.68], grid: [4, 2] },
     { key: 'attention', word: 'Attention',   color: '#22d3ee', box: [0.16, 0.26, 0.47, 0.30], sided: true, grid: [8, 1] },
     { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell', box: [0.08, 0.34, 0.45, 0.48], sided: true, grid: [5, 3] },
-    { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell', box: [0.03, 0.53, 0.20, 0.67], sided: true, grid: [3, 4] },
+    { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell', box: [0.03, 0.53, 0.20, 0.67], sided: true, grid: [2, 4] },
     { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell', box: [0.39, 0.52, 0.61, 0.61], grid: [5, 4] },
     { key: 'motor',    word: 'Movement',     color: '#34d399', box: [0.06, 0.955, 0.94, 0.99] },
     { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell', box: [0.10, 0.885, 0.90, 0.925], grid: [9, 2] }

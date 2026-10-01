@@ -37,7 +37,7 @@ Each row of `Evo.GENES` decodes its payload bytes (`fields`, one codec per byte)
 | | Pacemaker | A steady current into a region |
 | | Neurochemistry | How far a modulator's learning signal spreads (reward or punishment) |
 | | Lobe dynamics | Competition and persistence within a region |
-| | Cell type | A region's resting activity (the firing its balancing aims for) and how much easier to fire a quiet cell may become |
+| | Cell type | A region's resting activity (the firing its balancing aims for), how much easier to fire a quiet cell may become, and how much the connections onto its cells change in life (0: hard-wired) |
 | chemistry | Reaction, Emitter, Receptor, Half-life, Initial concentration, Stimulus | See [BIOCHEMISTRY.md](BIOCHEMISTRY.md) |
 | instinct | Instinct | Two input cells, a muscle, and a chemical with an amount: replayed in dreams ([BRAIN.md](BRAIN.md)) |
 
@@ -69,7 +69,7 @@ The bytes between genes are filler: four at the start and three after each gene.
 | File | What it holds |
 |---|---|
 | `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `wire`, `instinct`, and the spot helpers `muscleSpot`, `driveSpot`, `colourSpot`, `odourSpot`, `touchSpot`, `feelingSpot`, which read the brain map), `Evo.FOUNDERS`, and `Evo.founderBody(sex)`: one each of the 13 trait genes, with that sex's looks and voice |
-| `founder-brain.js` | 91 genes: 84 tracts, a pacemaker, three Lobe dynamics genes and three Cell type genes ([BRAIN.md](BRAIN.md)) |
+| `founder-brain.js` | 115 genes: 107 tracts, a pacemaker, four Lobe dynamics genes and three Cell type genes ([BRAIN.md](BRAIN.md)) |
 | `founder-chem.js` | 188 genes: metabolism, drives, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)); it also puts the three lists together into `Evo.FOUNDER_GENOMES` |
 
 The founder has no Anatomy or Neurochemistry gene. All its genes are on from birth except four for adolescence and two for old age.

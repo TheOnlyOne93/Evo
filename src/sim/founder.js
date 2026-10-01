@@ -57,10 +57,15 @@
   const driveSpot = key => gridSpot('needs', driveCell(key));
   const touchSpot = key => Evo.TOUCH[TOUCH[key]].spot;
   const feelingSpot = k => gridSpot('feelings', k);
+  // The Brainstem's action cells sit in its front row, just above the muscle with the same left-right spot
+  const stemSpot = key => [muscleSpot(key)[0], 0.25];
+  // The Side lobes' "where is it" cells: row 0..3 is seen, smelled, heard, attended or remembered (front
+  // to back); the outer column is "go toward it" and the inner one "go away from it"
+  const sideSpot = (row, away) => [away ? 0.75 : 0.25, (row + 0.5) / 4];
 
   Evo.founderKit = {
     reaction, emitter, receptor, stimulus, halfLife, initial, wire, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, driveCell, driveTarget,
-    sight, smell, TOUCH, muscleSpot, driveSpot, colourSpot, odourSpot, touchSpot, feelingSpot
+    sight, smell, TOUCH, muscleSpot, driveSpot, colourSpot, odourSpot, touchSpot, feelingSpot, stemSpot, sideSpot
   };
 
   // What sets the first female and the first male apart: their looks, their voice and the syllables of

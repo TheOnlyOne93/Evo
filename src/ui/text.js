@@ -253,7 +253,7 @@
       const { compete, persist } = dynamicsWords(x);
       return `${w.lobe(x.lobeIdx)}: cells compete ${compete}, and one that fires keeps going ${persist} (about ${duration(1 / (1 - x.keep))})`;
     },
-    'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity; when quiet they get ${x.thrDrop < 4 ? 'a little' : x.thrDrop < 10 ? 'somewhat' : 'much'} easier to set off`,
+    'Cell type': (v, x, w) => `${w.lobe(x.lobeIdx)} cells rest at ${Number((x.restingRate * 100).toPrecision(2))}% activity; when quiet they get ${x.thrDrop < 4 ? 'a little' : x.thrDrop < 10 ? 'somewhat' : 'much'} easier to set off; their connections ${x.learns === 0 ? 'never change' : x.learns < 0.5 ? 'change a little' : 'change'} with experience`,
     Pacemaker: (v, x, w) => `${w.lobe(x.lobeIdx)} cells fire on their own ${level(x.bias, 0, 3, ['now and then', 'often', 'a lot'])}`,
     Neurochemistry: (v, x, w) => `${Evo.NEUROCHEMS.find(n => n.key === x.neurochem).word} chemical spreads ${w.percent(x.spread)}`,
     'Axon guidance'(v, x, w, brain) {

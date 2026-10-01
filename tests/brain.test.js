@@ -55,6 +55,31 @@ test('brain: weights stay inside their limits under relentless reward and punish
   checkWiring(brain, assert);
 });
 
+test("brain: a Cell type gene with learns 0 keeps its region's incoming connections fixed", (Evo, assert) => {
+  const brain = founderBrain(Evo);
+  const onto = lobe => {
+    const into = new Set(brain.lobes[lobe]), out = new Map();
+    for (let s = 0; s < brain.S; s++) if (into.has(brain.sDst[s])) out.set(`${brain.sSrc[s]}>${brain.sDst[s]}`, brain.sW[s]);
+    return out;
+  };
+  const stemBefore = onto('stem'), thinkingBefore = onto('cortex');
+  assert.ok(stemBefore.size > 0, 'connections reach the Brainstem');
+  const input = new Float32Array(brain.N);
+  for (let t = 0; t < 1500; t++) {
+    // Every sense and drive busy, so the Brainstem cells and their sources fire, with pulsing reward then punishment
+    for (let i = 0; i < brain.N; i++) input[i] = brain.isSensory[i] ? 25 * Evo.random() : 0;
+    const pulse = t % 40 < 10 ? 1 : 0;
+    brain.outcome[0] = t < 750 ? pulse : 0; brain.outcome[1] = t < 750 ? 0 : pulse;
+    brain.tick(input, TICK_OPTS);
+    if (t % Evo.BRAIN.MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
+  }
+  const stemAfter = onto('stem'), thinkingAfter = onto('cortex');
+  assert.strictEqual(stemAfter.size, stemBefore.size, 'no new connection grows onto a Brainstem cell');
+  for (const [key, w] of stemBefore) assert.strictEqual(stemAfter.get(key), w, `Brainstem connection ${key} stays as grown`);
+  const changed = [...thinkingBefore].filter(([key, w]) => thinkingAfter.get(key) !== w).length;
+  assert.ok(changed > 0 || thinkingAfter.size !== thinkingBefore.size, 'connections onto Thinking cells do change');
+});
+
 // A brain's connections, to compare two brains: sources, targets, weights, delays and flags, in order
 const wiringOf = brain => Object.fromEntries(['sSrc', 'sDst', 'sW', 'sDelay', 'sFlags'].map(name => [name, Array.from(brain[name].subarray(0, brain.S))]));
 // A brain's connections by source and target: key -> [weight, delay]
@@ -141,15 +166,55 @@ test('brain: the first female and male are born with their reflex arcs', (Evo, a
     const b = founderBrain(Evo, sex);
     const M = k => b.lobes.motor[motor(k)], T = k => b.lobes.touch[touch(k)], D = k => b.lobes.needs[Evo.driveCell(k)];
     const arcs = {
-      painRun: [D('pain'), M('run')], mouthEatL: [T('mouthL'), M('eat')], mouthEatR: [T('mouthR'), M('eat')],
-      lipsDrink: [T('lips'), M('drink')], sleepyRest: [D('sleepiness'), M('rest')],
+      painRun: [D('pain'), M('run')], sleepyRest: [D('sleepiness'), M('rest')],
       bumpTurnL: [T('contactL'), M('walkR')], bumpTurnR: [T('contactR'), M('walkL')]
     };
     for (const [arc, [from, to]] of Object.entries(arcs)) assert.ok(b.hasSynapse(from, to), `${sex}: ${arc}`);
   }
 });
 
-test('brain: a driven sense cell makes its downstream cells fire', (Evo, assert) => {
+// How often (share of ticks) the Brainstem cell above one muscle fires while a drive sits at `level` and
+// a touch cell is on or off. The current is what Creature.sense gives the cells: a drive cell gets
+// (level - 0.05) * 1.2 * 30 mV (the receptor gene's threshold and gain, then the sense gain), a touch cell 30 mV.
+function stemCellShare(Evo, muscle, drive, touch, level, touchOn) {
+  Evo.seed(5);
+  const b = founderBrain(Evo);
+  const input = new Float32Array(b.N);
+  const D = b.lobes.needs[Evo.driveCell(drive)], T = b.lobes.touch[Evo.TOUCH.findIndex(t => t.key === touch)];
+  const m = b.lobes.motor[Evo.MOTORS.findIndex(x => x.key === muscle)];
+  const cell = b.incoming(m).map(s => b.sSrc[s]).find(i => b.neurons[i].lobe === 'stem');
+  if (cell === undefined) return null;
+  let fired = 0;
+  for (let t = 0; t < 320; t++) {
+    input[D] = (level - 0.05) * 1.2 * 30;
+    input[T] = touchOn ? 30 : 0;
+    b.tick(input, TICK_OPTS);
+    if (t >= 20) fired += b.hist[cell] & 1;
+  }
+  return fired / 300;
+}
+
+// Neither input alone may fire the cell, a weak drive with touch may not either, and together they do
+function checkTwoThingsAtOnce(Evo, assert, muscle, drive, touch) {
+  const share = (level, touchOn) => stemCellShare(Evo, muscle, drive, touch, level, touchOn);
+  const driveAlone = share(0.6, false), touchAlone = share(0, true), both = share(0.6, true), weakDrive = share(0.15, true);
+  assert.notStrictEqual(driveAlone, null, `a Brainstem cell excites the ${muscle} muscle`);
+  const said = `${muscle}: ${drive} alone ${driveAlone}, ${touch} alone ${touchAlone}, both ${both}, weak ${drive} with ${touch} ${weakDrive}`;
+  assert.ok(driveAlone < 0.02, said);
+  assert.ok(touchAlone < 0.02, said);
+  assert.ok(both > 0.1, said);
+  assert.ok(weakDrive < 0.05, said);
+}
+
+test('brain: the eat Brainstem cell fires only when hunger and something at the mouth come together', (Evo, assert) => {
+  checkTwoThingsAtOnce(Evo, assert, 'eat', 'hunger', 'mouthL');
+});
+
+test('brain: the drink Brainstem cell fires only when thirst and water at the lips come together', (Evo, assert) => {
+  checkTwoThingsAtOnce(Evo, assert, 'drink', 'thirst', 'lips');
+});
+
+test('brain: a driven sense cell makes its downstream cells fire',(Evo, assert) => {
   const brain = founderBrain(Evo);
   const input = new Float32Array(brain.N);
   let before = 0, after = 0;

@@ -19,6 +19,7 @@ Most regions are a grid (`grid: [columns, rows]`, per side for a two-sided regio
 - **Sight**: the column is the vision feature (red at the outer edge); the row is the height, `v` 0.35 for high and 0.65 for low (closer together than the grid would put them, so one source window can take a colour's two cells without its neighbours).
 - **Attention**: the column is the vision feature, `v` 0.5: the same columns as Sight.
 - **Smell**: column = odour mod 5, row = odour div 5. **Hearing**: one column, row 0 for the high pitch and row 1 for the low one.
+- **Side lobes**: the column is the way (0.25, the outer one: toward; 0.75: away) and the row what told it (seen, smelled, heard, attended or remembered, front to back); `sideSpot(row, away)` in `founderKit`.
 - **Touch** and **Movement**: each cell has a spot of its own (`Evo.TOUCH` and `Evo.MOTORS`, in `constants.js`). The muscles sit along one row, left to right: walk left, jump, eat, grab or drop, rest, call, run, drink, walk right.
 
 | Region | Box | Sided | Cells |
@@ -33,12 +34,12 @@ Most regions are a grid (`grid: [columns, rows]`, per side for a two-sided regio
 | Feelings | [0.41, 0.63, 0.59, 0.68] | | 8: the reward cell, the punishment cell and 6 general cells |
 | Attention | [0.16, 0.26, 0.47, 0.30] | yes | 16: 2 sides × 8 vision features. Its cells compete; the winner is what the creature is looking at |
 | Thinking | [0.08, 0.34, 0.45, 0.48] | yes | 30 general-purpose cells (15 a side) |
-| Side lobes | [0.03, 0.53, 0.20, 0.67] | yes | 24 general-purpose cells (12 a side) |
+| Side lobes | [0.03, 0.53, 0.20, 0.67] | yes | 16 general-purpose cells (8 a side: 2 columns × 4 rows, the "where is it" maps below) |
 | Central lobe | [0.39, 0.52, 0.61, 0.61] | | 20 general-purpose cells |
 | Movement | [0.06, 0.955, 0.94, 0.99] | | 9: walk left, walk right, jump, eat, grab or drop, rest, call, run, drink |
-| Brainstem | [0.10, 0.885, 0.90, 0.925] | | 18 general-purpose cells (9 × 2) |
+| Brainstem | [0.10, 0.885, 0.90, 0.925] | | 18 general-purpose cells (9 × 2). The front row sits above the muscles: its cell at a muscle's `u` belongs to that muscle (`stemSpot` in `founderKit`) |
 
-The founder's brain has 224 neurons and 1,367 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
+The founder's brain has 216 neurons and 1,399 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
 
 `Evo.BRAIN_BODY_PLAN` defines the cell layouts once: `sightIndex(side, band, feature)`, `smellIndex(side, odour)` and `hearingIndex(side, pitch)` give a cell's place in its region, and `sightCell(k)` and `smellCell(k)` decode it. `gridSpot(region, i)`, `colourSpot(feature)` and `smellSpot(odour)` give a cell's spot, and `Evo.TOUCH` and `Evo.MOTORS` (in `constants.js`) carry the spots of the touch cells and the muscles; the founder's wiring genes read their spots from these (`founderKit`, [GENOME.md](GENOME.md)), so no number is copied.
 
@@ -46,9 +47,9 @@ The founder's brain has 224 neurons and 1,367 synapses at birth, the same every 
 
 ### Resting activity
 
-Every thinking cell's balancing (homeostasis) pulls its firing toward a resting activity and lets a quiet cell's threshold drop by up to a set number of mV. Each kind of cell gets both from its region's **Cell type** genes (region, rest, twitch): rest is the share of ticks the cell fires when nothing drives it (0.001 to about 0.3, on a log scale), twitch is how many mV easier to fire a quiet cell may become (0 to 16). Several genes for one region: the last one wins. Sensory cells have no balancing, and the first two Feelings cells (reward and punishment) are not balanced either.
+Every thinking cell's balancing (homeostasis) pulls its firing toward a resting activity and lets a quiet cell's threshold drop by up to a set number of mV. Each kind of cell gets both from its region's **Cell type** genes (region, rest, twitch, learns): rest is the share of ticks the cell fires when nothing drives it (0.001 to about 0.3, on a log scale), twitch is how many mV easier to fire a quiet cell may become (0 to 16), and learns is how much the connections onto the region's cells change in life (0 to 1): the share of each learning step and of each scaling step they get, and 0 also stops new connections sprouting onto them. Several genes for one region: the last one wins. Sensory cells have no balancing, and the first two Feelings cells (reward and punishment) are not balanced either.
 
-A region with no Cell type gene rests at 0.12 and may drop 14 mV, like a thinking cell: a missing gene makes a restless creature, never a broken one. The founder has three: muscles, Feelings cells and Brainstem cells rest at 0.4% and may drop 3 mV, so a single weak input doesn't make them fire (a Feelings cell that fired at rest would make fear all the time; a Brainstem cell must wait for two inputs at once). The muscles' pacemaker then lifts their resting activity a little (to about 0.6%). Every cell starts life at its own resting activity, so a newborn has no burst of firing.
+A region with no Cell type gene rests at 0.12 and may drop 14 mV, like a thinking cell: a missing gene makes a restless creature, never a broken one. The founder has three: muscles, Feelings cells and Brainstem cells rest at 0.4% and may drop 3 mV, so a single weak input doesn't make them fire (a Feelings cell that fired at rest would make fear all the time; a Brainstem cell must wait for two inputs at once). Muscles and Feelings cells learn fully (learns 1); Brainstem cells are hard-wired (learns 0), like a real brainstem's reflex circuits: their connections never change in life, and learning happens in the regions that feed them. Without that, scaling and reward learning grew Central lobe connections onto the drink cell until thinking alone made it fire. The muscles' pacemaker then lifts their resting activity a little (to about 0.6%). Every cell starts life at its own resting activity, so a newborn has no burst of firing.
 
 ## Wiring
 
@@ -56,7 +57,7 @@ A region with no Cell type gene rests at 0.12 and may drop 14 mV, like a thinkin
 - **Background wiring** at birth: sparse, weak links between neighbours, scattered as if at random (by fixed dice, below).
 - **Pacemaker** genes give a region a steady current.
 - **Delay.** A spike arrives 1 to 20 ticks after it is fired, by the axon's length and its conduction speed.
-- **Morphogenesis**, every 80 ticks. An active cell may sprout one weak synapse to a depolarised neighbour. A sprout that stays weak is pruned; innate tracts are never pruned. Synaptic scaling turns a cell's excitatory inputs down when it fires far too much, and up when it has fallen silent.
+- **Morphogenesis**, every 80 ticks. An active cell may sprout one weak synapse to a depolarised neighbour. A sprout that stays weak is pruned; innate tracts are never pruned. Synaptic scaling turns a cell's excitatory inputs down when it fires far too much, and up when it has fallen silent. Cells of a region whose Cell type gene says learns 0 are left out of both (and nothing sprouts onto them).
 
 A synapse keeps the sign it was born with (Dale's law). Weights run from −1.8 to 2.0.
 
@@ -70,27 +71,28 @@ Every chance in growing the wiring is a roll of fixed dice, `Evo.util.fixedRoll(
 - The background wiring has no gene, so it rolls with a fixed number of its own (`BACKGROUND_DICE`).
 - A gene that switches on later in life rolls the same way when it grows.
 
-So changing one wiring gene changes only connections that gene could make, while the innate budget of 2,400 lasts (the founder uses 1,383): the rest of the brain stays as it was. The one exception: where the gene made a connection that another gene (or the background wiring) also wanted, the other one makes it once the gene is gone, with its own weight. Any change to a gene's bytes gives it new dice, so all of that gene's connections are rolled again, not only those its changed value touches.
+So changing one wiring gene changes only connections that gene could make, while the innate budget of 2,400 lasts (the founder uses 1,328): the rest of the brain stays as it was. The one exception: where the gene made a connection that another gene (or the background wiring) also wanted, the other one makes it once the gene is gone, with its own weight. Any change to a gene's bytes gives it new dice, so all of that gene's connections are rolled again, not only those its changed value touches.
 
 What happens while living still uses the world's dice: firing noise, sprouting new connections (morphogenesis), and which dream plays.
 
 ### The founder's wiring
 
-91 genes in `founder-brain.js`: 84 tracts, all excitatory, and seven others. Each is written with `wire(from, to, { at, radius, weight, side, window })`: which region's axons go to which spot of which region.
+115 genes in `founder-brain.js`: 107 tracts and eight others. Two are inhibitory (the Brainstem eat and drink cells holding back the legs), the rest excitatory. Each is written with `wire(from, to, { at, radius, weight, side, window })`: which region's axons go to which spot of which region.
 
 | Purpose | Genes |
 |---|---|
-| Orienting by sight | 14: walk toward red (strongest), yellow, green, blue, pink and other creatures, each colour's cells to the walking muscle on their own side; away from violet (the other side). The same 7 for Attention at full strength: it works like the midbrain's orienting map, so whatever wins its competition turns the creature hard toward it (away from violet), on top of what it merely sees |
-| Orienting by smell and hearing | 4: toward the side a smell or a call is stronger on; away from bitter and alarm |
-| Innate priors | 18, each from one Drives cell to one muscle: pain and fear → run; sleepiness, tiredness and nausea → rest; loneliness → call; hunger and protein hunger → eat; thirst → drink; anger → grab; boredom, crowdedness, hunger and thirst → walk |
-| Touch reflexes | 5: something at the mouth (either mouth cell, not the lips) → eat, water at the lips → drink, pain → run; a bump on one side makes the opposite leg push (2) |
+| Brainstem | 10: actions that need two things at once. The eat cell (in the front row, above the eat muscle) is fed by the hunger, protein hunger and fat hunger cells and by the two mouth cells; the drink cell by the thirst cell and the lips cell. Each input is too weak to fire the cell alone; together they do, and the cell then excites its muscle at full strength (2) and holds back both walking muscles (2 genes, weight −0.6): while the mouth works, the legs hold still. Its cells are hard-wired (see Resting activity), so only the Drives and Touch cells and the Feelings projections reach it |
+| Side lobes | 25: where is it? Each Side lobe hears only about its own side. Its outer column is "go toward it", its inner column "go away from it", and its rows (front to back) are seen, smelled, heard, and attended or remembered. Sight (a colour at a time, only a little: what is merely seen pulls gently; violet is "away"), smell (all smells toward, the four food smells harder, since smell reaches all round the head and finds food the eyes miss behind; bitter and alarm away), hearing, Attention (violet away; what attention picks pulls hard) and Thinking's working memory (strongly) feed them (23); the toward column walks toward its own side and the away column toward the other (2) |
+| Innate priors | 15, each from one Drives cell to one muscle: pain and fear → run; sleepiness, tiredness and nausea → rest; loneliness → call; anger → grab; boredom, crowdedness, hunger and thirst → walk (2 each, weak: they only get the legs going and leave the steering to the Side lobes). Eating and drinking are the Brainstem's |
+| Touch reflexes | 3: pain → run; a bump on one side makes the opposite leg push (2) |
+| Attention to the muscles | 7: the attention cell of each colour (the same 7 as the Side lobes' colours, with violet) to the walking muscle on its own side (violet: the other side), at full strength. Attention works like the midbrain's orienting map, so whatever wins its competition turns the creature hard toward it (away from violet), on top of the Side lobes |
 | Into the thinking regions | 13: what is up close, tastes, sights, attention and smells (two each: Thinking and the Central lobe), drives (two), and what the muscles just did (Movement → Thinking), each side to its own side |
 | Working memory | 2: the colours of food and water (red to blue, both heights, not violet) from Sight and from Attention start working memory on their own side of Thinking |
 | Sight to Attention | 8: each sight cell feeds the attention cell of its side and feature (both heights feed the same cell) |
-| Out to the muscles | 3: from Thinking and the Central lobe, broadly; and each Thinking cell pulls on the walk muscle on its own side |
+| Out to the muscles | 2: from Thinking and the Central lobe, broadly |
 | Value | 4 cue tracts from sight and smell onto the reward and punishment cells, which learn what each predicts; 1 from the alarm odour to a Feelings cell that raises fear; 6 broad, fast projections from Feelings (to Attention, Thinking, Side lobes, Central lobe, Movement and Brainstem), which set where learning happens |
-| Attention | 6: a drive's cell biases the attention cells (both sides) toward what it needs |
-| Others | A pacemaker that keeps the muscles restless; three Lobe dynamics genes and three Cell type genes (below) |
+| Attention biases | 11: a drive's cell biases the attention cells (both sides) toward what it needs: hunger → red, yellow, green; protein hunger and fat hunger → green and yellow (bugs and grubs); thirst → blue; loneliness → creatures; sex drive → pink; fear → violet |
+| Others | A pacemaker that keeps the muscles restless; four Lobe dynamics genes and three Cell type genes (below) |
 
 ## A tick
 
@@ -104,11 +106,12 @@ What happens while living still uses the world's dice: firing noise, sprouting n
 
 ## Lobe dynamics
 
-A Lobe dynamics gene (lobe, competition, persistence, tau, fatigue) makes the cells of one region work together. Each cell is held back in proportion to the others' recent firing. Cells that cross threshold in the same tick are resolved strongest first, each later one held back by those already firing. Each spike adds a self-sustaining current (up to 3 spikes' worth) that fades with tau. Fatigue slows recovery from adaptation. The founder uses it three times:
+A Lobe dynamics gene (lobe, competition, persistence, tau, fatigue) makes the cells of one region work together. Each cell is held back in proportion to the others' recent firing. Cells that cross threshold in the same tick are resolved strongest first, each later one held back by those already firing. Each spike adds a self-sustaining current (up to 3 spikes' worth) that fades with tau. Fatigue slows recovery from adaptation. The founder uses it four times:
 
 - **Movement**: weak competition, low persistence. The most strongly driven muscle wins and keeps going until it tires or a clearly stronger input takes over. `brain.decided()` is the winning muscle.
-- **Attention**: strong competition, so it settles on one thing. Sight feeds it, and guidance genes from single Drives cells bias the features each drive cares about (hunger: red, yellow, green; thirst: blue; loneliness: creatures; sex drive: pink). Its orienting genes are at full strength, so what is attended pulls hardest. `brain.attended()` gives `{ side, band, feature }` or null: attention knows what and on which side, and the eyes say how high (`band` is whichever of the two sight cells for that side and feature fires more).
-- **Thinking**: weak competition, strong persistence: working memory that outlasts what caused it. The colours of food and water on one side excite the cells of that side of Thinking, and those pull on that side's walk muscle, so a creature keeps heading where it saw food after it vanishes. The `memory:` reports in `tools/scenarios/learning.js` measure this, two against a knockout with no persistence and one against a control with no fruit.
+- **Side lobes**: weak competition and fairly strong persistence: a where-is-it trace that lasts a while after what made it, a spatial working memory.
+- **Attention**: strong competition, so it settles on one thing. Sight feeds it, and guidance genes from single Drives cells bias the features each drive cares about (hunger: red, yellow, green; protein and fat hunger: green and yellow; thirst: blue; loneliness: creatures; sex drive: pink; fear: violet). Its orienting genes are at full strength, so what is attended pulls hardest. `brain.attended()` gives `{ side, band, feature }` or null: attention knows what and on which side, and the eyes say how high (`band` is whichever of the two sight cells for that side and feature fires more).
+- **Thinking**: weak competition, strong persistence: working memory that outlasts what caused it. The colours of food and water on one side excite the cells of that side of Thinking, and those feed the "attended or remembered" cell of the same side's Side lobe, which pulls on that side's walk muscle, so a creature keeps heading where it saw food after it vanishes. The `memory:` reports in `tools/scenarios/learning.js` measure this, two against a knockout with no persistence and one against a control with no fruit.
 
 ## Learning
 
@@ -118,7 +121,7 @@ The first two Feelings cells are the modulators: reward (channel 0) and punishme
 - **Prediction.** Every synapse onto a modulator from another cell is a value synapse: it delivers no current and carries a prediction, V = Σ w·x (never below 0), where x is its recent input.
 - **Error.** δ = r + 0.98·V − V_prev, clamped to ±1. It trains the value synapses by TD(λ), every tick. A positive δ makes the modulator cell fire (60 mV × δ), so the cell stays silent when nothing unexpected happens.
 - **Eligibility.** When a neuron fires, each input that arrived in that tick or the 3 before becomes eligible: e ← e·λ^Δt + 1, capped at 2. λ comes from the Plasticity gene (a half-life of 14 to 140 ticks).
-- **Weights.** Every 4 ticks each plastic weight moves by 0.25 × learning rate × e × the signal at its target, summed since the last update: joy × δ_R × F_R − stress × δ_P × F_P. Joy and stress come from the Reinforcement gene. These steps are soft-bounded, and a modulator's own outgoing synapses never learn.
+- **Weights.** Every 4 ticks each plastic weight moves by 0.25 × learning rate × e × the signal at its target, summed since the last update: joy × δ_R × F_R − stress × δ_P × F_P. Joy and stress come from the Reinforcement gene. These steps are soft-bounded, are multiplied by the target cell's `learns` (Cell type gene; 0 means the weight never moves), and a modulator's own outgoing synapses never learn.
 - **Learning fields.** F is where a modulator's signal reaches: Gaussians around its axon terminals and the cell itself, as wide as the Neurochemistry gene says. So where learning happens depends on where those axons grew.
 
 `brain.chemImages[0]` and `[1]` are 20 × 20 images of where the net signal is positive and where it is negative, for the brain view. `Evo.NEUROCHEMS` lists the two channels: DA (reward) and ST (punishment), which a Neurochemistry gene picks between.
