@@ -170,7 +170,7 @@
 
   const rig = {
     k: 1, facing: 1, flip: 1, stage: 5, mature: true, senile: false, g: 1, ag: 0, female: true, dead: false, held: false, asleep: false,
-    air: 0, lying: 0, fear: 0, anger: 0, sick: 0, cold: 0, hot: 0, wet: 0, calling: 0, heat: 0,
+    lying: 0, fear: 0, anger: 0, sick: 0, cold: 0, hot: 0, wet: 0, calling: 0, heat: 0,
     offX: 0, sx: 1, sy: 1, swing: 0, shadowY: 0, shadow: 1, ol: 1, lod: 2, pxScale: 1,
     bx: 0, by: 0, ang: 0, rxF: 10, rxB: 11, ryT: 8, ryB: 9, breath: 1, bristle: 0,
     legs: new Float32Array(16), legW: 4, pawRy: 2,
@@ -193,6 +193,19 @@
     return e.legPh;
   }
 
+  // In the air: how fast it must rise or fall (px per tick) to show the full rising or falling
+  // pose; the body's tilt (nose up is negative) and each near foot's place from its hip, as a share
+  // of the leg's reach (x forward, y down): rising, at the top and falling
+  const AIR_VY = 4;
+  const AIR_ANG = { rise: -0.2, top: -0.06, fall: 0.06 };
+  const AIR_FEET = {             // [front x, front y, hind x, hind y]
+    rise: [0.6, 0.78, -0.7, 0.68],   // stretched out: front paws reaching ahead, hind legs trailing from the push
+    top: [0.3, 0.6, 0.1, 0.6],       // tucked under the body
+    fall: [0.3, 0.95, -0.1, 0.95]    // reaching down for the ground
+  };
+  const LAND_DIP = 0.35;         // a full landing squash bends the legs by this share of their length
+  const LAND_SQUASH = 0.1;       // and squashes the body this much wider and lower
+
   // Where the near legs join the body: x in units of rxF (front) or rxB (hind), y in units of ryB.
   // The haunch line is centred on the hind hip, so it follows the leg.
   const HIP = { frontX: 0.5, frontY: 0.38, hindX: -0.5, hindY: 0.4 };
@@ -213,8 +226,10 @@
     const awake = asleep ? 0 : live, pain = clamp01(num(S.pain, 0)) * awake;
     const joy = clamp01(num(F.happy, 0)) * awake, yawn = clamp01(num(F.yawn, 0)) * awake;
     const eat = dead || held || asleep ? 0 : clamp01(num(M.headDown, 0));   // 0..1: how far the head is down to eat or drink
-    const air = M.airborne && !held && !dead ? 1 : 0;
-    const lying = dead ? 1 : held || air ? 0 : clamp01(num(M.lying, asleep ? 1 : 0));
+    const air = held || dead ? 0 : clamp01(num(M.air, 0));     // 0..1: eases in after take-off, 0 from the tick it lands
+    const land = held || dead ? 0 : clamp01(num(M.land, 0));   // 0..1: a landing's squash, easing off
+    const fall = clamp(num(M.vy, 0) / AIR_VY, -1, 1);          // -1 rising fast, 0 at the top, 1 falling fast
+    const lying = dead ? 1 : held ? 0 : clamp01(num(M.lying, asleep ? 1 : 0)) * (1 - air);
     const stand = 1 - lying;
     const tempo = 1 - 0.18 * ag - 0.2 * senile;
     const ph0 = e.phase;
@@ -225,7 +240,7 @@
     r.k = Math.max(MIN_SIZE, size) / UNITS; r.stage = stage; r.g = g; r.ag = ag;
     r.facing = turn < 0 ? -1 : turn > 0 ? 1 : facing;   // the way it is drawn: still the old way for the first half of a turn
     r.flip = Math.max(TURN_NARROW, Math.abs(turn));     // the share of its width it is drawn at: narrowest halfway round, facing the viewer
-    r.female = pose.sex !== 'MALE'; r.dead = dead; r.held = held; r.asleep = asleep; r.air = air; r.lying = lying;
+    r.female = pose.sex !== 'MALE'; r.dead = dead; r.held = held; r.asleep = asleep; r.lying = lying;
     r.fear = fear; r.anger = anger; r.sick = sick; r.cold = cold; r.hot = hot; r.wet = wet; r.calling = calling;
     r.heat = S.inHeat && !dead && r.mature ? 0.62 + 0.38 * Math.sin(t * 3.4 + ph0) : 0;
     r.pattern = Math.round(num(L.pattern, 0)); r.patternScale = clamp01(num(L.patternScale, 0.5));
@@ -248,7 +263,7 @@
     // Gait: diagonal walk blending into a bounding run. Speed is judged relative to body size, so
     // a baby's scurry reads as a walk and its sprint as a run
     const speed = Math.abs(num(M.vx, 0)), rel = speed * Math.sqrt(toRef);
-    const move = held || dead || air ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand;
+    const move = held || dead ? 0 : smooth(clamp01((speed - 0.04) / 0.3)) * stand * (1 - air);
     const run = smooth(clamp01((rel - 1.45) / 0.9)) * move;
     const cadence = BY_STAGE[stage].cadence * (1.25 - 0.5 * legGene) * lerp(1, 0.62, run);
     const ph = legPhase(e, num(M.walkPhase, 0), cadence, advance);
@@ -256,10 +271,11 @@
 
     // Body
     let by = -(legLen + ryB) - bob + legLen * (0.45 * fear + 0.12 * sick + 0.1 * ag + 0.25 * cold);
+    by += legLen * LAND_DIP * land;   // a landing bends the legs
     by = lerp(by, -ryB * 0.9, lying);
     let ang = -0.05 + 0.09 * run + 0.11 * Math.sin(ph) * run + 0.15 * eat - 0.1 * calling + 0.07 * ag - 0.1 * flinch;
     ang = lerp(ang, dead ? 0.02 : 0.03, lying);
-    if (air) ang = -0.14;
+    ang = lerp(ang, fall < 0 ? lerp(AIR_ANG.top, AIR_ANG.rise, -fall) : lerp(AIR_ANG.top, AIR_ANG.fall, fall), air);
     let bx = -((rxF * 0.72 + R * 1.12) - rxB) / 2;
     // Held by the scruff: the body hangs straight down below the head
     if (held) { ang = -1.42; bx = -R * 0.12; by = R * 0.5 + rxF * 0.8; }
@@ -287,9 +303,10 @@
       if (u < 1 - duty) { const s = u / (1 - duty); sweep = -Math.cos(s * PI); up = Math.sin(s * PI); }
       else { sweep = 1 - 2 * (u - 1 + duty) / duty; up = 0; }
       let fx = hx + 0.3 + sweep * stride * move, fy = -up * lift * move;
-      if (air) {
-        fx = hx + (front ? reach * 0.6 : -reach * 0.7);
-        fy = hy + reach * (front ? 0.78 : 0.68) + pawRy;
+      if (air > 0) {
+        const A = fall < 0 ? AIR_FEET.rise : AIR_FEET.fall, s = Math.abs(fall), o = front ? 0 : 2;
+        fx = lerp(fx, hx + reach * lerp(AIR_FEET.top[o], A[o], s), air);
+        fy = lerp(fy, hy + reach * lerp(AIR_FEET.top[o + 1], A[o + 1], s) + pawRy, air);
       }
       if (lying > 0) {
         const lfx = dead ? hx + (front ? 1 : -1) * (reach + 2.5) : hx + reach * (front ? 0.62 : 0.42) + 1;
@@ -308,7 +325,7 @@
     let up = 0.78 - 0.12 * move - 0.45 * run - 0.4 * Math.max(0, -smile) + 0.2 * anger - 0.3 * sick - 0.25 * ag - 0.3 * cold - 0.3 * wet;
     let curl = 1.5 - 0.9 * run + 0.2 * anger - 0.3 * cold - 0.4 * wet;
     up = lerp(up, dead ? 0.02 : 0.1, lying); curl = lerp(curl, dead ? 0.15 : 1.1, lying);
-    if (air) { up = 0.35; curl = 0.6; }
+    up = lerp(up, 0.45 + 0.3 * fall, air); curl = lerp(curl, 0.6, air);   // trails low rising, floats up falling
     const tLen = (8 + 17 * tailGene) * lerp(0.55, 1, g);
     const tW = (2.3 + 1.1 * plump) * lerp(0.8, 1, g) * (1 + 0.5 * anger) * (1 - 0.3 * wet);
     const wagA = dead ? 0 : (0.06 + 0.2 * happy + 0.06 * move) * (asleep ? 0.3 : 1);
@@ -352,7 +369,7 @@
       hx = lerp(hx, lhx, lying); hy = lerp(hy, lhy, lying);
       hAng = lerp(hAng, dead ? -0.38 : asleep ? 0.12 : 0.04, lying);
     }
-    if (air) { hAng -= 0.1; }
+    hAng -= 0.1 * air;
     hy -= (r.breath - 1) * ryT * (1.2 - 0.8 * lying);
     if (held) { hx = 0; hy = 0; hAng = HELD_TILT + Math.sin(t * 1.3 + ph0) * 0.05; }
     r.hx = hx; r.hy = hy; r.hAng = hAng;
@@ -404,15 +421,17 @@
 
     // Whole-body effects
     r.offX = -2.2 * flinch + Math.sin(t * 53) * 0.35 * fear + Math.sin(t * 61 + 1) * 0.4 * cold;
-    r.sx = (1 + 0.12 * flinch) * (air ? 0.95 : 1);
-    r.sy = (1 - 0.15 * flinch) * (air ? 1.06 : 1);
+    // Stretched while rising or falling fast (not at the top), squashed by a landing
+    const stretch = air * Math.abs(fall);
+    r.sx = (1 + 0.12 * flinch) * (1 - 0.05 * stretch) * (1 + LAND_SQUASH * land);
+    r.sy = (1 - 0.15 * flinch) * (1 + 0.06 * stretch) * (1 - LAND_SQUASH * land);
     r.swing = held ? Math.sin(t * 2.1 + ph0) * 0.12 : 0;
     r.ol = 0.95 * Math.pow(toRef, 0.3);
 
     // Ground: shadow at the feet; while airborne only if the pose says where the ground is
     const gy = typeof pose.groundY === 'number' ? (pose.groundY - pose.y) / r.k : null;
-    r.shadow = held ? 0 : air ? (gy === null ? 0 : clamp01(1 - gy / 60)) : 1;
-    r.shadowY = air && gy !== null ? gy : 0;
+    r.shadow = held ? 0 : air > 0 ? (gy === null ? 0 : clamp01(1 - gy / 60)) : 1;
+    r.shadowY = air > 0 && gy !== null ? gy : 0;
 
     if (held) shiftForScruff(r);
   }
@@ -1316,7 +1335,7 @@
   function portraitPose(pose, t, phase) {
     const F = pose.face || EMPTY, S = pose.state || EMPTY, M = pose.motion || EMPTY;
     const base = { id: pose.id, stage: pose.stage, sex: pose.sex, looks: pose.looks, x: 0, y: 0, facing: 1, size: UNITS };
-    const motion = { vx: 0, airborne: false, walkPhase: 0, lying: S.dead ? 1 : num(M.lying, S.asleep ? 1 : 0) };
+    const motion = { vx: 0, air: 0, walkPhase: 0, lying: S.dead ? 1 : num(M.lying, S.asleep ? 1 : 0) };
     // Mostly look at the viewer, with the occasional glance at what it was watching (pupilX is in
     // world terms, and the card always faces right)
     const glance = Math.sin(t * 0.37 + phase) > 0.55 ? 0.6 : 0;

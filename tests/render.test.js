@@ -21,7 +21,7 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   assert.ok(pose.looks.pattern >= 0 && pose.looks.pattern <= 3, 'pattern in 0..3');
   ['patternScale', 'earSize', 'tailLength', 'eyeSize', 'plumpness', 'legLength', 'crest'].forEach(k => unit(pose.looks, k));
 
-  num(pose.motion, 'vx'); bool(pose.motion, 'airborne'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying'); unit(pose.motion, 'headDown');
+  num(pose.motion, 'vx'); num(pose.motion, 'vy'); unit(pose.motion, 'air'); unit(pose.motion, 'land'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying'); unit(pose.motion, 'headDown');
   num(pose.motion, 'turn'); assert.ok(pose.motion.turn >= -1 && pose.motion.turn <= 1, 'turn in -1..1');
 
   ['eyesClosed', 'mouthOpen', 'earDroop', 'blush', 'happy', 'worry', 'yawn', 'lick'].forEach(k => unit(pose.face, k));
@@ -64,4 +64,23 @@ test('render: turning round eases from one side to the other', (Evo, assert) => 
   assert.ok(first > -1 && first < 1, `one tick into turning round it is part way round (got ${first})`);
   const later = turnAfter(20);
   assert.ok(later < -0.99, `twenty ticks on it has turned all but fully round (got ${later})`);
+});
+
+test('render: a jump eases into the air pose, and a landing squashes and springs back', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  // poseOf eases by the world ticks since its last call, so the clock is moved on by hand
+  const motionAfter = ticks => { world.clock.tick += ticks; return Evo.poseOf(c, { world }).motion; };
+  c.onGround = true; c.held = false; c.vy = 0;
+  assert.strictEqual(motionAfter(0).air, 0, 'on the ground it is not in the air');
+  c.onGround = false; c.vy = -5;
+  const first = motionAfter(1).air;
+  assert.ok(first > 0 && first < 1, `one tick after take-off it is part way into the air pose (got ${first})`);
+  c.vy = 5;
+  assert.ok(motionAfter(10).air > 0.99, 'ten ticks on it is fully in the air pose');
+  c.onGround = true; c.vy = 0;
+  const landed = motionAfter(1);
+  assert.strictEqual(landed.air, 0, 'the tick it lands it is out of the air pose');
+  assert.ok(landed.land > 0.5, `landing at 5 px a tick squashes it (got ${landed.land})`);
+  assert.ok(motionAfter(30).land < 0.05, 'half a second later it has sprung back');
 });

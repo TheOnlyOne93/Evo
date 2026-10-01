@@ -13,6 +13,9 @@
   const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
   const HEAD_DOWN_RATE = 0.35;   // per tick: the head goes down to eat or drink, and back up, in about 5 ticks
   const TURN_STEP = 0.25;        // per tick, at a steady pace: turning round takes 8 ticks
+  const AIR_RATE = 0.4;          // per tick: from pushing off to the jump's pose in about 4 ticks
+  const LAND_FULL = 7;           // px per tick: landing this fast squashes the body fully (a landing starts to hurt at this speed)
+  const LAND_RATE = 0.25;        // per tick: the body springs back from a landing in about 8 ticks
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
   // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
@@ -137,11 +140,21 @@
     // Yawning when sleepy or tired; licking its lips when hungry or thirsty
     const yawn = awake && !mouth && Math.max(get('sleepiness'), get('tiredness')) > 0.55 ? every(c, YAWN.period, YAWN.len, YAWN.salt) : 0;
     const lick = awake && !mouth && !yawn && Math.max(get('hunger'), get('thirst'), get('proteinHunger'), get('fatHunger')) > 0.55 ? every(c, LICK.period, LICK.len, LICK.salt) : 0;
+    // Off the ground; and a landing's squash, from how fast it was falling at the last pose
+    // before it landed (being picked up is not a landing)
+    const airborne = !c.onGround && !c.held;
+    let land = ease(s, 'land', 0, LAND_RATE);
+    if (airborne) s.fall = c.vy;
+    else if (s.fall !== undefined) {
+      if (!c.held && s.n > 0) land = s.land = Math.max(land, clamp01(s.fall / LAND_FULL));
+      s.fall = undefined;
+    }
     return {
       id: c.id, x: c.x, y: c.y, facing: c.facing, size: c.size, stage: c.stage, sex: c.sex,
       looks: Evo.looksOf(c),
       motion: {
-        vx: c.vx, airborne: !c.onGround && !c.held, walkPhase: c.walkPhase,
+        vx: c.vx, vy: c.vy, walkPhase: c.walkPhase,
+        air: ease(s, 'air', airborne ? 1 : 0, airborne ? AIR_RATE : 1), land,
         lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08),
         headDown: ease(s, 'down', mouth > 0 ? 1 : 0, HEAD_DOWN_RATE),
         turn: approach(s, 'turn', c.facing, TURN_STEP)

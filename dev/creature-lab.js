@@ -273,11 +273,15 @@
         c.vx = sub.speed * c.facing;
         // Advance the gait with distance so the feet stay planted
         c.walkPhase += Math.abs(step) * PHASE_PER_PX;
-        c.y = 0; c.onGround = true;
+        c.y = 0; c.onGround = true; c.vy = 0;
         let jumping = false;
         if (sub.kind === 'jump') {
           const u = ((t + sub.jumpT) % 2.2) / 0.75;
-          if (u < 1) { c.y = -c.size * 1.1 * 4 * u * (1 - u); c.onGround = false; jumping = true; }
+          if (u < 1) {
+            c.y = -c.size * 1.1 * 4 * u * (1 - u);
+            c.vy = -c.size * 1.1 * 4 * (1 - 2 * u) / (0.75 * Evo.TICKS_PER_SECOND);
+            c.onGround = false; jumping = true;
+          }
         }
         const p = poseAt(sub, ticks);
         if (jumping) p.groundY = 0;   // where its shadow stays (the world view fills this in)

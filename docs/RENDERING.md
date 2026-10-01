@@ -45,7 +45,9 @@ pose = {
   },
   motion: {
     vx,                     // px per tick, signed
-    airborne,               // true while jumping or falling
+    vy,                     // px per tick, + = falling
+    air,                    // 0..1, eased: into the jump's pose after it leaves the ground, 0 from the tick it lands
+    land,                   // 0..1: a landing's squash (full when it lands at 7 px a tick), easing off
     walkPhase,              // radians; advances with distance walked (Evo.CREATURE.WALK_PHASE_PER_PX)
     lying,                  // 0..1 (1 = lying down: resting or asleep)
     headDown,               // 0..1, eased: the head is down while the mouth works (eating or drinking)
