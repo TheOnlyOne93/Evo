@@ -456,9 +456,9 @@
   const ART = {
     fruit:   { lift: 0.92, icon: 0.34, tilt: 0.45, spin: true,  body: fruitBody },
     mimic:   { lift: 0.92, icon: 0.34, tilt: 0.45, spin: true,  body: fruitBody },
-    grain:   { lift: 0.72, icon: 0.22, tilt: 0.2,  spin: true,  body: grainEar,   shift: 0.35, lean: -0.12 },
+    grain:   { lift: 0.72, icon: 0.27, tilt: 0.2,  spin: true,  body: grainEar,   shift: 0.35, lean: -0.12 },
     dew:     { lift: 1.26, icon: 0.34, tilt: 0,    spin: false, body: dewDrop },
-    grub:    { lift: 0.98, icon: 0.34, tilt: 0.3,  spin: true,  body: grubBody },
+    grub:    { lift: 0.98, icon: 0.42, tilt: 0.3,  spin: true,  body: grubBody },
     bug:     { lift: 0.95, icon: 0.34, tilt: 0,    spin: true,  body: bugBody },
     lure:    { lift: 0.84, icon: 0.26, tilt: 0,    spin: false, body: lureBody,   iconDy: 0.12 },
     carrion: { lift: 0.9,  icon: 0.34, tilt: 0.08, spin: false, body: carrionBody },
