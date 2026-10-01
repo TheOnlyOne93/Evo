@@ -9,14 +9,6 @@
   const { circle } = Evo.Paint;
   const { rgb, rgba, scale, mix: tint } = Evo.color;
 
-  const RADIUS = Object.fromEntries(Object.entries(Evo.ITEM_TYPES).map(([k, v]) => [k, v.radius]));
-  // How far above (item.x, item.y) each body's centre sits, in radii (so it rests on its lowest point)
-  const LIFT = { fruit: 0.92, mimic: 0.92, grain: 0.72, dew: 1.26, grub: 0.98, bug: 0.95, lure: 0.84, carrion: 0.9, egg: 1, ball: 1 };
-  const radiusOf = item => item.radius || RADIUS[item.type] || 5;
-  const liftOf = item => radiusOf(item) * (LIFT[item.type] || 1);
-  // The centre of an item's body in world coordinates (y only; x is item.x)
-  const centerY = item => item.y - liftOf(item);
-
   // Outlines and strokes scale with the item's radius r (k per unit of radius) but stay at least
   // MIN_LINE wide, or a site's own floor
   const MIN_LINE = 0.4;
@@ -62,7 +54,8 @@
   // Small stable per-item hash in [0, 1)
   const hash = Evo.util.hash2;
 
-  function fruitBody(g, r, c, mimic) {
+  function fruitBody(g, r, c, t, item) {
+    const mimic = item.type === 'mimic';
     g.beginPath();
     g.moveTo(0, -r * 0.62);
     g.bezierCurveTo(r * 0.55, -r * 1.05, r * 1.18, -r * 0.62, r * 1.02, r * 0.12);
@@ -135,7 +128,8 @@
     g.fill();
   }
 
-  function dewDrop(g, r, c, t, id) {
+  function dewDrop(g, r, c, t, item) {
+    const id = item.id | 0;
     g.beginPath();
     g.moveTo(0, -r * 1.45);
     g.bezierCurveTo(r * 0.35, -r * 0.9, r * 1.02, -r * 0.3, r * 1.0, r * 0.28);
@@ -164,8 +158,8 @@
   }
 
   // A pale curled larva; the curl breathes
-  function grubBody(g, r, c, t, id) {
-    const wig = Math.sin(t * 3 + id) * 0.25;
+  function grubBody(g, r, c, t, item) {
+    const wig = Math.sin(t * 3 + (item.id | 0)) * 0.25;
     const R0 = r * 0.62, a0 = 0.35 + wig * 0.4, a1 = Math.PI * 1.55 + wig;
     const n = 6;
     for (let k = 0; k < n; k++) {
@@ -241,8 +235,8 @@
   }
 
   // A pink scent lure: a bulb breathing out puffs
-  function lureBody(g, r, c, t, id) {
-    const p = c.lurePuff;
+  function lureBody(g, r, c, t, item) {
+    const p = c.lurePuff, id = item.id | 0;
     for (let k = 0; k < 3; k++) {
       let u = (t * 0.45 + k / 3 + hash(id, 3)) % 1;
       const x = Math.sin(u * 5 + k * 2) * r * 0.7;
@@ -336,7 +330,7 @@
   }
 
   // A speckled egg. It rocks more and more as it gets close to hatching, then cracks.
-  function eggBody(g, r, item, t) {
+  function eggBody(g, r, c, t, item) {
     const hue = item.hue === undefined ? 40 : item.hue;
     const hs = hueSet(hue, item.accentHue === undefined ? hue + 180 : item.accentHue);
     const p = item.progress || 0;
@@ -392,7 +386,10 @@
     }
   }
 
-  function ballBody(g, r, item) {
+  // A striped ball; it turns as it rolls
+  function ballBody(g, r, c, t, item) {
+    const rot = item.rot || 0;
+    g.rotate(rot);
     const hs = hueSet(item.hue === undefined ? 200 : item.hue, 0);
     const cols = [hs.b1, '#fbf7ee', hs.b2, '#fbf7ee', hs.b3, '#fbf7ee'];
     for (let k = 0; k < 6; k++) {
@@ -401,7 +398,7 @@
     }
     g.fillStyle = '#fbf7ee';
     g.beginPath(); g.arc(0, 0, r * 0.2, 0, TAU); g.fill();
-    g.rotate(-(item.rot || 0)); // lighting stays put while the ball rolls
+    g.rotate(-rot); // lighting stays put while the ball rolls
     g.fillStyle = 'rgba(40,30,60,0.22)';
     g.beginPath(); g.arc(0, 0, r, 0.1, Math.PI - 0.1); g.arc(r * 0.05, -r * 0.3, r * 1.02, Math.PI - 0.35, 0.35, true); g.fill();
     g.fillStyle = 'rgba(255,255,255,0.75)';
@@ -411,67 +408,70 @@
     g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
   }
 
+  // A type with no art of its own: a plain grey circle
+  function plainBody(g, r) {
+    g.fillStyle = '#ccc';
+    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+  }
+
+  // How each item type is drawn, one row per type. Every row has:
+  //   lift  how far above (item.x, item.y) its body's centre sits, in radii (so it rests on its lowest point)
+  //   icon  its radius in a toolbar icon, as a share of the icon box
+  //   tilt  how far it leans with item.rot while lying: Math.sin(rot) * tilt
+  //   spin  true: it turns freely with item.rot while falling; false: it keeps the same lean in the air
+  //   body  the function that draws it, centred, at radius r: body(g, r, colours, t, item)
+  // Some rows also have:
+  //   shift   move down this many radii before turning
+  //   lean    a fixed extra turn
+  //   iconDy  in an icon, move down this share of the box
+  const ART = {
+    fruit:   { lift: 0.92, icon: 0.34, tilt: 0.45, spin: true,  body: fruitBody },
+    mimic:   { lift: 0.92, icon: 0.34, tilt: 0.45, spin: true,  body: fruitBody },
+    grain:   { lift: 0.72, icon: 0.22, tilt: 0.2,  spin: true,  body: grainEar,   shift: 0.35, lean: -0.12 },
+    dew:     { lift: 1.26, icon: 0.34, tilt: 0,    spin: false, body: dewDrop },
+    grub:    { lift: 0.98, icon: 0.34, tilt: 0.3,  spin: true,  body: grubBody },
+    bug:     { lift: 0.95, icon: 0.34, tilt: 0,    spin: true,  body: bugBody },
+    lure:    { lift: 0.84, icon: 0.26, tilt: 0,    spin: false, body: lureBody,   iconDy: 0.12 },
+    carrion: { lift: 0.9,  icon: 0.34, tilt: 0.08, spin: false, body: carrionBody },
+    egg:     { lift: 1,    icon: 0.34, tilt: 0,    spin: false, body: eggBody },
+    ball:    { lift: 1,    icon: 0.34, tilt: 0,    spin: false, body: ballBody },
+  };
+  // A type with no row is drawn plain and unturned, and says so once when the page loads
+  const NO_ART = { lift: 1, icon: 0.34, tilt: 0, spin: false, body: plainBody };
+  for (const type in Evo.ITEM_TYPES) if (!ART[type]) console.warn('ItemArt: no art for item type "' + type + '"');
+  const artOf = type => ART[type] || NO_ART;
+
+  const radiusOf = item => item.radius || Evo.ITEM_TYPES[item.type]?.radius || 5;
+  const liftOf = item => radiusOf(item) * artOf(item.type).lift;
+  // The centre of an item's body in world coordinates (y only; x is item.x)
+  const centerY = item => item.y - liftOf(item);
+
   // Draw one item. ctx is in world coordinates. t = seconds (for small idle animations). dy moves
   // the drawing down (e.g. to float an item half-sunk in water).
   function draw(g, item, t, dy) {
     const c = colors();
-    const type = item.type;
+    const a = artOf(item.type);
     const r = radiusOf(item);
-    const id = item.id | 0;
     g.save();
     g.translate(item.x, centerY(item) + (dy || 0));
+    if (a.shift) g.translate(0, r * a.shift);
     // item.rot is any angle (the simulation spins things as they fall or roll). Things lying on
-    // the ground keep only a small tilt from it; round things and falling things turn freely.
+    // the ground keep only a small lean from it; things that spin turn freely while they fall.
     const rot = item.rot || 0, lying = item.onGround !== false;
-    switch (type) {
-      case 'fruit': case 'mimic':
-        g.rotate(lying ? Math.sin(rot) * 0.45 : rot);
-        fruitBody(g, r, c, type === 'mimic');
-        break;
-      case 'grain':
-        g.translate(0, r * 0.35);
-        g.rotate((lying ? Math.sin(rot) * 0.2 : rot) - 0.12);
-        grainEar(g, r, c);
-        break;
-      case 'dew':
-        dewDrop(g, r, c, t, id);
-        break;
-      case 'grub':
-        g.rotate(lying ? Math.sin(rot) * 0.3 : rot);
-        grubBody(g, r, c, t, id);
-        break;
-      case 'bug':
-        if (!lying) g.rotate(rot);
-        bugBody(g, r, c, t, item);
-        break;
-      case 'lure':
-        lureBody(g, r, c, t, id);
-        break;
-      case 'carrion':
-        g.rotate(Math.sin(rot) * 0.08);
-        carrionBody(g, r, c, t, item);
-        break;
-      case 'egg':
-        eggBody(g, r, item, t);
-        break;
-      case 'ball':
-        g.rotate(item.rot || 0);
-        ballBody(g, r, item);
-        break;
-      default:
-        g.fillStyle = '#ccc';
-        g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
-    }
+    const turn = (lying || !a.spin ? Math.sin(rot) * a.tilt : rot) + (a.lean || 0);
+    if (turn) g.rotate(turn);
+    a.body(g, r, c, t, item);
     g.restore();
   }
 
   // Draw an item type centred in a box of `size` CSS px (toolbar swatches, cards)
   const iconItem = { id: 7, type: 'fruit', x: 0, y: 0, radius: 5, rot: 0, vx: 0, onGround: true, hue: 40, accentHue: 220, progress: 0.3 };
   function drawIcon(g, type, x, y, size, t) {
+    const a = artOf(type);
     iconItem.type = type;
     iconItem.x = x;
-    iconItem.radius = size * (type === 'grain' ? 0.22 : type === 'lure' ? 0.26 : 0.34);
-    iconItem.y = y + (type === 'lure' ? size * 0.12 : 0) + liftOf(iconItem);
+    iconItem.radius = size * a.icon;
+    iconItem.y = y + size * (a.iconDy || 0) + liftOf(iconItem);
     draw(g, iconItem, t || 0);
   }
 

@@ -12,7 +12,7 @@
 | `creature-art.js` | `CreatureArt` (below) |
 | `season.js` | `SEASON` (`SPRING` 0 … `WINTER` 3, the order of `world.season.index`) |
 | `sky.js` | `Sky`: gradient, sun, moon, stars, clouds and three parallax layers; the light palette the view tints with. Reads `world.clock` and `world.season` only |
-| `item-art.js` | `ItemArt`: items from their data; `drawIcon` for the toolbar |
+| `item-art.js` | `ItemArt`: items from their data, one row per type in `ART` (lift, icon size, tilt, the function that draws it; a type without a row warns and draws as a grey circle); `drawIcon` for the toolbar |
 | `painters/` | Add the static-art painters to `Paint`: `palette.js` (seasonal palettes), `terrain.js` (tiles, stones, cliffs: the art reaches `terrain.cliffs.width` in from each end and stands as high as the ground at the ends, the higher of the two; turf and snow thin out to nothing at a pond's edge), `plants.js` (trees, grass, reeds, thorn bush), `rocks.js` (the log and the rock, shaped to their platforms) |
 | `water.js` | `Water`: ponds (the water is as deep as the pond's `bed`), their ice and snow in winter, the sun's glints |
 | `weather.js` | `Weather`: snow, leaves, petals, pollen and fireflies, pooled around the visible area |
