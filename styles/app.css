@@ -113,6 +113,10 @@ button.log-line:hover { border-color: var(--muted); }
 #toolbar { left: 50%; bottom: 10px; transform: translateX(-50%); max-width: calc(100% - 20px); padding: 5px; }
 #toolTray { display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; scrollbar-width: none; }
 #toolTray::-webkit-scrollbar { display: none; }
+/* An edge with tools hidden past it fades out (toolbar.js sets the classes; the compact tray never scrolls) */
+body:not(.compact) #toolTray.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+body:not(.compact) #toolTray.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+body:not(.compact) #toolTray.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
 .tool { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 54px; height: 52px;
   border-radius: 11px; font-size: 11.5px; color: var(--muted); border: 1px solid transparent; }
 .tool:hover { color: var(--text); background: var(--panel); }

@@ -92,6 +92,14 @@
       }
     };
     tray.querySelectorAll('canvas[data-art]').forEach(cv => drawToolIcon(cv, cv.dataset.art));
+    // On mid-width screens the tray scrolls sideways; an edge with tools hidden past it fades out
+    const markHidden = () => {
+      const max = tray.scrollWidth - tray.clientWidth;
+      tray.classList.toggle('more-left', tray.scrollLeft > 1);
+      tray.classList.toggle('more-right', tray.scrollLeft < max - 1);
+    };
+    tray.addEventListener('scroll', markHidden, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(markHidden).observe(tray);
     // A group's toggle shows the icon of its chosen tool, or else its first
     const groups = [...tray.querySelectorAll('.tool-group')];
     const syncToggle = g => {
