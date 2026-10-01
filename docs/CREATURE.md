@@ -30,7 +30,7 @@ Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: ru
 
 `new Evo.Creature(genome, x, y, opts)` takes `opts` `{ generation, parents, reserves, ageTicks, growth, facing, syllables }`. Left out, `facing` (1 or -1) is chosen at random, and `syllables` (the two syllables of its name, such as `['el', 'ani']` for Elani) are made from its parents' syllables, or at random when it has none. `name` is the syllables joined and capitalised.
 
-`creature.stimulate(key, strength)` raises a stimulus in its body's chemistry and notes it for the interface ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). `creature.step(world)` runs one creature through all four phases on its own, for tests; it also flushes every creature's queued writes.
+`creature.stimulate(key, strength)` raises a stimulus in its body's chemistry and notes it for the interface ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). `creature.step(world)` runs one creature through all four phases on its own, for tests; it also flushes every creature's queued writes and deeds.
 
 ## Body
 
@@ -81,7 +81,7 @@ Asleep, the brain dreams first. Then the brain ticks once, with what `Evo.senses
 
 ## Act
 
-`Evo.muscles.act(creature, world)`: the muscle cells that fired this tick act. A creature that is asleep or held does nothing. How hard they worked (`exertion`) goes back to the body as running costs and heat; food and water go in through `body.ingest`, a sip being `Evo.BODY.sip`.
+`Evo.muscles.act(creature, world)`: the muscle cells that fired this tick act. A creature that is asleep or held does nothing. What it does to things and to others (a bite, picking up, dropping, a shove, a nuzzle) is queued with `world.queueDeed` and lands once every creature has acted, so each acts on the same world; when two mouths go for the same item, the nearer one gets it ([TIME.md](TIME.md)). How hard they worked (`exertion`) goes back to the body as running costs and heat; food and water go in through `body.ingest`, a sip being `Evo.BODY.sip`.
 
 | Muscle | What it does |
 |---|---|

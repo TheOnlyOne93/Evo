@@ -2,7 +2,9 @@
 // are smoothed into force, and the muscles walk, run, jump, eat, drink, grab or shove, rest and call.
 // Strength comes from the body; how hard they worked (exertion) goes back to it as running costs and
 // heat. Food and water go in through the body's stomach (Body.ingest).
-// They write the creature's speed and facing, the muscle timers, `exertion` and `action`.
+// They write the creature's speed and facing, the muscle timers, `exertion` and `action`. What they do
+// to things and to others (bite, pick up, drop, shove, nuzzle) they queue for the world to apply once
+// every creature has acted (World.applyQueuedDeeds).
 (function (Evo) {
   'use strict';
   const { MOTORS } = Evo;
@@ -59,10 +61,13 @@
       c.restTimer = 0;
       effort += 1;
     }
-    // Eating: the mouth opens and works on whatever is there. Drinking: the lips take a sip.
+    // Eating: the mouth opens and bites the food there, or nuzzles the creature there. Drinking: the
+    // lips take a sip.
     if (m[MOTOR_INDEX.eat]) {
       c.mouthTimer = MOUTH_TICKS;
-      useMouth(c, world);
+      const t = c.thingAtMouth(world);
+      if (t && t.kind === 'item' && world.foodOf(t.item)) world.queueDeed(c, 'bite', t.item);
+      else if (t && t.kind === 'creature') world.queueDeed(c, 'nuzzle', t.creature);
     }
     if (m[MOTOR_INDEX.drink] && c.waterAtMouth(world)) {
       c.drinkTimer = MOUTH_TICKS;
@@ -73,11 +78,11 @@
     // Grab or drop an item; with another creature at the mouth, a shove
     if (m[MOTOR_INDEX.grab] && c.grabCooldown === 0) {
       c.grabCooldown = GRAB_COOLDOWN_TICKS;
-      if (c.carrying) world.dropCarried(c);
+      if (c.carrying) world.queueDeed(c, 'drop', c.carrying);
       else {
         const t = c.thingAtMouth(world);
-        if (t && t.kind === 'item' && !t.item.heldBy) world.pickUpItem(c, t.item);
-        else if (t && t.kind === 'creature') world.shove(c, t.creature);
+        if (t && t.kind === 'item' && !t.item.heldBy) world.queueDeed(c, 'pickUp', t.item);
+        else if (t && t.kind === 'creature') world.queueDeed(c, 'shove', t.creature);
       }
     }
     // Resting: each spike of the rest muscle keeps the creature lying down for a while
@@ -90,21 +95,6 @@
     c.exertion = c.exertion * 0.9 + Math.min(1, effort) * 0.1;
     c.action = c.drinkTimer > 0 ? 'drinking' : c.mouthTimer > 0 ? 'eating' : c.restTimer > LYING_ABOVE ? 'resting' : c.callTimer > CALLING_ABOVE ? 'calling'
       : !c.onGround ? 'jumping' : Math.abs(c.vx) > 0.25 ? (running ? 'running' : 'walking') : 'idle';
-  }
-
-  function useMouth(c, world) {
-    const t = c.thingAtMouth(world);
-    if (!t) return;
-    if (t.kind === 'item') {
-      const food = world.foodOf(t.item);
-      if (food) {
-        c.body.ingest(food);
-        c.stimulate('ate');
-        world.consumeItem(c, t.item, food);
-      }
-    } else if (t.kind === 'creature') {
-      world.nuzzle(c, t.creature);
-    }
   }
 
   Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE, JUMP_COOLDOWN_TICKS };

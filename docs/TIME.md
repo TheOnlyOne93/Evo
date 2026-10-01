@@ -38,7 +38,8 @@ Each creature phase runs for every creature before the next begins, so every cre
 | body | `Creature.tickBody`: age and stage, then `Body.step`: body readings, biochemistry, physiology, sleep. A creature may die here. The scent it gives off and an egg it lays are queued, not written |
 | body commit | `applyQueuedWrites` lands the queued scent and eggs in creature order; the dead leave carrion |
 | mind | `Creature.mind`: senses, dreams, the brain's tick. Everyone reads the same world |
-| act | `Creature.act`: muscles, mouth and hands: walking, jumping, eating, drinking, grabbing, shoving, nuzzling, resting, calling |
+| act | `Creature.act`: muscles, mouth and hands: walking, jumping, drinking, resting, calling. What a creature does to things and to others (a bite, picking up, dropping, a shove, a nuzzle) is queued, not done |
+| act commit | `applyQueuedDeeds` lands the queued deeds. When two mouths go for the same item, the nearer one gets it (on a tie, the older creature); a shove lands after the shoved creature's own legs have pushed |
 | settle | `Creature.settle`: the creature moves (a carried item follows its carrier's mouth), then what the skin and tongue felt fades |
 | ecology | Mating, sounds age, a wanderer may arrive, an empty world is founded again |
 

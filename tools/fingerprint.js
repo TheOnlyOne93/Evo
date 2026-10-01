@@ -98,7 +98,7 @@ function run(seed, ticks, { crowd = false, killAt = 0 } = {}) {
 const D = Evo.DAY_TICKS;
 const RUNS = {
   'sim:seed1': [1, 2 * D, { killAt: D / 4 }],
-  'sim:seed2': [2, 2 * D],
+  'sim:seed2': [2, 2.5 * D],   // Long enough for its first egg to hatch
   'sim:crowd': [3, D / 2, { crowd: true }]
 };
 

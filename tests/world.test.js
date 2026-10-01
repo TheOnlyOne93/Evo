@@ -279,17 +279,47 @@ test('world: two creatures hear each other\'s calls for two ticks each, whatever
   }
 });
 
+// In the next tick, once c's brain has ticked, exactly the muscle cells named in keys fire
+function fireNext(Evo, world, c, keys) {
+  const tick = world.clock.tick + 1, mind = c.mind, { hist, lobes } = c.brain;
+  c.mind = w => {
+    mind.call(c, w);
+    if (w.clock.tick === tick) Evo.MOTORS.forEach((m, k) => { hist[lobes.motor[k]] = (hist[lobes.motor[k]] & ~1) | (keys.includes(m.key) ? 1 : 0); });
+  };
+}
+
 test('world: a nuzzle and a shove reach their targets in the tick they happen, whatever the order', (Evo, assert) => {
   const felt = [false, true].map(swap => {
     const { world, a, b } = pair(Evo, swap);
-    onNextAct(world, a, () => world.nuzzle(a, b));
-    onNextAct(world, b, () => world.shove(b, a));
+    world.items = [];
+    a.facing = 1; b.facing = -1;   // Face to face
+    b.grabCooldown = 0;
+    fireNext(Evo, world, a, ['eat']);    // a nuzzles b
+    fireNext(Evo, world, b, ['grab']);   // b shoves a
     world.step();
-    return { gentle: b.body.stim.gentle, flinch: a.body.stim.flinch, vy: a.vy, airborne: !a.onGround };
+    return { gentle: b.body.stim.gentle, flinch: a.body.stim.flinch, vx: a.vx, vy: a.vy, airborne: !a.onGround };
   });
   assert.deepStrictEqual(felt[0], felt[1]);
   assert.ok(felt[0].gentle > 0 && felt[0].gentle < 0.5 && felt[0].flinch > 0 && felt[0].flinch < 1, 'felt, then faded once, in the same tick');
-  assert.ok(felt[0].vy < 0 && felt[0].airborne, 'the shoved one is already off the ground');
+  assert.ok(felt[0].vx < 0 && felt[0].vy < 0 && felt[0].airborne, 'the shoved one is already flying away from the shover');
+});
+
+test('world: when two mouths go for the same item in one tick, the nearer one gets it, whatever the order', (Evo, assert) => {
+  for (const swap of [false, true]) {
+    const { world, a, b } = pair(Evo, swap);
+    world.items = [];
+    a.facing = 1; b.facing = -1;
+    const fruit = world.spawnItem('fruit', a.mouthX + 1);
+    b.x += fruit.x + 3 - b.mouthX;   // b's mouth a little further from the fruit than a's
+    b.y = world.terrain.groundY(b.x);
+    a.grabCooldown = 0;
+    fireNext(Evo, world, a, ['grab']);   // the nearer one picks it up
+    fireNext(Evo, world, b, ['eat']);    // the further one bites at it
+    world.step();
+    const order = swap ? ' (swapped)' : '';
+    assert.strictEqual(a.carrying, fruit, `the nearer mouth has it${order}`);
+    assert.ok(world.items.includes(fruit) && b.meals === 0, `the further mouth got nothing${order}`);
+  }
 });
 
 test('world: a carried item sits at its carrier\'s mouth after the carrier moves', (Evo, assert) => {

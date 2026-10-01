@@ -46,6 +46,9 @@
       // every body has run, so all bodies read the same world (see step)
       this.pendingScent = [];          // { x, y, channel, amount }
       this.pendingEggs = [];           // { mother, pregnancy }
+      // What creatures do to things and to each other in the act phase, applied once every creature
+      // has acted, so all of them act on the same world (see applyQueuedDeeds)
+      this.pendingDeeds = [];          // { creature, kind, target }
 
       // The landscape (Evo.buildLandscape): the size, the terrain, the features and platforms, where
       // each founder stands and where the ball starts. Built before anyone is founded, as they stand where it says
@@ -271,7 +274,11 @@
       if (this.hand.holding && this.hand.holding.item === item) this.hand.holding = null;
     }
 
-    consumeItem(creature, item, food) {
+    // A creature eats an item: it goes into the stomach and out of the world
+    eatItem(creature, item) {
+      const food = this.foodOf(item);
+      creature.body.ingest(food);
+      creature.stimulate('ate');
       this.removeItem(item);
       creature.meals++;
       if (food.toxin) this.stats.poisonings++; else this.stats.meals++;
@@ -295,6 +302,34 @@
       item.vx = creature.vx + creature.facing * 0.6;
       item.vy = -0.5;
       creature.stimulate('dropped');
+    }
+
+    // ---------- What creatures do to things and to each other ----------
+    // kind: 'bite' (an item), 'pickUp' (an item), 'drop' (the item it carries), 'shove' or 'nuzzle' (a creature)
+    queueDeed(creature, kind, target) {
+      this.pendingDeeds.push({ creature, kind, target });
+    }
+
+    // Apply the deeds every creature queued in the act phase. All of them acted on the same world, so
+    // what happens must not depend on a creature's place in the list. When two mouths go for the
+    // same item, the nearer one gets it, as the first mouth there would (on a tie, the older
+    // creature). A shove lands in full, after the shoved creature's own legs have pushed
+    applyQueuedDeeds() {
+      const deeds = this.pendingDeeds, claims = new Map(); // item -> { deed, gap }
+      for (const d of deeds) {
+        if (d.kind !== 'bite' && d.kind !== 'pickUp') continue;
+        const gap = Math.abs(d.target.x - d.creature.mouthX), best = claims.get(d.target);
+        if (!best || gap < best.gap || (gap === best.gap && d.creature.id < best.deed.creature.id)) claims.set(d.target, { deed: d, gap });
+      }
+      for (const d of deeds) {
+        const { creature: c, kind, target } = d;
+        if (kind === 'bite') { if (claims.get(target).deed === d) this.eatItem(c, target); }
+        else if (kind === 'pickUp') { if (claims.get(target).deed === d) this.pickUpItem(c, target); }
+        else if (kind === 'drop') { if (c.carrying === target) this.dropCarried(c); }   // unless it just ate it
+        else if (kind === 'shove') this.shove(c, target);
+        else this.nuzzle(c, target);
+      }
+      deeds.length = 0;
     }
 
     // ---------- Sound ----------
@@ -691,7 +726,9 @@
     //                a body gives off and eggs it lays are queued, not written
     //   body commit  the queued scent and eggs land, in creature order; the dead leave carrion
     //   mind         senses, dreams, the brain's tick: everyone reads the same settled world
-    //   act          muscles, mouth and hands: eating, grabbing, shoving, nuzzling, calling
+    //   act          muscles: walking, jumping, drinking, calling; what a creature does to things
+    //                and others (biting, grabbing, dropping, shoving, nuzzling) is queued, not done
+    //   act commit   the queued deeds land: the nearer of two mouths gets a contested item
     //   settle       movement (a carried item follows its carrier's mouth), then stimuli fade
     //   ecology      mating, sounds age, wanderers arrive, an empty world is founded again
     // Only physiology kills, so no creature dies after the body commit. A call made in act is
@@ -711,6 +748,7 @@
       const living = all.filter(c => !c.dead);
       for (const c of living) c.mind(this);
       for (const c of living) c.act(this);
+      this.applyQueuedDeeds();
       for (const c of living) c.settle(this);
       this.tryMating();
       for (const s of this.sounds) s.ageTicks++;

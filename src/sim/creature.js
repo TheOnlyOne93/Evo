@@ -7,7 +7,8 @@
 //   body    the body takes its readings, its chemistry steps, and its workings follow (energy,
 //           water, heat, growth, healing, damage, sleep). The only phase where a creature dies.
 //   mind    the senses turn the settled world and the body into neuron currents; the brain ticks
-//   act     the muscles that fired act: legs, mouth, calls
+//   act     the muscles that fired act: legs, mouth, calls. What it does to things and to others
+//           (a bite, a grab, a shove) is queued, and lands once every creature has acted
 //   settle  the creature moves, a carried item follows the mouth, and what the skin felt fades
 // A stimulus (stimulate) changes chemistry at once and is read by the next body phase.
 // Geometry: x = centre, y = feet on the ground, facing ±1; `size` is the body length in px.
@@ -180,8 +181,8 @@
     // A tick runs in phases: body (chemistry and health), mind (senses and brain), act (muscles),
     // settle (movement). World.step runs each phase for every creature before the next phase;
     // step() runs one creature through all of them on its own (for tests and tools), applying the
-    // world writes its body queued straight away. A creature that dies in its body phase skips the
-    // rest (World.step removes it; here the caller does)
+    // world writes its body and muscles queued straight away. A creature that dies in its body phase
+    // skips the rest (World.step removes it; here the caller does)
     step(world) {
       if (this.dead) return;
       this.tickBody(world);
@@ -189,6 +190,7 @@
       if (this.dead) return;
       this.mind(world);
       this.act(world);
+      world.applyQueuedDeeds();
       this.settle(world);
     }
 
