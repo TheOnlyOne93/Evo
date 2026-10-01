@@ -12,11 +12,19 @@
   const CALL_HALF = Evo.muscles.CALL_TICKS / 2;
   const YAWN = { period: 420, len: 54, salt: 131 }, LICK = { period: 260, len: 26, salt: 71 };
   const HEAD_DOWN_RATE = 0.35;   // per tick: the head goes down to eat or drink, and back up, in about 5 ticks
+  const TURN_STEP = 0.25;        // per tick, at a steady pace: turning round takes 8 ticks
 
   // Moves state[key] toward target by `rate` per sim tick; state.n is the ticks since the state
   // last eased (0: nothing moves, so several calls in one frame or a paused world change nothing)
   function ease(state, key, target, rate) {
     state[key] = state[key] === undefined ? target : state[key] + (target - state[key]) * (1 - Math.pow(1 - rate, state.n));
+    return state[key];
+  }
+
+  // Moves state[key] toward target by `step` per sim tick, at a steady pace, as ease counts ticks
+  function approach(state, key, target, step) {
+    const v = state[key], d = target - v, m = step * state.n;
+    state[key] = v === undefined || Math.abs(d) <= m ? target : v + Math.sign(d) * m;
     return state[key];
   }
 
@@ -135,7 +143,8 @@
       motion: {
         vx: c.vx, airborne: !c.onGround && !c.held, walkPhase: c.walkPhase,
         lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08),
-        headDown: ease(s, 'down', mouth > 0 ? 1 : 0, HEAD_DOWN_RATE)
+        headDown: ease(s, 'down', mouth > 0 ? 1 : 0, HEAD_DOWN_RATE),
+        turn: approach(s, 'turn', c.facing, TURN_STEP)
       },
       face: {
         eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),

@@ -22,6 +22,7 @@ test('render: poseOf returns the documented pose fields with valid types and ran
   ['patternScale', 'earSize', 'tailLength', 'eyeSize', 'plumpness', 'legLength', 'crest'].forEach(k => unit(pose.looks, k));
 
   num(pose.motion, 'vx'); bool(pose.motion, 'airborne'); num(pose.motion, 'walkPhase'); unit(pose.motion, 'lying'); unit(pose.motion, 'headDown');
+  num(pose.motion, 'turn'); assert.ok(pose.motion.turn >= -1 && pose.motion.turn <= 1, 'turn in -1..1');
 
   ['eyesClosed', 'mouthOpen', 'earDroop', 'blush', 'happy', 'worry', 'yawn', 'lick'].forEach(k => unit(pose.face, k));
   ['pupilX', 'pupilY', 'smile'].forEach(k => { num(pose.face, k); assert.ok(pose.face[k] >= -1 && pose.face[k] <= 1, k + ' in -1..1'); });
@@ -49,4 +50,18 @@ test('render: the head eases down while the mouth works, and back up', (Evo, ass
   c.mouthTimer = 0;
   const after = headDownAfter(1);
   assert.ok(after > 0 && after < 1, `one tick after the bite the head is part way back up (got ${after})`);
+});
+
+test('render: turning round eases from one side to the other', (Evo, assert) => {
+  const world = new Evo.World();
+  const c = world.creatures[0];
+  // poseOf eases by the world ticks since its last call, so the clock is moved on by hand
+  const turnAfter = ticks => { world.clock.tick += ticks; return Evo.poseOf(c, { world }).motion.turn; };
+  c.facing = 1;
+  assert.strictEqual(turnAfter(0), 1, 'it starts facing its way');
+  c.facing = -1;
+  const first = turnAfter(1);
+  assert.ok(first > -1 && first < 1, `one tick into turning round it is part way round (got ${first})`);
+  const later = turnAfter(20);
+  assert.ok(later < -0.99, `twenty ticks on it has turned all but fully round (got ${later})`);
 });

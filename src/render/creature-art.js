@@ -4,7 +4,7 @@
 // a head crest whose shape shows the sex and which glows in the breeding season. Geometry is
 // built in units (an adult is about 32 units from rump to nose; baby proportions differ), facing
 // right with the origin on the ground under the body, then scaled by pose.size and mirrored by
-// pose.facing.
+// pose.facing (narrowing through a front-on moment as it turns round: pose.motion.turn).
 (function (Evo) {
   'use strict';
   const { TAU } = Evo.util;
@@ -58,6 +58,7 @@
   // tipped forward by HELD_TILT (radians), so that spot is the highest on its back
   const SCRUFF_AT = 2.8, HELD_TILT = 0.15;
   const DRINK_REACH = 0.7;                            // drinking, the head goes at most this × R lower than to eat
+  const TURN_NARROW = 0.35;                           // turning round, the drawing narrows to this share of its width as it faces the viewer
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
 
@@ -168,7 +169,7 @@
   // ---- The rig: every point of the current pose, in units ------------------------------------
 
   const rig = {
-    k: 1, facing: 1, stage: 5, mature: true, senile: false, g: 1, ag: 0, female: true, dead: false, held: false, asleep: false,
+    k: 1, facing: 1, flip: 1, stage: 5, mature: true, senile: false, g: 1, ag: 0, female: true, dead: false, held: false, asleep: false,
     air: 0, lying: 0, fear: 0, anger: 0, sick: 0, cold: 0, hot: 0, wet: 0, calling: 0, heat: 0,
     offX: 0, sx: 1, sy: 1, swing: 0, shadowY: 0, shadow: 1, ol: 1, lod: 2, pxScale: 1,
     bx: 0, by: 0, ang: 0, rxF: 10, rxB: 11, ryT: 8, ryB: 9, breath: 1, bristle: 0,
@@ -218,9 +219,12 @@
     const tempo = 1 - 0.18 * ag - 0.2 * senile;
     const ph0 = e.phase;
     const facing = pose.facing < 0 ? -1 : 1;
+    const turn = clamp(num(M.turn, facing), -1, 1);   // eases from one side to the other, through 0, as it turns round
     const size = num(pose.size, 32), toRef = REF_SIZE / Math.max(MIN_REF_SIZE, size);
 
-    r.k = Math.max(MIN_SIZE, size) / UNITS; r.facing = facing; r.stage = stage; r.g = g; r.ag = ag;
+    r.k = Math.max(MIN_SIZE, size) / UNITS; r.stage = stage; r.g = g; r.ag = ag;
+    r.facing = turn < 0 ? -1 : turn > 0 ? 1 : facing;   // the way it is drawn: still the old way for the first half of a turn
+    r.flip = Math.max(TURN_NARROW, Math.abs(turn));     // the share of its width it is drawn at: narrowest halfway round, facing the viewer
     r.female = pose.sex !== 'MALE'; r.dead = dead; r.held = held; r.asleep = asleep; r.air = air; r.lying = lying;
     r.fear = fear; r.anger = anger; r.sick = sick; r.cold = cold; r.hot = hot; r.wet = wet; r.calling = calling;
     r.heat = S.inHeat && !dead && r.mature ? 0.62 + 0.38 * Math.sin(t * 3.4 + ph0) : 0;
@@ -379,7 +383,7 @@
     r.eyeMode = dead ? EYE.DEAD : flinch > 0.45 ? EYE.SHUT : joy > 0.4 ? EYE.HAPPY
       : r.closed > 0.86 ? (smile > 0.35 && !asleep ? EYE.HAPPY : EYE.SLEEPY) : EYE.OPEN;
     r.eR = R * (0.26 + 0.13 * eyeGene) * lerp(1.14, 1, g) * (1 + 0.12 * fear);
-    r.px = clamp(num(F.pupilX, 0), -1, 1) * facing;
+    r.px = clamp(num(F.pupilX, 0), -1, 1) * r.facing;
     r.py = clamp(num(F.pupilY, 0), -1, 1);
     r.pupil = 0.5 + 0.06 * baby - 0.24 * fear;
     r.lidTilt = anger * 0.5 - 0.25 * Math.max(fear, sick * 0.5, pain);
@@ -774,6 +778,8 @@
     const R = r.R, ol = r.ol;
     ctx.save();
     ctx.translate(r.hx, r.hy);
+    // Turning round, the body narrows but the head, seen face on, keeps its width
+    if (r.flip !== 1) ctx.scale(1 / r.flip, 1);
     ctx.rotate(r.hAng);
     // Both ears sit behind the head, so its outline crosses their bases
     drawEar(ctx, r, pal, false);
@@ -1216,7 +1222,7 @@
     ctx.translate(pose.x, pose.y);
     ctx.scale(r.k, r.k);
     drawGround(ctx, r, inWorld ? pose : EMPTY, gradients(ctx).shadow);
-    ctx.scale(r.facing, 1);
+    ctx.scale(r.facing * r.flip, 1);
     if (r.swing) { ctx.translate(0, GRIP_Y); ctx.rotate(r.swing); ctx.translate(0, -GRIP_Y); }
     ctx.translate(r.offX, 0);
     if (r.sx !== 1 || r.sy !== 1) ctx.scale(r.sx, r.sy);
@@ -1240,13 +1246,14 @@
     const r = rig;
     computeRig(pose, t || 0, entryFor(pose), r, false);
     headPoint(r, r.R * MOUTH_X, r.R * MOUTH_Y, P);
-    // render's transforms, innermost first: stretch, offset, swing about the grip, facing, size
-    let x = P[0] * r.sx + r.offX, y = P[1] * r.sy;
+    // The head keeps its width when the body narrows in a turn (drawHead); then render's
+    // transforms, innermost first: stretch, offset, swing about the grip, facing (narrowed in a turn), size
+    let x = (r.hx + (P[0] - r.hx) / r.flip) * r.sx + r.offX, y = P[1] * r.sy;
     if (r.swing) {
       const c = Math.cos(r.swing), s = Math.sin(r.swing), dy = y - GRIP_Y;
       y = GRIP_Y + x * s + dy * c; x = x * c - dy * s;
     }
-    out[0] = pose.x + x * r.facing * r.k; out[1] = pose.y + y * r.k;
+    out[0] = pose.x + x * r.facing * r.flip * r.k; out[1] = pose.y + y * r.k;
     return out;
   }
 
@@ -1298,8 +1305,8 @@
   function bounds(pose) {
     const e = entryFor(pose), r = rig;
     computeRig(pose, 0, e, r);
-    const x = rigExtent(r), k = r.k;
-    const a = pose.x + (r.facing > 0 ? x[0] : -x[2]) * k, b = pose.x + (r.facing > 0 ? x[2] : -x[0]) * k;
+    const x = rigExtent(r), k = r.k, kx = k * r.flip;   // kx: narrowed as it turns round, as render draws it
+    const a = pose.x + (r.facing > 0 ? x[0] : -x[2]) * kx, b = pose.x + (r.facing > 0 ? x[2] : -x[0]) * kx;
     return { x0: a, y0: pose.y + x[1] * k, x1: b, y1: pose.y + x[3] * k };
   }
 
