@@ -19,7 +19,7 @@
 | `hand-art.js` | `HandArt`: the player's hand in four poses, in screen px |
 | `cues.js` | `CreatureCues`: thought bubbles, hearts, bursts, name tags, attention brackets, and each creature's recent events for the card; `shownDrives`, `DRIVE_SHOWN`, `EVENT_LOOK` for the interface |
 | `world-view.js` | `WorldView` (below) |
-| `brain-view.js` | `BrainView` (the brain map, as regions or as anatomy) and `VoltageScope` (one neuron's membrane potential) |
+| `brain-view.js` | `BrainView` (the brain map: every region as a box, every cell at its spot) and `VoltageScope` (one neuron's membrane potential) |
 | `family-view.js` | `FamilyView`: the family tree |
 
 ## Creature pose
@@ -100,8 +100,8 @@ class WorldView {
 }
 
 class BrainView {
-  constructor(canvas); resize(); setBrain(brain); setMode('regions' | 'anatomy'); render()
-  pickAt(x, y); tapAt(x, y)           // the neuron under a point
+  constructor(canvas); resize(); setBrain(brain); render()
+  pickAt(x, y); tapAt(x, y)           // the neuron under a point, else the region whose box it is in
   allWiring, ticksRun, probed, region, marks
 }
 class VoltageScope { resize(); clear(); push(v); render(threshold) }
@@ -114,7 +114,7 @@ class FamilyView {
 }
 ```
 
-What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nearestWater` (pose), the creature fields listed in [CREATURE.md](CREATURE.md), `stimCount` and `brain.dream` (cues), the brain's arrays and `chemImages` (brain map), and `world.history` through `Evo.kinOf` (family tree).
+What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nearestWater` (pose), the creature fields listed in [CREATURE.md](CREATURE.md), `stimCount` and `brain.dream` (cues), the brain's arrays, `boxes` and `chemImages` (brain map), and `world.history` through `Evo.kinOf` (family tree).
 
 ## A frame
 
@@ -129,6 +129,10 @@ What renderers read beyond the world contract ([WORLD.md](WORLD.md)): `world.nea
 7. Overlays: scent (left clear where `world.scentSolid` is set), senses, calls, creature cues (in screen px), the hand.
 
 If posing or drawing a creature ever throws, the view warns once and draws placeholders for every creature from then on.
+
+## The brain map
+
+`BrainView` draws the brain's own map ([BRAIN.md](BRAIN.md)) as one picture, stretched to fill the canvas with a small margin: x across, y from the front (top) to the back (bottom). Under the cells, each region is a rounded box from `brain.boxes` with a faint tint and a thin outline in its colour; a two-sided region has a second box, the mirror image of the first (x to 1 - x). The region's name sits just above the top left corner of its (left) box, a dashed line marks the midline, and "left" and "right" hints sit at the bottom. Each cell is a dot at its spot in its box. The reward and punishment haze (`chemImages`) is under the boxes. Cells glow as they fire, spikes travel along the connections, and only recently used connections are drawn (or all of them with "All wiring"). Tapping a cell picks it; tapping inside a box but away from any cell picks that region, which dims the other cells and shows only the connections that touch it. Tapping the same thing again lets go.
 
 ## Caching
 

@@ -1,24 +1,18 @@
-// The followed creature's brain, drawn two ways. "Regions": each brain region as a labelled box of
-// its cells (senses at the top, muscles at the bottom, left cells on the left), like a lab chart.
-// "Anatomy": every neuron where it really sits (senses at the front, the world's left on the left),
-// with the reward and punishment learning signal as a coloured haze. Either way neurons glow as they
-// fire, spikes travel along the axons, and only recently used connections are drawn (or all of them).
+// The followed creature's brain, drawn as one map: the brain's own map, where every region is a box
+// (a faint tint of the region's colour, its name above its top left corner) and every neuron sits
+// at its spot in its box. Senses are at the front (top), muscles at the back (bottom), and the
+// world's left is on the left; a two-sided region has a box on each side, mirror images of each other.
+// The reward and punishment learning signal is a coloured haze under it. Neurons glow as they fire,
+// spikes travel along the axons, and only recently used connections are drawn (or all of them).
 // Also a small oscilloscope for one neuron's membrane potential.
 (function (Evo) {
   'use strict';
   const { LOBE_INFO } = Evo;
   const { TAU } = Evo.util;
 
-  // Regions labelled on the anatomy map (the rest are identified by tapping a neuron)
-  const LABELLED = ['sight', 'smell', 'touch', 'needs', 'feelings', 'attention', 'cortex', 'side', 'central', 'motor', 'stem'];
-  const GUTTER = 74; // Room for the region names on the left of the anatomy map
-  const PAD = 16;    // Anatomy map margin
-
-  // Regions view: which band of rows each region goes in, how many rows of cells it has, and which
-  // regions keep their cells in gene order (the rest are laid out by where the cells sit: left on the left)
-  const BAND = { sight: 0, smell: 0, hearing: 0, touch: 0, taste: 0, near: 0, needs: 1, feelings: 1, attention: 1, cortex: 2, side: 2, central: 2, motor: 3, stem: 3 };
-  const ROWS = { sight: 2, smell: 2, hearing: 2, touch: 1, taste: 1, near: 1, needs: 3, feelings: 2, attention: 2, cortex: 3, side: 2, central: 4, motor: 1, stem: 2 };
-  const IN_ORDER = new Set(['needs', 'feelings', 'taste', 'near']);
+  const PAD = 12;         // Map margin left, right and (with the hints) at the bottom
+  const TOP = 16;         // Room above the map for the names of the boxes at its top edge
+  const HINTS = 18;       // Room under the map for the "left" and "right" hints
   const TRAIL_TICKS = 20; // Ticks a used connection stays drawn
   const SCOPE_V_MIN = -80, SCOPE_V_MAX = 30; // the scope's range (mV): below rest up to a spike's peak
 
@@ -30,7 +24,6 @@
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
       this.brain = null;
-      this.mode = 'regions';  // 'regions' | 'anatomy'
       this.allWiring = false; // Draw every connection, not just recently used ones
       this.ticksRun = 1;      // Ticks run since the last frame: a neuron is lit if it fired in any of them
       this.probed = -1;       // Index of the neuron being inspected, or -1
@@ -55,119 +48,43 @@
       this.layoutFor = null;
     }
 
-    setMode(mode) {
-      this.mode = mode;
-      this.layoutFor = null;
-    }
-
+    // Brain map coordinates (0 to 1) to the canvas: x across, y (front to back) downward, the map
+    // stretched to fill it. Also works out where each region's box(es) fall.
     layout() {
       const b = this.brain;
-      if (this.layoutFor === b && this.layoutMode === this.mode && this.screen && this.screen.length === b.N * 2) return;
+      if (this.layoutFor === b && this.screen && this.screen.length === b.N * 2) return;
       this.layoutFor = b;
-      this.layoutMode = this.mode;
+      const m = this.map = { x: PAD, y: TOP, w: this.width - PAD * 2, h: this.height - TOP - HINTS };
       this.screen = new Float32Array(b.N * 2);
       this.colors = new Array(b.N);
-      for (const n of b.neurons) this.colors[n.index] = LOBE_INFO[n.lobe].color;
-      if (this.mode === 'anatomy') this.layoutAnatomy(); else this.layoutRegions();
-    }
-
-    // Where the anatomy map sits on the canvas
-    mapRect() {
-      return { x: GUTTER + PAD, y: PAD + 8, w: this.width - PAD * 2 - GUTTER, h: this.height - PAD * 2 - 10 };
-    }
-
-    // Brain coordinates to the canvas: x across, y (front to back) downward
-    layoutAnatomy() {
-      const b = this.brain, m = this.map = this.mapRect();
       for (const n of b.neurons) {
+        this.colors[n.index] = LOBE_INFO[n.lobe].color;
         this.screen[n.index * 2] = m.x + n.pos[0] * m.w;
         this.screen[n.index * 2 + 1] = m.y + n.pos[1] * m.h;
       }
       this.cellR = 1.8;
-      // Region names in the left margin, level with each region's middle, nudged apart so they never overlap
-      this.labels = LABELLED.filter(l => b.lobes[l]).map(l => {
-        const idx = b.lobes[l];
-        let y = 0;
-        for (const i of idx) y += this.screen[i * 2 + 1];
-        return { lobe: l, text: Evo.text.regionName(b, l), y: y / idx.length, color: LOBE_INFO[l].color };
-      }).sort((a, z) => a.y - z.y);
-      for (let k = 1; k < this.labels.length; k++) this.labels[k].y = Math.max(this.labels[k].y, this.labels[k - 1].y + 13);
-      this.boxes = null;
-    }
-
-    // Each region as a box of cells in rows; boxes flow into four bands (senses; drives, feelings
-    // and attention; thinking; movement), with the cell spacing chosen so everything fits
-    layoutRegions() {
-      const b = this.brain, ctx = this.ctx;
-      ctx.font = font(10.5);
-      const regions = Object.keys(b.lobes).map(lobe => {
-        const cells = b.lobes[lobe].slice();
-        const rows = Math.max(1, Math.min(ROWS[lobe], cells.length)), cols = Math.ceil(cells.length / rows);
-        let order = cells;
-        if (!IN_ORDER.has(lobe)) {
-          const P = i => b.neurons[i].pos;
-          const byY = cells.sort((i, j) => P(i)[1] - P(j)[1]);
-          order = [];
-          for (let r = 0; r < rows; r++) order.push(...byY.slice(r * cols, (r + 1) * cols).sort((i, j) => P(i)[0] - P(j)[0]));
-        }
-        const name = Evo.text.regionName(b, lobe);
-        return { lobe, name, order, rows, cols, band: BAND[lobe], textW: ctx.measureText(name).width + 18, color: LOBE_INFO[lobe].color };
-      }).sort((a, z) => a.band - z.band);
-      const W = this.width - 8, H = this.height - 6, GAP = 6, TITLE = 15;
-      const pack = p => {
-        let x = 0, y = 0, rowH = 0, band = -1, row = [];
-        const rowsOut = [];
-        const flush = () => { if (row.length) rowsOut.push({ boxes: row, width: x - GAP }); row = []; y += rowH + (rowH ? GAP : 0); x = 0; rowH = 0; };
-        for (const r of regions) {
-          const w = Math.max(r.cols * p + 8, r.textW), h = TITLE + r.rows * p + 5;
-          if (r.band !== band || (x > 0 && x + w > W)) { flush(); band = r.band; }
-          row.push({ ...r, x, y, w, h });
-          x += w + GAP;
-          rowH = Math.max(rowH, h);
-        }
-        flush();
-        return { rows: rowsOut, height: y - GAP, fits: rowsOut.every(rw => rw.width <= W) };
-      };
-      let p = 18, packed = pack(p);
-      while (p > 5 && (packed.height > H || !packed.fits)) { p -= 0.5; packed = pack(p); }
-      // Spread the bands down the canvas and centre each row
-      const spare = Math.max(0, H - packed.height) / Math.max(1, packed.rows.length + 1);
+      // The boxes (the left one first; a two-sided region's right box is its mirror image)
       this.boxes = [];
-      packed.rows.forEach((row, k) => {
-        const dx = 4 + (W - row.width) / 2, dy = 3 + spare * (k + 1);
-        for (const bx of row.boxes) {
-          bx.x += dx; bx.y += dy;
-          const cx = bx.x + (bx.w - bx.cols * p) / 2;
-          bx.order.forEach((i, c) => {
-            this.screen[i * 2] = cx + ((c % bx.cols) + 0.5) * p;
-            this.screen[i * 2 + 1] = bx.y + TITLE + (Math.floor(c / bx.cols) + 0.5) * p;
-          });
-          this.boxes.push(bx);
-        }
-      });
-      this.cellR = Math.min(4, p * 0.28);
-      this.labels = null;
+      for (const lobe of Object.keys(b.lobes)) {
+        const [x0, y0, x1, y1] = b.boxes[lobe], info = LOBE_INFO[lobe];
+        const rect = (a, z) => ({ lobe, color: info.color, x: m.x + a * m.w, y: m.y + y0 * m.h, w: (z - a) * m.w, h: (y1 - y0) * m.h });
+        this.boxes.push(rect(x0, x1));
+        if (info.sided) this.boxes.push(rect(1 - x1, 1 - x0));
+      }
     }
 
     // What is at a point: { neuron } or { region } (or null)
     pickAt(x, y) {
       if (!this.brain) return null;
       this.layout();
-      let best = -1, bestD = this.mode === 'regions' ? 12 : 18;
+      let best = -1, bestD = 18;
       for (let i = 0; i < this.brain.N; i++) {
         const d = Math.hypot(this.screen[i * 2] - x, this.screen[i * 2 + 1] - y);
         if (d < bestD) { bestD = d; best = i; }
       }
       if (best >= 0) return { neuron: best };
-      if (this.boxes) {
-        const bx = this.boxes.find(q => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
-        return bx ? { region: bx.lobe } : null;
-      }
-      if (this.labels && x < GUTTER) {
-        const l = this.labels.find(q => Math.abs(q.y - y) < 8);
-        return l ? { region: l.lobe } : null;
-      }
-      return null;
+      const bx = this.boxes.find(q => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
+      return bx ? { region: bx.lobe } : null;
     }
 
     // Tap: inspect a neuron or a region (tapping the same one again lets go)
@@ -178,7 +95,7 @@
       else { this.probed = -1; this.region = null; }
     }
 
-    // Reward and punishment learning signal as a soft image under the neurons (anatomy only)
+    // Reward and punishment learning signal as a soft image under the neurons
     drawChemistry(ctx) {
       const b = this.brain, n = Evo.BRAIN.CHEM_SIZE;
       if (!this.chemCanvas) {
@@ -203,57 +120,46 @@
       ctx.drawImage(this.chemCanvas, m.x, m.y, m.w, m.h);
     }
 
-    drawTissue(ctx) {
-      const pad = 10, x0 = GUTTER + pad, mid = (x0 + this.width - pad) / 2;
-      ctx.fillStyle = 'rgba(20, 38, 44, 0.55)';
-      ctx.strokeStyle = 'rgba(64, 96, 104, 0.6)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(x0, pad, this.width - pad - x0, this.height - pad * 2, 26);
-      ctx.fill(); ctx.stroke();
-      ctx.setLineDash([3, 5]);
-      ctx.beginPath(); ctx.moveTo(mid, pad + 4); ctx.lineTo(mid, this.height - pad - 4); ctx.stroke();
-      ctx.setLineDash([]);
+    // Under the cells: the learning haze, every region's box, and the dashed midline
+    drawMap(ctx, T) {
       this.drawChemistry(ctx);
-    }
-
-    drawBoxes(ctx, T) {
       for (const bx of this.boxes) {
         const on = bx.lobe === this.region;
-        ctx.fillStyle = on ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.025)';
-        ctx.strokeStyle = on ? bx.color : T.rgba('--line', 1);
+        ctx.fillStyle = bx.color;
+        ctx.strokeStyle = bx.color;
         ctx.lineWidth = on ? 1.5 : 1;
         ctx.beginPath();
-        ctx.roundRect(bx.x, bx.y, bx.w, bx.h, 7);
-        ctx.fill(); ctx.stroke();
+        ctx.roundRect(bx.x, bx.y, bx.w, bx.h, 4);
+        ctx.globalAlpha = on ? 0.2 : 0.09;
+        ctx.fill();
+        ctx.globalAlpha = on ? 1 : 0.55;
+        ctx.stroke();
       }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = T.rgba('--muted', 0.35);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      const mid = this.map.x + this.map.w / 2;
+      ctx.beginPath(); ctx.moveTo(mid, 4); ctx.lineTo(mid, this.height - HINTS + 6); ctx.stroke();
+      ctx.setLineDash([]);
     }
 
+    // Region names just above the top left corner of each region's (left) box, and the left and right hints
     drawTitles(ctx, T) {
-      ctx.font = font(10.5);
+      ctx.font = font(10);
       ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      if (this.boxes) {
-        for (const bx of this.boxes) {
-          ctx.fillStyle = bx.color;
-          ctx.beginPath(); ctx.arc(bx.x + 7, bx.y + 8, 2.6, 0, TAU); ctx.fill();
-          ctx.fillStyle = T.rgba('--text', bx.lobe === this.region ? 1 : 0.72);
-          ctx.fillText(bx.name, bx.x + 13, bx.y + 8.5);
-        }
-      } else {
-        ctx.font = font(11);
-        for (const l of this.labels) {
-          ctx.fillStyle = l.color;
-          ctx.beginPath(); ctx.arc(8, l.y, 3, 0, TAU); ctx.fill();
-          ctx.fillStyle = T.rgba('--text', l.lobe === this.region ? 1 : 0.7);
-          ctx.fillText(l.text, 15, l.y);
-        }
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = T.rgba('--text', 0.4);
-        ctx.textAlign = 'left'; ctx.fillText('← left', GUTTER + 14, this.height - 4);
-        ctx.textAlign = 'right'; ctx.fillText('right →', this.width - 14, this.height - 4);
-      }
       ctx.textBaseline = 'alphabetic';
+      const named = new Set();
+      for (const bx of this.boxes) {
+        if (named.has(bx.lobe)) continue;
+        named.add(bx.lobe);
+        ctx.fillStyle = T.rgba('--text', bx.lobe === this.region ? 1 : 0.72);
+        ctx.fillText(Evo.text.regionName(this.brain, bx.lobe), bx.x, bx.y - 3);
+      }
+      ctx.fillStyle = T.rgba('--text', 0.4);
+      ctx.fillText('← left', PAD, this.height - 4);
+      ctx.textAlign = 'right'; ctx.fillText('right →', this.width - PAD, this.height - 4);
+      ctx.textAlign = 'left';
     }
 
     // With a region picked, only connections touching it are shown (the recent-use view and its spikes)
@@ -337,7 +243,7 @@
       if (!b) return;
       this.layout();
       const S = this.screen, probe = this.probed;
-      if (this.boxes) this.drawBoxes(ctx, T); else this.drawTissue(ctx);
+      this.drawMap(ctx, T);
       if (b.adjacencyDirty) b.rebuildAdjacency();
       this.drawWiring(ctx, T);
 

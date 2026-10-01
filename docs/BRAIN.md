@@ -25,18 +25,18 @@ Most regions are a grid (`grid: [columns, rows]`, per side for a two-sided regio
 |---|---|---|---|
 | Sight | [0.10, 0.10, 0.47, 0.18] | yes | 32: 2 sides × 2 heights (low, high) × 8 features (red, yellow, green, blue, violet, pink, creature, motion) |
 | Smell | [0.30, 0.02, 0.47, 0.08] | yes | 20: 2 antennae × 10 odours |
-| Hearing | [0.02, 0.10, 0.08, 0.18] | yes | 4: 2 ears × 2 pitches |
-| Touch | [0.36, 0.80, 0.64, 0.87] | | 11: contact left and right, mouth left and right, lips (water), back, feet, pain, gentle touch, falling, in water |
-| Taste | [0.14, 0.80, 0.30, 0.85] | | 6: sweet, starchy, savoury, fatty, bitter, water (the list is `Evo.TASTES`, in `src/sim/constants.js`; this file only gives each cell its spot) |
-| Up close | [0.70, 0.80, 0.86, 0.85] | | 8: one per vision feature, the look of whatever is at the mouth |
+| Hearing | [0.02, 0.20, 0.08, 0.28] | yes | 4: 2 ears × 2 pitches |
+| Touch | [0.36, 0.79, 0.64, 0.85] | | 11: contact left and right, mouth left and right, lips (water), back, feet, pain, gentle touch, falling, in water |
+| Taste | [0.14, 0.79, 0.30, 0.84] | | 6: sweet, starchy, savoury, fatty, bitter, water (the list is `Evo.TASTES`, in `src/sim/constants.js`; this file only gives each cell its spot) |
+| Up close | [0.70, 0.79, 0.86, 0.84] | | 8: one per vision feature, the look of whatever is at the mouth |
 | Drives | [0.33, 0.71, 0.67, 0.78] | | 18 (`N_DRIVE_CELLS`): the founder feels drive k in cell k (`Evo.driveCell`); 2 are spare |
 | Feelings | [0.41, 0.63, 0.59, 0.68] | | 8: the reward cell, the punishment cell and 6 general cells |
 | Attention | [0.16, 0.26, 0.47, 0.30] | yes | 16: 2 sides × 8 vision features. Its cells compete; the winner is what the creature is looking at |
 | Thinking | [0.08, 0.34, 0.45, 0.48] | yes | 30 general-purpose cells (15 a side) |
 | Side lobes | [0.03, 0.53, 0.20, 0.67] | yes | 24 general-purpose cells (12 a side) |
 | Central lobe | [0.39, 0.52, 0.61, 0.61] | | 20 general-purpose cells |
-| Movement | [0.06, 0.95, 0.94, 0.99] | | 9: walk left, walk right, jump, eat, grab or drop, rest, call, run, drink |
-| Brainstem | [0.10, 0.89, 0.90, 0.93] | | 18 general-purpose cells (9 × 2) |
+| Movement | [0.06, 0.955, 0.94, 0.99] | | 9: walk left, walk right, jump, eat, grab or drop, rest, call, run, drink |
+| Brainstem | [0.10, 0.885, 0.90, 0.925] | | 18 general-purpose cells (9 × 2) |
 
 The founder's brain has 224 neurons and 1,367 synapses at birth, the same every time ([below](#the-same-genes-grow-the-same-brain)). `Evo.LIMITS` caps a brain at 3,200 synapses, of which the genome may grow 2,400 before birth.
 

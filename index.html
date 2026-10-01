@@ -116,10 +116,6 @@
           </div>
           <section class="mind needs-creature" aria-label="What its brain is doing now"><div id="mindRows"></div></section>
           <div class="brain-tools needs-creature">
-            <div class="seg-group" role="group" aria-label="Brain layout">
-              <button class="seg-btn" data-brain-mode="regions" aria-pressed="true">Regions</button>
-              <button class="seg-btn" data-brain-mode="anatomy" aria-pressed="false">Anatomy</button>
-            </div>
             <button class="seg-btn" id="wiringBtn" aria-pressed="false">All wiring</button>
           </div>
           <div class="brain-frame needs-creature"><canvas id="brainCanvas" aria-label="Brain map. Tap a cell or a region to look inside."></canvas></div>
@@ -129,8 +125,8 @@
             <span><i style="background:var(--pulse)"></i>signal travelling</span>
             <span><i class="line" style="background:var(--water)"></i>excites</span>
             <span><i class="line" style="background:var(--stress)"></i>holds back</span>
-            <span class="anatomy-only"><i style="background:var(--joy)"></i>reward signal</span>
-            <span class="anatomy-only"><i style="background:var(--stress)"></i>punishment signal</span>
+            <span><i style="background:var(--joy)"></i>reward signal</span>
+            <span><i style="background:var(--stress)"></i>punishment signal</span>
           </div>
           <div class="neuron-card needs-creature">
             <div class="empty" id="neuronEmpty">Tap a cell or a region in the brain above to look inside it.</div>

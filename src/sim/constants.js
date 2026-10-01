@@ -181,18 +181,18 @@
   const LOBES = [
     { key: 'sight',    word: 'Sight',        color: '#38bdf8', sensory: true, box: [0.10, 0.10, 0.47, 0.18], sided: true, grid: [8, 2] },
     { key: 'smell',    word: 'Smell',        color: '#f59e0b', sensory: true, box: [0.30, 0.02, 0.47, 0.08], sided: true, grid: [5, 2] },
-    { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true, box: [0.02, 0.10, 0.08, 0.18], sided: true, grid: [1, 2] },
-    { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true, box: [0.36, 0.80, 0.64, 0.87] },
-    { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true, box: [0.14, 0.80, 0.30, 0.85], grid: [3, 2] },
-    { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true, box: [0.70, 0.80, 0.86, 0.85], grid: [4, 2] },
+    { key: 'hearing',  word: 'Hearing',      color: '#fb7185', sensory: true, box: [0.02, 0.20, 0.08, 0.28], sided: true, grid: [1, 2] },
+    { key: 'touch',    word: 'Touch',        color: '#ec4899', sensory: true, box: [0.36, 0.79, 0.64, 0.85] },
+    { key: 'taste',    word: 'Taste',        color: '#f97316', sensory: true, box: [0.14, 0.79, 0.30, 0.84], grid: [3, 2] },
+    { key: 'near',     word: 'Up close',     color: '#fb923c', sensory: true, box: [0.70, 0.79, 0.86, 0.84], grid: [4, 2] },
     { key: 'needs',    word: 'Drives',       color: '#eab308', sensory: true, box: [0.33, 0.71, 0.67, 0.78], grid: [6, 3] },
     { key: 'feelings', word: 'Feelings',     color: '#10b981', box: [0.41, 0.63, 0.59, 0.68], grid: [4, 2] },
     { key: 'attention', word: 'Attention',   color: '#22d3ee', box: [0.16, 0.26, 0.47, 0.30], sided: true, grid: [8, 1] },
     { key: 'cortex',   word: 'Thinking',     color: '#818cf8', cell: 'Thinking cell', box: [0.08, 0.34, 0.45, 0.48], sided: true, grid: [5, 3] },
     { key: 'side',     word: 'Side lobes',   color: '#c084fc', cell: 'Side lobe cell', box: [0.03, 0.53, 0.20, 0.67], sided: true, grid: [3, 4] },
     { key: 'central',  word: 'Central lobe', color: '#a78bfa', cell: 'Central lobe cell', box: [0.39, 0.52, 0.61, 0.61], grid: [5, 4] },
-    { key: 'motor',    word: 'Movement',     color: '#34d399', box: [0.06, 0.95, 0.94, 0.99] },
-    { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell', box: [0.10, 0.89, 0.90, 0.93], grid: [9, 2] }
+    { key: 'motor',    word: 'Movement',     color: '#34d399', box: [0.06, 0.955, 0.94, 0.99] },
+    { key: 'stem',     word: 'Brainstem',    color: '#2dd4bf', cell: 'Brainstem cell', box: [0.10, 0.885, 0.90, 0.925], grid: [9, 2] }
   ];
   const LOBE_ORDER = LOBES.map(l => l.key);
   const LOBE_INFO = Object.fromEntries(LOBES.map(l => [l.key, l]));

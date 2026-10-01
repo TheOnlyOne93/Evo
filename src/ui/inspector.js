@@ -73,11 +73,6 @@
       $('stimulateBtn').addEventListener('click', () => this.stimulate());
       $('clearNeuronBtn').addEventListener('click', () => { this.brainView.probed = -1; this.renderProbe(); });
       $('clearRegionBtn').addEventListener('click', () => { this.brainView.region = null; this.renderProbe(); });
-      document.querySelectorAll('[data-brain-mode]').forEach(btn => btn.addEventListener('click', () => {
-        this.brainView.setMode(btn.dataset.brainMode);
-        document.querySelectorAll('[data-brain-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-        $('deck-brain').classList.toggle('anatomy', btn.dataset.brainMode === 'anatomy');
-      }));
       $('wiringBtn').addEventListener('click', e => {
         this.brainView.allWiring = !this.brainView.allWiring;
         e.currentTarget.setAttribute('aria-pressed', String(this.brainView.allWiring));

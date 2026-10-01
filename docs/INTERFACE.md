@@ -59,7 +59,7 @@ The only URL option is `?seed=N` (read by `src/core/evo.js`).
 | Deck | Shows |
 |---|---|
 | Body | Its life line, every drive, two minutes of drive history, Feelings, vitals, food and water, hormones and unnamed chemicals |
-| Brain | Counts; what its mind is doing (looking at, decided, reward and punishment surprise, thinking, sleep and dreams, seizures); the brain map as regions or anatomy (`Evo.BrainView`); a tapped cell or region, with Stimulate (3 pulses of 40 mV); its membrane charge over 120 ticks; the muscles; learned cue values |
+| Brain | Counts; what its mind is doing (looking at, decided, reward and punishment surprise, thinking, sleep and dreams, seizures); the brain map (`Evo.BrainView`); a tapped cell or region, with Stimulate (3 pulses of 40 mV); its membrane charge over 120 ticks; the muscles; learned cue values |
 | Genes | A summary, traits, mutations against its parents and against both starting genomes (the first female's and the first male's, with nothing left out), a filter, the genes by group, the raw DNA |
 | Family | The family tree (`Evo.FamilyView`): tap a living relative to follow it, a dead one to see that relative's family (with a Back button); lists of parents, grandparents, brothers and sisters, children and grandchildren |
 | World | Day, season and food; stat tiles; causes of death; a population chart; everyone alive; Skip to the next season |

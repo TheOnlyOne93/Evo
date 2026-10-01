@@ -235,7 +235,8 @@
       const neurons = this.neurons = [];
       const lobes = this.lobes = {};
       // Each region's box on the brain map, after its Anatomy gene (the left box of a two-sided region)
-      const boxes = Object.fromEntries(LOBE_ORDER.map(lobe => [lobe, boxAfterAnatomy(LOBE_INFO[lobe].box, A[lobe])]));
+      // The brain keeps them for the brain view to draw (the right box of a two-sided region is the mirror image).
+      const boxes = this.boxes = Object.fromEntries(LOBE_ORDER.map(lobe => [lobe, boxAfterAnatomy(LOBE_INFO[lobe].box, A[lobe])]));
       // A cell's address is its spot in its box; where it sits on the map follows from the spot. In a
       // two-sided region a spot's left-right position counts from the box's outer edge, so the right
       // twin of a left cell has the same spot and sits at the mirror image of its place.

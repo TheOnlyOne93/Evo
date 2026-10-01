@@ -190,7 +190,6 @@ section.block > h3 { font-size: 16px; }
 .mind-row.alert .mind-k, .mind-row.alert .mind-v b { color: var(--stress); }
 .mind-meter { display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: center; }
 .brain-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: -8px; }
-.seg-group { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
 .brain-tools > .seg-btn { border: 1px solid var(--line); margin-left: auto; }
 .seg-btn { height: 30px; padding: 0 11px; border-radius: 8px; font-size: 13px; color: var(--muted); }
 .seg-btn[aria-pressed="true"] { background: var(--panel-raised); color: var(--text); font-weight: 700; }
@@ -201,7 +200,6 @@ section.block > h3 { font-size: 16px; }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
 .legend i.ring { background: none; border: 2px solid; width: 11px; height: 11px; vertical-align: -1px; }
 .legend i.line { width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; }
-#deck-brain:not(.anatomy) .anatomy-only { display: none; }
 .role { margin: 0; font-size: 13px; color: var(--muted); }
 .neuron-card { background: var(--panel-raised); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
 #neuronDetail, #regionDetail { display: grid; gap: 10px; }
