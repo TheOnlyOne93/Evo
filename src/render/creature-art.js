@@ -430,11 +430,19 @@
     }
   }
 
+  // An ear's outline: from the back of its base over the tip (0, -1) to the front, as two curves
+  // (each two control points and an end point). x is in units of the ear's width, y of its length.
+  // headExtent bounds the ear by the same curves.
+  const EAR = [-0.5, 0, -0.9, -0.42, -0.56, -0.98, 0, -1, 0.52, -0.98, 0.82, -0.4, 0.5, 0];
+  // A male's ear-tip tuft: two bends from the tip and back (each a control point and an end point)
+  const TUFT = [-0.12, -0.95, -0.04, -1.16, -0.26, -1.32, 0.1, -1.14, 0.1, -0.96];
+
   function earPath(ctx, len, w) {
+    const E = EAR;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.5, 0);
-    ctx.bezierCurveTo(-w * 0.9, -len * 0.42, -w * 0.56, -len * 0.98, 0, -len);
-    ctx.bezierCurveTo(w * 0.52, -len * 0.98, w * 0.82, -len * 0.4, w * 0.5, 0);
+    ctx.moveTo(E[0] * w, E[1] * len);
+    ctx.bezierCurveTo(E[2] * w, E[3] * len, E[4] * w, E[5] * len, E[6] * w, E[7] * len);
+    ctx.bezierCurveTo(E[8] * w, E[9] * len, E[10] * w, E[11] * len, E[12] * w, E[13] * len);
   }
 
   // Legs [from, to) as one stroke each: hip, a slight knee, then the foot pointing forward
@@ -612,12 +620,21 @@
 
   const EAR_N = -2.2, EAR_F = -0.92;   // where the ears sit on the head (angle from the centre)
 
+  // The near or far ear's base on the head (x, y), its turn, length and width, for drawEar and headExtent
+  const EAR_AT = { x: 0, y: 0, rot: 0, len: 0, w: 0 };
+  function earAt(r, near) {
+    const R = r.R, a = near ? EAR_N : EAR_F, E = EAR_AT;
+    E.x = Math.cos(a) * R * 0.72; E.y = Math.sin(a) * R * 0.72;
+    E.rot = near ? r.earN : r.earF;
+    E.len = r.earLen * (near ? 1 : 0.9); E.w = r.earW * (near ? 1 : 0.88);
+    return E;
+  }
+
   function drawEar(ctx, r, pal, near) {
-    const R = r.R, len = r.earLen * (near ? 1 : 0.9), w = r.earW * (near ? 1 : 0.88);
-    const a = near ? EAR_N : EAR_F;
+    const { x, y, rot, len, w } = earAt(r, near);
     ctx.save();
-    ctx.translate(Math.cos(a) * R * 0.72, Math.sin(a) * R * 0.72);
-    ctx.rotate(near ? r.earN : r.earF);
+    ctx.translate(x, y);
+    ctx.rotate(rot);
     earPath(ctx, len, w);
     ctx.fillStyle = near ? pal.fur : pal.far; ctx.fill();
     ctx.lineWidth = r.ol; ctx.strokeStyle = pal.line; ctx.stroke();
@@ -630,10 +647,11 @@
     }
     if (!r.female && r.mature) {
       // Male ear-tip tufts
+      const T = TUFT;
       ctx.beginPath();
-      ctx.moveTo(-w * 0.12, -len * 0.95);
-      ctx.quadraticCurveTo(-w * 0.04, -len * 1.16, -w * 0.26, -len * 1.32);
-      ctx.quadraticCurveTo(w * 0.1, -len * 1.14, w * 0.1, -len * 0.96);
+      ctx.moveTo(T[0] * w, T[1] * len);
+      ctx.quadraticCurveTo(T[2] * w, T[3] * len, T[4] * w, T[5] * len);
+      ctx.quadraticCurveTo(T[6] * w, T[7] * len, T[8] * w, T[9] * len);
       ctx.fillStyle = pal.line; ctx.fill();
     }
     ctx.restore();
@@ -1191,14 +1209,28 @@
     if (y - rad < EXT[1]) EXT[1] = y - rad;
     if (y + rad > EXT[3]) EXT[3] = y + rad;
   }
+  // A point (u, v) of an ear's outline (in units of its width and length) on ear E, turned by its
+  // cosine c and sine s
+  function growEar(r, E, c, s, u, v) {
+    const ex = u * E.w, ey = v * E.len;
+    headPoint(r, E.x + ex * c - ey * s, E.y + ex * s + ey * c, P);
+    grow(P[0], P[1], r.ol);
+  }
   function headExtent(r) {
     const R = r.R;
     headPoint(r, R * 0.3, 0, P); grow(P[0], P[1], R * 1.1);
     headPoint(r, R * 1.15, R * 0.3, P); grow(P[0], P[1], R * 0.2);
-    for (let i = 0; i < 2; i++) {
-      const a = i ? EAR_N : EAR_F, rot = i ? r.earN : r.earF, len = r.earLen * (i ? 0.9 : 0.81);
-      headPoint(r, Math.cos(a) * R * 0.72 + Math.sin(rot) * len, Math.sin(a) * R * 0.72 - Math.cos(rot) * len, P);
-      grow(P[0], P[1], r.earW * 0.3);
+    for (let near = 0; near < 2; near++) {
+      // Points along the ear's outline (and a male's tuft)
+      const E = earAt(r, near), c = Math.cos(E.rot), s = Math.sin(E.rot);
+      for (let i = 0; i < 12; i += 6) {
+        for (let k = 1; k <= 6; k++) {
+          const t = k / 6, q = 1 - t, b0 = q * q * q, b1 = 3 * q * q * t, b2 = 3 * q * t * t, b3 = t * t * t;
+          growEar(r, E, c, s, b0 * EAR[i] + b1 * EAR[i + 2] + b2 * EAR[i + 4] + b3 * EAR[i + 6],
+            b0 * EAR[i + 1] + b1 * EAR[i + 3] + b2 * EAR[i + 5] + b3 * EAR[i + 7]);
+        }
+      }
+      if (!r.female && r.mature) for (let i = 0; i < TUFT.length; i += 2) growEar(r, E, c, s, TUFT[i], TUFT[i + 1]);
     }
     if (r.crest >= 0.6) { headPoint(r, R * 0.04 - r.crest * 0.25, -R * 0.9 - r.crest, P); grow(P[0], P[1], r.crest * 0.3); }
   }
