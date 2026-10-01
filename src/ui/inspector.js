@@ -14,7 +14,8 @@
   // Chemical groups for the Body deck
   const FEELINGS = ['reward', 'punishment', 'endorphin', 'adrenaline'];
   const NUTRIENTS = ['glucose', 'glycogen', 'fat', 'protein', 'water', 'gutSugar', 'gutStarch', 'gutProtein', 'gutFat', 'toxin'];
-  const HORMONES = ['insulin', 'glucagon', 'melatonin', 'adenosine', 'growthHormone', 'sexHormone', 'liverEnzyme', 'ageing'];
+  const ENERGY = ['readyEnergy', 'spentEnergy', 'adenosine'];
+  const HORMONES = ['insulin', 'glucagon', 'melatonin', 'growthHormone', 'sexHormone', 'liverEnzyme', 'ageing'];
   // Drives drawn in the history chart
   const HISTORY = ['hunger', 'thirst', 'tiredness', 'sleepiness', 'loneliness', 'boredom', 'coldness', 'fear', 'reward', 'punishment'];
   const HISTORY_LEN = 240, HISTORY_EVERY = 30; // Two minutes of simulated time
@@ -237,6 +238,7 @@
       const drives = Evo.DRIVES.map(k => [k, c.chem.get(k)]).sort((a, b) => b[1] - a[1]);
       $('barsDrives').innerHTML = drives.map(([k]) => chemBar(c, k)).join('');
       $('barsFeelings').innerHTML = FEELINGS.map(k => chemBar(c, k)).join('');
+      $('barsEnergy').innerHTML = ENERGY.map(k => chemBar(c, k)).join('');
       $('barsNutrients').innerHTML = NUTRIENTS.map(k => chemBar(c, k)).join('');
       $('barsHormones').innerHTML = HORMONES.map(k => chemBar(c, k)).join('');
       // Chemicals with no name: only mutation can have put anything there

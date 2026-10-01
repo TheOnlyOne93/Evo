@@ -29,7 +29,7 @@
 
 | | |
 |---|---|
-| Energy | Blood sugar pays a basal rate (by body mass; 70% asleep), shivering, muscle work and every spike. A brain out of sugar cannot fire |
+| Energy | Ready energy pays a basal rate (by body mass; 70% asleep), shivering, muscle work and every spike, and what is paid becomes spent energy. Genes charge it back from blood sugar ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). A brain out of ready energy cannot fire |
 | Water | Lost steadily, faster in heat, with effort and when panting |
 | Temperature | Heat is exchanged with the air through the fur (wet fur keeps little in), made by the body, by work and by shivering, shared by huddling, and shed by panting |
 | Growth and healing | Growth hormone builds body protein into a bigger body; protein repairs injury |

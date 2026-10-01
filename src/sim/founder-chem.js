@@ -1,7 +1,7 @@
 // The founder genome: metabolism, drives, receptors and instincts (see founder.js).
 (function (Evo) {
   'use strict';
-  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, DIGITAL, NEGATIVE, none, FEATURES, MOTOR, driveCell, driveTarget, sight, smell, TOUCH } = Evo.founderKit;
+  const { reaction, emitter, receptor, stimulus, halfLife, initial, instinct, INVERT, NEGATIVE, none, FEATURES, MOTOR, driveCell, driveTarget, sight, smell, TOUCH } = Evo.founderKit;
   const { STAGE } = Evo;
 
   Evo.founderChem = [
@@ -21,6 +21,13 @@
     reaction('glucose', 'insulin', 'fat', 'insulin', 0.006, 0.5, 1),
     reaction('fat', 'glucagon', 'glucose', 'glucagon', 0.004, 1.6, 1),
     reaction('protein', 'glucagon', 'glucose', 'glucagon', 0.0003, 0.6, 1), // Wasting muscle when starving
+    // Energy: the body and brain spend ready energy, which leaves spent energy. Blood sugar charges spent
+    // energy back up (the sugar is not used up, apart from 1 part in 20 of the energy made), and not fast
+    // enough to keep up with hard work for long. Spent energy leaves a little adenosine behind, which
+    // builds up all day and makes it tired (sleep clears it, below)
+    reaction('spentEnergy', 'glucose', 'readyEnergy', 'glucose', 0.006, 1, 0.95),
+    reaction('spentEnergy', null, 'adenosine', 'spentEnergy', 0.00025, 1, 1),
+    initial('readyEnergy', 0.8), initial('spentEnergy', 0.2),
     // The liver clears toxins
     emitter('chem:toxin', 'liverEnzyme', 0.01, 0.01), halfLife('liverEnzyme', 600),
     reaction('toxin', 'liverEnzyme', null, 'liverEnzyme', 0.03, 0, 1),
@@ -36,8 +43,6 @@
     emitter('chem:protein', 'proteinHunger', 0.4, 0.0012, INVERT),
     emitter('chem:fat', 'fatHunger', 0.25, 0.0012, INVERT),
     emitter('chem:water', 'thirst', 0.6, 0.002, INVERT),
-    emitter('exertion', 'adenosine', 0, 0.00006),
-    emitter('awake', 'adenosine', 0.5, 0.00011),
     emitter('darkness', 'melatonin', 0.4, 0.0012), halfLife('melatonin', 900),
     emitter('chem:adenosine', 'tiredness', 0.25, 0.002),
     emitter('chem:melatonin', 'sleepiness', 0.3, 0.002),
@@ -62,7 +67,6 @@
     halfLife('tiredness', 600), halfLife('sleepiness', 600), halfLife('coldness', 400), halfLife('hotness', 400),
     halfLife('loneliness', 3000), halfLife('crowdedness', 600), halfLife('anger', 800), halfLife('pain', 60),
     halfLife('fear', 300), halfLife('adrenaline', 200), halfLife('boredom', 2000), halfLife('nausea', 300),
-    halfLife('adenosine', 40000),
 
     // ---------- Relief: what satisfies a drive (11 of the 16 have one) ----------
     emitter('heatGain', 'warmth', 0, 0.02), emitter('heatLoss', 'coolness', 0, 0.02),
@@ -112,8 +116,7 @@
     reaction('sexDrive', 'mating', 'reward', null, 0.1, 2, 0),
     reaction('pain', 'endorphin', null, 'endorphin', 0.05, 0, 1),         // Endorphin kills pain
     reaction('endorphin', null, 'reward', null, 0.01, 1, 0),              // …and feels good
-    reaction('adenosine', 'sleepSignal', null, 'sleepSignal', 0.03, 0, 1), // Sleep clears fatigue
-    reaction('adenosine', 'restRelief', null, 'restRelief', 0.01, 0, 1),
+    reaction('adenosine', 'sleepSignal', null, 'sleepSignal', 0.03, 0, 1), // Sleep clears tiredness
     emitter('chem:pain', 'punishment', 0.05, 0.02),
     emitter('chem:nausea', 'punishment', 0.1, 0.02),
     emitter('tasteBitter', 'punishment', 0.05, 0.05),                    // Bitter tastes bad at once…
@@ -122,7 +125,7 @@
     halfLife('reward', 20), halfLife('punishment', 20),
 
     // ---------- Receptors: chemicals act on the body ----------
-    receptor('glucose', 'muscle', 0.03, 0.6, INVERT | DIGITAL | NEGATIVE), // No sugar, no strength
+    receptor('readyEnergy', 'muscle', 0.3, 3, INVERT | NEGATIVE),       // Low on ready energy, weak
     receptor('tiredness', 'muscle', 0.3, 0.6, NEGATIVE),
     receptor('adrenaline', 'muscle', 0.1, 1),
     receptor('adrenaline', 'arousal', 0.1, 3),

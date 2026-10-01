@@ -98,7 +98,7 @@ What happens while living still uses the world's dice: firing noise, sprouting n
 
 `brain.tick(input, { noise, arousal, canFire, asleep })` runs once per sim tick and returns the number of spikes.
 
-1. Every neuron adds up what arrived this tick (delayed spikes, its sense current, noise, its bias, the Lobe dynamics current, less adaptation) and fires at threshold. Arousal goes to every non-sensory neuron. A body out of blood sugar cannot fire.
+1. Every neuron adds up what arrived this tick (delayed spikes, its sense current, noise, its bias, the Lobe dynamics current, less adaptation) and fires at threshold. Arousal goes to every non-sensory neuron. A body out of ready energy cannot fire.
 2. Lobe dynamics resolve competition in the regions that have the gene.
 3. The seizure brake: when more than a quarter of the brain has fired for 3 ticks running, every non-sensory neuron is held back 10 mV, from the next tick until the run ends.
 4. New spikes leave along their axons.

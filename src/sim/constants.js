@@ -1,5 +1,5 @@
 // Tables that several parts of the simulation (and the UI) share. Every chemical, item, season and
-// brain region, and most senses, are defined once here (brain.js lays out the touch cells);
+// brain region, the touch cells and most senses are defined once here;
 // everything else derives from these tables.
 (function (Evo) {
   'use strict';
@@ -90,7 +90,7 @@
   ];
 
   // ---- Chemicals: 64 slots. Slot 0 is nothing; named ones below; the rest are free for mutation to use. ----
-  // kind: 'nutrient' | 'hormone' | 'drive' | 'relief' | 'reinforcer' | 'other'
+  // kind: 'nutrient' | 'energy' | 'hormone' | 'drive' | 'relief' | 'reinforcer' | 'other'
   const N_CHEM = 64;
   const CHEMICAL_LIST = [
     [1, 'gutSugar', 'Gut sugar', 'nutrient', '--fruit'], [2, 'gutStarch', 'Gut starch', 'nutrient', '--grain'],
@@ -103,6 +103,7 @@
     [15, 'melatonin', 'Melatonin', 'hormone', '--bored'], [16, 'growthHormone', 'Growth hormone', 'hormone', '--protein'],
     [17, 'sexHormone', 'Sex hormone', 'hormone', '--female'], [18, 'endorphin', 'Endorphin', 'hormone', '--joy'],
     [19, 'ageing', 'Ageing', 'other', '--faint'], [20, 'liverEnzyme', 'Liver enzyme', 'hormone', '--toxin'],
+    [21, 'readyEnergy', 'Ready energy', 'energy', '--energy'], [51, 'spentEnergy', 'Spent energy', 'energy', '--faint'],
     [22, 'pain', 'Pain', 'drive', '--injury'], [23, 'hunger', 'Hunger', 'drive', '--energy'],
     [24, 'proteinHunger', 'Protein hunger', 'drive', '--protein'], [25, 'fatHunger', 'Fat hunger', 'drive', '--fat'],
     [26, 'thirst', 'Thirst', 'drive', '--water'], [27, 'tiredness', 'Tiredness', 'drive', '--muted'],

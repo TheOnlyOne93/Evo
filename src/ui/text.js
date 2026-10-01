@@ -283,10 +283,15 @@
       const ins = [v.a, v.b].filter(Boolean), outs = [[v.c, v.yieldC], [v.d, v.yieldD]].filter(([c, y]) => c && y > 0);
       const side = pairs => pairs.map(([c, y]) => `${Math.abs(y - 1) > 0.05 ? `${num(y, 1)} ` : ''}${w.chem(c).toLowerCase()}`).join(' + ');
       // A chemical on both sides is not used up: it drives the reaction ("Insulin turns blood sugar into glycogen")
+      // ("Spent energy makes adenosine" when it is the only chemical going in); if less of it comes out
+      // than went in, a little is used up after all
       const cat = ins.find(c => outs.some(([o]) => o === c));
-      if (cat && ins.length === 2) {
-        const other = w.chem(ins.find(c => c !== cat) || cat).toLowerCase(), made = outs.filter(([o]) => o !== cat);
-        return `${w.chem(cat)} ${made.length ? `turns ${other} into ${side(made)}` : `uses up ${other}`}, ${rateWord(v.rate)}`;
+      if (cat) {
+        const made = outs.filter(([o]) => o !== cat), catYield = outs.find(([o]) => o === cat)[1];
+        const usedUp = catYield < 0.99 ? `, using up a little ${w.chem(cat).toLowerCase()}` : '';
+        if (ins.length === 1) return `${w.chem(cat)} makes ${side(made) || 'nothing'}${usedUp}, ${rateWord(v.rate)}`;
+        const other = w.chem(ins.find(c => c !== cat) || cat).toLowerCase();
+        return `${w.chem(cat)} ${made.length ? `turns ${other} into ${side(made)}` : `uses up ${other}`}${usedUp}, ${rateWord(v.rate)}`;
       }
       const lhs = ins.map(c => w.chem(c).toLowerCase()).join(' + ');
       const text = `${lhs || 'nothing'} → ${side(outs) || 'nothing'}, ${rateWord(v.rate)}`;

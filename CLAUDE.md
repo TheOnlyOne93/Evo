@@ -64,6 +64,9 @@ name.
   text are). Check them in a browser as `docs/BROWSER_CHECKS.md` says, and stop
   `node tools/serve.js` when done. Why: the owner wants nothing left running.
 - Test lightly while working and fully at the end.
+- Don't let perfect be the enemy of good. Once a change works and its numbers are in a sensible
+  range, stop testing and tuning, report what's rough and move on. Why: endless testing and
+  balance chasing stops progress.
 - Tests and checks use worlds of 1-2 creatures, like the game's starting pair. The fingerprint's
   8-adult crowd run is the one exception (the only check of crowding). If a change would alter
   what a run covers, say so. Why: crowd runs take time and don't match how the game is played.

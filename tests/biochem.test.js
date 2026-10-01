@@ -122,3 +122,43 @@ test('biochem: a misspelled chemical name throws', (Evo, assert) => {
   assert.throws(() => b.set('glucoze', 0.5));
   assert.throws(() => b.add('glucoze', 0.5));
 });
+
+test('biochem: a founder charges spent energy back up from blood sugar, keeping the total; spent energy leaves adenosine, which sleep clears', (Evo, assert) => {
+  const traits = Evo.Genome.founder('FEMALE').develop();
+  const founder = (ready, sugar) => {
+    const b = new Evo.Biochemistry();
+    b.configure(traits);
+    b.set('readyEnergy', ready); b.set('spentEnergy', 1 - ready); b.set('glucose', sugar);
+    return b;
+  };
+  const fed = founder(0.2, 0.5), unfed = founder(0.2, 0);
+  for (let t = 0; t < 600; t++) { fed.step(loci(Evo)); unfed.step(loci(Evo)); }
+  assert.ok(fed.get('readyEnergy') > unfed.get('readyEnergy') + 0.1, `blood sugar charges it (${fed.get('readyEnergy')} against ${unfed.get('readyEnergy')} with none)`);
+  assert.ok(Math.abs(fed.get('readyEnergy') + fed.get('spentEnergy') - 1) < 0.001, 'ready and spent energy keep the same total');
+  // More spent energy (a body that has been working) leaves more adenosine
+  const worked = founder(0.2, 0), rested = founder(0.9, 0);
+  for (let t = 0; t < 600; t++) { worked.step(loci(Evo)); rested.step(loci(Evo)); }
+  assert.ok(worked.get('adenosine') > rested.get('adenosine') * 2, `worked ${worked.get('adenosine')}, rested ${rested.get('adenosine')}`);
+  const L = loci(Evo);
+  L[Evo.LOCUS.asleep] = 1;
+  const before = worked.get('adenosine');
+  for (let t = 0; t < 600; t++) worked.step(L);
+  assert.ok(worked.get('adenosine') < before / 2, `sleep clears adenosine (${before} to ${worked.get('adenosine')})`);
+});
+
+test('biochem: a founder low on ready energy is weaker, and with none its brain cannot fire', (Evo, assert) => {
+  const world = new Evo.World();
+  const [low, full] = world.creatures;
+  full.chem.c.set(low.chem.c);
+  low.chem.set('readyEnergy', 0.02);
+  low.body(world); full.body(world);
+  assert.ok(low.strength < full.strength, `strength ${low.strength} against ${full.strength}`);
+  let spikes = 0, fullSpikes = 0;
+  for (let t = 0; t < 30; t++) {
+    low.chem.set('readyEnergy', 0);
+    low.mind(world); full.mind(world);
+    spikes += low.brain.spikesThisTick; fullSpikes += full.brain.spikesThisTick;
+  }
+  assert.strictEqual(spikes, 0);
+  assert.ok(fullSpikes > 0, 'a brain with energy fires');
+});

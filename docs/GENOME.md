@@ -60,7 +60,7 @@ Both work on raw bytes.
 
 ## The founder genomes
 
-The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 292 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
+The first female and the first male are written by hand and are the same every time: no dice are rolled for them. `Evo.FOUNDER_GENOMES` holds one list of 316 readable gene specs for each sex (`FEMALE` and `MALE`), and `Evo.Genome.founder(sex)` encodes one to bytes (about 3 KB). The two lists hold the same genes in the same order; only the looks and voice differ. They are ordinary genes: they mutate, duplicate, recombine and can be lost, and nothing in the simulation treats them specially.
 
 `Evo.FOUNDERS` holds what sets the two apart: each one's looks (the Appearance gene), voice (the Voice gene) and the syllables of its name (Elani, Fenro). Both coats are sea green, near 160 degrees, the colour other creatures' food-colour cells notice least. Her voice is high and his is low, so each can hear which of the two is calling.
 

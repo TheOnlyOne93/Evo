@@ -4,9 +4,9 @@
 
 ## Chemicals
 
-There are 64 slots (`Evo.N_CHEM`), each a concentration from 0 to 1. Slot 0 means "nothing". `Evo.CHEMICALS` names 49 of the other 63, and 14 are free for mutation to use. A named chemical has a kind: nutrient, hormone, drive, relief, reinforcer or other.
+There are 64 slots (`Evo.N_CHEM`), each a concentration from 0 to 1. Slot 0 means "nothing". `Evo.CHEMICALS` names 51 of the other 63, and 12 are free for mutation to use. A named chemical has a kind: nutrient, energy, hormone, drive, relief, reinforcer or other.
 
-The body's fixed physiology reads a few of them by name: blood sugar is its fuel, it loses water, it grows and heals with protein, toxin adds noise to the brain, and pain wakes a sleeper ([CREATURE.md](CREATURE.md)). Everything else about a chemical is up to genes.
+The body's fixed physiology reads a few of them by name: it pays for everything it does in ready energy and gets back spent energy, it loses water, it grows and heals with protein, toxin adds noise to the brain, and pain wakes a sleeper ([CREATURE.md](CREATURE.md)). Everything else about a chemical is up to genes.
 
 ## The genes that act on them
 
@@ -31,7 +31,7 @@ A `need:k` or `limbic:k` receptor puts a current into its cell, except `limbic:0
 
 ## The founder's chemistry
 
-**Metabolism.** Gut sugar and starch become blood sugar, gut protein becomes body protein, gut fat the fat store. Insulin stores surplus blood sugar as glycogen and fat; glucagon releases them again and slowly wastes body protein. The liver clears toxin. Growth hormone builds the body until it is full-grown; protein heals injury.
+**Metabolism.** Gut sugar and starch become blood sugar, gut protein becomes body protein, gut fat the fat store. Insulin stores surplus blood sugar as glycogen and fat; glucagon releases them again and slowly wastes body protein. Blood sugar charges spent energy back into ready energy (using up 1 part in 20 of what it makes), more slowly than hard work spends it, so a creature that runs for long tires and weakens; the body and brain always hold the same total of ready and spent energy, as a cell holds ATP and ADP. Spent energy leaves a little adenosine behind, which builds all day, faster with effort and thought, and only sleep clears it. The liver clears toxin. Growth hormone builds the body until it is full-grown; protein heals injury.
 
 **Drives** are chemicals (`Evo.DRIVES`). Emitters raise each one from a body state, and a receptor gene lets the brain feel each in its own Drives cell (`Evo.driveCell(key)`). Eleven have a *relief* chemical, released by the sense or act that satisfies the drive, and a reaction `Drive + Relief → Reward` that turns relief into reward in proportion to how much drive there was, at the moment of relief.
 
@@ -40,7 +40,7 @@ A `need:k` or `limbic:k` receptor puts a current into its cell, except `limbic:0
 | hunger | Low blood sugar or glycogen | Sweet taste: tasting sugar or starch |
 | protein hunger, fat hunger | Low body protein, low fat store | Savoury taste: tasting protein or fat |
 | thirst | Low water | The taste of water |
-| tiredness | Adenosine, which builds with exertion and time awake | Resting |
+| tiredness | Adenosine, left behind as ready energy is spent: by effort, thinking and time awake | Resting |
 | sleepiness | Melatonin (darkness), high adenosine | Dozing off: once, not all night |
 | coldness, hotness | Body temperature | Heat flowing in, heat flowing out |
 | loneliness | Too little company | Company: touching a friend, a gentle touch, a call heard |
@@ -57,7 +57,7 @@ Eating only rewards a hungry creature, and only while the food is tasted: a full
 
 **Stimulus genes** (for 9 of the 19 events). A pat releases reward and company; a slap, punishment and fear; a nuzzle, company for both; being shoved, anger and fear; play, novelty; a bump, a little pain; thorns, pain and fear; falling asleep, the dozing-off relief.
 
-**Receptors on the body.** No blood sugar, or tiredness, weakens the muscles; adrenaline strengthens them and arouses the brain. Sleepiness and tiredness build sleep pressure; adrenaline and pain lower it. Toxin damages. Coldness makes it shiver, hotness pant. Fear releases alarm scent.
+**Receptors on the body.** Low ready energy, or tiredness, weakens the muscles; adrenaline strengthens them and arouses the brain. Sleepiness and tiredness build sleep pressure; adrenaline and pain lower it. Toxin damages. Coldness makes it shiver, hotness pant. Fear releases alarm scent.
 
 **Later stages.** From adolescence, fat stores raise sex hormone, which brings sex drive, fertility and sex scent. From old age an ageing chemical builds up (faster once senile), never decays, and in time damages health: this is what old age dies of, a little before the lifespan is up.
 

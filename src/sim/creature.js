@@ -17,7 +17,7 @@
   const GRAVITY = 0.28;
   const STEP_HEIGHT = 10;           // Highest ledge a creature can walk up without jumping
   const NEURAL_GAIN = 30;           // mV per unit of sense or receptor signal
-  const SPIKE_COST = 1.2e-7;        // Glucose per spike: thinking costs energy
+  const SPIKE_COST = 1.3e-5;        // Ready energy per spike: thinking costs energy (a fifth of what a resting body spends)
   const GROWTH_PROTEIN = 0.6;       // Body protein built into a body growing from newborn to adult
   const WALK_PHASE_PER_PX = 0.35;   // Walk cycle radians per px walked
   const CALL_TICKS = 40;            // A call lasts this long (callTimer counts down from it)
@@ -56,11 +56,11 @@
   const LEFT = [SIGHT_CELL.L], RIGHT = [SIGHT_CELL.R], BOTH_SIDES = [SIGHT_CELL.L, SIGHT_CELL.R];
   // Per-tick scales for the physiological receptor targets (chem.effect(target) × scale)
   const SCALE = { damage: 0.001, healing: 0.0002, growth: 0.00003, scentSex: 0.02, scentAlarm: 0.05 };
-  // Physiology per tick. cost: glucose burned (basal x mass^0.75, shivering, muscle work); water: evaporation
-  // and its rise with heat and panting; heat: body temperature exchange and heat sources; harm: what fails
-  // the body, and how fast it recovers
+  // Physiology per tick. cost: ready energy spent (basal x mass^0.75, shivering, muscle work; the founder's
+  // genes charge 20 of it from 1 of blood sugar); water: evaporation and its rise with heat and panting;
+  // heat: body temperature exchange and heat sources; harm: what fails the body, and how fast it recovers
   const BODY = {
-    cost: { basal: 0.00003, sleepFactor: 0.7, shiver: 0.00003, work: 0.00006, massSize: 40 },
+    cost: { basal: 0.0006, sleepFactor: 0.7, shiver: 0.0006, work: 0.0012, massSize: 40 },
     water: { loss: 0.000012, heatOnset: 0.55, heatFactor: 2, pant: 0.00001 },
     heat: { wetInsulation: 0.3, exchange: 0.004, body: 0.3, work: 0.8, thermogenesis: 0.6, scale: 0.0006, huddle: 0.0005,
       baseLoss: 0.00025, pantCooling: 0.0003, display: 500 },
@@ -285,13 +285,17 @@
       const muscle = clamp(1 + c.effect('muscle'), 0.1, 2);
       this.strength = muscle;
 
-      // Running costs, paid from blood sugar: a basal rate (mass^0.75, Kleiber's law, taking mass
-      // as (size / 40)^2 for a body seen side-on), shivering when cold, and the muscles in use
+      // Running costs, paid in ready energy: a resting rate that grows more slowly than the body does
+      // (mass^0.75, Kleiber's law, taking mass as (size / 40)^2 for a body seen side-on), shivering when
+      // cold, the muscles in use and every spike.
+      // What is paid becomes spent energy; what there is no ready energy for goes unpaid
       const mass = (this.size / BODY.cost.massSize) ** 2;
       const basal = BODY.cost.basal * Math.pow(mass, 0.75) * (1 + c.effect('metabolism')) * (this.asleep ? BODY.cost.sleepFactor : 1);
       const shiver = BODY.cost.shiver * Math.max(0, c.effect('thermogenesis'));
       const work = BODY.cost.work * this.exertion;
-      c.add('glucose', -(basal + shiver + work + SPIKE_COST * this.brain.spikesThisTick));
+      const paid = Math.min(c.get('readyEnergy'), basal + shiver + work + SPIKE_COST * this.brain.spikesThisTick);
+      c.add('readyEnergy', -paid);
+      c.add('spentEnergy', paid);
 
       // Water: evaporation rises with heat and effort, and panting costs more
       const ambient = world.temperatureAt(this.x, this.centerY);
@@ -576,7 +580,7 @@
       brain.tick(this.input, {
         noise: 0.35 + this.chem.get('toxin') * 12,
         arousal: this.chem.effect('arousal'),
-        canFire: this.chem.get('glucose') > 0.0005,
+        canFire: this.chem.get('readyEnergy') > 0.0005,
         asleep: this.asleep
       });
       if (brain.tickCount % MORPHOGENESIS_EVERY === 0) brain.runMorphogenesis();
