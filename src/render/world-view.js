@@ -629,8 +629,13 @@
         const c = cs[i];
         const vis = c.x > this.vx0 - 90 && c.x < this.vx1 + 90 && c.y > this.vy0 - 90 && c.y < this.vy1 + 140;
         const pose = poses[i] = vis && useArt ? this._safePose(c) : null;
-        // Where the ground is, so a jumping creature's shadow stays on it (an optional pose field)
-        if (pose) pose.groundY = this.world.surfaceBelow(c.x, c.y - 1);
+        // Where the ground is, so a jumping creature's shadow stays on it, and while it drinks, the
+        // water's surface at its mouth (or under it, when the mouth is over the bank) for its lips
+        // (optional pose fields)
+        if (pose) {
+          pose.groundY = this.world.surfaceBelow(c.x, c.y - 1);
+          if (c.drinkTimer > 0) pose.waterY = this.world.terrain.waterLevelAt(c.mouthX) ?? this.world.terrain.waterLevelAt(c.x);
+        }
       }
       // Hover under the hand
       this.hoveredCreature = null;

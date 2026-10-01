@@ -33,6 +33,7 @@ The contract between the simulation and `Evo.CreatureArt`. `Evo.poseOf(creature,
 pose = {
   id, x, y,                 // world coords; y = where the feet touch the ground
   groundY,                  // added by WorldView: the surface below the creature (for a shadow while airborne)
+  waterY,                   // added by WorldView while it drinks: the water's surface at its mouth (the lips go there)
   facing,                   // 1 = facing right, -1 = facing left
   size,                     // body length in px (about 13–20 for a newborn, 30–48 grown)
   stage,                    // 1 baby, 2 child, 3 adolescent, 4 youth, 5 adult, 6 old, 7 senile

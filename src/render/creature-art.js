@@ -56,6 +56,7 @@
   // the back of the head just above the cheek tufts, where the neck starts), and the head hangs
   // tipped forward by HELD_TILT (radians), so that spot is the highest on its back
   const SCRUFF_AT = 2.8, HELD_TILT = 0.15;
+  const DRINK_REACH = 0.7;                            // drinking, the head goes at most this × R lower than to eat
 
   // ---- Per-creature cache: random layout seeds and colour strings -----------------------------
 
@@ -329,10 +330,16 @@
     hy -= 2.4 * calling; hAng -= 0.42 * calling + 0.3 * yawn;
     hx -= 2 * flinch + 1.2 * fear; hy += 1.2 * flinch + 1.6 * fear; hAng -= 0.2 * flinch;
     if (eat) {
-      const chew = Math.sin(t * 9);
+      const chew = Math.sin(t * 9), lap = 0.6 * Math.max(0, chew);
       hx = lerp(hx, bx + rxF + R * 0.25, 0.85);
-      hy = lerp(hy, -R * 0.88 - 0.6 * Math.max(0, chew), 0.85);
+      hy = lerp(hy, -R * 0.88 - lap, 0.85);
       hAng += 0.22 + 0.04 * chew;
+      if (typeof pose.waterY === 'number') {
+        // Drinking: the lips go to the water's surface, down a bank or just a dip of the chin when
+        // floating
+        const lips = R * (MOUTH_X * Math.sin(hAng) + MOUTH_Y * Math.cos(hAng));
+        hy = Math.min((pose.waterY - pose.y) / r.k - lips - lap, hy + R * DRINK_REACH);
+      }
     }
     if (lying > 0) {
       const lhx = bx + rxF * 0.9 + R * (dead ? 0.45 : 0.18), lhy = -R * (dead ? 0.86 : 0.93);
