@@ -22,7 +22,7 @@ if (process.argv[2] === '--child') {
   }
   const died = [];
   world.events.on('death', ({ creature: c, cause }) => died.push(`${cause}: ${Evo.STAGES[c.stage].key} ${c.name} gen ${c.generation} day ${world.clock.day} ` +
-    `x ${Math.round(c.x)} water ${c.chem.get('water').toFixed(2)} thirst ${c.chem.get('thirst').toFixed(2)} glucose ${c.chem.get('glucose').toFixed(2)} temp ${c.bodyTemp.toFixed(2)}`));
+    `x ${Math.round(c.x)} water ${c.body.chem.get('water').toFixed(2)} thirst ${c.body.chem.get('thirst').toFixed(2)} glucose ${c.body.chem.get('glucose').toFixed(2)} temp ${c.body.temperature.toFixed(2)}`));
   let creatureTicks = 0, asleep = 0, hunger = 0, thirst = 0, reward = 0, punish = 0;
   const zones = {};
   const halfExtent = f => Evo.FEATURE_KINDS[f.kind].extent(f);
@@ -37,9 +37,9 @@ if (process.argv[2] === '--child') {
     if (t % SAMPLE_EVERY) continue;
     for (const c of world.creatures) {
       creatureTicks++;
-      if (c.asleep) asleep++;
-      hunger += c.chem.get('hunger'); thirst += c.chem.get('thirst');
-      reward += c.chem.get('reward'); punish += c.chem.get('punishment');
+      if (c.body.asleep) asleep++;
+      hunger += c.body.chem.get('hunger'); thirst += c.body.chem.get('thirst');
+      reward += c.body.chem.get('reward'); punish += c.body.chem.get('punishment');
       const z = zoneOf(c); zones[z] = (zones[z] || 0) + 1;
     }
   }

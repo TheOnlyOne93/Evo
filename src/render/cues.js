@@ -85,10 +85,10 @@
         }
         r.seen = c.stimCount;
         const d = c.brain.dream;
-        if (c.asleep && d) {
+        if (c.body.asleep && d) {
           r.dreamUntil = t + DREAM_HOLD;
           r.dreamIcon = dreamIcon(c, d);
-        } else if (!c.asleep) r.dreamUntil = 0;
+        } else if (!c.body.asleep) r.dreamUntil = 0;
       }
     }
 
@@ -145,11 +145,11 @@
     // (most of it for the followed creature), when the need is strong enough to matter
     _bubble(g, c, r, head, z, t, focused) {
       let icon = null, alpha = 0, dream = false;
-      if (c.asleep) {
+      if (c.body.asleep) {
         if (r.dreamUntil > t) { icon = r.dreamIcon; dream = true; alpha = clamp01((r.dreamUntil - t) / 0.4); }
       } else {
         let best = null, v = focused ? Evo.DRIVE_SHOWN.shown : Evo.DRIVE_SHOWN.strong;
-        for (const k of Evo.DRIVES) { const x = c.chem.get(k); if (x > v) { v = x; best = k; } }
+        for (const k of Evo.DRIVES) { const x = c.body.chem.get(k); if (x > v) { v = x; best = k; } }
         if (best) {
           const on = focused ? 6 : 4, u = (t + c.id * 2.3) % BUBBLE_PERIOD;
           alpha = u < on ? Math.min(1, u / 0.35, (on - u) / 0.35) : 0;

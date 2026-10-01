@@ -22,7 +22,7 @@
   function doing(c, world) {
     if (c.dead) return 'Dead';
     if (c.held) return 'Being held';
-    if (c.asleep) return c.brain.dream ? 'Asleep, dreaming' : 'Asleep';
+    if (c.body.asleep) return c.brain.dream ? 'Asleep, dreaming' : 'Asleep';
     const a = Evo.attentionOf(c, world);
     const what = a ? (a.kind === 'feature' || a.kind === 'water' ? `the ${a.word}` : a.word) : '';
     let verb = Evo.text.ACTION_WORDS[c.action] || c.action;
@@ -89,7 +89,7 @@
         return chip('event', look.icon, look.word + (e.n > 1 ? ` ×${e.n}` : ''), `${look.word}, ${ago}`);
       }).join(''));
       const drives = c.topDrives(3).filter(([, v]) => v > BAR_FLOOR);
-      $('cardDrives').innerHTML = H.bar('Health', c.health, 'var(--protein)') +
+      $('cardDrives').innerHTML = H.bar('Health', c.body.health, 'var(--protein)') +
         drives.map(([k, v]) => H.bar(t.CHEM_WORDS[k], v, H.chemColor(k))).join('');
     };
 

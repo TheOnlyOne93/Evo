@@ -47,12 +47,12 @@ test('drives: walking through a thornbush pricks, and the founder feels it as pa
   let pricks = 0;
   const stimulate = c.stimulate;
   c.stimulate = function (key, s) { if (key === 'pricked') pricks++; return stimulate.call(this, key, s); };
-  c.asleep = false;
+  c.body.asleep = false;
   Object.assign(c, { x: bush.x, y: bush.y, vx: 1 });
-  c.chem.set('pain', 0);
+  c.body.chem.set('pain', 0);
   world.prickCreatures();
   assert.strictEqual(pricks, 1, 'pricked on contact');
-  assert.ok(c.chem.get('pain') > 0.1, `pain ${c.chem.get('pain').toFixed(3)}`);
+  assert.ok(c.body.chem.get('pain') > 0.1, `pain ${c.body.chem.get('pain').toFixed(3)}`);
   world.prickCreatures();
   assert.strictEqual(pricks, 1, 'not again until the cooldown ends');
   c.prickCooldown = 0; c.vx = 0;
@@ -65,14 +65,14 @@ test('drives: walking through a thornbush pricks, and the founder feels it as pa
 function taste(Evo, type, h) {
   const world = new Evo.World();
   const c = world.creatures[0];
-  for (const k of Evo.DRIVES) c.chem.set(k, 0);
-  c.chem.set('hunger', h);
-  c.ingest(world.foodOf({ type }));
+  for (const k of Evo.DRIVES) c.body.chem.set(k, 0);
+  c.body.chem.set('hunger', h);
+  c.body.ingest(world.foodOf({ type }));
   let peak = 0, reward = 0, punishment = 0;
   for (let t = 0; t < 30; t++) {
-    c.readLoci(world); c.chem.step(c.loci); c.decayStimuli();
-    if (t < 10) peak = Math.max(peak, c.chem.get('reward'));
-    reward += c.chem.get('reward'); punishment += c.chem.get('punishment');
+    c.body.readings(c, world); c.body.chem.step(c.body.loci); c.body.fade();
+    if (t < 10) peak = Math.max(peak, c.body.chem.get('reward'));
+    reward += c.body.chem.get('reward'); punishment += c.body.chem.get('punishment');
   }
   return { peak, reward, punishment };
 }
@@ -130,15 +130,15 @@ test('drives: falling asleep rewards a sleepy creature once, not all night', (Ev
   const world = new Evo.World();
   const c = world.creatures[0];
   world.creatures = [c];
-  for (const k of Evo.DRIVES) c.chem.set(k, 0);
-  c.chem.set('reward', 0);
-  c.chem.set('sleepiness', 0.7);
-  c.fallAsleep(world);
+  for (const k of Evo.DRIVES) c.body.chem.set(k, 0);
+  c.body.chem.set('reward', 0);
+  c.body.chem.set('sleepiness', 0.7);
+  c.body.fallAsleep(c, world);
   let early = 0, late = 0;
   for (let t = 0; t < 400; t++) {
-    c.chem.set('sleepiness', 0.7);
-    c.readLoci(world); c.chem.step(c.loci);
-    if (t < 30) early = Math.max(early, c.chem.get('reward')); else if (t >= 300) late = Math.max(late, c.chem.get('reward'));
+    c.body.chem.set('sleepiness', 0.7);
+    c.body.readings(c, world); c.body.chem.step(c.body.loci);
+    if (t < 30) early = Math.max(early, c.body.chem.get('reward')); else if (t >= 300) late = Math.max(late, c.body.chem.get('reward'));
   }
   assert.ok(early > 0.05, `dozing off rewards (${early})`);
   assert.ok(late < 0.01, `staying asleep does not (${late})`);
@@ -149,12 +149,12 @@ test('drives: falling asleep rewards a sleepy creature once, not all night', (Ev
 test('drives: a founder starts life without a burst of fear', (Evo, assert) => {
   const { quietWorld } = require('./helpers');
   const { world, c } = quietWorld(Evo, 1);
-  for (const k of Evo.DRIVES) c.chem.set(k, 0);
+  for (const k of Evo.DRIVES) c.body.chem.set(k, 0);
   let worst = 0;
   for (let t = 0; t < 600; t++) {
-    c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); // Fed and watered; nothing else is touched
+    c.body.chem.set('glucose', 0.5); c.body.chem.set('water', 0.8); // Fed and watered; nothing else is touched
     world.step();
-    worst = Math.max(worst, c.chem.get('fear'));
+    worst = Math.max(worst, c.body.chem.get('fear'));
   }
   assert.ok(worst < 0.01, `the highest fear was ${worst}`);
 });

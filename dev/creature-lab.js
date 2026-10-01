@@ -139,8 +139,8 @@
 
   // A state set on the creature itself, so poseOf reads it as it would in the world
   function setState(sub, name) {
-    const c = sub.c, chem = (k, v) => c.chem.set(k, v);
-    if (name === 'asleep') c.asleep = true;
+    const c = sub.c, chem = (k, v) => c.body.chem.set(k, v);
+    if (name === 'asleep') c.body.asleep = true;
     else if (name === 'held') c.held = true;
     else if (name === 'dead') c.dead = true;
     else if (name === 'eating') sub.eating = true;                 // the mouth timer runs in animate()
@@ -148,11 +148,11 @@
     else if (name === 'calling') c.callTimer = Evo.CREATURE.CALL_TICKS;
     else if (name === 'lying') c.restTimer = Evo.CREATURE.LYING_ABOVE + 1; // resting: lying down awake
     else if (name === 'wet') c.inWater = true;
-    else if (name === 'pregnant') c.pregnancy = { progress: 0.8 }; // only its progress is drawn
+    else if (name === 'pregnant') c.body.pregnancy = { progress: 0.8 }; // only its progress is drawn
     else if (name === 'inHeat') sub.heat = true;
     else if (name === 'happy') { chem('reward', 1); chem('endorphin', 0.9); }
     else if (name === 'sad') { chem('punishment', 0.3); chem('loneliness', 1); }
-    else if (name === 'patted') c.stim.gentle = 1;
+    else if (name === 'patted') c.body.stim.gentle = 1;
     else if (name === 'pain') chem('pain', 0.8);
     else if (name === 'worried') { chem('boredom', 1); chem('loneliness', 0.8); }
     else if (name === 'yawn') chem('sleepiness', 0.7);             // it yawns every few seconds
@@ -166,7 +166,7 @@
   // This frame's pose, with the timers and stimuli that would run down in the world kept going
   function animate(sub, t, ticks) {
     if (sub.eating) sub.c.mouthTimer = 30 - ticks % 30;
-    if (sub.flinch) sub.c.stim.flinch = Math.max(0, 1 - ((t * 0.8) % 1) * 2.2);
+    if (sub.flinch) sub.c.body.stim.flinch = Math.max(0, 1 - ((t * 0.8) % 1) * 2.2);
     const p = poseAt(sub, ticks);
     if (sub.heat) inHeat(p);
     return p;

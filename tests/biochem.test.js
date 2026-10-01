@@ -101,14 +101,14 @@ test('biochem: an Initial concentration gene that switches on later sets its che
   const genome = Evo.Genome.founder('FEMALE', [...Evo.FOUNDER_GENOMES.FEMALE, late]);
   const world = new Evo.World();
   const c = new Evo.Creature(genome, world.width / 2, 0);
-  const level = () => c.chem.get('endorphin');
+  const level = () => c.body.chem.get('endorphin');
   assert.ok(level() < 0.5, `not at birth (${level()})`);
   c.enterStage(STAGE.CHILD, world);
   assert.ok(level() < 0.5, `not as a child (${level()})`);
   c.enterStage(STAGE.ADOLESCENT, world);
   const want = c.traits.initial.find(g => g.stage === STAGE.ADOLESCENT).amount;
   assert.ok(Math.abs(level() - want) < 1e-6, `set on becoming adolescent (${level()} vs ${want})`);
-  c.chem.set('endorphin', 0.1);
+  c.body.chem.set('endorphin', 0.1);
   c.enterStage(STAGE.YOUTH, world);
   assert.ok(Math.abs(level() - 0.1) < 1e-6, `not set again later (${level()})`);
   const gene = genome.findGenes().find(g => g.stage === STAGE.ADOLESCENT && Evo.GENES[g.type].name === 'Initial concentration');
@@ -149,13 +149,13 @@ test('biochem: a founder charges spent energy back up from blood sugar, keeping 
 test('biochem: a founder low on ready energy is weaker, and with none its brain cannot fire', (Evo, assert) => {
   const world = new Evo.World();
   const [low, full] = world.creatures;
-  full.chem.c.set(low.chem.c);
-  low.chem.set('readyEnergy', 0.02);
-  low.body(world); full.body(world);
-  assert.ok(low.strength < full.strength, `strength ${low.strength} against ${full.strength}`);
+  full.body.chem.c.set(low.body.chem.c);
+  low.body.chem.set('readyEnergy', 0.02);
+  low.tickBody(world); full.tickBody(world);
+  assert.ok(low.body.strength < full.body.strength, `strength ${low.body.strength} against ${full.body.strength}`);
   let spikes = 0, fullSpikes = 0;
   for (let t = 0; t < 30; t++) {
-    low.chem.set('readyEnergy', 0);
+    low.body.chem.set('readyEnergy', 0);
     low.mind(world); full.mind(world);
     spikes += low.brain.spikesThisTick; fullSpikes += full.brain.spikesThisTick;
   }

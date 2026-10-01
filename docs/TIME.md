@@ -35,11 +35,11 @@ Each creature phase runs for every creature before the next begins, so every cre
 | time | The clock advances; the season may turn |
 | environment | Food grows, items move (eggs incubate and hatch), things give off scent and it diffuses |
 | contact | Creatures near each other register company, crowding and touch; thorn bushes prick |
-| body | `Creature.body`: age and stage, body readings, biochemistry, physiology, sleep. A creature may die here. The scent it gives off and an egg it lays are queued, not written |
+| body | `Creature.tickBody`: age and stage, then `Body.step`: body readings, biochemistry, physiology, sleep. A creature may die here. The scent it gives off and an egg it lays are queued, not written |
 | body commit | `applyQueuedWrites` lands the queued scent and eggs in creature order; the dead leave carrion |
 | mind | `Creature.mind`: senses, dreams, the brain's tick. Everyone reads the same world |
 | act | `Creature.act`: muscles, mouth and hands: walking, jumping, eating, drinking, grabbing, shoving, nuzzling, resting, calling |
-| settle | `Creature.settle`: the body moves (a carried item follows its carrier's mouth), then stimuli fade |
+| settle | `Creature.settle`: the creature moves (a carried item follows its carrier's mouth), then what the skin and tongue felt fades |
 | ecology | Mating, sounds age, a wanderer may arrive, an empty world is founded again |
 
 - Only physiology kills, so no creature dies after the body commit.

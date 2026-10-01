@@ -176,10 +176,10 @@ test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => 
     const a = b.lobes[Evo.LOBE_ORDER[inst.lobeA]][inst.indexA], m = b.lobes.motor[inst.motor];
     const s = b.incoming(m).find(k => b.sSrc[k] === a) ?? b.addSynapse(a, m, 0.2);
     c.traits = { ...c.traits, instincts: dream ? [inst] : [] };
-    c.updateSleep = () => {};
-    c.asleep = true;
+    c.body.updateSleep = () => {};
+    c.body.asleep = true;
     const w0 = b.sW[s];
-    for (let t = 0; t < 600; t++) { c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); world.step(); }
+    for (let t = 0; t < 600; t++) { c.body.chem.set('glucose', 0.5); c.body.chem.set('water', 0.8); world.step(); }
     return b.sW[s] - w0;
   };
   const dreaming = run(true), idle = run(false);
@@ -192,7 +192,7 @@ test('learning: dreaming an instinct strengthens its synapse', (Evo, assert) => 
 function patAfterCall(Evo, seed, lag) {
   const { world, c } = quietWorld(Evo, seed), b = c.brain, call = b.lobes.motor[Evo.MOTORS.findIndex(m => m.key === 'call')];
   const inputs = () => b.incoming(call).reduce((w, s) => w + b.sW[s], 0);
-  const calm = () => { for (const k of Evo.DRIVES) c.chem.set(k, 0); c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); };
+  const calm = () => { for (const k of Evo.DRIVES) c.body.chem.set(k, 0); c.body.chem.set('glucose', 0.5); c.body.chem.set('water', 0.8); };
   for (let t = 0; t < 200; t++) { calm(); world.step(); }
   const w0 = inputs();
   callThenPat(world, c, call, lag, 4, calm);

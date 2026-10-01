@@ -33,11 +33,11 @@ for (let t = 1; t <= total; t++) {
     `pop ${String(cs.length).padStart(2)} (mature ${cs.filter(c => c.isMature).length}, eggs ${world.items.filter(i => i.type === 'egg').length}) ` +
     `food ${world.foodCount}  ${ms.toFixed(2)} ms/tick`);
   console.log(`   doing   ${Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ')}`);
-  const drive = k => f2(avg(cs, c => c.chem.get(k)));
+  const drive = k => f2(avg(cs, c => c.body.chem.get(k)));
   console.log(`   drives  hunger ${drive('hunger')} protein ${drive('proteinHunger')} thirst ${drive('thirst')} tired ${drive('tiredness')} ` +
     `sleepy ${drive('sleepiness')} cold ${drive('coldness')} hot ${drive('hotness')} lonely ${drive('loneliness')} bored ${drive('boredom')} fear ${drive('fear')} sex ${drive('sexDrive')}`);
   console.log(`   body    glucose ${drive('glucose')} glycogen ${drive('glycogen')} fat ${drive('fat')} protein ${drive('protein')} water ${drive('water')} ` +
-    `temp ${f2(avg(cs, c => c.bodyTemp))} health ${f2(avg(cs, c => c.health))} reward ${drive('reward')} punish ${drive('punishment')}`);
+    `temp ${f2(avg(cs, c => c.body.temperature))} health ${f2(avg(cs, c => c.body.health))} reward ${drive('reward')} punish ${drive('punishment')}`);
   console.log(`   events  ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   console.log(`   deaths  ${JSON.stringify(world.stats.deaths)}`);
 }

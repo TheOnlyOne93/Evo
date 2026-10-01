@@ -9,7 +9,7 @@
   const T = Evo.text;
   const $ = id => document.getElementById(id);
   const { esc, bar, setHtml, percent, plural, sexColor, sexGlyph, sexWord, chemToken, chemColor } = Evo.uiHelpers;
-  const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.chem.get(key), chemColor(key));
+  const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.body.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
   const FEELINGS = ['reward', 'punishment', 'endorphin', 'adrenaline'];
@@ -41,7 +41,7 @@
   };
   // Body heat in words: what the creature feels (its coldness or hotness drive, at the level the card shows a need)
   const tempWord = c => {
-    const cold = c.chem.get('coldness'), hot = c.chem.get('hotness'), shown = Evo.DRIVE_SHOWN.shown;
+    const cold = c.body.chem.get('coldness'), hot = c.body.chem.get('hotness'), shown = Evo.DRIVE_SHOWN.shown;
     return cold > shown && cold >= hot ? 'cold' : hot > shown ? 'hot' : 'fine';
   };
 
@@ -148,7 +148,7 @@
       const c = this.app.focus, tick = world.clock.tick;
       if (c && this.history && tick % HISTORY_EVERY === 0) {
         const h = this.history, k = h.n % HISTORY_LEN;
-        HISTORY.forEach((key, i) => { h.data[i][k] = c.chem.get(key); });
+        HISTORY.forEach((key, i) => { h.data[i][k] = c.body.chem.get(key); });
         h.n++;
       }
       if (c && this.mind) this.sampleMind(c.brain, tick);
@@ -222,20 +222,20 @@
     renderBody(c) {
       const st = Evo.STAGES[c.stage];
       const bits = [`<b>${sexWord(c.sex)}</b>`, st.word.toLowerCase(), `${T.clock(c.ageTicks)} old (lives about ${T.clock(c.lifespan)})`, `generation ${c.generation}`, plural(c.meals, 'meal', 'meals')];
-      let status = c.dead ? 'Dead.' : c.asleep ? 'Asleep.' : `${T.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
-      if (c.pregnancy) status += ` Carrying an egg (${percent(c.pregnancy.progress)} formed).`;
+      let status = c.dead ? 'Dead.' : c.body.asleep ? 'Asleep.' : `${T.ACTION_WORDS[c.action] || c.action}, feeling ${c.mood}.`;
+      if (c.body.pregnancy) status += ` Carrying an egg (${percent(c.body.pregnancy.progress)} formed).`;
       if (c.carrying) status += ` Holding ${Evo.ITEM_TYPES[c.carrying.type].word}.`;
       $('lifeLine').innerHTML = `${bits.join(', ')}. ${esc(status)}`;
 
-      const temp = c.bodyTemp;
+      const temp = c.body.temperature;
       const word = tempWord(c);
       const tempColor = word === 'cold' ? 'var(--water)' : word === 'hot' ? 'var(--fruit)' : 'var(--accent)';
       $('barsVitals').innerHTML =
-        bar('Health', c.health, 'var(--protein)') +
-        bar('Injury', c.injury, 'var(--injury)') +
+        bar('Health', c.body.health, 'var(--protein)') +
+        bar('Injury', c.body.injury, 'var(--injury)') +
         bar('Body heat', temp, tempColor, word) +
-        bar('Grown', c.growth, 'var(--grain)');
-      const drives = Evo.DRIVES.map(k => [k, c.chem.get(k)]).sort((a, b) => b[1] - a[1]);
+        bar('Grown', c.body.growth, 'var(--grain)');
+      const drives = Evo.DRIVES.map(k => [k, c.body.chem.get(k)]).sort((a, b) => b[1] - a[1]);
       $('barsDrives').innerHTML = drives.map(([k]) => chemBar(c, k)).join('');
       $('barsFeelings').innerHTML = FEELINGS.map(k => chemBar(c, k)).join('');
       $('barsEnergy').innerHTML = ENERGY.map(k => chemBar(c, k)).join('');
@@ -243,7 +243,7 @@
       $('barsHormones').innerHTML = HORMONES.map(k => chemBar(c, k)).join('');
       // Chemicals with no name: only mutation can have put anything there
       const other = [];
-      for (let i = 1; i < Evo.N_CHEM; i++) if (!Evo.CHEM_BY_ID[i] && c.chem.c[i] > 0.005) other.push(bar(`Chemical ${i}`, c.chem.c[i], 'var(--copy)'));
+      for (let i = 1; i < Evo.N_CHEM; i++) if (!Evo.CHEM_BY_ID[i] && c.body.chem.c[i] > 0.005) other.push(bar(`Chemical ${i}`, c.body.chem.c[i], 'var(--copy)'));
       $('barsOther').innerHTML = other.join('') || '<p class="note">None. Mutations can make new chemicals appear here.</p>';
       this.renderHistory();
     }
@@ -294,7 +294,7 @@
       // Attention
       const att = b.attended(), hasAttention = b.dynamics.some(d => d.lobe === 'attention');
       row('Looking at', !hasAttention ? '<span class="muted">nothing: its attention cells do not compete (a gene is missing)</span>'
-        : c.asleep ? '<span class="muted">nothing (asleep)</span>'
+        : c.body.asleep ? '<span class="muted">nothing (asleep)</span>'
           : att ? `<b>${esc(T.FEATURE_WORDS[att.feature])}</b> ${T.whereSeen(att)}`
             : '<span class="muted">nothing in particular</span>');
 
@@ -324,7 +324,7 @@
 
       // Sleep and dreams
       let sleep;
-      if (!c.asleep) sleep = `awake <span class="muted">· ${b.episodes.length} surprising ${b.episodes.length === 1 ? 'moment' : 'moments'} saved to dream about</span>`;
+      if (!c.body.asleep) sleep = `awake <span class="muted">· ${b.episodes.length} surprising ${b.episodes.length === 1 ? 'moment' : 'moments'} saved to dream about</span>`;
       else if (!b.dream) sleep = 'asleep, not dreaming';
       else if (b.dream.instinct) {
         sleep = `<b>dreaming</b> an instinct: ${esc(T.describeInstinct(b.dream.instinct, b))}`;
@@ -333,7 +333,7 @@
         const act = ep.motor >= 0 ? `, ${T.MOTOR_WORDS[b.neurons[ep.motor].meta.key].toLowerCase()}` : '';
         sleep = `<b>reliving</b> a ${ep.value > 0 ? 'good' : 'bad'} moment: ${esc(cue)}${esc(act)}`;
       }
-      row('Sleep', sleep, c.asleep && b.dream ? ' dreaming' : '');
+      row('Sleep', sleep, c.body.asleep && b.dream ? ' dreaming' : '');
 
       // The last thing that happened to it
       const ls = c.lastStimulus;
@@ -661,7 +661,7 @@
         `<p class="note">${outsider ? 'Its family lived somewhere else.' : 'Its parents came from outside, so their parents never lived here.'}</p>`);
       const half = new Set(kin.siblings.filter(x => x.half).map(x => x.rec));
       setHtml($('familySiblings'), list(kin.siblings.map(x => x.rec), 'None.', h => (half.has(h) ? 'half' : '')));
-      setHtml($('familyChildren'), list(children, none + (live && live.pregnancy ? ' One is on the way.' : '')));
+      setHtml($('familyChildren'), list(children, none + (live && live.body.pregnancy ? ' One is on the way.' : '')));
       setHtml($('familyGrandchildren'), list(grandchildren, none));
       const living = descendants.filter(h => world.creatureById(h.id)).length;
       const counts = `${plural(children.length, 'child', 'children')}, ${plural(grandchildren.length, 'grandchild', 'grandchildren')}` +

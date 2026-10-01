@@ -27,8 +27,9 @@ test('world: runs headless for a while with everything finite and inside the wor
   for (let i = 0; i < 2400; i++) world.step();
   assert.ok(world.creatures.length > 0);
   for (const c of world.creatures) {
-    for (const k of ['x', 'y', 'vx', 'vy', 'bodyTemp', 'health', 'growth']) assert.ok(Number.isFinite(c[k]), `${c.name}.${k} = ${c[k]}`);
-    for (let i = 1; i < Evo.N_CHEM; i++) assert.ok(c.chem.c[i] >= 0 && c.chem.c[i] <= 1, `chemical ${i}`);
+    for (const k of ['x', 'y', 'vx', 'vy']) assert.ok(Number.isFinite(c[k]), `${c.name}.${k} = ${c[k]}`);
+    for (const k of ['temperature', 'health', 'growth']) assert.ok(Number.isFinite(c.body[k]), `${c.name}.body.${k} = ${c.body[k]}`);
+    for (let i = 1; i < Evo.N_CHEM; i++) assert.ok(c.body.chem.c[i] >= 0 && c.body.chem.c[i] <= 1, `chemical ${i}`);
     assert.ok(c.x >= world.edge && c.x <= world.width - world.edge, `${c.name} at x ${c.x}`);
     assert.ok(c.y <= world.terrain.groundY(c.x) + 1, `${c.name} is not underground`);
   }
@@ -109,18 +110,18 @@ test('world: mating, pregnancy, an egg and a hatchling that knows its family', (
   world.creatures = [mother, father];
   fertile(mother, Evo); fertile(father, Evo);
   father.x = mother.x + 5; father.y = mother.y;
-  for (let i = 0; i < 500 && !mother.pregnancy; i++) world.tryMating();
-  assert.ok(mother.pregnancy, 'she is pregnant');
+  for (let i = 0; i < 500 && !mother.body.pregnancy; i++) world.tryMating();
+  assert.ok(mother.body.pregnancy, 'she is pregnant');
   assert.strictEqual(world.stats.matings, 1);
   assert.strictEqual(world.seedBank.length, 2, 'both parents are banked');
 
-  mother.pregnancy.progress = 1;
+  mother.body.pregnancy.progress = 1;
   mother.onGround = true;
-  mother.physiology(world);
+  mother.body.physiology(mother, world);
   assert.ok(!world.items.some(i => i.type === 'egg'), 'the egg waits until every body has run');
   world.applyQueuedWrites();
   const egg = world.items.find(i => i.type === 'egg');
-  assert.ok(egg && !mother.pregnancy, 'the egg is laid');
+  assert.ok(egg && !mother.body.pregnancy, 'the egg is laid');
   assert.ok(egg.reserves.water > 0, 'the egg carries her reserves');
 
   let baby = null;
@@ -169,9 +170,9 @@ test('world: a death leaves carrion and a record, and an empty world is re-found
   world.maybeWanderer = () => {};
   const c = world.creatures[0];
   world.bankGenome(c);
-  c.health = -0.001;
-  c.damageLog = { poison: 0.5, cold: 0.1 };
-  c.physiology(world);
+  c.body.health = -0.001;
+  c.body.damageLog = { poison: 0.5, cold: 0.1 };
+  c.tickBody(world);
   assert.ok(c.dead);
   assert.strictEqual(c.causeOfDeath, 'poison', 'named after the worst recent damage');
   world.handleDeath(c);
@@ -192,11 +193,11 @@ test('world: the hand pats, slaps, carries and throws', (Evo, assert) => {
   const world = new Evo.World();
   const c = world.creatures[0];
   world.pat(c);
-  assert.strictEqual(c.stim.gentle, 1);
-  const injury = c.injury;
+  assert.strictEqual(c.body.stim.gentle, 1);
+  const injury = c.body.injury;
   world.slap(c);
-  assert.strictEqual(c.stim.impact, 1);
-  assert.ok(c.injury > injury);
+  assert.strictEqual(c.body.stim.impact, 1);
+  assert.ok(c.body.injury > injury);
 
   world.grab({ creature: c }, 1000, 300);
   assert.ok(c.held);
@@ -284,7 +285,7 @@ test('world: a nuzzle and a shove reach their targets in the tick they happen, w
     onNextAct(world, a, () => world.nuzzle(a, b));
     onNextAct(world, b, () => world.shove(b, a));
     world.step();
-    return { gentle: b.stim.gentle, flinch: a.stim.flinch, vy: a.vy, airborne: !a.onGround };
+    return { gentle: b.body.stim.gentle, flinch: a.body.stim.flinch, vy: a.vy, airborne: !a.onGround };
   });
   assert.deepStrictEqual(felt[0], felt[1]);
   assert.ok(felt[0].gentle > 0 && felt[0].gentle < 0.5 && felt[0].flinch > 0 && felt[0].flinch < 1, 'felt, then faded once, in the same tick');
@@ -310,8 +311,8 @@ test('world: scent a body gives off reaches every creature\'s nose in the same t
     b.x = a.x; b.facing = a.facing;
     // Only a gives off alarm scent
     for (const c of [a, b]) {
-      const effect = c.chem.effect.bind(c.chem);
-      c.chem.effect = k => (k === 'scentAlarm' ? (c === a ? 1 : 0) : effect(k));
+      const effect = c.body.chem.effect.bind(c.body.chem);
+      c.body.chem.effect = k => (k === 'scentAlarm' ? (c === a ? 1 : 0) : effect(k));
     }
     assert.strictEqual(Math.max(...world.scent.channels[alarm]), 0);
     world.step();

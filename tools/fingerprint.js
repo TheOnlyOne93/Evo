@@ -39,8 +39,8 @@ function sampleWorld(h, world, base) {
   const rel = id => (typeof id === 'number' ? id - base : id);
   h.add(world.clock.tick).add(world.season.key).add(JSON.stringify(world.stats)).add(world.foodCount);
   for (const c of world.creatures) {
-    h.all([rel(c.id), c.x, c.y, c.vx, c.vy, c.facing, c.stage, c.growth, c.health, c.injury, c.bodyTemp, c.action, c.dead, c.asleep]);
-    h.all(c.chem.c);
+    h.all([rel(c.id), c.x, c.y, c.vx, c.vy, c.facing, c.stage, c.body.growth, c.body.health, c.body.injury, c.body.temperature, c.action, c.dead, c.body.asleep]);
+    h.all(c.body.chem.c);
     const b = c.brain;
     h.add(b.N).add(b.S).all(b.sSrc, b.S).all(b.sDst, b.S).all(b.sW, b.S).all(b.sDelay, b.S).all(b.v).all(b.thr);
   }
@@ -77,11 +77,11 @@ function run(seed, ticks, { crowd = false, killAt = 0 } = {}) {
   const h = new Hash();
   const peak = { crowding: 0, anger: 0 };
   for (let t = 1; t <= ticks; t++) {
-    if (t === killAt) world.creatures[0].health = -1;
+    if (t === killAt) world.creatures[0].body.health = -1;
     world.step();
     for (const c of world.creatures) {
       peak.crowding = Math.max(peak.crowding, c.crowding);
-      peak.anger = Math.max(peak.anger, c.chem.get('anger'));
+      peak.anger = Math.max(peak.anger, c.body.chem.get('anger'));
     }
     if (t % EVERY) continue;
     sampleWorld(h, world, base);

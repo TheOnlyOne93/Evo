@@ -1,31 +1,42 @@
 # Creature
 
-`src/sim/creature.js`: `Evo.Creature`, a genome, a biochemistry, a brain and a body in the side-view world. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)).
+A creature's genes ([GENOME.md](GENOME.md)) build two working parts: a **body** (`src/sim/body.js`, `Evo.Body`: the chemistry and everything inside the skin) and a **brain** ([BRAIN.md](BRAIN.md)). `src/sim/creature.js` (`Evo.Creature`) is the shell around them: its name and family, its life stages, where it is and how it moves, its senses and muscles, and the order of each tick. Each tick it runs four phases, each for every creature before the next ([TIME.md](TIME.md)). The body reads the creature it belongs to (where it is, how hard its muscles work, how much its brain fired) but writes only its own state.
 
 ## What other code reads
 
 | Field | Meaning |
 |---|---|
 | `id`, `name`, `sex`, `generation`, `motherId`, `fatherId` | Identity. `sex` is `'FEMALE'` or `'MALE'` |
-| `genome`, `traits`, `chem`, `brain` | Its parts ([GENOME.md](GENOME.md), [BIOCHEMISTRY.md](BIOCHEMISTRY.md), [BRAIN.md](BRAIN.md)) |
+| `genome`, `traits`, `body`, `brain` | Its parts ([GENOME.md](GENOME.md), the Body below, [BRAIN.md](BRAIN.md)) |
 | `x`, `y`, `facing`, `vx`, `vy`, `onGround`, `inWater` | `x` is the centre, `y` the feet, `facing` ±1 |
-| `size`, `growth` | Body length in px: adult size × (0.42 + 0.58 × growth), so about 13–20 newborn and 30–48 grown |
+| `size` | Body length in px: adult size × (0.42 + 0.58 × `body.growth`), so about 13–20 newborn and 30–48 grown |
 | `stage`, `ageTicks`, `lifespan`, `isMature`, `fertile` | `stage` indexes `Evo.STAGES`; mature means adolescent or older; fertile means mature, not senile, awake, and a fertility effect over 1 |
-| `health`, `injury`, `bodyTemp`, `strength` | 0–1, except strength (0.1–2) |
-| `asleep`, `held`, `dead`, `causeOfDeath`, `carrying`, `pregnancy` | State. `carrying` is an item in the mouth |
+| `held`, `dead`, `causeOfDeath`, `carrying` | State. `carrying` is an item in the mouth |
 | `action` | `'idle'`, `'walking'`, `'running'`, `'jumping'`, `'eating'`, `'drinking'`, `'resting'`, `'calling'`, `'sleeping'` or `'held'` |
 | `senses`, `lastStimulus`, `recentStimuli`, `mood`, `topDrives(n)`, `meals`, `timesMated` | Read-outs for the interface |
-| `walkPhase`, `lying`, `mouthTimer`, `drinkTimer`, `callTimer`, `stim`, `stimCount` | Read by the pose and the cues |
+| `walkPhase`, `lying`, `mouthTimer`, `drinkTimer`, `callTimer`, `stimCount` | Read by the pose and the cues |
+
+`creature.body` holds:
+
+| Field | Meaning |
+|---|---|
+| `chem` | Its chemistry ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)) |
+| `health`, `injury`, `temperature`, `growth`, `strength` | 0–1, except strength (0.1–2) |
+| `asleep`, `pregnancy` | State. `pregnancy` is the egg forming, with its `progress` |
+| `stim`, `taste` | What the skin and tongue feel, fading each tick |
+| `loci`, `damageLog`, `heatGain`, `heatLoss` | Its readings for genes, recent damage by cause, and heat flowing in and out |
+
+Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: running costs, water, heat, harm, what a sip holds, the protein a male spends mating, what a dead body leaves to eat (`body.remains()`), and the stores a creature starts with when it arrives grown.
 
 `new Evo.Creature(genome, x, y, opts)` takes `opts` `{ generation, parents, reserves, ageTicks, growth, facing, syllables }`. Left out, `facing` (1 or -1) is chosen at random, and `syllables` (the two syllables of its name, such as `['el', 'ani']` for Elani) are made from its parents' syllables, or at random when it has none. `name` is the syllables joined and capitalised.
 
-`creature.stimulate(key, strength)` raises a stimulus ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). `creature.step(world)` runs one creature through all four phases on its own, for tests; it also flushes every creature's queued writes.
+`creature.stimulate(key, strength)` raises a stimulus in its body's chemistry and notes it for the interface ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). `creature.step(world)` runs one creature through all four phases on its own, for tests; it also flushes every creature's queued writes.
 
 ## Body
 
 1. It ages, and enters the next life stage when due: its traits are developed again, new genes join the chemistry and the brain, and a `stage` event is raised. A creature made past the baby stage (a founder, a wanderer) builds its brain from its birth genes, then grows it to its stage, with no event. The lifespan only times the stages. Nothing dies at that age: old age kills through chemistry.
-2. The body loci are read, then the biochemistry steps.
-3. Physiology follows the receptors:
+2. `body.step` takes the body's readings, then the biochemistry steps.
+3. Physiology follows the receptors. If health runs out, `body.step` returns the cause and the creature dies:
 
 | | |
 |---|---|

@@ -23,16 +23,10 @@
   // The warm rock: its warmth rises by `warm` a tick in daylight (light above `light`) and falls by `cool` otherwise
   const ROCK = { warm: 0.0004, cool: 0.00025, light: 0.5 };
   // Mating: reach is a share of the two body sizes (horizontal), vertical is px
-  const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldown: 1800, maleProtein: 0.04 };
+  const MATING = { reach: 0.45, vertical: 20, chance: 0.03, cooldown: 1800 };
   // Egg incubation speed: (temperature - cold) / span, at most max
   const INCUBATION = { cold: 0.15, span: 0.3, max: 1.3 };
-  // A dead body's food: gut protein (capped) from body protein and growth, fat and sugar from reserves
-  const CARRION = { proteinCap: 0.5, protein: 0.6, growth: 0.1, fat: 0.5, sugar: 0.3 };
   const POND_SCENT = { spacing: 60, amount: 0.02 };
-
-  // A new world, and one refounded after extinction (from the seed bank), starts with one female and one male
-  const FOUNDER_RESERVES = { glucose: 0.6, glycogen: 0.6, fat: 0.5, protein: 0.6, water: 0.8 };
-  const WANDERER_RESERVES = { glucose: 0.5, glycogen: 0.4, fat: 0.35, protein: 0.45, water: 0.7 };
 
   class World {
     constructor({ map = Evo.DEFAULT_MAP } = {}) {
@@ -322,7 +316,7 @@
     // A grown adult arriving (founders, wanderers, or added by the player). With no x it stands where
     // the map puts its sex's founder. facing and syllables (its name's two syllables) are left to
     // chance when not given.
-    addAdult(sex, { genome = null, x = null, reserves = FOUNDER_RESERVES, generation = 1, facing, syllables } = {}) {
+    addAdult(sex, { genome = null, x = null, reserves = Evo.BODY.reserves.founder, generation = 1, facing, syllables } = {}) {
       if (this.creatures.length >= LIMITS.MAX_POPULATION) return null;
       genome = genome || Evo.Genome.founder(sex);
       const lifespan = genome.develop().lifespanTicks;
@@ -337,7 +331,7 @@
       const src = banked.length ? Evo.pick(banked) : null;
       return this.addAdult(sex, {
         genome: src ? src.genome.clone() : null, generation: src ? src.generation : 1,
-        reserves: WANDERER_RESERVES, x: fromEdge ? (Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30) : null
+        reserves: Evo.BODY.reserves.wanderer, x: fromEdge ? (Evo.chance(0.5) ? this.edge + 30 : this.width - this.edge - 30) : null
       });
     }
 
@@ -382,18 +376,18 @@
     // Mating: a fertile female and male touching may mate; she carries the egg
     tryMating() {
       for (const f of this.creatures) {
-        if (f.sex !== 'FEMALE' || f.pregnancy || f.mateCooldown > 0 || !f.fertile) continue;
+        if (f.sex !== 'FEMALE' || f.body.pregnancy || f.mateCooldown > 0 || !f.fertile) continue;
         for (const m of this.creatures) {
           if (m.sex !== 'MALE' || m.mateCooldown > 0 || !m.fertile) continue;
           if (Math.abs(m.x - f.x) > (m.size + f.size) * MATING.reach || Math.abs(m.y - f.y) > MATING.vertical) continue;
           if (!Evo.chance(MATING.chance)) continue;
-          f.pregnancy = { genome: Evo.Genome.recombine(f.genome, m.genome), fatherId: m.id, generation: Math.max(f.generation, m.generation) + 1,
+          f.body.pregnancy = { genome: Evo.Genome.recombine(f.genome, m.genome), fatherId: m.id, generation: Math.max(f.generation, m.generation) + 1,
             parents: [f, m], progress: 0, reserves: Object.fromEntries(Object.keys(Evo.EGG_CONTENTS).map(k => [k, 0])) };
-          f.stim.mated = 1; m.stim.mated = 1;
+          f.body.stim.mated = 1; m.body.stim.mated = 1;
           f.stimulate('mated'); m.stimulate('mated');
           f.mateCooldown = m.mateCooldown = MATING.cooldown;
           f.timesMated++; m.timesMated++;
-          m.chem.add('protein', -MATING.maleProtein);
+          m.body.chem.add('protein', -Evo.BODY.matingProtein);
           this.bankGenome(f); this.bankGenome(m);
           this.stats.matings++;
           this.events.emit('mate', { mother: f, father: m });
@@ -463,17 +457,17 @@
 
     // Mouth against another creature: a nuzzle, felt by both as friendly touch
     nuzzle(from, to) {
-      to.stim.gentle = Math.max(to.stim.gentle, 0.5);
-      to.stim.touchingFriend = 1;
-      from.stim.touchingFriend = 1;
+      to.body.stim.gentle = Math.max(to.body.stim.gentle, 0.5);
+      to.body.stim.touchingFriend = 1;
+      from.body.stim.touchingFriend = 1;
       from.stimulate('nuzzled'); to.stimulate('wasNuzzled');
       this.events.emit('nuzzle', { from, to });
     }
 
     // A shove pushes the other creature away, and hurts a little
     shove(from, to) {
-      to.stim.impact = Math.max(to.stim.impact, 0.4);
-      to.stim.flinch = 1;
+      to.body.stim.impact = Math.max(to.body.stim.impact, 0.4);
+      to.body.stim.flinch = 1;
       to.vx += from.facing * 2.5;
       to.vy = Math.min(to.vy, -1.5);
       to.onGround = false;
@@ -494,9 +488,9 @@
           if (d > 160) continue;
           a.companyCount++; b.companyCount++;
           if (d < (a.radius + b.radius) * 1.1 && !a.held && !b.held) {
-            a.stim.touchingFriend = 1; b.stim.touchingFriend = 1;
-            a.stim[dx > 0 ? 'contactR' : 'contactL'] = 1;
-            b.stim[dx > 0 ? 'contactL' : 'contactR'] = 1;
+            a.body.stim.touchingFriend = 1; b.body.stim.touchingFriend = 1;
+            a.body.stim[dx > 0 ? 'contactR' : 'contactL'] = 1;
+            b.body.stim[dx > 0 ? 'contactL' : 'contactR'] = 1;
           }
         }
       }
@@ -513,8 +507,7 @@
       this.stats.deaths[c.causeOfDeath] = (this.stats.deaths[c.causeOfDeath] || 0) + 1;
       const rec = this.history.find(h => h.id === c.id);
       if (rec) { rec.died = this.clock.tick; rec.cause = c.causeOfDeath; }
-      const ch = c.chem;
-      const contents = { gutProtein: Math.min(CARRION.proteinCap, ch.get('protein') * CARRION.protein + CARRION.growth * c.growth), gutFat: ch.get('fat') * CARRION.fat, gutSugar: ch.get('glucose') * CARRION.sugar };
+      const contents = c.body.remains();
       this.spawnItem('carrion', c.x, c.y, { contents, hue: c.traits.hue });
       if (this.hand.holding && this.hand.holding.creature === c) this.hand.holding = null;
     }
@@ -571,7 +564,7 @@
     prickCreatures() {
       for (const c of this.creatures) {
         if (c.prickCooldown > 0) { c.prickCooldown--; continue; }
-        if (c.held || c.asleep || Math.abs(c.vx) < 0.2) continue;
+        if (c.held || c.body.asleep || Math.abs(c.vx) < 0.2) continue;
         const bush = this.features.find(f => f.kind === 'thornbush' && Math.abs(c.x - f.x) < f.radius && c.y > f.y - f.radius * 1.2);
         if (bush) { c.prickCooldown = 30; c.stimulate('pricked'); }
       }
@@ -644,14 +637,14 @@
 
     // ---------- The player's hand ----------
     pat(c) {
-      c.stim.gentle = 1; c.stim.back = Math.max(c.stim.back, 0.6);
+      c.body.stim.gentle = 1; c.body.stim.back = Math.max(c.body.stim.back, 0.6);
       c.stimulate('patted');
       this.events.emit('pat', { creature: c });
     }
 
     slap(c) {
-      c.stim.impact = 1; c.stim.back = 1; c.stim.flinch = 1;
-      c.injury = Math.min(1, c.injury + 0.01);
+      c.body.stim.impact = 1; c.body.stim.back = 1; c.body.stim.flinch = 1;
+      c.body.injury = Math.min(1, c.body.injury + 0.01);
       c.stimulate('slapped');
       this.events.emit('slap', { creature: c });
     }
@@ -711,7 +704,7 @@
       this.socialContact();
       this.prickCreatures();
       const all = [...this.creatures];
-      for (const c of all) c.body(this);
+      for (const c of all) c.tickBody(this);
       this.applyQueuedWrites();
       for (const c of all) if (c.dead) this.handleDeath(c);
       const living = all.filter(c => !c.dead);

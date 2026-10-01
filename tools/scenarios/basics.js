@@ -46,11 +46,11 @@ module.exports = ({ lab, trial, avoids }) => ({
     'sleepy at night -> falls asleep': seed => {
       const s = lab(seed, { phase: 0.95 });
       s.hold = { sleepiness: 0.7, tiredness: 0.3 };
-      return trial(s, 1800, (w, c) => c.asleep);
+      return trial(s, 1800, (w, c) => c.body.asleep);
     },
     'rested by day -> stays awake': seed => {
       const s = lab(seed);
-      return avoids(s, 1200, (w, c) => c.asleep);
+      return avoids(s, 1200, (w, c) => c.body.asleep);
     },
     'in pain -> runs': seed => {
       const s = lab(seed);

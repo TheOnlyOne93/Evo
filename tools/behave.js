@@ -41,8 +41,8 @@ function lab(seed, { phase = 0.45 } = {}) {
   const spot = (gap[0] + gap[1]) / 2, sight = c.traits.visionRange + c.size * 0.4;
   if (ponds.some(p => spot > p.x0 - sight && spot < p.x1 + sight)) throw new Error(`behave: a pond is in sight of the lab spot x ${spot}`);
   s.placeAt(spot);
-  for (const k of Evo.DRIVES) c.chem.set(k, 0);
-  c.chem.set('glucose', 0.5); c.chem.set('water', 0.8); c.chem.set('adenosine', 0); c.chem.set('melatonin', 0);
+  for (const k of Evo.DRIVES) c.body.chem.set(k, 0);
+  c.body.chem.set('glucose', 0.5); c.body.chem.set('water', 0.8); c.body.chem.set('adenosine', 0); c.body.chem.set('melatonin', 0);
   return s;
 }
 
@@ -52,7 +52,7 @@ function lab(seed, { phase = 0.45 } = {}) {
 function run(setup, ticks, done, before) {
   const { world, c, hold } = setup;
   for (let t = 0; t < ticks; t++) {
-    if (hold) for (const [k, v] of Object.entries(hold)) c.chem.set(k, v);
+    if (hold) for (const [k, v] of Object.entries(hold)) c.body.chem.set(k, v);
     if (before) before(world, c, t);
     world.step();
     if (done(world, c, t)) return { at: t, died: false };
@@ -76,8 +76,8 @@ function session(seed, opts) {
   s.place = (type, dx) => { s.world.items.length = 0; return s.world.spawnItem(type, s.c.x + dx); };
   s.resetBody = () => {
     const { c } = s;
-    c.health = 1; c.injury = 0; c.damageLog = {};
-    c.chem.set('toxin', 0); c.chem.set('pain', 0);
+    c.body.health = 1; c.body.injury = 0; c.body.damageLog = {};
+    c.body.chem.set('toxin', 0); c.body.chem.set('pain', 0);
   };
   return s;
 }

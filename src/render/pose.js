@@ -44,7 +44,7 @@
   const attention = new WeakMap();
   const RESOLVE_EVERY = 6;   // ticks
   function attentionOf(c, world) {
-    if (!world || c.dead || c.asleep || c.held) return null;
+    if (!world || c.dead || c.body.asleep || c.held) return null;
     const tick = world.clock.tick;
     let a = attention.get(c);
     if (!a || tick < a.tick || tick - a.tick >= RESOLVE_EVERY) {
@@ -120,11 +120,11 @@
     const clock = world ? 'world' : 'age', now = world ? world.clock.tick : c.ageTicks;
     s.n = s.clock === clock && now >= s.tick ? now - s.tick : 1;
     s.clock = clock; s.tick = now;
-    const ch = c.chem;
+    const ch = c.body.chem;
     const get = k => ch.get(k);
     const [gx, gy] = gaze(c, attentionOf(c, world));
     const mouth = Math.max(c.mouthTimer, c.drinkTimer || 0);
-    const awake = !c.asleep && !c.dead && !c.held;
+    const awake = !c.body.asleep && !c.dead && !c.held;
     // Yawning when sleepy or tired; licking its lips when hungry or thirsty
     const yawn = awake && !mouth && Math.max(get('sleepiness'), get('tiredness')) > 0.55 ? every(c, YAWN.period, YAWN.len, YAWN.salt) : 0;
     const lick = awake && !mouth && !yawn && Math.max(get('hunger'), get('thirst'), get('proteinHunger'), get('fatHunger')) > 0.55 ? every(c, LICK.period, LICK.len, LICK.salt) : 0;
@@ -136,23 +136,23 @@
         lying: ease(s, 'lying', c.lying ? 1 : 0, 0.08)
       },
       face: {
-        eyesClosed: ease(s, 'eyes', c.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
+        eyesClosed: ease(s, 'eyes', c.body.asleep || c.dead ? 1 : clamp01(Math.max(get('sleepiness') * 0.6, get('tiredness') * 0.4, yawn)), 0.2),
         pupilX: ease(s, 'px', gx, 0.1), pupilY: ease(s, 'py', gy, 0.1),
         mouthOpen: c.callTimer > CALL_HALF ? 0.8 : mouth > 0 ? 0.3 + 0.5 * Math.abs(Math.sin(mouth * 0.8)) : yawn,
         smile: ease(s, 'smile', clamp((get('reward') - get('punishment')) * 3 - get('pain') - get('nausea') * 0.5 + get('endorphin'), -1, 1), 0.1),
         earDroop: ease(s, 'droop', clamp01(Math.max(get('tiredness'), get('nausea'), get('loneliness') * 0.6)), 0.05), // the art droops old ears itself
-        blush: ease(s, 'blush', clamp01(c.stim.gentle + get('endorphin')), 0.1),
-        happy: ease(s, 'happy', awake ? clamp01(c.stim.gentle * 1.5 - c.stim.flinch * 2) : 0, 0.2),
+        blush: ease(s, 'blush', clamp01(c.body.stim.gentle + get('endorphin')), 0.1),
+        happy: ease(s, 'happy', awake ? clamp01(c.body.stim.gentle * 1.5 - c.body.stim.flinch * 2) : 0, 0.2),
         worry: ease(s, 'worry', awake ? clamp01(Math.max(get('pain'), get('loneliness') * 0.8, get('boredom') * 0.4)) : 0, 0.08),
         yawn, lick
       },
       state: {
-        asleep: c.asleep, held: c.held, dead: c.dead, eating: mouth > 0, // Eating or drinking: the mouth is at work
-        calling: clamp01((c.callTimer - CALL_HALF) / CALL_HALF), flinch: c.stim.flinch,
+        asleep: c.body.asleep, held: c.held, dead: c.dead, eating: mouth > 0, // Eating or drinking: the mouth is at work
+        calling: clamp01((c.callTimer - CALL_HALF) / CALL_HALF), flinch: c.body.stim.flinch,
         fear: get('fear'), anger: get('anger'), pain: get('pain'), sick: clamp01(get('nausea') + get('toxin')),
         cold: get('coldness'), hot: get('hotness'),
         wet: ease(s, 'wet', c.inWater ? 1 : 0, c.inWater ? 0.2 : 0.004),
-        pregnant: c.pregnancy ? c.pregnancy.progress : 0, inHeat: c.fertile
+        pregnant: c.body.pregnancy ? c.body.pregnancy.progress : 0, inHeat: c.fertile
       },
       focused, hovered
     };
