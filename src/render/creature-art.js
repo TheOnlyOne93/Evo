@@ -184,6 +184,10 @@
     return e.legPh;
   }
 
+  // Where the near legs join the body: x in units of rxF (front) or rxB (hind), y in units of ryB.
+  // The haunch line is centred on the hind hip, so it follows the leg.
+  const HIP = { frontX: 0.5, frontY: 0.38, hindX: -0.5, hindY: 0.4 };
+
   function computeRig(pose, t, e, r, advance) {
     const L = pose.looks || EMPTY, M = pose.motion || EMPTY, F = pose.face || EMPTY, S = pose.state || EMPTY;
     const stage = clamp(Math.round(num(pose.stage, 5)), 1, 7);
@@ -262,8 +266,8 @@
     const legs = r.legs;
     for (let i = 0; i < 4; i++) {
       const front = i & 1, far = i < 2;
-      const lx = (front ? rxF * 0.5 : -rxB * 0.5) + (far ? 1.9 : 0);
-      const ly = ryB * (front ? 0.38 : 0.4) - (far ? 0.9 : 0);
+      const lx = (front ? rxF * HIP.frontX : rxB * HIP.hindX) + (far ? 1.9 : 0);
+      const ly = ryB * (front ? HIP.frontY : HIP.hindY) - (far ? 0.9 : 0);
       const hx = bx + ca * lx - sa * ly, hy = by + sa * lx + ca * ly;
       const off = front ? (far ? lerp(PI, 0.55, run) : 0) : (far ? lerp(0, PI + 0.55, run) : PI);
       let u = ((ph + off) / TAU) % 1, sweep, up;
@@ -581,9 +585,9 @@
     circle(ctx, rxF * 0.8, ryB * 0.15, ryB * 0.62);
     ctx.fillStyle = pal.belly; ctx.fill();
     if (r.lod > 0) bodyPattern(ctx, r, e, pal);
-    // Haunch: a soft crease that gives the near hind leg a thigh
+    // Haunch: a soft line round the top and front of the near hind thigh, centred on its hip
     ctx.beginPath();
-    ctx.ellipse(-rxB * 0.5, ryB * 0.3, rxB * 0.38, ryB * 0.56, -0.2, PI * 1.2, PI * 1.8);
+    ctx.ellipse(rxB * HIP.hindX, ryB * HIP.hindY, rxB * 0.36, ryB * 0.5, -0.2, PI * 1.35, PI * 2.32);
     ctx.lineWidth = ol * 0.8; ctx.globalAlpha = 0.6; ctx.strokeStyle = pal.lo; ctx.stroke(); ctx.globalAlpha = 1;
     ctx.restore();
   }
