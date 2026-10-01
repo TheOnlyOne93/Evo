@@ -87,6 +87,7 @@
   }
 
   // A fallen ear of grain, lying along x
+  const KX = 0.44 * Math.cos(0.5), KY = 0.44 * Math.sin(0.5);   // where a kernel's outline starts
   function grainEar(g, r, c) {
     g.strokeStyle = c.stalk;
     g.lineWidth = r * 0.16;
@@ -96,34 +97,35 @@
     g.strokeStyle = c.grainDark;
     g.lineWidth = lineW(r, 0.06, 0.35);
     g.beginPath();
-    for (let k = 0; k < 4; k++) {
-      const u = -r * 0.5 + k * r * 0.5;
+    for (let k = 0; k < 3; k++) {
+      const u = -r * 0.5 + k * r * 0.62;
       g.moveTo(u + r * 0.2, -r * 0.3); g.lineTo(u + r * 0.95, -r * 0.95);
       g.moveTo(u + r * 0.2, r * 0.1); g.lineTo(u + r * 0.95, r * 0.55);
     }
     g.moveTo(r * 1.25, -r * 0.1); g.lineTo(r * 2.1, -r * 0.3);
     g.stroke();
-    // Kernels in a chevron
+    // Kernels in a chevron. A tilted ellipse starts at the end of its tilted long axis, so each
+    // moveTo goes there (KX, KY); anywhere else leaves a stray spike on the outline
     g.fillStyle = c.grain;
     g.strokeStyle = c.grainDark;
     g.lineWidth = lineW(r, 0.08);
     g.beginPath();
-    for (let k = 0; k < 4; k++) {
-      const u = -r * 0.75 + k * r * 0.52;
-      g.moveTo(u + r * 0.34, -r * 0.24);
-      g.ellipse(u, -r * 0.24, r * 0.36, r * 0.21, -0.5, 0, TAU);
-      g.moveTo(u + r * 0.34, r * 0.16);
-      g.ellipse(u, r * 0.16, r * 0.36, r * 0.21, 0.5, 0, TAU);
+    for (let k = 0; k < 3; k++) {
+      const u = -r * 0.75 + k * r * 0.62;
+      g.moveTo(u + r * KX, -r * 0.27 - r * KY);
+      g.ellipse(u, -r * 0.27, r * 0.44, r * 0.26, -0.5, 0, TAU);
+      g.moveTo(u + r * KX, r * 0.19 + r * KY);
+      g.ellipse(u, r * 0.19, r * 0.44, r * 0.26, 0.5, 0, TAU);
     }
-    g.moveTo(r * 1.35, -r * 0.05);
-    g.ellipse(r * 1.05, -r * 0.05, r * 0.32, r * 0.2, 0, 0, TAU);
+    g.moveTo(r * 1.08 + r * 0.38, -r * 0.05);
+    g.ellipse(r * 1.08, -r * 0.05, r * 0.38, r * 0.24, 0, 0, TAU);
     g.fill();
     g.stroke();
     g.fillStyle = c.grainLight;
     g.beginPath();
-    for (let k = 0; k < 4; k++) {
-      const u = -r * 0.8 + k * r * 0.52;
-      circle(g, u, -r * 0.3, r * 0.12);
+    for (let k = 0; k < 3; k++) {
+      const u = -r * 0.8 + k * r * 0.62;
+      circle(g, u, -r * 0.33, r * 0.14);
     }
     g.fill();
   }
