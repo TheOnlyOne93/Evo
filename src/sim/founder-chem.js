@@ -60,13 +60,18 @@
     emitter('limbic2', 'fear', 0.35, 0.01),
     emitter('limbic2', 'adrenaline', 0.35, 0.01),
     emitter('chem:fear', 'adrenaline', 0.2, 0.01),
-    emitter('novelty', 'boredom', 0.04, 0.0032, INVERT),
+    emitter('novelty', 'boredom', 0.04, 0.005, INVERT),
     emitter('chem:toxin', 'nausea', 0.04, 0.01),
     emitter('gutFullness', 'nausea', 0.8, 0.004),
     halfLife('hunger', 1500), halfLife('proteinHunger', 2000), halfLife('fatHunger', 2000), halfLife('thirst', 1200),
     halfLife('tiredness', 600), halfLife('sleepiness', 600), halfLife('coldness', 400), halfLife('hotness', 400),
     halfLife('loneliness', 3000), halfLife('crowdedness', 600), halfLife('anger', 800), halfLife('pain', 60),
     halfLife('fear', 300), halfLife('adrenaline', 200), halfLife('boredom', 2000), halfLife('nausea', 300),
+    // Adrenaline that stays high releases a stress hormone (like cortisol), which lingers and clears
+    // adrenaline and fear, so a fright that feeds itself dies down
+    emitter('chem:adrenaline', 'stressHormone', 0.3, 0.001), halfLife('stressHormone', 3000),
+    reaction('adrenaline', 'stressHormone', null, 'stressHormone', 0.05, 0, 1),
+    reaction('fear', 'stressHormone', null, 'stressHormone', 0.05, 0, 1),
 
     // ---------- Relief: what satisfies a drive (11 of the 16 have one) ----------
     emitter('heatGain', 'warmth', 0, 0.02), emitter('heatLoss', 'coolness', 0, 0.02),
@@ -129,10 +134,13 @@
     receptor('tiredness', 'muscle', 0.3, 0.6, NEGATIVE),
     receptor('adrenaline', 'muscle', 0.1, 1),
     receptor('adrenaline', 'arousal', 0.1, 3),
+    receptor('adrenaline', 'metabolism', 0.1, 1),                       // …and burns energy faster
     receptor('sleepiness', 'sleep', 0.15, 3.95),
     receptor('tiredness', 'sleep', 0.5, 1),
     receptor('adrenaline', 'sleep', 0.2, 3, NEGATIVE),
     receptor('pain', 'sleep', 0.2, 3, NEGATIVE),
+    receptor('thirst', 'sleep', 0.7, 4, NEGATIVE),                       // Strong thirst or hunger wakes it
+    receptor('hunger', 'sleep', 0.7, 4, NEGATIVE),
     receptor('toxin', 'damage', 0.25, 0.5),
     receptor('coldness', 'thermogenesis', 0.2, 2),
     receptor('hotness', 'cooling', 0.1, 2),                              // Panting

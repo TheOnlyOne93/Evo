@@ -40,9 +40,9 @@ Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: ru
 
 | | |
 |---|---|
-| Energy | Ready energy pays a basal rate (by body mass; 70% asleep), shivering, muscle work and every spike, and what is paid becomes spent energy. Genes charge it back from blood sugar ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). A brain out of ready energy cannot fire |
+| Energy | Ready energy pays a basal rate (by body mass, faster in a hotter-blooded body and with the metabolic rate receptor target; 70% asleep), shivering, muscle work and every spike, and what is paid becomes spent energy. Genes charge it back from blood sugar ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). The brain is paid first, and the rest of the body leaves it a small reserve, so a starving creature can still think until its blood sugar is nearly gone. A brain out of ready energy cannot fire |
 | Water | Lost steadily, faster in heat, with effort and when panting |
-| Temperature | Heat is exchanged with the air through the fur (wet fur keeps little in), made by the body, by work and by shivering, shared by huddling, and shed by panting |
+| Temperature | Heat is exchanged with the air through the fur (wet fur keeps little in). All the energy the body burns (resting, work, shivering, the brain) warms it, so a sleeping or starving body runs cooler and a hot-blooded one warmer. Huddling against another body halves the heat lost to the air; panting sheds heat |
 | Growth and healing | Growth hormone builds body protein into a bigger body; protein repairs injury |
 | Damage | From receptors (toxin, ageing), starvation, dehydration, cold, heat and severe injury. Health recovers slowly while no receptor does damage, it is not starving and its protein is above 0.15. At zero it dies of whatever did the most damage lately |
 | Scent | Sex musk and alarm scent, as receptors direct |

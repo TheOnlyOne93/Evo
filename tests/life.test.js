@@ -1,7 +1,8 @@
 'use strict';
 // A whole life in the valley: the game's own seed, watched for days. The pair mates, an egg hatches,
 // the young grow up and grow bigger, and everyone lives and dies in a way the player can read: each
-// death leaves a body, and when one sex has no grown adult left, a wanderer of that sex walks in.
+// death leaves a body. And in a world of its own: when one sex has no grown adult left, a wanderer of
+// that sex walks in.
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 const { Evo, game, play } = require('./kit.js');
@@ -9,7 +10,7 @@ const { Evo, game, play } = require('./kit.js');
 const DAYS = 7;           // How long to watch
 const SAMPLE_TICKS = 250; // How often to look closely at every creature
 
-const WATCHED = ['mate', 'egg', 'hatch', 'stage', 'death', 'wanderer', 'refound'];
+const WATCHED = ['mate', 'egg', 'hatch', 'stage', 'death', 'refound'];
 const CHILD = Evo.STAGES.findIndex(s => s.key === 'child');
 const OLD = Evo.STAGES.findIndex(s => s.key === 'old');
 
@@ -35,11 +36,6 @@ before(() => {
       if (name === 'hatch' || name === 'death') e.stage = payload.creature.stage;
       // How big it was when it hatched
       if (name === 'hatch') e.size = payload.creature.size;
-      // Whether it was the last grown creature of its sex, so nobody of that sex is left to breed
-      if (name === 'death') {
-        const c = payload.creature;
-        e.lastOfSex = !world.creatures.some(o => o !== c && !o.dead && o.sex === c.sex && o.isMature);
-      }
       record.events.push(e);
     });
   }
@@ -123,7 +119,7 @@ test('each founder lives to old age', () => {
   }
 });
 
-test('each founder dies of old age', { todo: 'Elani dies of thirst while old: drinking does not follow thirst yet' }, () => {
+test('each founder dies of old age', () => {
   for (const c of record.founders) {
     const death = record.events.find(e => e.name === 'death' && e.creature === c);
     assert.ok(death, `${c.name} did not die in ${DAYS} days`);
@@ -132,13 +128,24 @@ test('each founder dies of old age', { todo: 'Elani dies of thirst while old: dr
 });
 
 test('when one sex has no grown adult left, a wanderer of that sex walks in', () => {
-  const lasts = record.events.filter(e => e.name === 'death' && e.lastOfSex);
-  assert.ok(lasts.length > 0, 'nobody was ever the last grown creature of their sex');
-  for (const d of lasts) {
-    const wanderers = record.events.filter(e => e.name === 'wanderer' && e.tick > d.tick);
-    assert.ok(wanderers.some(w => w.creature.sex === d.creature.sex),
-      `${d.creature.name} (${d.creature.sex}) died at tick ${d.tick}, the last grown one of their sex, and then ${wanderers.length ? `came ${wanderers.map(w => `${w.creature.name} (${w.creature.sex}) at tick ${w.tick}`).join(', ')}` : 'nobody came'}`);
-  }
+  // A new game, where the founder is the only grown male. His body grows old in a moment: it takes on
+  // the ageing chemical that old age kills with, the way an old body gets there
+  const world = game();
+  const male = world.creatures.find(c => c.sex === 'MALE');
+  male.body.chem.set('ageing', 1);
+  let diedAt = null, lastOfSex = false;
+  const wanderers = [];
+  world.events.on('death', ({ creature }) => {
+    if (creature !== male) return;
+    diedAt = world.clock.tick;
+    lastOfSex = !world.creatures.some(o => o !== male && !o.dead && o.sex === 'MALE' && o.isMature);
+  });
+  world.events.on('wanderer', ({ creature }) => wanderers.push(`${creature.name} (${creature.sex}) at tick ${world.clock.tick}`));
+  play(world, Evo.DAY_TICKS, () => wanderers.some(w => w.includes('(MALE)')));
+  assert.ok(diedAt !== null, `${male.name} did not die in a day`);
+  assert.ok(lastOfSex, `${male.name} died, but another grown male was left`);
+  assert.ok(wanderers.some(w => w.includes('(MALE)')),
+    `${male.name} died at tick ${diedAt}, the last grown male, and then ${wanderers.length ? `came ${wanderers.join(', ')}` : 'nobody came'} in a day`);
 });
 
 test('every death leaves a body behind', () => {

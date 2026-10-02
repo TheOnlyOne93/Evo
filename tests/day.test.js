@@ -1,7 +1,8 @@
 'use strict';
 // A day and a night in the valley, in four worlds: how the founding pair sleep, eat, drink and call,
-// and whether each does it for a reason the player can read (tired, hungry, thirsty, lonely). The
-// first two tests hold today. The rest are to-dos: how a creature should behave, not yet how it does.
+// and whether each does it for a reason the player can read (tired, hungry, thirsty, lonely). Three
+// tests hold today: they fall asleep and wake, they eat, drink and call, and they are seldom scared.
+// The rest are to-dos: how a creature should behave, not yet how it does.
 const { test, before } = require('node:test');
 const { Evo, game, play, times, feels, FELT, isNight, inSeeds } = require('./kit.js');
 
@@ -120,7 +121,8 @@ test('each founder sleeps through most of the night', { todo: 'sleep is short: u
   }));
 });
 
-test('a grown creature is seldom scared', { todo: 'fear runs high for much of the day' }, () => {
+test('a grown creature is seldom scared', () => {
+  // Today 4 of 4
   inSeeds(SEEDS, MOST, seed => ({
     ok: days[seed].every(r => r.ticks > 0 && r.scared / r.ticks < SCARED_SHARE),
     note: noteOf(seed, r => `${r.name} scared ${percent(r.scared, r.ticks)}% of the day`)

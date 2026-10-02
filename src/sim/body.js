@@ -15,13 +15,16 @@
 
   const BODY = {
     // Running costs per tick, paid in ready energy (the founder's genes charge 20 of it from 1 of blood
-    // sugar): a resting rate by mass (this share of it asleep), shivering, the muscles in use, each spike
-    cost: { basal: 0.0006, sleepFactor: 0.7, shiver: 0.0006, work: 0.0012, massSize: 40, spike: 1.3e-5 },
+    // sugar): a resting rate by mass (this share of it asleep; a body with no body heat burns
+    // coolBlooded of it, and each unit of the Insulation gene's body heat adds 1), shivering, the
+    // muscles in use, each spike. The rest of the body can't spend the last brainReserve of ready
+    // energy: that is kept for the brain
+    cost: { basal: 0.0006, sleepFactor: 0.7, coolBlooded: 0.5, shiver: 0.0016, work: 0.0012, massSize: 40, spike: 1.3e-5, brainReserve: 0.002 },
     // Water: evaporation, its rise with heat and effort, and panting
     water: { loss: 0.000012, heatOnset: 0.55, heatFactor: 2, pant: 0.00001 },
-    // Heat: exchange with the air through the fur, and the body's own heat sources
-    heat: { wetInsulation: 0.3, exchange: 0.004, body: 0.3, work: 0.8, thermogenesis: 0.6, scale: 0.0006, huddle: 0.0005,
-      baseLoss: 0.00025, pantCooling: 0.0003, display: 500 },
+    // Heat: exchange with the air through the fur (huddling against another keeps this share of it
+    // in), the heat of the energy burned (per unit of ready energy paid), and panting
+    heat: { wetInsulation: 0.3, exchange: 0.004, huddle: 0.5, fromEnergy: 0.14, pantCooling: 0.0003, display: 500 },
     heal: { protein: 0.3 },
     // What fails the body, and how fast it recovers
     harm: { starvation: 0.0003, dehydration: 0.0003, thirstBelow: 0.05, cold: 0.0002, coldBelow: 0.12, heat: 0.0002, heatAbove: 0.88,
@@ -134,14 +137,19 @@
       this.strength = clamp(1 + c.effect('muscle'), 0.1, 2);
 
       // Running costs, paid in ready energy: a resting rate that grows more slowly than the body does
-      // (mass^0.75, Kleiber's law, taking mass as (size / 40)^2 for a body seen side-on), shivering when
-      // cold, the muscles in use and every spike (the brain's cost to the body).
-      // What is paid becomes spent energy; what there is no ready energy for goes unpaid
-      const mass = (creature.size / BODY.cost.massSize) ** 2;
-      const basal = BODY.cost.basal * Math.pow(mass, 0.75) * (1 + c.effect('metabolism')) * (this.asleep ? BODY.cost.sleepFactor : 1);
-      const shiver = BODY.cost.shiver * Math.max(0, c.effect('thermogenesis'));
-      const work = BODY.cost.work * creature.exertion;
-      const paid = Math.min(c.get('readyEnergy'), basal + shiver + work + BODY.cost.spike * creature.brain.spikesThisTick);
+      // (mass^0.75, Kleiber's law, taking mass as (size / 40)^2 for a body seen side-on) and faster in a
+      // hotter-blooded body, shivering when cold, the muscles in use and every spike (the brain's cost to
+      // the body). The brain is paid first, as a starving body keeps its brain fed, and the rest of the
+      // body leaves it a reserve. What is paid becomes spent energy, and heat; what there is no ready
+      // energy for goes unpaid
+      const C = BODY.cost;
+      const mass = (creature.size / C.massSize) ** 2;
+      const basal = C.basal * Math.pow(mass, 0.75) * (C.coolBlooded + T.bodyHeat) * (1 + c.effect('metabolism')) * (this.asleep ? C.sleepFactor : 1);
+      const shiver = C.shiver * Math.max(0, c.effect('thermogenesis'));
+      const work = C.work * creature.exertion;
+      const ready = c.get('readyEnergy');
+      const brainPaid = Math.min(ready, C.spike * creature.brain.spikesThisTick);
+      const paid = brainPaid + Math.min(Math.max(0, ready - brainPaid - C.brainReserve), basal + shiver + work);
       c.add('readyEnergy', -paid);
       c.add('spentEnergy', paid);
 
@@ -150,13 +158,12 @@
       const pant = Math.max(0, c.effect('cooling'));
       c.add('water', -BODY.water.loss * (1 + BODY.water.heatFactor * Math.max(0, ambient - BODY.water.heatOnset)) * (1 + creature.exertion) - BODY.water.pant * pant);
 
-      // Temperature: exchange with the air through the fur, plus heat from the body's own work
-      // and from huddling against others
-      const insulation = creature.inWater ? T.insulation * BODY.heat.wetInsulation : T.insulation; // Wet fur keeps little heat in
-      const exchange = (ambient - this.temperature) * (1 - insulation) * BODY.heat.exchange;
-      const heat = (T.bodyHeat * BODY.heat.body + creature.exertion * BODY.heat.work + Math.max(0, c.effect('thermogenesis')) * BODY.heat.thermogenesis) * BODY.heat.scale
-        + this.stim.touchingFriend * BODY.heat.huddle - BODY.heat.baseLoss - pant * BODY.heat.pantCooling;
-      const dT = exchange + heat;
+      // Temperature: exchange with the air through the fur, less while huddled against another body,
+      // plus the heat of the energy just burned (resting, shivering, work, the brain); panting sheds heat
+      const H = BODY.heat;
+      const insulation = creature.inWater ? T.insulation * H.wetInsulation : T.insulation; // Wet fur keeps little heat in
+      const exchange = (ambient - this.temperature) * (1 - insulation) * H.exchange * (1 - this.stim.touchingFriend * H.huddle);
+      const dT = exchange + paid * H.fromEnergy - pant * H.pantCooling;
       this.temperature = clamp01(this.temperature + dT);
       this.heatGain = clamp01(dT * BODY.heat.display);
       this.heatLoss = clamp01(-dT * BODY.heat.display);

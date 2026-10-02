@@ -70,6 +70,6 @@ The bytes between genes are filler: four at the start and three after each gene.
 |---|---|
 | `founder.js` | `Evo.founderKit`, the helpers that write specs (`reaction`, `emitter`, `receptor`, `stimulus`, `halfLife`, `initial`, `wire`, `instinct`, and the spot helpers `muscleSpot`, `driveSpot`, `colourSpot`, `odourSpot`, `touchSpot`, `feelingSpot`, which read the brain map), `Evo.FOUNDERS`, and `Evo.founderBody(sex)`: one each of the 13 trait genes, with that sex's looks and voice |
 | `founder-brain.js` | 115 genes: 107 tracts, a pacemaker, four Lobe dynamics genes and three Cell type genes ([BRAIN.md](BRAIN.md)) |
-| `founder-chem.js` | 188 genes: metabolism, drives, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)); it also puts the three lists together into `Evo.FOUNDER_GENOMES` |
+| `founder-chem.js` | 195 genes: metabolism, drives, a stress hormone, relief, stimuli, reinforcement, receptors, adolescence, old age, and 15 instincts ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)); it also puts the three lists together into `Evo.FOUNDER_GENOMES` |
 
 The founder has no Anatomy or Neurochemistry gene. All its genes are on from birth except four for adolescence and two for old age.

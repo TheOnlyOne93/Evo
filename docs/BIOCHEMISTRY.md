@@ -4,7 +4,7 @@
 
 ## Chemicals
 
-There are 64 slots (`Evo.N_CHEM`), each a concentration from 0 to 1. Slot 0 means "nothing". `Evo.CHEMICALS` names 51 of the other 63, and 12 are free for mutation to use. A named chemical has a kind: nutrient, energy, hormone, drive, relief, reinforcer or other.
+There are 64 slots (`Evo.N_CHEM`), each a concentration from 0 to 1. Slot 0 means "nothing". `Evo.CHEMICALS` names 52 of the other 63, and 11 are free for mutation to use. A named chemical has a kind: nutrient, energy, hormone, drive, relief, reinforcer or other.
 
 The body's fixed physiology reads a few of them by name: it pays for everything it does in ready energy and gets back spent energy, it loses water, it grows and heals with protein, toxin adds noise to the brain, and pain wakes a sleeper ([CREATURE.md](CREATURE.md)). Everything else about a chemical is up to genes.
 
@@ -47,7 +47,7 @@ A `need:k` or `limbic:k` receptor puts a current into its cell, except `limbic:0
 | boredom | Nothing novel | Novelty: an unfamiliar thing, play |
 | sex drive | Sex hormone, from adolescence | Mating |
 | pain | An impact, injury, a bump, thorns | None. Endorphin, from a gentle touch, removes it |
-| fear | An impact, falling, being held, alarm scent, a slap, a shove, thorns | None. Company calms it |
+| fear | An impact, falling, being held, alarm scent, a slap, a shove, thorns | None. Company calms it, and the stress hormone clears it |
 | crowdedness, anger | Crowding; crowdedness, being shoved | None |
 | nausea | Toxin, an over-full gut, a lot of bitter taste | None |
 
@@ -55,9 +55,11 @@ Eating only rewards a hungry creature, and only while the food is tasted: a full
 
 **Punishment** is released by emitters reading pain, nausea, fear and a bitter taste, and by the *slapped* stimulus.
 
+**Stress.** The fear Feelings cell releases fear and adrenaline, and fear raises adrenaline, so a fright can feed itself. Adrenaline that stays high releases a stress hormone (like cortisol), which lingers for minutes and clears adrenaline and fear, so a long fright dies down. A short scare is over before much of it is made.
+
 **Stimulus genes** (for 9 of the 19 events). A pat releases reward and company; a slap, punishment and fear; a nuzzle, company for both; being shoved, anger and fear; play, novelty; a bump, a little pain; thorns, pain and fear; falling asleep, the dozing-off relief.
 
-**Receptors on the body.** Low ready energy, or tiredness, weakens the muscles; adrenaline strengthens them and arouses the brain. Sleepiness and tiredness build sleep pressure; adrenaline and pain lower it. Toxin damages. Coldness makes it shiver, hotness pant. Fear releases alarm scent.
+**Receptors on the body.** Low ready energy, or tiredness, weakens the muscles; adrenaline strengthens them, arouses the brain and makes the body burn energy faster. Sleepiness and tiredness build sleep pressure; adrenaline and pain lower it, and so do strong thirst and hunger, which wake a sleeper. Toxin damages. Coldness makes it shiver, hotness pant. Fear releases alarm scent.
 
 **Later stages.** From adolescence, fat stores raise sex hormone, which brings sex drive, fertility and sex scent. From old age an ageing chemical builds up (faster once senile), never decays, and in time damages health: this is what old age dies of, a little before the lifespan is up.
 

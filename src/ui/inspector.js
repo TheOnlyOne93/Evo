@@ -12,7 +12,7 @@
   const chemBar = (c, key) => bar(T.CHEM_WORDS[key], c.body.chem.get(key), chemColor(key));
 
   // Chemical groups for the Body deck
-  const FEELINGS = ['reward', 'punishment', 'endorphin', 'adrenaline'];
+  const FEELINGS = ['reward', 'punishment', 'endorphin', 'adrenaline', 'stressHormone'];
   const NUTRIENTS = ['glucose', 'glycogen', 'fat', 'protein', 'water', 'gutSugar', 'gutStarch', 'gutProtein', 'gutFat', 'toxin'];
   const ENERGY = ['readyEnergy', 'spentEnergy', 'adenosine'];
   const HORMONES = ['insulin', 'glucagon', 'melatonin', 'growthHormone', 'sexHormone', 'liverEnzyme', 'ageing'];
