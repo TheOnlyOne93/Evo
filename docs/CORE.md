@@ -10,7 +10,7 @@ Every script adds its exports to `globalThis.Evo`.
 |---|---|
 | `Evo.random()`, `randRange(lo, hi)`, `randInt(n)`, `chance(p)`, `pick(arr)` | Random numbers, all from one seeded stream (mulberry32) |
 | `Evo.DEFAULT_SEED` | The seed every run starts from; `?seed=N` in the URL overrides it when the script loads |
-| `Evo.seed(n)`, `Evo.useRandomSource(fn)` | Reseed the stream, or script its draws (tests and tools) |
+| `Evo.seed(n)` | Start the stream again from seed `n` |
 | `Evo.nextId()` | Increasing ids for creatures, items and planted thorn bushes, never reused in a session |
 | `Evo.EventBus` | `on(type, fn)` (returns a function that unsubscribes), `off(type, fn)`, `emit(type, payload)`. Handlers run at once, in the order they were added |
 | `Evo.util` | `clamp`, `clamp01`, `lerp`, `smoothstep`, `mean`, `maxBy`, `minBy`, `countBy`, `TAU`, `mulberry32`, `hash2`, `fixedRoll`, `fixedNumber` |

@@ -447,5 +447,5 @@
     }
   }
 
-  Object.assign(Evo, { GENOME_LIMITS, Genome, chromFor, GENES, GENE_INDEX, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES, encodeGene });
+  Object.assign(Evo, { GENOME_LIMITS, Genome, chromFor, GENES, CODEC, FLAG, flagsOf, GENE_NONE, GUIDANCE, TRAIT_RANGES });
 })(globalThis.Evo);

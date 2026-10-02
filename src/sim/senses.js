@@ -199,5 +199,5 @@
     };
   }
 
-  Evo.senses = { sense, noticeNovelty, fromBody, NEURAL_GAIN };
+  Evo.senses = { sense, noticeNovelty, fromBody };
 })(globalThis.Evo);

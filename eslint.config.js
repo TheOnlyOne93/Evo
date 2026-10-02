@@ -90,6 +90,6 @@ module.exports = [
   },
   {
     files: ['tests/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
-    languageOptions: { globals: { ...asGlobals([...shared, ...node]), test: 'writable' } }
+    languageOptions: { globals: asGlobals([...shared, ...node]) }
   }
 ];

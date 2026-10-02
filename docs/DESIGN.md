@@ -20,7 +20,7 @@ Each system has its own doc. Change the doc with the code it describes.
 | Sound | [AUDIO.md](AUDIO.md) | `src/audio/` |
 | Drawing: the creature pose, the world view, the brain map, the family tree | [RENDERING.md](RENDERING.md) | `src/render/` |
 | The page: the main loop, the hand and tools, the inside view, layout, styles | [INTERFACE.md](INTERFACE.md) | `src/ui/`, `index.html`, `styles/` |
-| Tests, the fingerprint, the behaviour bench and ecology tools, CI, lint | [TESTING.md](TESTING.md) | `tests/`, `tools/`, `.github/`, `eslint.config.js`, `.gitattributes`, `.editorconfig` |
+| Tests, breakages, the fingerprint, the behaviour reports and ecology tools, CI, lint | [TESTING.md](TESTING.md) | `tests/`, `tools/`, `.github/`, `eslint.config.js`, `.gitattributes`, `.editorconfig` |
 | Opening the game and the lab pages in a browser | [BROWSER_CHECKS.md](BROWSER_CHECKS.md) | `tools/serve.js` |
 
 ## How the *Creatures* ideas map

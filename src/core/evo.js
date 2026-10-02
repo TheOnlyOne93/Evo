@@ -48,7 +48,6 @@
   }
   let rng = mulberry32(startSeed);
   Evo.seed = seed => { rng = mulberry32(seed); };
-  Evo.useRandomSource = fn => { rng = fn; }; // Tests: script exact random draws
   Evo.random = () => rng();
   Evo.randRange = (lo, hi) => lo + (hi - lo) * rng();
   Evo.randInt = n => Math.floor(rng() * n);

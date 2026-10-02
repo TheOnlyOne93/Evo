@@ -30,7 +30,7 @@ Every number about the body is in one table, `Evo.BODY` in `src/sim/body.js`: ru
 
 `new Evo.Creature(genome, x, y, opts)` takes `opts` `{ generation, parents, reserves, ageTicks, growth, facing, syllables }`. Left out, `facing` (1 or -1) is chosen at random, and `syllables` (the two syllables of its name, such as `['el', 'ani']` for Elani) are made from its parents' syllables, or at random when it has none. `name` is the syllables joined and capitalised.
 
-`creature.stimulate(key, strength)` raises a stimulus in its body's chemistry and notes it for the interface ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)). `creature.step(world)` runs one creature through all four phases on its own, for tests; it also flushes every creature's queued writes and deeds.
+`creature.stimulate(key, strength)` raises a stimulus in its body's chemistry and notes it for the interface ([BIOCHEMISTRY.md](BIOCHEMISTRY.md)).
 
 ## Body
 

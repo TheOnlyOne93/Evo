@@ -179,21 +179,8 @@
 
     // ---------- One tick ----------
     // A tick runs in phases: body (chemistry and health), mind (senses and brain), act (muscles),
-    // settle (movement). World.step runs each phase for every creature before the next phase;
-    // step() runs one creature through all of them on its own (for tests and tools), applying the
-    // world writes its body and muscles queued straight away. A creature that dies in its body phase
-    // skips the rest (World.step removes it; here the caller does)
-    step(world) {
-      if (this.dead) return;
-      this.tickBody(world);
-      world.applyQueuedWrites();
-      if (this.dead) return;
-      this.mind(world);
-      this.act(world);
-      world.applyQueuedDeeds();
-      this.settle(world);
-    }
-
+    // settle (movement). World.step runs each phase for every creature before the next phase. A
+    // creature that dies in its body phase skips the rest (World.step removes it)
     tickBody(world) {
       this.ageTicks++;
       // Stages only move forward: a later gene that lengthens the lifespan must not send the

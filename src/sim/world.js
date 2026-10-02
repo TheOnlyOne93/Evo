@@ -761,5 +761,5 @@
     creatureById(id) { return this.creatures.find(c => c.id === id) || null; }
   }
 
-  Object.assign(Evo, { World, WORLD: { ADULT_ARRIVAL_AGE, HOLD_GRIP, SOUND_LIFE_TICKS } });
+  Object.assign(Evo, { World, WORLD: { HOLD_GRIP, SOUND_LIFE_TICKS } });
 })(globalThis.Evo);

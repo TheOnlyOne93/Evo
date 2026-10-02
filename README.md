@@ -32,13 +32,14 @@ the world starts from a fixed seed (`Evo.DEFAULT_SEED`); open `index.html?seed=1
 ## Tests and tools
 
 ```sh
-node tools/check.js            # the tests and fingerprint --check side by side: run before committing
-node tests/run.js [filter]     # the tests, or those whose name contains the filter
-node tools/behave.js 12        # behaviour bench (--report adds metrics)
-node tools/evaluate.js 2 3     # ecology: 2 days on 3 seeds, in parallel
-node tools/simulate.js 2 1     # one headless run with a running report
-node tools/serve.js            # a no-cache server at http://127.0.0.1:8123/ for browser checks
-npx eslint@10 .                # lint (no install or package.json needed)
+node tools/check.js             # the tests and fingerprint --check side by side: run before committing
+node --test "tests/*.test.js"   # the tests (node --test tests/map.test.js runs one file)
+node tools/behave.js 12         # behaviour reports, to compare before and after a change
+node tools/breakage.js [filter] # break one part on purpose: do the tests notice?
+node tools/evaluate.js 2 3      # ecology: 2 days on 3 seeds, in parallel
+node tools/simulate.js 2 1      # one headless run with a running report
+node tools/serve.js             # a no-cache server at http://127.0.0.1:8123/ for browser checks
+npx eslint@10 .                 # lint (no install or package.json needed)
 ```
 
 [docs/TESTING.md](docs/TESTING.md) describes them. `dev/creature-lab.html` and `dev/world-lab.html`
@@ -55,7 +56,7 @@ preview the creature and world art with the game's own code
 | `src/render/` | Canvas drawing: sky, world, items, creatures (from a pose), brain map, family tree |
 | `src/ui/` | The main loop, the hand, header, card, strip, toolbar, keys, layout and inside view; plain-language text and family lookups |
 | `styles/app.css` | Styles and colour tokens (the canvases read the same tokens) |
-| `tests/`, `tools/` | Headless tests; the check, the determinism fingerprint, the behaviour bench, ecology runs, the no-cache server |
+| `tests/`, `tools/` | Headless tests; the check, the fingerprint (is every run still the same?), the breakages, the behaviour reports, ecology runs, the no-cache server |
 | `dev/` | The creature and world lab pages |
 | `docs/` | One doc per system. `docs/DESIGN.md` is the overview and lists them |
 | `.github/`, `eslint.config.js` | CI (tests and lint) and the lint config |

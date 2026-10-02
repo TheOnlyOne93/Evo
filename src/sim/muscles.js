@@ -97,5 +97,5 @@
       : !c.onGround ? 'jumping' : Math.abs(c.vx) > 0.25 ? (running ? 'running' : 'walking') : 'idle';
   }
 
-  Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE, JUMP_COOLDOWN_TICKS };
+  Evo.muscles = { act, CALL_TICKS, MOUTH_TICKS, LYING_ABOVE };
 })(globalThis.Evo);

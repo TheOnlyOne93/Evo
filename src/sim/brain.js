@@ -539,17 +539,6 @@
       });
     }
 
-    outgoing(i) {
-      if (this.adjacencyDirty) this.rebuildAdjacency();
-      return Array.from(this.outList.subarray(this.outStart[i], this.outStart[i + 1]));
-    }
-
-    incoming(i) {
-      const out = [];
-      for (let s = 0; s < this.S; s++) if (this.sDst[s] === i) out.push(s);
-      return out;
-    }
-
     // ---------- Growing the wiring ----------
     // PURE BOTTOM-UP WIRING. Each guidance gene sends the axons of one region toward a spot in a target
     // region. Which side of the target the axons look at depends on the gene and on the source cell's own
@@ -922,10 +911,10 @@
   }
 
   Object.assign(Evo, {
-    Brain, BRAIN: { WEIGHT_MIN, WEIGHT_MAX, V_REST, SPROUTED, CUE, INHIBITORY, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
+    Brain, BRAIN: { WEIGHT_MAX, V_REST, SPROUTED, CUE, CHEM_SIZE, MORPHOGENESIS_EVERY, N_MOD },
     BRAIN_BODY_PLAN: {
-      SIDES, BANDS, SIGHT_CELLS, SMELL_CELLS, HEARING_CELLS: HEARING.length, gridSpot, colourSpot, smellSpot,
-      sightIndex, smellIndex, hearingIndex, sightCell, smellCell
+      SIDES, BANDS, SIGHT_CELLS, HEARING_CELLS: HEARING.length, gridSpot, colourSpot, smellSpot,
+      sightIndex, smellIndex, hearingIndex, sightCell
     }
   });
 })(globalThis.Evo);
